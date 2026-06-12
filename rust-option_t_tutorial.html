@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Option&lt;T&gt; — A hiányzó érték kezelése Rustban</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:        #16130F;   /* mély vasszén */
+    --surface:   #211C16;   /* sötét fémfelület */
+    --surface-2: #2B2419;
+    --line:      #3A3225;
+    --rust:      #E8590C;   /* rozsda — vas-oxid */
+    --rust-dim:  #B5400A;
+    --patina:    #3FA08C;   /* patina — réz-oxid */
+    --patina-dim:#2C7060;
+    --bone:      #EDE4D3;   /* csont — fő szöveg */
+    --muted:     #9C907C;
+    --danger:    #D64545;
+    --radius:    10px;
+    --maxw:      880px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto}
+    *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  }
+  body{
+    background:var(--bg);
+    color:var(--bone);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    font-size:17px;
+    line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--rust);color:#16130F}
+
+  a{color:var(--patina)}
+  a:focus-visible,button:focus-visible{outline:2px solid var(--rust);outline-offset:2px;border-radius:4px}
+
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+
+  /* ---------- HERO ---------- */
+  header{
+    border-bottom:1px solid var(--line);
+    padding:72px 0 56px;
+    background:
+      radial-gradient(900px 360px at 85% -10%, rgba(232,89,12,.13), transparent 65%),
+      radial-gradient(700px 320px at 0% 110%, rgba(63,160,140,.09), transparent 60%);
+  }
+  .eyebrow{
+    font-family:"JetBrains Mono",monospace;
+    font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--rust);
+    margin-bottom:18px;
+  }
+  h1{
+    font-family:"Bricolage Grotesque",sans-serif;
+    font-weight:800;
+    font-size:clamp(2.3rem,6vw,3.9rem);
+    line-height:1.05;
+    letter-spacing:-.02em;
+  }
+  h1 .mono{font-family:"JetBrains Mono",monospace;font-weight:600;color:var(--rust)}
+  .lede{
+    margin-top:22px;max-width:60ch;
+    font-size:1.12rem;color:var(--muted);
+  }
+  .lede strong{color:var(--bone);font-weight:600}
+
+  .hero-enum{
+    margin-top:36px;
+    display:inline-block;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-left:3px solid var(--rust);
+    border-radius:var(--radius);
+    padding:18px 26px;
+    font-family:"JetBrains Mono",monospace;
+    font-size:.95rem;
+    line-height:1.8;
+  }
+
+  /* ---------- SZAKASZOK ---------- */
+  main{padding:24px 0 90px}
+  section{padding:56px 0 8px}
+  section + section{border-top:1px solid var(--line);margin-top:48px}
+
+  h2{
+    font-family:"Bricolage Grotesque",sans-serif;
+    font-weight:600;
+    font-size:clamp(1.5rem,3.4vw,2rem);
+    letter-spacing:-.01em;
+    margin-bottom:6px;
+  }
+  .section-label{
+    font-family:"JetBrains Mono",monospace;
+    font-size:.74rem;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--patina);margin-bottom:10px;
+  }
+  h3{
+    font-family:"Bricolage Grotesque",sans-serif;
+    font-weight:600;font-size:1.18rem;
+    margin:34px 0 8px;
+  }
+  p{margin:14px 0;max-width:68ch}
+  p code, li code{
+    font-family:"JetBrains Mono",monospace;
+    font-size:.86em;
+    background:var(--surface-2);
+    border:1px solid var(--line);
+    border-radius:5px;
+    padding:.1em .4em;
+    color:var(--bone);
+    white-space:nowrap;
+  }
+  ul{margin:14px 0 14px 22px;max-width:68ch}
+  li{margin:8px 0}
+
+  /* ---------- KÓDBLOKKOK ---------- */
+  pre{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:20px 22px;
+    overflow-x:auto;
+    font-family:"JetBrains Mono",monospace;
+    font-size:.88rem;
+    line-height:1.75;
+    margin:18px 0;
+  }
+  pre .cm{color:var(--muted);font-style:italic}
+  pre .kw{color:var(--rust)}
+  pre .ty{color:var(--patina)}
+  pre .fn{color:#E3B341}
+  pre .st{color:#A8C97F}
+  pre .nm{color:#C792EA}
+  .filetag{
+    display:inline-block;
+    font-family:"JetBrains Mono",monospace;
+    font-size:.72rem;letter-spacing:.08em;
+    color:var(--muted);
+    border:1px solid var(--line);
+    border-bottom:none;
+    border-radius:8px 8px 0 0;
+    padding:5px 14px;
+    margin-bottom:-19px;
+    background:var(--surface-2);
+    position:relative;z-index:1;
+  }
+
+  /* ---------- KIEMELT DOBOZOK ---------- */
+  .callout{
+    border:1px solid var(--line);
+    border-left:3px solid var(--patina);
+    background:var(--surface);
+    border-radius:var(--radius);
+    padding:16px 20px;
+    margin:22px 0;
+    max-width:none;
+  }
+  .callout.warn{border-left-color:var(--danger)}
+  .callout.rust{border-left-color:var(--rust)}
+  .callout p{margin:6px 0}
+  .callout .tag{
+    font-family:"JetBrains Mono",monospace;
+    font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--patina);
+  }
+  .callout.warn .tag{color:var(--danger)}
+  .callout.rust .tag{color:var(--rust)}
+
+  /* ---------- INTERAKTÍV DEMÓ ---------- */
+  .demo{
+    margin:30px 0 10px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:
+      linear-gradient(180deg, rgba(63,160,140,.05), transparent 40%),
+      var(--surface);
+    padding:26px;
+  }
+  .demo-head{
+    display:flex;align-items:baseline;justify-content:space-between;
+    gap:12px;flex-wrap:wrap;margin-bottom:18px;
+  }
+  .demo-title{
+    font-family:"Bricolage Grotesque",sans-serif;
+    font-weight:600;font-size:1.05rem;
+  }
+  .demo-sub{font-size:.85rem;color:var(--muted)}
+  .demo-body{
+    display:grid;
+    grid-template-columns:minmax(150px,200px) 1fr;
+    gap:26px;align-items:end;
+  }
+  @media (max-width:600px){.demo-body{grid-template-columns:1fr}}
+
+  .stack{
+    display:flex;flex-direction:column-reverse;align-items:center;
+    gap:6px;min-height:230px;justify-content:flex-start;
+    border-bottom:2px solid var(--line);
+    padding-bottom:10px;
+  }
+  .tile{
+    width:120px;height:38px;border-radius:7px;
+    display:flex;align-items:center;justify-content:center;
+    font-family:"JetBrains Mono",monospace;font-size:.78rem;font-weight:600;
+    color:#16130F;
+    box-shadow:0 2px 0 rgba(0,0,0,.4);
+    transition:transform .25s ease,opacity .25s ease;
+  }
+  .tile.grass{background:#8FBF5A}
+  .tile.stone{background:#A9A29A}
+  .tile.bone {background:#EDE4D3}
+  .tile.lava {background:#E8590C;color:#fff}
+  .tile.pop{transform:translateY(-26px) rotate(-5deg);opacity:0}
+
+  .demo-right{display:flex;flex-direction:column;gap:14px}
+  .demo-out{
+    font-family:"JetBrains Mono",monospace;
+    font-size:.92rem;
+    background:var(--bg);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:14px 16px;
+    min-height:84px;
+  }
+  .demo-out .lab{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+  .demo-out .val.some{color:var(--patina)}
+  .demo-out .val.none{color:var(--danger)}
+  .demo-out .branch{display:block;margin-top:8px;color:var(--muted);font-size:.8rem}
+
+  .btnrow{display:flex;gap:10px;flex-wrap:wrap}
+  button{
+    font-family:"JetBrains Mono",monospace;
+    font-size:.88rem;font-weight:600;
+    background:var(--rust);color:#16130F;
+    border:none;border-radius:8px;
+    padding:10px 20px;cursor:pointer;
+    transition:transform .12s ease,background .12s ease;
+  }
+  button:hover{background:#FF6A1F;transform:translateY(-1px)}
+  button:active{transform:translateY(0)}
+  button.ghost{
+    background:transparent;color:var(--bone);
+    border:1px solid var(--line);
+  }
+  button.ghost:hover{background:var(--surface-2)}
+
+  /* ---------- ÖSSZEHASONLÍTÓ TÁBLA ---------- */
+  table{
+    width:100%;border-collapse:collapse;margin:20px 0;
+    font-size:.92rem;
+  }
+  th,td{
+    text-align:left;padding:12px 14px;
+    border-bottom:1px solid var(--line);
+    vertical-align:top;
+  }
+  th{
+    font-family:"JetBrains Mono",monospace;
+    font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;
+  }
+  td code{
+    font-family:"JetBrains Mono",monospace;font-size:.84em;
+    background:var(--surface-2);border:1px solid var(--line);
+    border-radius:5px;padding:.1em .4em;white-space:nowrap;
+  }
+  td.ok{color:var(--patina)}
+  td.bad{color:var(--danger)}
+
+  footer{
+    border-top:1px solid var(--line);
+    padding:34px 0 60px;
+    color:var(--muted);font-size:.88rem;
+  }
+  footer code{font-family:"JetBrains Mono",monospace;font-size:.84em}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">rust · tutorial · hibatűrő gondolkodás</div>
+    <h1><span class="mono">Option&lt;T&gt;</span><br>Amikor egy érték vagy van, vagy nincs</h1>
+    <p class="lede">A Rust nem ismeri a <strong>null</strong>-t. Helyette egy típussal mondja ki az igazságot:
+    egy érték vagy <strong>létezik</strong> (<code style="font-family:'JetBrains Mono',monospace">Some(érték)</code>),
+    vagy <strong>hiányzik</strong> (<code style="font-family:'JetBrains Mono',monospace">None</code>) —
+    és a fordító nem engedi, hogy erről megfeledkezz.</p>
+    <div class="hero-enum">
+<span class="cm">// A teljes Option a standard könyvtárban — ennyi az egész:</span><br>
+<span class="kw">enum</span> <span class="ty">Option</span>&lt;<span class="ty">T</span>&gt; {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="nm">Some</span>(<span class="ty">T</span>),&nbsp;&nbsp;<span class="cm">// van érték, és az T típusú</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="nm">None</span>,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// nincs érték</span><br>
+}
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- ============ 1. MIÉRT ============ -->
+<section id="miert">
+  <div class="section-label">// 01 — a probléma</div>
+  <h2>Miért nem elég a null?</h2>
+  <p>A legtöbb nyelvben (C, Java, JavaScript, Python a maga <code>None</code>-jával) bármelyik referencia lehet „üres”, és ezt a típusrendszer nem jelzi. Egy <code>String</code> típusú változó lehet, hogy string — de lehet, hogy <code>null</code>. Ezt csak futásidőben tudod meg, jellemzően egy <code>NullPointerException</code> vagy egy <code>TypeError: cannot read property of undefined</code> formájában.</p>
+  <p>Tony Hoare, a null referencia feltalálója ezt utólag „milliárd dolláros hibának” nevezte. A Rust válasza radikális: <strong>a hiány nem rejtett tulajdonság, hanem külön típus</strong>.</p>
+  <div class="callout rust">
+    <span class="tag">A kulcsgondolat</span>
+    <p>Rustban egy <code>String</code> <em>mindig</em> string. Ha egy érték hiányozhat, annak típusa nem <code>String</code>, hanem <code>Option&lt;String&gt;</code>. A két típus nem keverhető — a fordító kényszerít rá, hogy a „nincs érték” esetet <em>kezelt</em> állapotba hozd, mielőtt a belsejéhez nyúlnál.</p>
+  </div>
+  <pre><span class="cm">// Ez le sem fordul — Option&lt;i32&gt; és i32 két különböző típus:</span>
+<span class="kw">let</span> x: <span class="ty">i32</span> = <span class="st">5</span>;
+<span class="kw">let</span> y: <span class="ty">Option</span>&lt;<span class="ty">i32</span>&gt; = <span class="nm">Some</span>(<span class="st">5</span>);
+
+<span class="kw">let</span> osszeg = x + y; <span class="cm">// ❌ fordítási hiba: i32 + Option&lt;i32&gt; nem megy</span>
+<span class="cm">// Előbb ki KELL bontanod y-t — és közben dönteni a None esetről is.</span></pre>
+</section>
+
+<!-- ============ 2. VEC::POP ============ -->
+<section id="pop">
+  <div class="section-label">// 02 — egy valódi példa</div>
+  <h2>Miért ad a <code style="font-family:'JetBrains Mono',monospace;font-size:.8em">Vec::pop()</code> Option-t?</h2>
+  <p>A <code>Vec::pop()</code> leveszi és visszaadja a vektor utolsó elemét. Csakhogy a lista lehet üres — és akkor nincs mit visszaadni. A visszatérési típus ezért nem <code>T</code>, hanem <code>Option&lt;T&gt;</code>: a függvény szignatúrája <em>őszintén</em> közli, hogy a hívás kudarcot is vallhat.</p>
+
+  <pre><span class="filetag">tilemap.rs</span>
+<span class="kw">enum</span> <span class="ty">TileKind</span> { <span class="nm">Grass</span>, <span class="nm">Stone</span>, <span class="nm">Bone</span>, <span class="nm">Lava</span> }
+
+<span class="kw">let mut</span> tiles: <span class="ty">Vec</span>&lt;<span class="ty">TileKind</span>&gt; = <span class="fn">vec!</span>[<span class="ty">TileKind</span>::<span class="nm">Grass</span>, <span class="ty">TileKind</span>::<span class="nm">Stone</span>];
+
+<span class="kw">let</span> tile = tiles.<span class="fn">pop</span>(); <span class="cm">// típusa: Option&lt;TileKind&gt; → Some(Stone)</span>
+<span class="kw">let</span> tile = tiles.<span class="fn">pop</span>(); <span class="cm">// Some(Grass)</span>
+<span class="kw">let</span> tile = tiles.<span class="fn">pop</span>(); <span class="cm">// None — a lista kiürült, és ez NEM hiba,</span>
+                          <span class="cm">// hanem egy szabályos, típusban kódolt állapot</span></pre>
+
+  <div class="demo" id="demo">
+    <div class="demo-head">
+      <div>
+        <div class="demo-title">Próbáld ki: <span style="font-family:'JetBrains Mono',monospace;color:var(--rust)">tiles.pop()</span></div>
+        <div class="demo-sub">Vedd le a csempéket a stackről, és figyeld, mit ad vissza az Option.</div>
+      </div>
+    </div>
+    <div class="demo-body">
+      <div class="stack" id="stack" aria-live="polite"></div>
+      <div class="demo-right">
+        <div class="demo-out">
+          <span class="lab">tiles.pop() visszatérési értéke</span>
+          <span class="val some" id="outVal">— még nem hívtad meg —</span>
+          <span class="branch" id="outBranch"></span>
+        </div>
+        <div class="btnrow">
+          <button id="btnPop" type="button">tiles.pop()</button>
+          <button id="btnReset" type="button" class="ghost">reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p style="font-size:.9rem;color:var(--muted)">Figyeld meg: amikor a stack kiürül, a <code>pop()</code> nem dob kivételt és nem omlik össze — egyszerűen <code>None</code>-t ad, amit a kódod ágként kezel.</p>
+</section>
+
+<!-- ============ 3. KIBONTÁS ============ -->
+<section id="kibontas">
+  <div class="section-label">// 03 — kibontás biztonságosan</div>
+  <h2>Kibontás = ellenőrzés egy lépésben</h2>
+  <p>Az <code>Option</code> belsejéhez nem férsz hozzá „csak úgy”. A kibontás mintaillesztéssel történik, és ez a lényeg: <strong>a „van-e érték?” kérdés és az érték kinyerése egyetlen, szétválaszthatatlan művelet</strong>. Nem fordulhat elő, hogy ellenőrzöl, aztán két sorral lejjebb mégis a hiányzó értékhez nyúlsz.</p>
+
+  <h3>1. <code>match</code> — minden eset kötelező</h3>
+  <p>A <code>match</code> a legteljesebb forma: a fordító <em>kikényszeríti</em>, hogy a <code>Some</code> és a <code>None</code> ágat is megírd. Ha az egyiket kihagyod, a kód le sem fordul.</p>
+  <pre><span class="kw">match</span> tiles.<span class="fn">pop</span>() {
+    <span class="nm">Some</span>(tile) =&gt; {
+        <span class="cm">// itt a `tile` már sima TileKind — garantáltan létezik</span>
+        <span class="fn">spawn_tile_sprite</span>(&amp;<span class="kw">mut</span> commands, tile);
+    }
+    <span class="nm">None</span> =&gt; {
+        <span class="fn">info!</span>(<span class="st">"A pálya elfogyott, nincs több csempe."</span>);
+    }
+}</pre>
+
+  <h3>2. <code>if let</code> — amikor csak az egyik ág érdekel</h3>
+  <p>Ha a <code>None</code> esetben nincs teendőd, az <code>if let</code> tömörebb. A minta (<code>Some(tile)</code>) illeszkedését vizsgálja, és siker esetén rögtön be is köti a <code>tile</code> változót.</p>
+  <pre><span class="kw">if let</span> <span class="nm">Some</span>(tile) = tiles.<span class="fn">pop</span>() {
+    <span class="cm">// csak akkor futunk ide, ha tényleg volt elem</span>
+    <span class="fn">spawn_tile_sprite</span>(&amp;<span class="kw">mut</span> commands, tile);
+}
+<span class="cm">// None esetén egyszerűen átugorjuk a blokkot</span></pre>
+
+  <h3>3. <code>let ... else</code> — korai kilépés</h3>
+  <p>Gyakori minta függvényekben és Bevy-rendszerekben: ha nincs érték, lépj ki korán, a függvény többi része pedig már a kibontott értékkel dolgozhat, behúzás nélkül.</p>
+  <pre><span class="kw">fn</span> <span class="fn">place_next_tile</span>(tiles: &amp;<span class="kw">mut</span> <span class="ty">Vec</span>&lt;<span class="ty">TileKind</span>&gt;) {
+    <span class="kw">let</span> <span class="nm">Some</span>(tile) = tiles.<span class="fn">pop</span>() <span class="kw">else</span> {
+        <span class="kw">return</span>; <span class="cm">// nincs több csempe → csendben kilépünk</span>
+    };
+
+    <span class="cm">// innentől a `tile` kibontva él a függvény végéig</span>
+    <span class="fn">println!</span>(<span class="st">"Lerakom: {tile:?}"</span>);
+}</pre>
+
+  <h3>4. <code>while let</code> — ürítés ciklusban</h3>
+  <p>Bónusz: a <code>pop()</code> + <code>while let</code> páros a klasszikus „dolgozd fel az összes elemet” minta. A ciklus pontosan addig fut, amíg a <code>pop()</code> <code>Some</code>-ot ad.</p>
+  <pre><span class="kw">while let</span> <span class="nm">Some</span>(tile) = tiles.<span class="fn">pop</span>() {
+    <span class="fn">process_tile</span>(tile);
+}
+<span class="cm">// a ciklus után a vektor garantáltan üres</span></pre>
+</section>
+
+<!-- ============ 4. UNWRAP ============ -->
+<section id="unwrap">
+  <div class="section-label">// 04 — a vészkijárat</div>
+  <h2>Az <code style="font-family:'JetBrains Mono',monospace;font-size:.8em">unwrap()</code> és társai</h2>
+  <p>Az <code>unwrap()</code> azt mondja: „tudom, hogy itt van érték, add ide”. Ha igazad van, megkapod a <code>T</code>-t. Ha tévedsz, és az Option <code>None</code>, a program <strong>pánikkal leáll</strong> — pontosan az a fajta futásidejű összeomlás, amit az <code>Option</code> egyébként megelőzne.</p>
+  <pre><span class="kw">let</span> tile = tiles.<span class="fn">pop</span>().<span class="fn">unwrap</span>();
+<span class="cm">// üres vektornál:</span>
+<span class="cm">// thread 'main' panicked at 'called `Option::unwrap()` on a `None` value'</span></pre>
+
+  <div class="callout warn">
+    <span class="tag">Ökölszabály</span>
+    <p>Az <code>unwrap()</code> nem kezeli a hiányt — csak <em>letagadja</em>. Éles, normál kódban a <code>match</code>, az <code>if let</code> vagy a <code>let ... else</code> a helyes választás. Az <code>unwrap()</code> elfogadható prototípusban, tesztben, vagy ott, ahol egy invariáns miatt <em>bizonyíthatóan</em> nem lehet <code>None</code> — de ilyenkor is jobb az <code>expect()</code>.</p>
+  </div>
+
+  <h3><code>expect()</code> — unwrap üzenettel</h3>
+  <p>Ugyanúgy pánikol <code>None</code> esetén, de te adod meg a hibaüzenetet, ami a naplóban azonnal elárulja, <em>melyik feltételezésed</em> dőlt meg.</p>
+  <pre><span class="kw">let</span> tile = tiles.<span class="fn">pop</span>()
+    .<span class="fn">expect</span>(<span class="st">"a pályagenerátor mindig legalább 1 csempét tesz a listába"</span>);</pre>
+
+  <h3>Szelídebb alternatívák</h3>
+  <pre><span class="cm">// Alapérték, ha None:</span>
+<span class="kw">let</span> tile = tiles.<span class="fn">pop</span>().<span class="fn">unwrap_or</span>(<span class="ty">TileKind</span>::<span class="nm">Grass</span>);
+
+<span class="cm">// Alapérték lustán (csak None esetén fut le a closure):</span>
+<span class="kw">let</span> tile = tiles.<span class="fn">pop</span>().<span class="fn">unwrap_or_else</span>(|| <span class="fn">default_tile</span>());
+
+<span class="cm">// Transzformáció kibontás nélkül — az Option "belsejében" dolgozol:</span>
+<span class="kw">let</span> nev: <span class="ty">Option</span>&lt;<span class="ty">String</span>&gt; = tiles.<span class="fn">pop</span>().<span class="fn">map</span>(|t| <span class="fn">format!</span>(<span class="st">"{t:?}"</span>));
+
+<span class="cm">// Gyors logikai kérdések:</span>
+<span class="kw">if</span> tile.<span class="fn">is_some</span>() { <span class="cm">/* ... */</span> }
+<span class="kw">if</span> tile.<span class="fn">is_none</span>() { <span class="cm">/* ... */</span> }</pre>
+</section>
+
+<!-- ============ 5. ÖSSZEFOGLALÓ ============ -->
+<section id="osszefoglalo">
+  <div class="section-label">// 05 — puska</div>
+  <h2>Melyiket mikor?</h2>
+  <table>
+    <thead>
+      <tr><th>Eszköz</th><th>Mikor használd</th><th>None esetén</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>match</code></td>
+        <td>Mindkét ágban van logika; a fordító kikényszeríti a teljességet.</td>
+        <td class="ok">explicit ágban kezeled</td>
+      </tr>
+      <tr>
+        <td><code>if let Some(x)</code></td>
+        <td>Csak a „van érték” eset érdekel, a hiány csendben átugorható.</td>
+        <td class="ok">a blokk kimarad</td>
+      </tr>
+      <tr>
+        <td><code>let Some(x) = … else</code></td>
+        <td>Korai kilépés; a függvény törzse már a kibontott értékkel dolgozik.</td>
+        <td class="ok">return / break / panic — te döntöd el</td>
+      </tr>
+      <tr>
+        <td><code>while let Some(x)</code></td>
+        <td>Ismételt kibontás, pl. egy vektor kiürítése <code>pop()</code>-pal.</td>
+        <td class="ok">a ciklus véget ér</td>
+      </tr>
+      <tr>
+        <td><code>unwrap_or / map</code></td>
+        <td>Alapérték vagy transzformáció — funkcionális, tömör stílus.</td>
+        <td class="ok">alapérték / None marad</td>
+      </tr>
+      <tr>
+        <td><code>expect("üzenet")</code></td>
+        <td>Invariáns dokumentálása: „itt nem lehet None, és íme miért”.</td>
+        <td class="bad">pánik, a te üzeneteddel</td>
+      </tr>
+      <tr>
+        <td><code>unwrap()</code></td>
+        <td>Prototípus, teszt. Éles kódban kerülendő.</td>
+        <td class="bad">pánik, a program leáll</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <span class="tag">A nagy kép</span>
+    <p>Az <code>Option&lt;T&gt;</code> a hiány lehetőségét a <em>típusba</em> költözteti. Más nyelvekben a null egy időzített bomba, ami bárhol felrobbanhat; Rustban a hiányzó érték egy fordításidőben látható, kötelezően kezelendő eset. Ezért nincs Rustban <code>NullPointerException</code> — a megfelelője le sem fordul.</p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    Készült Rust-tanuláshoz · A példák a <code>TileKind</code> csempetípussal egy top-down 2D játék kontextusát követik · <code>rustc</code>-vel ellenőrizhető minták
+  </div>
+</footer>
+
+<script>
+(function(){
+  const KINDS = [
+    {name:"Lava",  cls:"lava"},
+    {name:"Bone",  cls:"bone"},
+    {name:"Stone", cls:"stone"},
+    {name:"Grass", cls:"grass"},
+  ];
+  // a stack alja a tömb vége felé: pop() a tetejéről (utolsó DOM-elem) vesz le
+  const initial = ["Grass","Stone","Bone","Grass","Lava"];
+  const stackEl = document.getElementById("stack");
+  const outVal  = document.getElementById("outVal");
+  const outBranch = document.getElementById("outBranch");
+  let tiles = [];
+
+  function clsFor(name){
+    const k = KINDS.find(k=>k.name===name);
+    return k ? k.cls : "stone";
+  }
+  function render(){
+    stackEl.innerHTML = "";
+    tiles.forEach(name=>{
+      const d = document.createElement("div");
+      d.className = "tile " + clsFor(name);
+      d.textContent = "TileKind::" + name;
+      stackEl.appendChild(d);
+    });
+  }
+  function reset(){
+    tiles = initial.slice();
+    outVal.textContent = "— még nem hívtad meg —";
+    outVal.className = "val some";
+    outBranch.textContent = "";
+    render();
+  }
+  function pop(){
+    if(tiles.length === 0){
+      outVal.textContent = "None";
+      outVal.className = "val none";
+      outBranch.textContent = "match ág: None => // a lista üres, nincs pánik";
+      return;
+    }
+    const name = tiles[tiles.length-1];
+    const last = stackEl.lastElementChild;
+    if(last){
+      last.classList.add("pop");
+      setTimeout(()=>{ tiles.pop(); render(); }, 220);
+    } else {
+      tiles.pop(); render();
+    }
+    outVal.textContent = "Some(TileKind::" + name + ")";
+    outVal.className = "val some";
+    outBranch.textContent = "match ág: Some(tile) => // tile = TileKind::" + name;
+  }
+
+  document.getElementById("btnPop").addEventListener("click", pop);
+  document.getElementById("btnReset").addEventListener("click", reset);
+  reset();
+})();
+</script>
+
+</body>
+</html>

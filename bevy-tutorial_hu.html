@@ -1,0 +1,1894 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bevy game engine magyarul — ECS-központú tananyag</title>
+<style>
+:root{
+  --bg:#2C2722;
+  --paper:#FFFFFF;
+  --ink:#26211C;
+  --ink-soft:#5C544B;
+  --rust:#C2540A;
+  --rust-deep:#8F3D06;
+  --steel:#3B6EA5;
+  --iron:#211D19;
+  --iron-2:#2C2722;
+  --code-bg:#1C1916;
+  --code-ink:#E8E2D8;
+  --kw:#E58E51;
+  --str:#A8C97F;
+  --num:#7FB8D4;
+  --com:#867D70;
+  --fn:#E5C07B;
+  --mac:#C678DD;
+  --line:#E4DED5;
+  --ok:#4E7A3A;
+  --warn:#A35A00;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:Charter,"Iowan Old Style",Georgia,"Times New Roman",serif;
+  background:var(--bg);color:#D8CCBF;
+  line-height:1.65;font-size:17px;
+}
+.layout{display:flex;min-height:100vh}
+
+/* ---------- sidebar ---------- */
+nav#sidebar{
+  width:300px;flex-shrink:0;background:var(--iron);color:#CFC8BD;
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+  padding:28px 0 60px 0;
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  scrollbar-width:thin;scrollbar-color:#4a4138 var(--iron);
+}
+nav#sidebar .brand{padding:0 24px 22px 24px;border-bottom:1px solid #3a332c;margin-bottom:14px}
+nav#sidebar .brand h1{font-size:20px;font-weight:700;color:#F3EEE6;letter-spacing:.3px}
+nav#sidebar .brand h1 span{color:var(--kw)}
+nav#sidebar .brand p{font-size:12.5px;color:#968D80;margin-top:4px}
+nav#sidebar a{
+  display:flex;align-items:baseline;gap:10px;
+  padding:7px 24px;color:#B8B0A4;text-decoration:none;font-size:13.5px;
+  border-left:3px solid transparent;
+}
+nav#sidebar a .hex{
+  font-family:ui-monospace,"Cascadia Code",Consolas,monospace;
+  font-size:11.5px;color:#7A7164;min-width:38px;
+}
+nav#sidebar a:hover{background:#2B2620;color:#F0EAE0}
+nav#sidebar a.active{border-left-color:var(--rust);background:#2B2620;color:#FFD9B8}
+nav#sidebar a.active .hex{color:var(--kw)}
+nav#sidebar .part{
+  padding:16px 24px 6px 24px;font-size:10.5px;letter-spacing:1.6px;
+  text-transform:uppercase;color:#6E6557;font-weight:600;
+}
+
+/* ---------- main ---------- */
+main{flex:1;min-width:0}
+.page{max-width:860px;margin:0 auto;padding:48px 48px 120px 48px;}
+
+/* hero */
+header.hero{
+  background:linear-gradient(135deg,#241F1A 0%,#3A2517 55%,#6B3408 100%);
+  color:#F3EAE0;padding:72px 48px 64px 48px;
+}
+header.hero .heroinner{max-width:860px;margin:0 auto}
+header.hero .eyebrow{
+  font-family:ui-monospace,Consolas,monospace;font-size:13px;color:#E5A06B;
+  letter-spacing:2px;margin-bottom:18px;
+}
+header.hero h1{
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  font-size:46px;line-height:1.12;font-weight:700;max-width:680px;
+}
+header.hero h1 em{font-style:normal;color:#F0A35E}
+header.hero p.lead{margin-top:20px;font-size:18.5px;color:#D8CCBF;max-width:640px}
+header.hero .meta{
+  margin-top:30px;display:flex;gap:26px;flex-wrap:wrap;
+  font-family:"Avenir Next",system-ui,sans-serif;font-size:13px;color:#B8A795;
+}
+header.hero .meta b{color:#F0DEC9;font-weight:600}
+
+/* chapters */
+section.fejezet{margin-top:64px;scroll-margin-top:24px}
+section.fejezet:first-of-type{margin-top:40px}
+.fejcim{
+  display:flex;align-items:baseline;gap:14px;
+  border-bottom:3px solid var(--rust);padding-bottom:10px;margin-bottom:26px;
+}
+.fejcim .hex{
+  font-family:ui-monospace,Consolas,monospace;font-size:15px;color:var(--rust);
+  background:#F6E3D2;padding:3px 9px;border-radius:4px;
+}
+.fejcim h2{
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  font-size:29px;font-weight:700;letter-spacing:-.2px;
+}
+h3{
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  font-size:20px;font-weight:600;margin:34px 0 12px 0;color:var(--rust-deep);
+}
+h4{
+  font-family:"Avenir Next",system-ui,sans-serif;font-size:16.5px;
+  font-weight:600;margin:24px 0 8px 0;
+}
+p{margin:0 0 14px 0}
+ul,ol{margin:0 0 16px 26px}
+li{margin-bottom:6px}
+a{color:var(--steel)}
+strong{color:#7A3D10}
+code{
+  font-family:ui-monospace,"Cascadia Code",Consolas,"Liberation Mono",monospace;
+  font-size:.86em;color:#7A3D10;
+  padding:1.5px 6px;border-radius:4px;
+}
+
+/* code blocks */
+.kod{
+  position:relative;background:var(--code-bg);border-radius:10px;
+  margin:18px 0 22px 0;overflow:hidden;
+  box-shadow:0 2px 10px rgba(40,30,20,.18);
+}
+.kod .kodfej{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 14px;background:#26221D;border-bottom:1px solid #36302A;
+  font-family:"Avenir Next",system-ui,sans-serif;
+}
+.kod .kodfej .fajl{font-size:12px;color:#9C9285;font-family:ui-monospace,Consolas,monospace}
+.kod .masol{
+  font-size:11.5px;color:#B8AC9C;background:#36302A;border:none;border-radius:5px;
+  padding:4px 11px;cursor:pointer;font-family:inherit;
+}
+.kod .masol:hover{background:#473F36;color:#F0E8DC}
+.kod pre{
+  padding:16px 18px;overflow-x:auto;
+  font-family:ui-monospace,"Cascadia Code",Consolas,"Liberation Mono",monospace;
+  font-size:14px;line-height:1.58;color:var(--code-ink);
+  tab-size:4;
+}
+.kod pre::-webkit-scrollbar{height:8px}
+.kod pre::-webkit-scrollbar-thumb{background:#403A32;border-radius:4px}
+.k-kw{color:var(--kw);font-weight:600}
+.k-str{color:var(--str)}
+.k-num{color:var(--num)}
+.k-com{color:var(--com);font-style:italic}
+.k-fn{color:var(--fn)}
+.k-mac{color:var(--mac)}
+.k-type{color:#76C5B0}
+.k-life{color:#D4848C}
+
+/* terminal output */
+.kimenet{
+  background:#14110E;border-radius:8px;margin:-12px 0 22px 0;
+  padding:12px 18px;font-family:ui-monospace,Consolas,monospace;
+  font-size:13px;color:#9FB89A;border-left:3px solid #3E5A36;
+}
+.kimenet::before{
+  content:"KIMENET";display:block;font-size:9.5px;letter-spacing:1.8px;
+  color:#5E6E58;margin-bottom:6px;font-family:"Avenir Next",system-ui,sans-serif;
+}
+
+/* callouts */
+.doboz{
+  border-radius:8px;padding:15px 18px 13px 18px;margin:18px 0 22px 0;
+  font-size:15.5px;
+}
+.doboz .dcim{
+  font-family:"Avenir Next",system-ui,sans-serif;font-weight:700;font-size:12px;
+  letter-spacing:1.4px;text-transform:uppercase;display:block;margin-bottom:6px;
+}
+.doboz.tipp{background:#EDF3E6;border-left:4px solid var(--ok)}
+.doboz.tipp .dcim{color:var(--ok)}
+.doboz.figyelem{background:#FBEEDC;border-left:4px solid var(--warn)}
+.doboz.figyelem .dcim{color:var(--warn)}
+.doboz.melyseg{background:#E8EEF5;border-left:4px solid var(--steel)}
+.doboz.melyseg .dcim{color:var(--steel)}
+.doboz p:last-child{margin-bottom:0}
+
+/* tables */
+table{border-collapse:collapse;width:100%;margin:16px 0 22px 0;font-size:15px}
+th{
+  text-align:left;font-family:"Avenir Next",system-ui,sans-serif;font-size:12.5px;
+  letter-spacing:.8px;text-transform:uppercase;color:var(--rust-deep);
+  border-bottom:2px solid var(--rust);padding:8px 12px;
+}
+td{border-bottom:1px solid var(--line);padding:9px 12px;vertical-align:top}
+td code{white-space:nowrap}
+
+/* exercise blocks */
+.gyakorlat{
+  background:var(--code-ink);border:1px solid var(--line);border-top:4px solid var(--rust);
+  border-radius:8px;padding:18px 20px;margin:26px 0;color:#7A3D10
+}
+.gyakorlat .gcim{
+  font-family:"Avenir Next",system-ui,sans-serif;font-weight:700;font-size:14px;
+  color:var(--rust);margin-bottom:8px;letter-spacing:.4px;
+}
+details{margin-top:10px}
+details summary{
+  cursor:pointer;font-family:"Avenir Next",system-ui,sans-serif;
+  font-size:13.5px;color:var(--steel);font-weight:600;
+}
+details[open] summary{margin-bottom:8px}
+
+footer{
+  margin-top:80px;border-top:1px solid var(--line);padding-top:24px;
+  font-size:13.5px;color:var(--ink-soft);
+  font-family:"Avenir Next",system-ui,sans-serif;
+}
+
+@media (max-width:980px){
+  nav#sidebar{display:none}
+  .page{padding:32px 20px 80px 20px}
+  header.hero{padding:48px 20px}
+  header.hero h1{font-size:32px}
+}
+@media print{
+  nav#sidebar{display:none}
+  .kod .masol{display:none}
+  body{background:#fff}
+}
+</style>
+<style>
+/* Bevy-specifikus finomítások */
+header.hero{background:linear-gradient(135deg,#1C1A24 0%,#34243A 55%,#7A3A14 100%)}
+.ecs-tabla{font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.ecs-tabla td,.ecs-tabla th{text-align:center}
+.ecs-tabla td.nincs{color:#C9C2B6}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav id="sidebar">
+  <div class="brand">
+    <h1>Bevy<span>‑műhely</span></h1>
+    <p>Magyar nyelvű Bevy tananyag<br>ECS-központú megközelítéssel</p>
+  </div>
+  <div class="part">I. rész — Indulás</div>
+  <a href="#f00"><span class="hex">0x00</span>Mi a Bevy? Telepítés</a>
+  <a href="#f01"><span class="hex">0x01</span>Az első Bevy-app</a>
+  <a href="#f02"><span class="hex">0x02</span>2D alapok: kamera, sprite</a>
+  <div class="part">II. rész — Az ECS mélyén</div>
+  <a href="#f03"><span class="hex">0x03</span>Az ECS gondolkodásmód</a>
+  <a href="#f04"><span class="hex">0x04</span>Entitások és komponensek</a>
+  <a href="#f05"><span class="hex">0x05</span>Rendszerek és Query-k</a>
+  <a href="#f06"><span class="hex">0x06</span>Commands — halasztott műveletek</a>
+  <a href="#f07"><span class="hex">0x07</span>Resource-ok és Local</a>
+  <a href="#f08"><span class="hex">0x08</span>Változásérzékelés</a>
+  <a href="#f09"><span class="hex">0x09</span>Ütemezés és futási feltételek</a>
+  <a href="#f0A"><span class="hex">0x0A</span>Üzenetek és események</a>
+  <a href="#f0B"><span class="hex">0x0B</span>Hierarchia és kapcsolatok</a>
+  <div class="part">III. rész — Játékfejlesztés</div>
+  <a href="#f0C"><span class="hex">0x0C</span>Assetek és betöltés</a>
+  <a href="#f0D"><span class="hex">0x0D</span>Pixel art és sprite-animáció</a>
+  <a href="#f0E"><span class="hex">0x0E</span>Bemenetkezelés</a>
+  <a href="#f0F"><span class="hex">0x0F</span>Játékállapotok (States)</a>
+  <a href="#f10"><span class="hex">0x10</span>Idő, időzítők, FixedUpdate</a>
+  <a href="#f11"><span class="hex">0x11</span>UI alapok</a>
+  <a href="#f12"><span class="hex">0x12</span>Pluginok és projektszerkezet</a>
+  <div class="part">IV. rész — Zárás</div>
+  <a href="#f13"><span class="hex">0x13</span>Záróprojekt: Csillagvadász</a>
+  <a href="#f14"><span class="hex">0x14</span>Merre tovább?</a>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="heroinner">
+    <div class="eyebrow">BEVY 0.18 &nbsp;//&nbsp; RUST &nbsp;//&nbsp; MAGYAR NYELVŰ TANANYAG</div>
+    <h1>Bevy: játékfejlesztés <em>adatvezérelt</em> gondolkodással</h1>
+    <p class="lead">A Bevy nem objektumokban, hanem adatokban és transzformációkban gondolkodik. Ez a tananyag az ECS-t — a motor szívét — bontja ki részletesen, majd a gyakorlati játékfejlesztésen át egy teljes 2D pixel art játékig vezet.</p>
+    <div class="meta">
+      <div><b>21 fejezet</b> · 4 rész</div>
+      <div><b>~90 kódpélda</b> · gyakorlatokkal</div>
+      <div><b>Bevy 0.18</b> · 2026. januári kiadás</div>
+      <div><b>Előfeltétel:</b> Rust alapok</div>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+<!-- ============ 0x00 ============ -->
+<section class="fejezet" id="f00">
+<div class="fejcim"><span class="hex">0x00</span><h2>Mi a Bevy? Telepítés és első projekt</h2></div>
+
+<p>A <strong>Bevy</strong> egy nyílt forráskódú, Rustban írt, adatvezérelt játékmotor. Nincs hozzá kötelező grafikus szerkesztő: a játékod <em>kódból</em> épül fel, és a motor minden része — a renderelő, a hangrendszer, a UI, sőt maga a játéklogikád is — ugyanazon az <strong>ECS</strong> (Entity Component System) architektúrán fut. Ez a tananyag pontosan ezért az ECS-re helyezi a hangsúlyt: aki az ECS-t érti, az a Bevyt érti.</p>
+
+<h3>Mire jó, és mire nem?</h3>
+<ul>
+<li><strong>Erőssége:</strong> szimulációnehéz játékok (roguelike, kolóniaszim, stratégia), 2D és 3D egyaránt, webes (WASM) célplatform, teljes kontroll a kód felett.</li>
+<li><strong>Gyengéje:</strong> nincs érett vizuális szerkesztő, és kb. 3 havonta jelenik meg törő változásokat hozó új verzió — a régi internetes példakódok gyakran elavultak.</li>
+</ul>
+
+<div class="doboz figyelem"><span class="dcim">Figyelem — verziók</span>
+<p>Ez a tananyag a <strong>Bevy 0.18</strong>-at követi (2026. január). Ha egy régebbi blogposztban <code>Camera2dBundle</code>-t, <code>EventReader</code>-t vagy <code>SpriteBundle</code>-t látsz, az korábbi verzió: a bundle-öket a <em>kötelező komponensek</em> (0x04), a pufferelt eseményeket a <em>Message</em> típus (0x0A) váltotta. Frissítéskor mindig a hivatalos migrációs útmutatót kövesd: <code>bevy.org/learn/migration-guides</code>.</p></div>
+
+<h3>Új projekt</h3>
+<p>Feltételezzük, hogy a Rust már telepítve van (<code>rustup</code>, stabil eszközlánc). Hozz létre egy új projektet, és add hozzá a Bevyt:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">terminál</span><button class="masol">Másolás</button></div>
+<pre><code class="bash">cargo new csillagvadasz
+cd csillagvadasz
+cargo add bevy</code></pre></div>
+
+<h3>Gyors fordítás beállítása</h3>
+<p>A Bevy nagy függőség, és optimalizálás nélkül a játék fájdalmasan lassú, teljes optimalizálással viszont a fordítás lassú. A bevált középút: a <em>saját kódod</em> gyengén, a <em>függőségek</em> erősen optimalizálva fordulnak — így az újrafordítás gyors marad, a játék mégis pörög.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">Cargo.toml</span><button class="masol">Másolás</button></div>
+<pre><code class="bash"># A fejlesztői (dev) profil finomhangolása
+[profile.dev]
+opt-level = 1            # a saját kódunk: enyhe optimalizálás
+
+[profile.dev.package."*"]
+opt-level = 3            # minden függőség (köztük a Bevy): teljes optimalizálás</code></pre></div>
+
+<p>Fejlesztés közben érdemes a Bevy <code>dynamic_linking</code> funkcióját is bekapcsolni — a motor dinamikus könyvtárként linkelődik, így az inkrementális fordítás másodpercekre rövidül:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">terminál</span><button class="masol">Másolás</button></div>
+<pre><code class="bash">cargo run --features bevy/dynamic_linking</code></pre></div>
+
+<div class="doboz figyelem"><span class="dcim">Figyelem</span>
+<p>A <code>dynamic_linking</code> csak fejlesztéshez való — kiadási (release) buildbe soha ne kerüljön, mert a játék mellé külön <code>.so</code>/<code>.dll</code> fájlokat igényelne.</p></div>
+
+<div class="doboz tipp"><span class="dcim">Tipp — gyorsabb linker</span>
+<p>Linuxon az <code>lld</code> vagy <code>mold</code> linker, Windowson az <code>lld-link</code> tovább gyorsítja az iterációt. A hivatalos gyorstalpaló (<code>bevy.org/learn/quick-start</code>) platformonként megadja a pontos <code>.cargo/config.toml</code> beállítást.</p></div>
+
+<div class="gyakorlat"><div class="gcim">GYAKORLAT 0x00</div>
+<p>Hozd létre a <code>csillagvadasz</code> projektet a fenti profilbeállításokkal, és győződj meg róla, hogy a <code>cargo build</code> lefut. Az első fordítás több perc is lehet — ez egyszeri ár, utána inkrementális.</p>
+</div>
+</section>
+
+<!-- ============ 0x01 ============ -->
+<section class="fejezet" id="f01">
+<div class="fejcim"><span class="hex">0x01</span><h2>Az első Bevy-app: App, pluginok, rendszerek</h2></div>
+
+<p>Minden Bevy-program egy <code>App</code> köré épül. Az <code>App</code> három dolgot fog össze: a <strong>World</strong>-öt (ebben él az összes adat), a <strong>Schedule</strong>-öket (ezek döntik el, mikor mi fut), és a <strong>plugin</strong>okat (ezek csomagolják a funkcionalitást). A legkisebb értelmes program:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">use bevy::prelude::*;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)   // ablak, renderelő, bemenet, hang, idő...
+        .add_systems(Startup, koszones)
+        .run();
+}
+
+fn koszones() {
+    println!("Szia, Bevy!");
+}</code></pre></div>
+
+<p>Futtatva megnyílik egy üres ablak, a terminálban pedig megjelenik a köszöntés. Két fontos dolog történt:</p>
+<ul>
+<li>A <code>DefaultPlugins</code> plugingyűjtemény húzza be a motor szinte teljes funkcionalitását. Enélkül a Bevy csak egy csupasz ECS-futtató.</li>
+<li>A <code>koszones</code> egy <strong>rendszer</strong> (system): közönséges Rust-függvény, amelyet a <code>Startup</code> schedule-be regisztráltunk, ezért pontosan egyszer fut le, induláskor.</li>
+</ul>
+
+<h3>A játékhurok</h3>
+<p>A <code>Startup</code> mellett a leggyakoribb schedule az <code>Update</code>: az ide regisztrált rendszerek <em>minden képkockában</em> lefutnak. Ez a Bevy játékhurka — nem te írod a <code>while</code> ciklust, hanem rendszereket adsz a motornak, és ő hívogatja őket:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">use bevy::prelude::*;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_systems(Startup, koszones)
+        .add_systems(Update, szamlalo)
+        .run();
+}
+
+fn koszones() { println!("Indulás!"); }
+
+fn szamlalo(mut keret: Local&lt;u64&gt;) {
+    *keret += 1;
+    if *keret % 60 == 0 {
+        println!("{} képkocka telt el", *keret);
+    }
+}</code></pre></div>
+
+<div class="kimenet">Indulás!
+60 képkocka telt el
+120 képkocka telt el
+180 képkocka telt el</div>
+
+<p>A <code>Local&lt;u64&gt;</code> egy csak ehhez a rendszerhez tartozó, hívások közt megőrzött érték — részletesen a 0x07 fejezetben. A lényeg most az: <strong>a rendszerek paraméterei deklarálják, milyen adatra van szükségük</strong>, és a Bevy ezeket automatikusan beadja. Ez a minta — a paraméterlistából kiolvasott adatigény — az egész motor működésének kulcsa, és a következő részben járjuk körül alaposan.</p>
+
+<div class="gyakorlat"><div class="gcim">GYAKORLAT 0x01</div>
+<p>Adj az apphoz egy második <code>Update</code>-rendszert, amely 120 képkockánként kiír valamit. Figyeld meg: a két rendszer egymástól függetlenül, akár párhuzamosan is futhat.</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">részlet</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">.add_systems(Update, (szamlalo, masodik_szamlalo))
+
+fn masodik_szamlalo(mut keret: Local&lt;u64&gt;) {
+    *keret += 1;
+    if *keret % 120 == 0 { println!("ritkább üzenet"); }
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x02 ============ -->
+<section class="fejezet" id="f02">
+<div class="fejcim"><span class="hex">0x02</span><h2>2D alapok: kamera, sprite, koordinátarendszer</h2></div>
+
+<p>Rajzoljunk valamit. Két entitásra van szükségünk: egy <strong>kamerára</strong> és egy <strong>sprite-ra</strong>. Mindkettőt a <code>Commands</code> segítségével „spawnoljuk" be a világba:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">use bevy::prelude::*;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_systems(Startup, szinpad)
+        .run();
+}
+
+fn szinpad(mut commands: Commands) {
+    // 2D kamera — enélkül semmi nem látszik
+    commands.spawn(Camera2d);
+
+    // Egy egyszínű téglalap sprite
+    commands.spawn((
+        Sprite {
+            color: Color::srgb(0.95, 0.65, 0.25),
+            custom_size: Some(Vec2::new(120.0, 120.0)),
+            ..default()
+        },
+        Transform::from_xyz(0.0, 0.0, 0.0),
+    ));
+}</code></pre></div>
+
+<p>Az ablak közepén megjelenik egy narancssárga négyzet. Képfájl betöltését a 0x0C fejezetben látjuk majd — addig az egyszínű sprite tökéletes kísérleti alany.</p>
+
+<h3>A 2D koordinátarendszer</h3>
+<ul>
+<li>Az origó <strong>(0, 0)</strong> alapból a képernyő <em>közepén</em> van.</li>
+<li><strong>+X</strong> jobbra, <strong>+Y felfelé</strong> mutat (matematikai irány — nem úgy, mint sok más 2D motorban!).</li>
+<li>A <strong>Z</strong> 2D-ben a rétegsorrendet adja: a nagyobb Z-jű sprite kerül felülre.</li>
+<li>Az egység a „world unit", ami alapbeállításban 1 képernyőpixelnek felel meg.</li>
+</ul>
+
+<h3>A Transform</h3>
+<p>A <code>Transform</code> komponens hordozza a pozíciót (<code>translation: Vec3</code>), a forgatást (<code>rotation: Quat</code>) és a méretezést (<code>scale: Vec3</code>). Mozgatni úgy mozgatunk valamit, hogy egy rendszer minden képkockában módosítja a transformját:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs — részlet</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">fn forgas(mut sprite_q: Query&lt;&amp;mut Transform, With&lt;Sprite&gt;&gt;, time: Res&lt;Time&gt;) {
+    for mut transform in &amp;mut sprite_q {
+        transform.rotate_z(1.5 * time.delta_secs());
+    }
+}
+
+// main-ben: .add_systems(Update, forgas)</code></pre></div>
+
+<p>Itt már három ECS-fogalom dolgozik együtt: a <code>Query</code> (megkeresi az összes sprite-os transformot), a <code>Res&lt;Time&gt;</code> (globális idő-erőforrás), és a <code>time.delta_secs()</code> (az előző képkocka óta eltelt idő — ezzel szorozva a mozgás sebessége képkockasebesség-független lesz). Ha ez most még varázslatnak tűnik, jó helyen jársz: a következő rész pontosan ezt a gépezetet szedi szét.</p>
+
+<div class="gyakorlat"><div class="gcim">GYAKORLAT 0x02</div>
+<p>Spawnolj három különböző színű és méretű négyzetet különböző X-pozíciókra, és adj nekik eltérő Z-értéket úgy, hogy átfedjenek. Figyeld meg a rétegsorrendet.</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">részlet</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">for (i, szin) in [Color::srgb(0.9,0.3,0.3), Color::srgb(0.3,0.9,0.5), Color::srgb(0.4,0.5,0.95)]
+    .into_iter().enumerate()
+{
+    commands.spawn((
+        Sprite { color: szin, custom_size: Some(Vec2::splat(140.0)), ..default() },
+        Transform::from_xyz(i as f32 * 80.0 - 80.0, 0.0, i as f32),
+    ));
+}</code></pre></div>
+</details></div>
+</section>
+<!-- ============ 0x03 ============ -->
+<section class="fejezet" id="f03">
+<div class="fejcim"><span class="hex">0x03</span><h2>Az ECS gondolkodásmód</h2></div>
+
+<p>Itt kezdődik a tananyag szíve. A következő kilenc fejezet kizárólag az ECS-sel foglalkozik, mert a Bevyben <em>minden</em> — a játékosod, a kamera, az ablak, egy UI-gomb, sőt egy hangeffekt is — ECS-adat. Aki itt szilárd alapot épít, annak a motor többi része már csak szótár.</p>
+
+<h3>Az OOP-reflex és a baja</h3>
+<p>Objektumorientált háttérrel az ember így modellezne egy játékot: van egy <code>Jatekos</code> osztály, amely örököl az <code>Elolenytol</code>, az meg a <code>Mozgothatobol</code>... Két jól ismert probléma jön elő:</p>
+<ul>
+<li><strong>Az öröklési rács szétesik.</strong> Mi van, ha kell egy szellem, ami élőlény, de nem ütközik? Egy szobor, ami ütközik, de nem él? Az egyszeres öröklés merev, a többszörös káosz.</li>
+<li><strong>A memória szétszórt.</strong> Ezer objektum ezer helyen a heapen — a processzor gyorsítótára (cache) folyamatosan hibázik, amikor végig kell menni rajtuk.</li>
+</ul>
+
+<h3>Az ECS válasza: kompozíció és táblázatok</h3>
+<p>Az ECS három fogalomra bontja a világot:</p>
+
+<table>
+<tr><th>Fogalom</th><th>Mi ez?</th><th>Rust-megfelelő a Bevyben</th></tr>
+<tr><td><strong>Entity</strong> (entitás)</td><td>Puszta azonosító. Nincs benne adat, nincs viselkedése — egy sorszám.</td><td><code>Entity</code> (lényegében egy index + generáció)</td></tr>
+<tr><td><strong>Component</strong> (komponens)</td><td>Egyetlen adatszelet: pozíció, életerő, sebesség...</td><td><code>#[derive(Component)] struct Eletero(f32);</code></td></tr>
+<tr><td><strong>System</strong> (rendszer)</td><td>Logika, amely a komponenseken dolgozik.</td><td>Közönséges <code>fn</code>, speciális paraméterekkel</td></tr>
+</table>
+
+<p>Egy „játékos" tehát nem osztály, hanem <strong>egy entitás, amelyre komponenseket aggattunk</strong>: <code>Jatekos + Eletero + Sebesseg + Transform + Sprite</code>. A szellem? Ugyanez, ütköző nélkül. A szobor? <code>Transform + Sprite + Utkozo</code>, élet nélkül. Nincs öröklési fa — szabad kompozíció van.</p>
+
+<h3>Hogyan tárolja ezt a Bevy? Az archetípusok</h3>
+<p>A Bevy ECS-e <strong>archetípusokba</strong> rendezi az entitásokat: egy archetípus az azonos komponens-összetételű entitások csoportja. Minden archetípus egy táblázat, amelyben a komponensek <em>oszloponként, folytonos tömbökben</em> fekszenek:</p>
+
+<table class="ecs-tabla">
+<tr><th>Archetípus: [Transform, Sebesseg, Eletero]</th><th>Transform</th><th>Sebesseg</th><th>Eletero</th></tr>
+<tr><td>Entity 7 (játékos)</td><td>(0, 0)</td><td>(3, 0)</td><td>100</td></tr>
+<tr><td>Entity 12 (ellenfél)</td><td>(40, 9)</td><td>(-1, 0)</td><td>30</td></tr>
+<tr><td>Entity 31 (ellenfél)</td><td>(85, -4)</td><td>(-2, 1)</td><td>30</td></tr>
+</table>
+
+<table class="ecs-tabla">
+<tr><th>Archetípus: [Transform, Eletero]</th><th>Transform</th><th>Eletero</th></tr>
+<tr><td>Entity 19 (rombolható láda)</td><td>(120, 0)</td><td>10</td></tr>
+</table>
+
+<p>Ennek két messzemenő következménye van:</p>
+<ul>
+<li><strong>Cache-barát bejárás.</strong> Ha egy rendszer az összes <code>(Transform, Sebesseg)</code> párt kéri, a motor archetípusonként, folytonos memórián söpör végig — ezért emlegetik az ECS-t „adatorientált" tervezésként. Ugyanezért tud egy Bevy-játék tízezres entitásszámmal is simán futni.</li>
+<li><strong>Komponens hozzáadása/elvétele = költöztetés.</strong> Ha az Entity 19-re ráteszünk egy <code>Sebesseg</code>-et, az entitás átköltözik a másik archetípus-táblába. Ezért nem szabad képkockánként tömegesen komponenst ki-be kapcsolgatni — erre jobb eszköz egy <code>bool</code> mező vagy egy enum a komponensen belül.</li>
+</ul>
+
+<div class="doboz melyseg"><span class="dcim">Mélység — honnan tudja a rendszer, mit kérhet?</span>
+<p>Egy rendszer paraméterlistája (<code>Query</code>, <code>Res</code>, <code>Commands</code>...) valójában típusszinten leírt <em>adathozzáférési deklaráció</em>. A Bevy ütemezője ebből pontosan tudja, melyik rendszer mit olvas és mit ír — és amelyik kettő nem ütközik, azt <strong>automatikusan párhuzamosan</strong> futtatja, külön szálakon, mindenféle lock nélkül. A Rust borrow checker garanciái itt futásidejű ütemezési szabállyá lépnek elő: ez a Bevy egyik legszebb húzása.</p></div>
+
+<h3>A World</h3>
+<p>Az összes archetípus, entitás és erőforrás egyetlen konténerben él: ez a <code>World</code>. Rendszert írva ritkán nyúlsz hozzá közvetlenül — a paramétereiden át kapsz belőle szeleteket —, de jó tudni, hogy a háttérben mindig egyetlen, központi adatbázis áll. Az ECS-t emiatt szokták <em>in-memory relációs adatbázishoz</em> hasonlítani: az archetípusok a táblák, az entitások a sorok, a komponensek az oszlopok, a Query-k pedig a SELECT-ek.</p>
+
+<div class="gyakorlat"><div class="gcim">GYAKORLAT 0x03 — papíron</div>
+<p>Tervezz ECS-ben egy egyszerű toronyvédő játékot: milyen komponensekből állna egy torony, egy lövedék, egy ellenfél és egy „építési hely"? Mely komponenseik közösek? Hány archetípus keletkezne?</p>
+<details><summary>Egy lehetséges megoldás</summary>
+<p>Közös: <code>Transform</code>, <code>Sprite</code>. Torony: + <code>Lotav</code>, <code>Tuzgyorsasag</code>. Lövedék: + <code>Sebesseg</code>, <code>Sebzes</code>. Ellenfél: + <code>Eletero</code>, <code>Utvonal</code>. Építési hely: + <code>Szabad</code> marker. Ez 4 archetípus (a közös magon felüli eltérések miatt), és pl. egy „mozgás" rendszer csak a <code>(Transform, Sebesseg)</code> párokat látja — vagyis kizárólag a lövedékeket, anélkül, hogy ezt külön kódolni kellene.</p>
+</details></div>
+</section>
+
+<!-- ============ 0x04 ============ -->
+<section class="fejezet" id="f04">
+<div class="fejcim"><span class="hex">0x04</span><h2>Entitások és komponensek a gyakorlatban</h2></div>
+
+<h3>Komponens definiálása</h3>
+<p>Komponens bármely Rust-típus lehet, amelyre rátesszük a <code>#[derive(Component)]</code>-et — struct, tuple struct, enum, akár üres struct is:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">komponensek</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">use bevy::prelude::*;
+
+#[derive(Component)]
+struct Eletero {
+    aktualis: f32,
+    maximum: f32,
+}
+
+#[derive(Component)]
+struct Sebesseg(Vec2);          // tuple struct — newtype minta
+
+#[derive(Component)]
+struct Jatekos;                 // üres "marker" komponens
+
+#[derive(Component)]
+enum Csapat { Piros, Kek }      // enum is lehet komponens</code></pre></div>
+
+<div class="doboz tipp"><span class="dcim">Tipp — a marker komponens a legfontosabb minta</span>
+<p>Az adat nélküli marker komponens (<code>Jatekos</code>, <code>Ellenfel</code>, <code>FoKamera</code>) az ECS címkézőeszköze: a Query-kben szűrőként használjuk (<code>With&lt;Jatekos&gt;</code>), és gyakorlatilag ingyen van. Ne félj sokat csinálni belőlük — Bevy-kódban ez a normális stílus.</p></div>
+
+<h3>Spawn és despawn</h3>
+<p>Entitást a <code>Commands</code>-on keresztül hozunk létre. Több komponenst tuple-ként adunk át:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">spawn</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">fn jatekos_spawn(mut commands: Commands) {
+    let entity: Entity = commands.spawn((
+        Jatekos,
+        Eletero { aktualis: 100.0, maximum: 100.0 },
+        Sebesseg(Vec2::ZERO),
+        Sprite { color: Color::srgb(0.3, 0.7, 1.0),
+                 custom_size: Some(Vec2::splat(32.0)), ..default() },
+        Transform::from_xyz(0.0, -200.0, 1.0),
+    )).id();                       // az .id() visszaadja az Entity azonosítót
+
+    info!("Játékos spawnolva: {entity}");
+}
+
+// Törlés később, bárhonnan, ahol megvan az Entity:
+// commands.entity(entity).despawn();   // a gyerekentitásokat is törli</code></pre></div>
+
+<h3>Kötelező komponensek (required components)</h3>
+<p>Honnan tudta a sprite-os entitásunk, hogy kell neki láthatóság, globális transform és minden egyéb, amit sosem adtunk meg? A komponensek deklarálhatják, hogy <strong>milyen más komponenseket követelnek meg</strong>: amikor spawnoláskor ezek hiányoznak, a Bevy alapértékkel automatikusan beszúrja őket. A <code>Sprite</code> például megköveteli a <code>Transform</code>-ot és a <code>Visibility</code>-t. Saját típusainknál ugyanez a <code>#[require(...)]</code> attribútummal megy:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">required components</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">#[derive(Component)]
+#[require(Sebesseg, Sprite)]    // Jatekos-hoz mindig jár Sebesseg és Sprite
+struct Jatekos;
+
+#[derive(Component, Default)]
+struct Sebesseg(Vec2);          // a require-hez kell a Default (vagy explicit érték)
+
+fn spawn(mut commands: Commands) {
+    // Elég ennyi — a Sebesseg, a Sprite, és a Sprite által megkövetelt
+    // Transform + Visibility mind automatikusan rákerül:
+    commands.spawn(Jatekos);
+}</code></pre></div>
+
+<p>Ez a mechanizmus váltotta ki a régi „bundle" mintát: a komponens maga írja le, mi tartozik hozzá, a hívóhely pedig rövid marad. Konkrét alapérték is megadható: <code>#[require(Sebesseg(Vec2::new(0.0, 120.0)))]</code>.</p>
+
+<h3>Komponens hozzáadása és elvétele utólag</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">insert / remove</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">#[derive(Component)]
+struct Megfagyott;     // státuszeffekt markerrel
+
+fn fagyasztas(mut commands: Commands, ellenfelek: Query&lt;Entity, With&lt;Ellenfel&gt;&gt;) {
+    for entity in &amp;ellenfelek {
+        commands.entity(entity).insert(Megfagyott);
+    }
+}
+
+fn olvadas(mut commands: Commands, fagyottak: Query&lt;Entity, With&lt;Megfagyott&gt;&gt;) {
+    for entity in &amp;fagyottak {
+        commands.entity(entity).remove::&lt;Megfagyott&gt;();
+    }
+}</code></pre></div>
+
+<div class="doboz figyelem"><span class="dcim">Figyelem — archetípus-költöztetés</span>
+<p>Ahogy a 0x03-ban láttuk, az <code>insert</code>/<code>remove</code> az entitást másik archetípusba költözteti. Ritka eseményekhez (státuszeffekt fel/le) tökéletes; képkockánként, entitások ezrein viszont kerülendő — ott jobb egy <code>bool</code>/<code>Option</code> mező a komponensben.</p></div>
+
+<div class="gyakorlat"><div class="gcim">GYAKORLAT 0x04</div>
+<p>Készíts <code>Ellenfel</code> markert, amely <code>#[require(...)]</code>-rel megköveteli az <code>Eletero</code>-t (alapból 30 élettel) és a <code>Sebesseg</code>-et. Spawnolj belőle ötöt egy <code>for</code> ciklusban, különböző pozíciókra.</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">részlet</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">#[derive(Component)]
+#[require(Eletero { aktualis: 30.0, maximum: 30.0 }, Sebesseg)]
+struct Ellenfel;
+
+fn ellenfel_spawn(mut commands: Commands) {
+    for i in 0..5 {
+        commands.spawn((
+            Ellenfel,
+            Transform::from_xyz(-200.0 + i as f32 * 100.0, 150.0, 1.0),
+        ));
+    }
+}</code></pre></div>
+<p>(Az <code>Eletero</code>-nak ehhez nem kell <code>Default</code>, mert konkrét értéket adtunk a require-ben.)</p>
+</details></div>
+</section>
+
+<!-- ============ 0x05 ============ -->
+<section class="fejezet" id="f05">
+<div class="fejcim"><span class="hex">0x05</span><h2>Rendszerek és lekérdezések: a Query anatómiája</h2></div>
+
+<p>A <code>Query</code> az ECS lelke: vele kérdezzük le a világból az entitások egy szeletét. Két típusparamétere van: <strong>mit kérünk</strong> (adat) és <strong>mire szűrünk</strong> (filter):</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">Query&lt;ADAT, SZŰRŐ&gt;</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">// Minden entitás Transform-ja, AMELYEN van Jatekos komponens is:
+Query&lt;&amp;Transform, With&lt;Jatekos&gt;&gt;
+
+// Írható hozzáférés + több komponens tuple-ben:
+Query&lt;(&amp;mut Transform, &amp;Sebesseg)&gt;
+
+// Az Entity azonosító is kérhető adatként:
+Query&lt;(Entity, &amp;Eletero), With&lt;Ellenfel&gt;&gt;
+
+// Opcionális komponens — None, ha az adott entitáson nincs:
+Query&lt;(&amp;Transform, Option&lt;&amp;Megfagyott&gt;)&gt;</code></pre></div>
+
+<h3>Bejárás</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">mozgásrendszer</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">fn mozgas(mut mozgok: Query&lt;(&amp;mut Transform, &amp;Sebesseg)&gt;, time: Res&lt;Time&gt;) {
+    for (mut transform, sebesseg) in &amp;mut mozgok {
+        transform.translation += sebesseg.0.extend(0.0) * time.delta_secs();
+    }
+}</code></pre></div>
+
+<p>Ez az egyetlen rendszer mozgat <em>mindent</em>, aminek van transformja és sebessége — játékost, ellenfelet, lövedéket. Ez az ECS ígérete a gyakorlatban: a logika nem típusokhoz, hanem <strong>adatalakzatokhoz</strong> kötődik.</p>
+
+<h3>Szűrők</h3>
+<table>
+<tr><th>Szűrő</th><th>Jelentés</th></tr>
+<tr><td><code>With&lt;T&gt;</code></td><td>csak ha az entitáson van T (de a T adatát nem kérjük)</td></tr>
+<tr><td><code>Without&lt;T&gt;</code></td><td>csak ha nincs rajta T</td></tr>
+<tr><td><code>Or&lt;(With&lt;A&gt;, With&lt;B&gt;)&gt;</code></td><td>ha A vagy B rajta van</td></tr>
+<tr><td><code>Changed&lt;T&gt;</code> / <code>Added&lt;T&gt;</code></td><td>ha T változott / most került fel (0x08 fejezet)</td></tr>
+</table>
+
+<h3>Amikor pontosan egy entitást várunk: Single</h3>
+<p>A játékosból, főkamerából tipikusan egy darab van. Erre való a <code>Single</code> rendszerparaméter — ha nem pontosan egy találat lenne, a rendszer az adott képkockában egyszerűen nem fut le:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">Single</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">fn kamera_kovetes(
+    jatekos: Single&lt;&amp;Transform, (With&lt;Jatekos&gt;, Without&lt;Camera2d&gt;)&gt;,
+    mut kamera: Single&lt;&amp;mut Transform, With&lt;Camera2d&gt;&gt;,
+) {
+    kamera.translation.x = jatekos.translation.x;
+    kamera.translation.y = jatekos.translation.y;
+}</code></pre></div>
+
+<div class="doboz figyelem"><span class="dcim">Figyelem — a Without itt nem ízlés kérdése</span>
+<p>A fenti példában a <code>Without&lt;Camera2d&gt;</code> kötelező! Két query nem férhet hozzá ugyanahhoz a komponenshez úgy, hogy az egyik írna (<code>&amp;mut Transform</code>), a másik meg olvasna — a Bevy ezt induláskor pánikkal jelzi. A <code>Without</code> bizonyítja a motornak, hogy a két halmaz diszjunkt. Ha tényleg átfedő halmazokra kell író hozzáférés, arra a <code>ParamSet</code> való:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">ParamSet</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">fn pelda(mut halmazok: ParamSet&lt;(
+    Query&lt;&amp;mut Transform, With&lt;Jatekos&gt;&gt;,
+    Query&lt;&amp;mut Transform, With&lt;Ellenfel&gt;&gt;,
+)&gt;) {
+    for mut t in halmazok.p0().iter_mut() { t.translation.x += 1.0; }
+    for mut t in halmazok.p1().iter_mut() { t.translation.x -= 1.0; }
+}</code></pre></div></div>
+
+<h3>Egy konkrét entitás lekérése</h3>
+<p>Ha megvan valahonnan egy <code>Entity</code> (pl. ütközésvizsgálatból), a query-ből célzottan is kiolvasható: <code>query.get(entity)</code> / <code>query.get_mut(entity)</code> — ezek <code>Result</code>-ot adnak, mert az entitás időközben megszűnhetett, vagy nem illik a query alakjára.</p>
+
+<div class="doboz melyseg"><span class="dcim">Mélység — párhuzamos bejárás</span>
+<p>Nagy entitásszámnál a bejárás maga is párhuzamosítható: <code>mozgok.par_iter_mut().for_each(|(mut t, s)| ...)</code> — a Bevy a munkát automatikusan szétosztja a szálkészletén. Tízezres nagyságrend alatt általában nem éri meg, fölötte ingyen sebesség.</p></div>
+
+<div class="gyakorlat"><div class="gcim">GYAKORLAT 0x05</div>
+<p>Írj rendszert, amely minden <code>Ellenfel</code> életerejét másodpercenként 1-gyel csökkenti (méreg!), és írd ki <code>info!</code>-val azoknak az entitásoknak az azonosítóját, akiknek az élete 0 alá esett.</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">részlet</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">fn mereg(mut ellenfelek: Query&lt;(Entity, &amp;mut Eletero), With&lt;Ellenfel&gt;&gt;, time: Res&lt;Time&gt;) {
+    for (entity, mut elet) in &amp;mut ellenfelek {
+        elet.aktualis -= 1.0 * time.delta_secs();
+        if elet.aktualis &lt;= 0.0 {
+            info!("{entity} elesett");
+        }
+    }
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x06 ============ -->
+<section class="fejezet" id="f06">
+<div class="fejcim"><span class="hex">0x06</span><h2>Commands: halasztott műveletek és a sync pont</h2></div>
+
+<p>Feltűnhetett: spawnolni, törölni, komponenst fel-le rakni mindig a <code>Commands</code>-on keresztül szoktunk, sosem „közvetlenül". Ennek mély oka van.</p>
+
+<h3>Miért nem lehet azonnal?</h3>
+<p>A 0x03-ban láttuk, hogy a rendszerek párhuzamosan futnak, és hogy a strukturális változás (spawn, despawn, insert, remove) archetípus-táblákat rendez át. A kettő összeférhetetlen: nem lehet egy táblát átrendezni, miközben három másik szál épp iterál rajta. A megoldás: a <code>Commands</code> a műveletet nem végrehajtja, hanem <strong>felírja egy parancslistára</strong>, és a Bevy egy biztonságos pillanatban — úgynevezett <em>sync pontban</em>, tipikusan a schedule rendszerei közt — egyben lejátssza őket, amikor kizárólagos hozzáférése van a World-höz.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">a leggyakoribb parancsok</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">fn pelda(mut commands: Commands) {
+    // entitásműveletek
+    let e = commands.spawn((Ellenfel, Transform::default())).id();
+    commands.entity(e).insert(Megfagyott);          // komponens fel
+    commands.entity(e).remove::&lt;Megfagyott&gt;();      // komponens le
+    commands.entity(e).despawn();                   // törlés (gyerekekkel együtt)
+
+    // erőforrás-műveletek (0x07)
+    commands.insert_resource(Pontszam(0));
+}</code></pre></div>
+
+<h3>A halasztottság következménye</h3>
+<p>Mivel a parancs csak később fut le, <strong>ugyanabban a képkockában egy másik rendszer még nem látja az eredményét</strong>. Ha az A rendszer spawnol valamit, és B még ugyanebben a frame-ben query-zné, B üres kezekkel marad — a frissen spawnolt entitás csak a következő sync pont után létezik a query-k számára. Ez a Bevy-kezdők leggyakoribb „bugja", pedig nem bug: ez a modell. Megoldások:</p>
+<ul>
+<li>Legtöbbször <strong>nem kell tenni semmit</strong> — a következő képkockában minden a helyén lesz, és egy 60 FPS-es játékban ez észrevehetetlen.</li>
+<li>Ha tényleg azonnali sorrend kell, kösd össze a két rendszert: <code>.add_systems(Update, (spawnolo, feldolgozo).chain())</code> — a <code>chain</code> sorrendet kényszerít, és a Bevy a kettő közé sync pontot tesz, ha kell (0x09).</li>
+</ul>
+
+<div class="doboz figyelem"><span class="dcim">Figyelem — eltűnt entitások</span>
+<p>Fordított irányban is igaz: ha egy entitást ebben a frame-ben despawnoltál, egy később futó rendszer query-je még láthatja. Célzott <code>query.get(entity)</code> hívásnál ezért mindig kezeld a <code>Result</code> hibaágát ahelyett, hogy <code>unwrap</code>-olnál.</p></div>
+
+<div class="doboz melyseg"><span class="dcim">Mélység — amikor mégis azonnal kell: exkluzív rendszerek</span>
+<p>Egy rendszer kérheti a teljes világot is: <code>fn rendszer(world: &amp;mut World)</code>. Az ilyen <em>exkluzív rendszer</em> egyedül fut, semmi mással nem párhuzamosan, cserébe azonnal hajthat végre strukturális változást. Mentés/betöltés, pályagenerálás jellemző terepe — játéklogikához ritkán éri meg feladni érte a párhuzamosságot.</p></div>
+
+<div class="gyakorlat"><div class="gcim">GYAKORLAT 0x06</div>
+<p>Írj rendszert, amely despawnolja azokat az entitásokat, amelyeknek az <code>Eletero.aktualis</code> értéke 0 vagy kevesebb. Ez a „takarító" minta szinte minden játékban ott van.</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">részlet</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">fn halal_takaritas(mut commands: Commands, halottak: Query&lt;(Entity, &amp;Eletero)&gt;) {
+    for (entity, elet) in &amp;halottak {
+        if elet.aktualis &lt;= 0.0 {
+            commands.entity(entity).despawn();
+        }
+    }
+}</code></pre></div>
+</details></div>
+</section>
+<!-- ============ 0x07 ============ -->
+<section class="fejezet" id="f07">
+<div class="fejcim"><span class="hex">0x07</span><h2>Resource-ok és Local: a globális és a privát állapot</h2></div>
+
+<p>Nem minden adat tartozik entitáshoz. A pontszám, a játékbeállítások, a véletlenszám-generátor, az eltelt idő — ezek <em>globális, egyetlen példányban létező</em> adatok. Az ECS-ben ezek a <strong>Resource</strong>-ok: típusonként legfeljebb egy példány élhet belőlük a World-ben.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">resource definiálása és használata</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">#[derive(Resource, Default)]
+struct Pontszam(u32);
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .init_resource::&lt;Pontszam&gt;()          // Default-tal hozza létre
+        // vagy konkrét értékkel: .insert_resource(Pontszam(100))
+        .add_systems(Update, (pont_gyujtes, pont_kiiras))
+        .run();
+}
+
+fn pont_gyujtes(mut pont: ResMut&lt;Pontszam&gt;) {
+    pont.0 += 1;
+}
+
+fn pont_kiiras(pont: Res&lt;Pontszam&gt;) {
+    if pont.0 % 100 == 0 { info!("Pontszám: {}", pont.0); }
+}</code></pre></div>
+
+<p>A hozzáférés kétféle: <code>Res&lt;T&gt;</code> (olvasás) és <code>ResMut&lt;T&gt;</code> (írás). Az ütemező itt is a paraméterekből tudja a függéseket: két <code>Res&lt;Pontszam&gt;</code>-os rendszer futhat párhuzamosan, de <code>ResMut</code> mellett senki más nem nyúlhat ugyanahhoz a resource-hoz egy időben.</p>
+
+<p>A motor maga is resource-okkal kommunikál: a <code>Time</code>, a <code>ButtonInput&lt;KeyCode&gt;</code>, az <code>AssetServer</code> — mind resource, ezért kérjük őket <code>Res&lt;...&gt;</code>-ként.</p>
+
+<div class="doboz figyelem"><span class="dcim">Figyelem — opcionális resource</span>
+<p>Ha egy resource nem biztos, hogy létezik (pl. csak bizonyos játékmódban kerül be), kérd <code>Option&lt;Res&lt;T&gt;&gt;</code>-ként, különben a rendszer pánikol. A <code>run_if(resource_exists::&lt;T&gt;)</code> futási feltétel is megoldás (0x09).</p></div>
+
+<h3>Local: a rendszer privát zsebe</h3>
+<p>A <code>Local&lt;T&gt;</code> a 0x01-ben már felbukkant: olyan állapot, amely <em>egyetlen rendszerpéldányhoz</em> tartozik, hívások között megmarad, de kívülről senki nem látja. Tipikus használat: számláló, „első futás" jelző, rendszeren belüli gyorsítótár. Ha két rendszernek is kellene → Resource. Ha entitásonként más → Component. Ez a három tárolási szint együtt lefedi a játékállapot szinte teljes spektrumát:</p>
+
+<table>
+<tr><th>Hol él az adat?</th><th>Hatókör</th><th>Példa</th></tr>
+<tr><td><code>Component</code></td><td>entitásonként</td><td>életerő, pozíció, sebesség</td></tr>
+<tr><td><code>Resource</code></td><td>globális, 1 példány</td><td>pontszám, beállítások, idő</td></tr>
+<tr><td><code>Local&lt;T&gt;</code></td><td>egyetlen rendszer</td><td>belső számláló, cache</td></tr>
+</table>
+
+<div class="gyakorlat"><div class="gcim">GYAKORLAT 0x07</div>
+<p>Készíts <code>Nehezseg</code> resource-ot (f32 szorzó), és írd át a 0x05-ös méregrendszert úgy, hogy a sebzés a nehézséggel szorzódjon.</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">részlet</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">#[derive(Resource)]
+struct Nehezseg(f32);
+// main: .insert_resource(Nehezseg(2.0))
+
+fn mereg(
+    mut ellenfelek: Query&lt;&amp;mut Eletero, With&lt;Ellenfel&gt;&gt;,
+    time: Res&lt;Time&gt;,
+    nehezseg: Res&lt;Nehezseg&gt;,
+) {
+    for mut elet in &amp;mut ellenfelek {
+        elet.aktualis -= 1.0 * nehezseg.0 * time.delta_secs();
+    }
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x08 ============ -->
+<section class="fejezet" id="f08">
+<div class="fejcim"><span class="hex">0x08</span><h2>Változásérzékelés: Changed, Added, RemovedComponents</h2></div>
+
+<p>„Csak akkor csinálj valamit, ha valami megváltozott" — a játéklogika fele ilyen. A Bevy ECS-ébe ez be van építve: <strong>minden komponensíráskor a motor automatikusan feljegyzi a változás idejét</strong>, és erre query-szűrőkkel lehet építeni.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">Changed és Added</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">// Csak azokon fut, akiknek MOST változott az életereje:
+fn eletcsik_frissites(serultek: Query&lt;(&amp;Eletero, &amp;Children), Changed&lt;Eletero&gt;&gt;) {
+    for (elet, _gyerekek) in &amp;serultek {
+        info!("Életcsík újrarajzolása: {}/{}", elet.aktualis, elet.maximum);
+    }
+}
+
+// Csak a frissen felkerült komponensekre — pl. spawn utáni inicializálás:
+fn uj_ellenfel_koszontes(ujak: Query&lt;Entity, Added&lt;Ellenfel&gt;&gt;) {
+    for entity in &amp;ujak {
+        info!("Új ellenfél a pályán: {entity}");
+    }
+}</code></pre></div>
+
+<p>Ez nem esemény-feliratkozás, hanem ugyanaz a query-mechanika: a <code>Changed&lt;T&gt;</code> azokat az entitásokat engedi át, amelyeknél a T komponens <em>a rendszer előző lefutása óta</em> íródott. Egy 10&nbsp;000 entitásos pályán az életcsík-frissítő így képkockánként jellemzően 0–2 entitást dolgoz fel tízezer helyett.</p>
+
+<div class="doboz figyelem"><span class="dcim">Figyelem — az írás ténye számít, nem az érték</span>
+<p>A változásérzékelés a <em>mutábilis hozzáférést</em> figyeli: ha egy <code>&amp;mut Eletero</code>-t lekérsz és ugyanazt az értéket írod vissza, az is „változásnak" számít. Ha ez gond, írás előtt hasonlíts: <code>if elet.aktualis != uj { elet.aktualis = uj; }</code> — vagy használd a <code>set_if_neq</code> segédet ott, ahol elérhető.</p></div>
+
+<h3>Eltávolított komponensek</h3>
+<p>A „leszedték rólam a Megfagyott-at" esemény nem fogható meg query-vel — az entitás már másik archetípusban van. Erre a <code>RemovedComponents</code> paraméter való:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">RemovedComponents</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">fn olvadas_effekt(mut levettek: RemovedComponents&lt;Megfagyott&gt;) {
+    for entity in levettek.read() {
+        info!("{entity} kiolvadt — itt jöhetne részecskeeffekt");
+    }
+}</code></pre></div>
+
+<div class="doboz melyseg"><span class="dcim">Mélység — hogyan működik belül?</span>
+<p>Minden komponenscella mellett két számláló (tick) fekszik: mikor lett hozzáadva, mikor írták utoljára. Minden rendszer megjegyzi, mikor futott. A <code>Changed&lt;T&gt;</code> egyszerű összehasonlítás: <code>utolso_iras &gt; rendszer_elozo_futasa</code>. Olcsó, ágmentes, és pont emiatt mindig be van kapcsolva — nem kell külön kérni.</p></div>
+
+<div class="gyakorlat"><div class="gcim">GYAKORLAT 0x08</div>
+<p>Írj rendszert, amely <code>Added&lt;Jatekos&gt;</code> szűrővel a frissen spawnolt játékos <code>Transform</code>-ját a pálya közepére (0,0) állítja — bármilyen pozícióval is spawnolták.</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">részlet</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">fn jatekos_kozepre(mut ujak: Query&lt;&amp;mut Transform, Added&lt;Jatekos&gt;&gt;) {
+    for mut transform in &amp;mut ujak {
+        transform.translation = Vec3::new(0.0, 0.0, transform.translation.z);
+    }
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x09 ============ -->
+<section class="fejezet" id="f09">
+<div class="fejcim"><span class="hex">0x09</span><h2>Ütemezés: sorrend, rendszerhalmazok, futási feltételek</h2></div>
+
+<p>Eddig úgy tettünk, mintha a rendszerek sorrendje nem számítana. Sokszor tényleg nem — de amikor igen (a mozgás <em>után</em> jöjjön az ütközésvizsgálat, az <em>után</em> a sebzés), az ütemezést explicit kézbe kell venni. Alapszabály: <strong>az azonos schedule-ben lévő rendszerek sorrendje megkötés nélkül nemdeterminisztikus</strong> — a motor azt és úgy párhuzamosít, ahogy tud.</p>
+
+<h3>Páronkénti sorrend: before, after, chain</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">sorrendkényszerek</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">App::new()
+    .add_plugins(DefaultPlugins)
+    .add_systems(Update, (
+        bemenet_olvasas,
+        mozgas.after(bemenet_olvasas),
+        utkozes.after(mozgas),
+    ))
+    // ...vagy tömörebben, láncolva (elemei ebben a sorrendben futnak):
+    .add_systems(Update, (bemenet_olvasas, mozgas, utkozes).chain())
+    .run();</code></pre></div>
+
+<h3>Rendszerhalmazok (SystemSet)</h3>
+<p>Tíz-húsz rendszernél a páronkénti kötözgetés kezelhetetlen. A <strong>SystemSet</strong> címkézett csoport: a rendszereket halmazokba tesszük, és a sorrendet a halmazok közt mondjuk ki egyszer:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">system sets</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+enum JatekFazis {
+    Bemenet,
+    Logika,
+    Megjelenites,
+}
+
+App::new()
+    .add_plugins(DefaultPlugins)
+    .configure_sets(Update, (
+        JatekFazis::Bemenet,
+        JatekFazis::Logika,
+        JatekFazis::Megjelenites,
+    ).chain())
+    .add_systems(Update, (
+        bemenet_olvasas.in_set(JatekFazis::Bemenet),
+        (mozgas, utkozes, sebzes).in_set(JatekFazis::Logika),
+        (eletcsik_frissites, animacio).in_set(JatekFazis::Megjelenites),
+    ))
+    .run();</code></pre></div>
+
+<p>A halmazokon <em>belül</em> a párhuzamosság megmarad — csak a fázisok közt van sorompó. Ez a szerkezet skálázódik: új rendszert írva csak annyit kell tudni, melyik fázisba tartozik.</p>
+
+<h3>Futási feltételek (run conditions)</h3>
+<p>Egy rendszer kaphat feltételt is — ha hamis, az adott képkockában el sem indul:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">run_if</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">use bevy::input::common_conditions::input_just_pressed;
+
+.add_systems(Update, (
+    pont_kiiras.run_if(resource_changed::&lt;Pontszam&gt;),
+    csalas.run_if(input_just_pressed(KeyCode::F12)),
+    hullam_spawn.run_if(on_timer(Duration::from_secs(5))),
+))</code></pre></div>
+
+<p>A feltétel maga is mini-rendszer (bármi, ami <code>bool</code>-t ad vissza), tehát sajátot is írhatsz. A leghasznosabb beépítettek: <code>resource_exists</code>, <code>resource_changed</code>, <code>any_with_component&lt;T&gt;</code>, <code>on_timer</code>, és az állapotokhoz tartozó <code>in_state</code> (0x0F).</p>
+
+<h3>A schedule-ök térképe</h3>
+<table>
+<tr><th>Schedule</th><th>Mikor fut?</th><th>Mire való?</th></tr>
+<tr><td><code>Startup</code></td><td>egyszer, induláskor</td><td>kamera, pálya, kezdő entitások</td></tr>
+<tr><td><code>Update</code></td><td>minden képkockában</td><td>általános játéklogika</td></tr>
+<tr><td><code>FixedUpdate</code></td><td>rögzített ütemben (alapból 64 Hz)</td><td>fizika, determinisztikus szimuláció (0x10)</td></tr>
+<tr><td><code>OnEnter(állapot)</code> / <code>OnExit(állapot)</code></td><td>állapotváltáskor</td><td>menü/pálya felépítés-lebontás (0x0F)</td></tr>
+</table>
+
+<div class="gyakorlat"><div class="gcim">GYAKORLAT 0x09</div>
+<p>Rendezd az eddigi gyakorlatok rendszereit (mozgás, méreg, halál-takarítás, életcsík) a fenti három fázisba úgy, hogy a takarítás garantáltan a méreg <em>után</em> fusson.</p>
+<details><summary>Megoldás-vázlat</summary>
+<p><code>mozgas</code> és <code>mereg</code> → <code>Logika</code>; <code>halal_takaritas</code> → <code>Logika</code>, de <code>.after(mereg)</code> kényszerrel (vagy külön <code>Takaritas</code> fázis a Logika után); <code>eletcsik_frissites</code> → <code>Megjelenites</code>. A lényeg, hogy a sebzést okozó és a következményét feldolgozó rendszer közt explicit sorrend legyen.</p>
+</details></div>
+</section>
+
+<!-- ============ 0x0A ============ -->
+<section class="fejezet" id="f0A">
+<div class="fejcim"><span class="hex">0x0A</span><h2>Üzenetek és események: Message, Event, observerek</h2></div>
+
+<p>A rendszerek eddig komponenseken és resource-okon át kommunikáltak. Gyakran viszont nem <em>állapotot</em>, hanem <em>történést</em> akarunk átadni: „a játékos sérült", „érme felvéve", „hullám vége". Erre a Bevynek két, szándékosan különválasztott eszköze van.</p>
+
+<div class="doboz figyelem"><span class="dcim">Figyelem — 0.17 előtti anyagokban</span>
+<p>Régebbi tutorialokban mindkét fogalmat „Event"-nek hívták (<code>EventWriter</code>/<code>EventReader</code>). A 0.17 óta a pufferelt fajta neve <strong>Message</strong>, az <code>Event</code> név pedig az observereké. A régi kód mintái egy az egyben átnevezhetők.</p></div>
+
+<h3>1. Message: pufferelt, sokan írják, sokan olvassák</h3>
+<p>A Message egy típusos postaláda: bármely rendszer írhat bele (<code>MessageWriter</code>), bármely másik kiolvashatja (<code>MessageReader</code>), és minden olvasó a sajátját olvassa — egymástól függetlenül.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">messages</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">#[derive(Message)]
+struct ErmeFelveve {
+    ertek: u32,
+}
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_message::&lt;ErmeFelveve&gt;()
+        .add_systems(Update, (erme_utkozes, pontozas, hang_lejatszas))
+        .run();
+}
+
+fn erme_utkozes(mut writer: MessageWriter&lt;ErmeFelveve&gt;) {
+    // ...ütközésvizsgálat után:
+    writer.write(ErmeFelveve { ertek: 10 });
+}
+
+fn pontozas(mut reader: MessageReader&lt;ErmeFelveve&gt;, mut pont: ResMut&lt;Pontszam&gt;) {
+    for uzenet in reader.read() {
+        pont.0 += uzenet.ertek;
+    }
+}
+
+fn hang_lejatszas(mut reader: MessageReader&lt;ErmeFelveve&gt;) {
+    for _ in reader.read() {
+        info!("*csilingelés*");   // ugyanazt az üzenetet ő is megkapja
+    }
+}</code></pre></div>
+
+<p>Fontos tulajdonságok: az üzenetek <strong>két képkockáig élnek</strong>, aztán a motor eldobja őket (aki addig nem olvasta, lemaradt); a kézbesítés <em>húzó</em> jellegű — az olvasó rendszer a saját következő futásakor dolgozza fel; és a minta természeténél fogva szétkapcsol: az író nem tud az olvasókról.</p>
+
+<h3>2. Event + observer: azonnali, reaktív</h3>
+<p>Az observer fordított logika: nem egy rendszer kérdezi le az üzeneteket, hanem egy <strong>eseményre felakasztott megfigyelő fut le azonnal</strong>, amikor az eseményt valaki kiváltja (<code>trigger</code>):</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">observer</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">#[derive(Event)]
+struct JatekVege;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_observer(jatek_vege_kezeles)
+        .add_systems(Update, eletfigyeles)
+        .run();
+}
+
+fn eletfigyeles(jatekos: Single&lt;&amp;Eletero, With&lt;Jatekos&gt;&gt;, mut commands: Commands) {
+    if jatekos.aktualis &lt;= 0.0 {
+        commands.trigger(JatekVege);
+    }
+}
+
+fn jatek_vege_kezeles(_esemeny: On&lt;JatekVege&gt;, mut commands: Commands) {
+    info!("Vége a játéknak!");
+    // az observer maga is teljes értékű rendszer: Commands, Query, Res — mind kérhető
+    let _ = &amp;mut commands;
+}</code></pre></div>
+
+<p>Az observer entitásokhoz is köthető (<code>commands.entity(e).observe(...)</code>) — ilyenkor csak az adott entitást célzó eseményekre fut le. Ez a Bevy UI-interakcióinak (kattintás, hover) is az alapja.</p>
+
+<h3>Melyiket mikor?</h3>
+<table>
+<tr><th>Szempont</th><th>Message</th><th>Event + observer</th></tr>
+<tr><td>Kézbesítés</td><td>következő olvasáskor (húzó)</td><td>azonnal a triggerkor (toló)</td></tr>
+<tr><td>Tipikus mennyiség</td><td>sok, képkockánként akár tömegesen</td><td>ritka, egyedi történések</td></tr>
+<tr><td>Jó rá</td><td>folyamatos játéktörténések: sebzés, gyűjtés, lövés</td><td>reakciólánc: halál → effekt → pontszám; UI-kattintás</td></tr>
+<tr><td>Sorrend</td><td>az ütemezés szabályai szerint</td><td>a trigger helyén, szinkron</td></tr>
+</table>
+
+<div class="gyakorlat"><div class="gcim">GYAKORLAT 0x0A</div>
+<p>Vezess be <code>Serules { mennyiseg: f32 }</code> Message-et. A méregrendszer mostantól ne közvetlenül írja az életerőt, hanem üzenjen; egy külön <code>sebzes_alkalmazas</code> rendszer olvassa az üzeneteket és vonja le az életet. Mi az előnye ennek a szétválasztásnak?</p>
+<details><summary>Megoldás és válasz</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">részlet</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">#[derive(Message)]
+struct Serules { celpont: Entity, mennyiseg: f32 }
+
+fn sebzes_alkalmazas(
+    mut reader: MessageReader&lt;Serules&gt;,
+    mut eletek: Query&lt;&amp;mut Eletero&gt;,
+) {
+    for s in reader.read() {
+        if let Ok(mut elet) = eletek.get_mut(s.celpont) {
+            elet.aktualis -= s.mennyiseg;
+        }
+    }
+}</code></pre></div>
+<p>Előny: minden sebzésforrás (méreg, lövedék, csapda) ugyanoda üzen, így a páncél, a sebezhetetlenség, a sebzésnapló <em>egyetlen</em> helyen, a feldolgozóban implementálható.</p>
+</details></div>
+</section>
+
+<!-- ============ 0x0B ============ -->
+<section class="fejezet" id="f0B">
+<div class="fejcim"><span class="hex">0x0B</span><h2>Hierarchia és entitás-kapcsolatok</h2></div>
+
+<p>A játékvilág entitásai gyakran tartoznak össze: a kard a játékos kezében van, az életcsík az ellenfél feje fölött lebeg, a torony alkatrészei együtt mozognak. A Bevyben ezt a <strong>szülő–gyerek kapcsolat</strong> fejezi ki, amely maga is komponensekkel van megvalósítva: a gyereken egy <code>ChildOf(szülő)</code> komponens ül, a szülőn pedig a motor automatikusan karbantart egy <code>Children</code> listát.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">hierarchia építése</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">fn torony_spawn(mut commands: Commands) {
+    // A children! makróval deklaratívan:
+    commands.spawn((
+        Torony,
+        Transform::from_xyz(100.0, 0.0, 0.0),
+        Visibility::default(),
+        children![
+            (Agyu, Transform::from_xyz(0.0, 20.0, 0.1)),
+            (Eletcsik, Transform::from_xyz(0.0, 40.0, 0.1)),
+        ],
+    ));
+
+    // ...vagy utólag:
+    let szulo = commands.spawn((Torony, Transform::default())).id();
+    let gyerek = commands.spawn((Agyu, Transform::default())).id();
+    commands.entity(szulo).add_child(gyerek);
+    // ugyanez a gyerek felől: commands.entity(gyerek).insert(ChildOf(szulo));
+}</code></pre></div>
+
+<h3>Mit ad a hierarchia?</h3>
+<ul>
+<li><strong>Transform-öröklés.</strong> A gyerek <code>Transform</code>-ja a szülőhöz <em>képest</em> értendő; a végleges világpozíciót a motor számolja ki a <code>GlobalTransform</code> komponensbe. Ha a torony elmozdul, az ágyú és az életcsík vele megy — kód nélkül.</li>
+<li><strong>Láthatóság-öröklés.</strong> A szülő elrejtése (<code>Visibility::Hidden</code>) a teljes részfát elrejti.</li>
+<li><strong>Együttes törlés.</strong> A <code>despawn()</code> az egész részfát eltakarítja.</li>
+</ul>
+
+<div class="doboz figyelem"><span class="dcim">Figyelem — Transform vs GlobalTransform</span>
+<p>Olvasni a világbeli pozíciót a <code>GlobalTransform</code>-ból kell (<code>.translation()</code>), írni viszont mindig a lokális <code>Transform</code>-ot írjuk. A kettő szinkronját a motor végzi a frame megfelelő pontján.</p></div>
+
+<h3>Bejárás query-vel</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">gyerekek bejárása</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">fn eletcsik_pozicio(
+    tornyok: Query&lt;(&amp;Eletero, &amp;Children), With&lt;Torony&gt;&gt;,
+    mut csikok: Query&lt;&amp;mut Transform, With&lt;Eletcsik&gt;&gt;,
+) {
+    for (elet, gyerekek) in &amp;tornyok {
+        for &amp;gyerek in gyerekek.iter() {
+            if let Ok(mut t) = csikok.get_mut(gyerek) {
+                t.scale.x = elet.aktualis / elet.maximum;
+            }
+        }
+    }
+}</code></pre></div>
+
+<div class="doboz melyseg"><span class="dcim">Mélység — általános kapcsolatok</span>
+<p>A szülő–gyerek viszony a Bevy általános <em>relationship</em> mechanizmusának egy példánya: a <code>ChildOf</code>/<code>Children</code> páros mintájára saját kétirányú kapcsolat is definiálható (pl. <code>Celpontja</code>/<code>CelzoiVannak</code> egy célzórendszerhez) a <code>#[relationship]</code> attribútumokkal. A motor garantálja, hogy a két oldal sosem csúszik szét — entitástörléskor is.</p></div>
+
+<div class="gyakorlat"><div class="gcim">GYAKORLAT 0x0B</div>
+<p>Spawnolj egy „bolygó–hold" párost: a bolygó a pálya közepén forogjon a saját tengelye körül, a hold gyerekentitásként, 150 egységre tőle. Mit tapasztalsz a hold mozgásán, ha csak a bolygót forgatod?</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">részlet</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">commands.spawn((
+    Bolygo,
+    Sprite { color: Color::srgb(0.9,0.6,0.2), custom_size: Some(Vec2::splat(60.0)), ..default() },
+    Transform::default(),
+    children![(
+        Sprite { color: Color::srgb(0.7,0.7,0.8), custom_size: Some(Vec2::splat(20.0)), ..default() },
+        Transform::from_xyz(150.0, 0.0, 0.0),
+    )],
+));
+
+fn bolygo_forgas(mut q: Query&lt;&amp;mut Transform, With&lt;Bolygo&gt;&gt;, time: Res&lt;Time&gt;) {
+    for mut t in &amp;mut q { t.rotate_z(0.8 * time.delta_secs()); }
+}</code></pre></div>
+<p>A hold kering a bolygó körül, pedig a saját transformjához hozzá sem nyúltunk — a szülő forgása a gyerek világpozícióját is forgatja. Ez a transform-öröklés lényege.</p>
+</details></div>
+</section>
+<!-- ============ 0x0C ============ -->
+<section class="fejezet" id="f0C">
+<div class="fejcim"><span class="hex">0x0C</span><h2>Assetek és betöltés</h2></div>
+
+<p>A textúrák, hangok, betűtípusok a projekt gyökerében lévő <code>assets/</code> mappából töltődnek. A betöltés <strong>aszinkron</strong>: az <code>AssetServer::load</code> azonnal visszaad egy <code>Handle</code>-t (típusos hivatkozást), a tényleges fájl pedig a háttérben érkezik meg.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">kép betöltése</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">fn jatekos_spawn(mut commands: Commands, asset_server: Res&lt;AssetServer&gt;) {
+    commands.spawn((
+        Jatekos,
+        Sprite::from_image(asset_server.load("jatekos.png")),
+        Transform::from_xyz(0.0, -200.0, 1.0),
+    ));
+}</code></pre></div>
+
+<p>A <code>Handle</code> olcsón klónozható és megosztható: ha tíz entitás ugyanazt a képet használja, a memóriában a kép egyszer van bent. Amíg a kép töltődik, a sprite egyszerűen nem látszik — kis játéknál ez észrevétlen, nagyobbnál betöltőképernyőt érdemes csinálni (a 0x0F állapotaival szépen megoldható: <code>Betoltes</code> állapotban várjuk meg az <code>asset_server.is_loaded</code>-et, aztán váltunk).</p>
+
+<div class="doboz tipp"><span class="dcim">Tipp — hot reload</span>
+<p>A <code>file_watcher</code> feature bekapcsolásával (<code>cargo add bevy -F file_watcher</code>) a futó játék érzékeli, ha egy asset-fájl megváltozik, és újratölti — pixel art rajzolgatás közben aranyat ér: mentesz Asepritben, és a játékban azonnal frissül.</p></div>
+
+<h3>Saját asset-resource</h3>
+<p>Jó szokás a sokszor használt handle-öket egy resource-ba gyűjteni induláskor, hogy ne kelljen mindenhol az <code>AssetServer</code>-t hurcolni:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">asset-gyűjtő resource</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">#[derive(Resource)]
+struct JatekAssetek {
+    jatekos: Handle&lt;Image&gt;,
+    csillag: Handle&lt;Image&gt;,
+}
+
+fn assetek_betoltese(mut commands: Commands, asset_server: Res&lt;AssetServer&gt;) {
+    commands.insert_resource(JatekAssetek {
+        jatekos: asset_server.load("jatekos.png"),
+        csillag: asset_server.load("csillag.png"),
+    });
+}</code></pre></div>
+</section>
+
+<!-- ============ 0x0D ============ -->
+<section class="fejezet" id="f0D">
+<div class="fejcim"><span class="hex">0x0D</span><h2>Pixel art és sprite-animáció</h2></div>
+
+<p>Pixel art játéknál az első és legfontosabb beállítás: a textúraszűrés kikapcsolása. Alapból a Bevy lineárisan interpolál nagyításkor — a pixel art ettől mosott lesz. A <em>nearest</em> szűrés tartja élesen a pixeleket:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">main.rs — nearest szűrés globálisan</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">App::new()
+    .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+    .run();</code></pre></div>
+
+<div class="doboz tipp"><span class="dcim">Tipp — pixelméret és nagyítás</span>
+<p>Pixel art-nál bevett megoldás kicsi (pl. 320×180-as) virtuális felbontásban gondolkodni, és a kamerát nagyítani: <code>commands.spawn((Camera2d, Projection::from(OrthographicProjection { scale: 0.25, ..OrthographicProjection::default_2d() })));</code> — így 1 játékpixel 4 képernyőpixel lesz, és minden ropogós marad.</p></div>
+
+<h3>Sprite sheet és TextureAtlas</h3>
+<p>Az animációk hagyományosan egyetlen képen, rácsban ülnek (sprite sheet). A <code>TextureAtlasLayout</code> írja le a rácsot, a sprite pedig egy indexszel mutat az aktuális kockára:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">sprite sheet betöltése</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">#[derive(Component)]
+struct Animacio {
+    elso: usize,
+    utolso: usize,
+    idozito: Timer,
+}
+
+fn animalt_spawn(
+    mut commands: Commands,
+    asset_server: Res&lt;AssetServer&gt;,
+    mut layoutok: ResMut&lt;Assets&lt;TextureAtlasLayout&gt;&gt;,
+) {
+    // 16×16-os kockák, 4 oszlop, 1 sor
+    let layout = layoutok.add(TextureAtlasLayout::from_grid(
+        UVec2::splat(16), 4, 1, None, None,
+    ));
+
+    commands.spawn((
+        Sprite::from_atlas_image(
+            asset_server.load("jatekos_seta.png"),
+            TextureAtlas { layout, index: 0 },
+        ),
+        Transform::from_scale(Vec3::splat(4.0)),   // 16px → 64px, élesen
+        Animacio {
+            elso: 0,
+            utolso: 3,
+            idozito: Timer::from_seconds(0.12, TimerMode::Repeating),
+        },
+    ));
+}</code></pre></div>
+
+<h3>Az animációléptető rendszer</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">animáció léptetése</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">fn animacio_leptetes(mut animaltak: Query&lt;(&amp;mut Animacio, &amp;mut Sprite)&gt;, time: Res&lt;Time&gt;) {
+    for (mut anim, mut sprite) in &amp;mut animaltak {
+        anim.idozito.tick(time.delta());
+        if anim.idozito.just_finished() {
+            if let Some(atlas) = &amp;mut sprite.texture_atlas {
+                atlas.index = if atlas.index &gt;= anim.utolso {
+                    anim.elso
+                } else {
+                    atlas.index + 1
+                };
+            }
+        }
+    }
+}</code></pre></div>
+
+<p>Vedd észre: az animáció <em>tisztán ECS-megoldás</em>. Egy adatkomponens (melyik kockától meddig, milyen ütemben) plusz egy rendszer, amely minden animált entitást egységesen léptet. Irányfüggő animációhoz (le/fel/jobbra/balra sétálás) a sor indexét váltjuk: az <code>elso</code>/<code>utolso</code> párt írja át a bemenetkezelő rendszer.</p>
+
+<div class="gyakorlat"><div class="gcim">GYAKORLAT 0x0D</div>
+<p>Egészítsd ki az <code>Animacio</code> komponenst egy <code>sor: usize</code> mezővel, és írj rendszert, amely a sebességvektor iránya szerint vált sort (4 oszlopos, 4 soros sheetet feltételezve: le=0, balra=1, jobbra=2, fel=3 sor).</p>
+<details><summary>Megoldás-vázlat</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">részlet</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">fn irany_valtas(mut q: Query&lt;(&amp;Sebesseg, &amp;mut Animacio)&gt;) {
+    for (seb, mut anim) in &amp;mut q {
+        if seb.0 == Vec2::ZERO { continue; }
+        let sor = if seb.0.x.abs() &gt; seb.0.y.abs() {
+            if seb.0.x &gt; 0.0 { 2 } else { 1 }
+        } else if seb.0.y &gt; 0.0 { 3 } else { 0 };
+        if anim.sor != sor {
+            anim.sor = sor;
+            anim.elso = sor * 4;
+            anim.utolso = sor * 4 + 3;
+        }
+    }
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x0E ============ -->
+<section class="fejezet" id="f0E">
+<div class="fejcim"><span class="hex">0x0E</span><h2>Bemenetkezelés</h2></div>
+
+<p>A bemenet a Bevyben — természetesen — resource. A <code>ButtonInput&lt;T&gt;</code> három kérdésre felel minden gombnál:</p>
+
+<table>
+<tr><th>Metódus</th><th>Igaz, ha...</th><th>Tipikus használat</th></tr>
+<tr><td><code>pressed(gomb)</code></td><td>a gomb épp le van nyomva</td><td>folyamatos mozgás</td></tr>
+<tr><td><code>just_pressed(gomb)</code></td><td>ebben a képkockában nyomták le</td><td>ugrás, lövés, menü</td></tr>
+<tr><td><code>just_released(gomb)</code></td><td>ebben a képkockában engedték fel</td><td>töltött lövés elengedése</td></tr>
+</table>
+
+<div class="kod"><div class="kodfej"><span class="fajl">játékosirányítás</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">const JATEKOS_SEBESSEG: f32 = 220.0;
+
+fn iranyitas(
+    billentyuk: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    mut jatekos: Single&lt;&amp;mut Sebesseg, With&lt;Jatekos&gt;&gt;,
+) {
+    let mut irany = Vec2::ZERO;
+    if billentyuk.pressed(KeyCode::KeyW) || billentyuk.pressed(KeyCode::ArrowUp)    { irany.y += 1.0; }
+    if billentyuk.pressed(KeyCode::KeyS) || billentyuk.pressed(KeyCode::ArrowDown)  { irany.y -= 1.0; }
+    if billentyuk.pressed(KeyCode::KeyA) || billentyuk.pressed(KeyCode::ArrowLeft)  { irany.x -= 1.0; }
+    if billentyuk.pressed(KeyCode::KeyD) || billentyuk.pressed(KeyCode::ArrowRight) { irany.x += 1.0; }
+
+    jatekos.0 = irany.normalize_or_zero() * JATEKOS_SEBESSEG;
+}</code></pre></div>
+
+<p>Figyeld meg a szétválasztást: a bemenetkezelő rendszer <em>csak a sebességet</em> állítja — a tényleges mozgatást a 0x05-ös általános mozgásrendszer végzi. Így a játékost később gamepaddel, AI-jal vagy hálózati bemenettel is mozgathatod, anélkül, hogy a mozgáslogikához hozzányúlnál. A <code>normalize_or_zero()</code> pedig az átlós irányt normálja, hogy ne legyen √2-szer gyorsabb.</p>
+
+<h3>Egér</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">egérpozíció világkoordinátában</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">fn celzas(
+    ablak: Single&lt;&amp;Window&gt;,
+    kamera: Single&lt;(&amp;Camera, &amp;GlobalTransform)&gt;,
+    gombok: Res&lt;ButtonInput&lt;MouseButton&gt;&gt;,
+) {
+    let (camera, kamera_transform) = *kamera;
+    if gombok.just_pressed(MouseButton::Left) {
+        if let Some(kurzor) = ablak.cursor_position() {
+            if let Ok(vilag_pont) = camera.viewport_to_world_2d(kamera_transform, kurzor) {
+                info!("Kattintás a világban: {vilag_pont}");
+            }
+        }
+    }
+}</code></pre></div>
+
+<p>A <code>viewport_to_world_2d</code> a képernyő-pixelkoordinátát váltja át a játékvilág koordinátájára — kattintásos célzás, toronyépítés, drag&amp;drop mind erre épül.</p>
+</section>
+
+<!-- ============ 0x0F ============ -->
+<section class="fejezet" id="f0F">
+<div class="fejcim"><span class="hex">0x0F</span><h2>Játékállapotok: menü, játék, szünet</h2></div>
+
+<p>Egy igazi játék nem egyetlen üzemmódban fut: van főmenü, játék, szünet, game over. A Bevy <strong>States</strong> mechanizmusa egy enummal írja le ezeket, és három eszközt ad hozzájuk:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">állapotgép</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">#[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
+enum JatekAllapot {
+    #[default]
+    Menu,
+    Jatszik,
+    Szunet,
+}
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .init_state::&lt;JatekAllapot&gt;()
+        // 1) belépéskor/kilépéskor egyszer lefutó rendszerek:
+        .add_systems(OnEnter(JatekAllapot::Menu), menu_felepites)
+        .add_systems(OnEnter(JatekAllapot::Jatszik), palya_felepites)
+        // 2) csak adott állapotban futó logika:
+        .add_systems(Update, (
+            menu_kezeles.run_if(in_state(JatekAllapot::Menu)),
+            (iranyitas, mozgas, utkozes).run_if(in_state(JatekAllapot::Jatszik)),
+            szunet_kapcsolo.run_if(in_state(JatekAllapot::Jatszik)
+                .or(in_state(JatekAllapot::Szunet))),
+        ))
+        .run();
+}
+
+// 3) állapotváltás a NextState resource-szal:
+fn szunet_kapcsolo(
+    billentyuk: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    allapot: Res&lt;State&lt;JatekAllapot&gt;&gt;,
+    mut kovetkezo: ResMut&lt;NextState&lt;JatekAllapot&gt;&gt;,
+) {
+    if billentyuk.just_pressed(KeyCode::Escape) {
+        match allapot.get() {
+            JatekAllapot::Jatszik =&gt; kovetkezo.set(JatekAllapot::Szunet),
+            JatekAllapot::Szunet  =&gt; kovetkezo.set(JatekAllapot::Jatszik),
+            _ =&gt; {}
+        }
+    }
+}</code></pre></div>
+
+<p>A váltás nem azonnali: a <code>NextState</code>-be írt érték a frame megfelelő pontján érvényesül, ekkor futnak le az <code>OnExit</code>- majd <code>OnEnter</code>-rendszerek. A <code>Szunet</code> állapot egyszerűen attól „szünet", hogy a játéklogika rendszerei <code>run_if</code>-fel ki vannak kapcsolva — az entitások békésen állnak a helyükön.</p>
+
+<div class="doboz tipp"><span class="dcim">Tipp — automatikus takarítás: DespawnOnExit</span>
+<p>A menü entitásait kilépéskor kézzel despawnolni macerás. Ehelyett spawnold őket a <code>DespawnOnExit(JatekAllapot::Menu)</code> komponenssel — az állapot elhagyásakor a motor magától eltakarítja őket. Pályaváltásnál ugyanez a minta.</p></div>
+
+<div class="gyakorlat"><div class="gcim">GYAKORLAT 0x0F</div>
+<p>Adj a játékhoz <code>GameOver</code> állapotot: a 0x0A-s <code>JatekVege</code> observere váltson ide, az <code>OnEnter</code> írjon ki egy üzenetet, és Enter lenyomására induljon újra a <code>Jatszik</code> állapot.</p>
+</div>
+</section>
+
+<!-- ============ 0x10 ============ -->
+<section class="fejezet" id="f10">
+<div class="fejcim"><span class="hex">0x10</span><h2>Idő, időzítők és a FixedUpdate</h2></div>
+
+<h3>A Time resource</h3>
+<p>A <code>Res&lt;Time&gt;</code>-ból két dolgot használunk lépten-nyomon: <code>delta_secs()</code> (az előző képkocka óta eltelt idő másodpercben — minden mozgást ezzel szorzunk, hogy 30 és 144 FPS-en is ugyanolyan gyors legyen a játék) és <code>elapsed_secs()</code> (a teljes futási idő — lüktetés, hullámzás, szinuszos animációk barátja).</p>
+
+<h3>Timer: az időzítés munkalova</h3>
+<p>A <code>Timer</code> nem önálló ECS-fogalom, csak egy okos stopperóra-struct — de komponensbe vagy resource-ba téve mindenütt ott van: animáció (0x0D), lövési visszatöltés, hullám-időzítés, ideiglenes effektek élettartama.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">élettartam-komponens</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">#[derive(Component)]
+struct Elettartam(Timer);
+
+fn lovedek_spawn(mut commands: Commands) {
+    commands.spawn((
+        Lovedek,
+        Sprite { custom_size: Some(Vec2::new(4.0, 12.0)), ..default() },
+        Transform::default(),
+        Elettartam(Timer::from_seconds(2.0, TimerMode::Once)),
+    ));
+}
+
+fn elettartam_rendszer(
+    mut commands: Commands,
+    mut lejarok: Query&lt;(Entity, &amp;mut Elettartam)&gt;,
+    time: Res&lt;Time&gt;,
+) {
+    for (entity, mut elettartam) in &amp;mut lejarok {
+        elettartam.0.tick(time.delta());
+        if elettartam.0.finished() {
+            commands.entity(entity).despawn();
+        }
+    }
+}</code></pre></div>
+
+<h3>FixedUpdate: a determinisztikus szív</h3>
+<p>Az <code>Update</code> annyiszor fut, ahány képkocka van — változó ütemben. Fizikának, determinisztikus szimulációnak ez méreg: ugyanaz a játékmenet más gépen máshogy alakulna. A <code>FixedUpdate</code> schedule ezzel szemben <strong>rögzített ütemben</strong> fut (alapból 64 Hz): ha a renderelés gyorsabb, kimarad; ha lassabb, többször fut egymás után, hogy behozza a lemaradást.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">fizika a FixedUpdate-ben</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">App::new()
+    .add_plugins(DefaultPlugins)
+    .add_systems(FixedUpdate, (gravitacio, mozgas, utkozes).chain())
+    .insert_resource(Time::&lt;Fixed&gt;::from_hz(64.0))   // ütem átállítása
+    .run();
+
+fn gravitacio(mut esok: Query&lt;&amp;mut Sebesseg&gt;, time: Res&lt;Time&gt;) {
+    // FixedUpdate-ben a Time automatikusan a fix lépésközt adja:
+    for mut seb in &amp;mut esok {
+        seb.0.y -= 600.0 * time.delta_secs();
+    }
+}</code></pre></div>
+
+<p>Praktikus felosztás: <em>bemenet és kamera az Update-ben</em> (reszponzivitás), <em>fizika és játéklogika a FixedUpdate-ben</em> (determinizmus). A <code>Res&lt;Time&gt;</code> mindkét helyen „a megfelelő" deltát adja — a FixedUpdate-en belül mindig a fix lépésközt.</p>
+</section>
+
+<!-- ============ 0x11 ============ -->
+<section class="fejezet" id="f11">
+<div class="fejcim"><span class="hex">0x11</span><h2>UI alapok: pontszám, gombok</h2></div>
+
+<p>A Bevy UI-ja is ECS: minden UI-elem entitás, a <code>Node</code> komponens flexbox-szerű elrendezést ad, a hierarchia (0x0B) pedig az egymásba ágyazást. Egy pontszámkijelző:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">HUD pontszámmal</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">#[derive(Component)]
+struct PontKijelzo;
+
+fn hud_felepites(mut commands: Commands) {
+    commands.spawn((
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(12.0),
+            left: Val::Px(12.0),
+            ..default()
+        },
+        children![(
+            Text::new("Pontszám: 0"),
+            TextFont { font_size: 28.0, ..default() },
+            TextColor(Color::WHITE),
+            PontKijelzo,
+        )],
+    ));
+}
+
+fn pont_kijelzes(
+    pont: Res&lt;Pontszam&gt;,
+    mut kijelzo: Single&lt;&amp;mut Text, With&lt;PontKijelzo&gt;&gt;,
+) {
+    if pont.is_changed() {
+        kijelzo.0 = format!("Pontszám: {}", pont.0);
+    }
+}</code></pre></div>
+
+<p>A <code>pont.is_changed()</code> a resource-ok változásérzékelése (a 0x08 rokona): a szövegformázás csak akkor fut, amikor tényleg történt valami. Ugyanezt elérhettük volna a <code>run_if(resource_changed::&lt;Pontszam&gt;)</code> feltétellel is.</p>
+
+<h3>Gomb</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">menügomb</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">fn menu_felepites(mut commands: Commands) {
+    commands.spawn((
+        DespawnOnExit(JatekAllapot::Menu),
+        Node {
+            width: Val::Percent(100.0), height: Val::Percent(100.0),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        children![(
+            Button,
+            Node { padding: UiRect::axes(Val::Px(28.0), Val::Px(14.0)), ..default() },
+            BackgroundColor(Color::srgb(0.76, 0.33, 0.04)),
+            children![(Text::new("Indítás"), TextColor(Color::WHITE))],
+        )],
+    ));
+}
+
+fn menu_kezeles(
+    gombok: Query&lt;&amp;Interaction, (Changed&lt;Interaction&gt;, With&lt;Button&gt;)&gt;,
+    mut kovetkezo: ResMut&lt;NextState&lt;JatekAllapot&gt;&gt;,
+) {
+    for interakcio in &amp;gombok {
+        if *interakcio == Interaction::Pressed {
+            kovetkezo.set(JatekAllapot::Jatszik);
+        }
+    }
+}</code></pre></div>
+
+<p>A gombkezelés is színtiszta ECS: az <code>Interaction</code> komponenst a motor frissíti, mi pedig <code>Changed</code>-szűrővel figyeljük. Itt áll össze a kép — UI-hoz nem kellett semmi új fogalom, csak a II. rész eszközei.</p>
+</section>
+
+<!-- ============ 0x12 ============ -->
+<section class="fejezet" id="f12">
+<div class="fejcim"><span class="hex">0x12</span><h2>Pluginok és projektszerkezet</h2></div>
+
+<p>Eddig minden a <code>main.rs</code>-ben lakott. Növekvő játéknál a Bevy rendezőelve a <strong>plugin</strong>: egy egység, amely a saját komponenseit, resource-ait, üzeneteit és rendszereit regisztrálja. A <code>DefaultPlugins</code> is csak ilyenek gyűjteménye — a saját játékod ugyanazzal az eszközzel modulárizálódik, amivel a motor.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/jatekos.rs</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">use bevy::prelude::*;
+
+pub struct JatekosPlugin;
+
+impl Plugin for JatekosPlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app.add_systems(OnEnter(JatekAllapot::Jatszik), jatekos_spawn)
+           .add_systems(Update, (iranyitas, animacio_leptetes)
+               .run_if(in_state(JatekAllapot::Jatszik)));
+    }
+}
+
+// ...itt élnek a Jatekos komponens és a rendszerei...</code></pre></div>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs — karcsún</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">mod jatekos;
+mod ellenfel;
+mod hud;
+
+use bevy::prelude::*;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .add_plugins((jatekos::JatekosPlugin, ellenfel::EllenfelPlugin, hud::HudPlugin))
+        .init_state::&lt;JatekAllapot&gt;()
+        .run();
+}</code></pre></div>
+
+<p>Bevált felosztás: <strong>egy plugin = egy játékbeli fogalom</strong> (játékos, ellenfelek, lövedékek, HUD, hang). A pluginok közti kommunikáció a már ismert csatornákon megy: közös komponensek, resource-ok, Message-ek — a modulok így lazán csatoltak maradnak.</p>
+
+<div class="doboz tipp"><span class="dcim">Tipp — a közösség pluginjai</span>
+<p>A Bevy ökoszisztéma harmadik féltől származó pluginekben gazdag; a <code>bevy.org/assets</code> a hivatalos katalógus. Pixel art játékhoz tipikus válogatás: <strong>avian2d</strong> (fizika), <strong>bevy_ecs_tilemap</strong> (csempetérképek), <strong>leafwing-input-manager</strong> (átképezhető irányítás), <strong>bevy_kira_audio</strong> (hang). Verziókompatibilitásra figyelj: minden plugin adott Bevy-verzióhoz készül.</p></div>
+</section>
+<!-- ============ 0x13 ============ -->
+<section class="fejezet" id="f13">
+<div class="fejcim"><span class="hex">0x13</span><h2>Záróprojekt: Csillagvadász</h2></div>
+
+<p>Rakjunk össze mindent egyetlen, teljes, futtatható játékban. A <strong>Csillagvadász</strong>: a játékos egy négyzetet irányít, csillagok potyognak az égből, elkapásuk pont, a lecsúszott csillag életet von le, három hiba után game over, Enterrel újraindítás. Szándékosan sprite-fájlok nélkül, egyszínű alakzatokkal készül, hogy másolás után azonnal fusson — a 0x0D alapján bármikor lecserélheted pixel artra.</p>
+
+<p>A program kb. 150 sor, és a tananyag szinte minden fogalmát felvonultatja: marker komponensek, required components, Query/Single, Commands, resource-ok, Message, állapotgép <code>DespawnOnExit</code>-tel, időzítők, UI. Olvasd úgy, mint összefoglalót!</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs — a teljes játék</span><button class="masol">Másolás</button></div>
+<pre><code class="rust">use bevy::prelude::*;
+use rand::Rng;   // Cargo.toml: rand = "0.9"
+
+// ---------- adatok ----------
+
+#[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
+enum Allapot { #[default] Jatszik, GameOver }
+
+#[derive(Component)] struct Jatekos;
+#[derive(Component)] struct Csillag;
+#[derive(Component, Default)] struct Sebesseg(Vec2);
+
+#[derive(Resource, Default)] struct Pontszam(u32);
+#[derive(Resource)] struct Eletek(u8);
+#[derive(Resource)] struct CsillagIdozito(Timer);
+
+#[derive(Message)] struct CsillagElkapva;
+#[derive(Message)] struct CsillagLeesett;
+
+#[derive(Component)] struct PontKijelzo;
+
+const PALYA_FEL_SZELESSEG: f32 = 380.0;
+const TALAJ: f32 = -260.0;
+
+// ---------- app ----------
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .init_state::&lt;Allapot&gt;()
+        .init_resource::&lt;Pontszam&gt;()
+        .insert_resource(Eletek(3))
+        .insert_resource(CsillagIdozito(Timer::from_seconds(0.9, TimerMode::Repeating)))
+        .add_message::&lt;CsillagElkapva&gt;()
+        .add_message::&lt;CsillagLeesett&gt;()
+        .add_systems(Startup, szinpad)
+        .add_systems(OnEnter(Allapot::Jatszik), jatek_inditas)
+        .add_systems(OnEnter(Allapot::GameOver), game_over_felirat)
+        .add_systems(Update, (
+            (iranyitas, csillag_spawn, mozgas, elkapas_es_leeses, pontozas, hud_frissites)
+                .chain()
+                .run_if(in_state(Allapot::Jatszik)),
+            ujrainditas.run_if(in_state(Allapot::GameOver)),
+        ))
+        .run();
+}
+
+// ---------- felépítés ----------
+
+fn szinpad(mut commands: Commands) {
+    commands.spawn(Camera2d);
+    commands.spawn((
+        Node { position_type: PositionType::Absolute,
+               top: Val::Px(12.0), left: Val::Px(12.0), ..default() },
+        children![(
+            Text::new(""), TextFont { font_size: 26.0, ..default() },
+            TextColor(Color::WHITE), PontKijelzo,
+        )],
+    ));
+}
+
+fn jatek_inditas(
+    mut commands: Commands,
+    mut pont: ResMut&lt;Pontszam&gt;,
+    mut eletek: ResMut&lt;Eletek&gt;,
+) {
+    pont.0 = 0;
+    eletek.0 = 3;
+    commands.spawn((
+        Jatekos, Sebesseg::default(),
+        DespawnOnExit(Allapot::Jatszik),
+        Sprite { color: Color::srgb(0.35, 0.75, 1.0),
+                 custom_size: Some(Vec2::new(70.0, 22.0)), ..default() },
+        Transform::from_xyz(0.0, TALAJ, 1.0),
+    ));
+}
+
+// ---------- játéklogika ----------
+
+fn iranyitas(
+    billentyuk: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    mut jatekos: Single&lt;&amp;mut Sebesseg, With&lt;Jatekos&gt;&gt;,
+) {
+    let mut x = 0.0;
+    if billentyuk.pressed(KeyCode::ArrowLeft)  || billentyuk.pressed(KeyCode::KeyA) { x -= 1.0; }
+    if billentyuk.pressed(KeyCode::ArrowRight) || billentyuk.pressed(KeyCode::KeyD) { x += 1.0; }
+    jatekos.0 = Vec2::new(x * 420.0, 0.0);
+}
+
+fn csillag_spawn(
+    mut commands: Commands,
+    mut idozito: ResMut&lt;CsillagIdozito&gt;,
+    time: Res&lt;Time&gt;,
+) {
+    idozito.0.tick(time.delta());
+    if idozito.0.just_finished() {
+        let mut rng = rand::rng();
+        commands.spawn((
+            Csillag,
+            Sebesseg(Vec2::new(0.0, -rng.random_range(140.0..260.0))),
+            DespawnOnExit(Allapot::Jatszik),
+            Sprite { color: Color::srgb(1.0, 0.85, 0.2),
+                     custom_size: Some(Vec2::splat(22.0)), ..default() },
+            Transform::from_xyz(rng.random_range(-PALYA_FEL_SZELESSEG..PALYA_FEL_SZELESSEG), 320.0, 0.0),
+        ));
+    }
+}
+
+fn mozgas(mut mozgok: Query&lt;(&amp;mut Transform, &amp;Sebesseg)&gt;, time: Res&lt;Time&gt;) {
+    for (mut t, s) in &amp;mut mozgok {
+        t.translation += s.0.extend(0.0) * time.delta_secs();
+        t.translation.x = t.translation.x.clamp(-PALYA_FEL_SZELESSEG, PALYA_FEL_SZELESSEG);
+    }
+}
+
+fn elkapas_es_leeses(
+    mut commands: Commands,
+    csillagok: Query&lt;(Entity, &amp;Transform), With&lt;Csillag&gt;&gt;,
+    jatekos: Single&lt;&amp;Transform, With&lt;Jatekos&gt;&gt;,
+    mut elkapva: MessageWriter&lt;CsillagElkapva&gt;,
+    mut leesett: MessageWriter&lt;CsillagLeesett&gt;,
+) {
+    for (entity, csillag_t) in &amp;csillagok {
+        let tavolsag = csillag_t.translation.truncate()
+            .distance(jatekos.translation.truncate());
+        if tavolsag &lt; 45.0 {
+            commands.entity(entity).despawn();
+            elkapva.write(CsillagElkapva);
+        } else if csillag_t.translation.y &lt; TALAJ - 40.0 {
+            commands.entity(entity).despawn();
+            leesett.write(CsillagLeesett);
+        }
+    }
+}
+
+fn pontozas(
+    mut elkapva: MessageReader&lt;CsillagElkapva&gt;,
+    mut leesett: MessageReader&lt;CsillagLeesett&gt;,
+    mut pont: ResMut&lt;Pontszam&gt;,
+    mut eletek: ResMut&lt;Eletek&gt;,
+    mut kovetkezo: ResMut&lt;NextState&lt;Allapot&gt;&gt;,
+) {
+    for _ in elkapva.read() { pont.0 += 10; }
+    for _ in leesett.read() {
+        eletek.0 = eletek.0.saturating_sub(1);
+        if eletek.0 == 0 { kovetkezo.set(Allapot::GameOver); }
+    }
+}
+
+// ---------- megjelenítés és újraindítás ----------
+
+fn hud_frissites(
+    pont: Res&lt;Pontszam&gt;, eletek: Res&lt;Eletek&gt;,
+    mut kijelzo: Single&lt;&amp;mut Text, With&lt;PontKijelzo&gt;&gt;,
+) {
+    if pont.is_changed() || eletek.is_changed() {
+        kijelzo.0 = format!("Pontszám: {}   Életek: {}", pont.0, eletek.0);
+    }
+}
+
+fn game_over_felirat(mut commands: Commands) {
+    commands.spawn((
+        DespawnOnExit(Allapot::GameOver),
+        Node { width: Val::Percent(100.0), height: Val::Percent(100.0),
+               justify_content: JustifyContent::Center,
+               align_items: AlignItems::Center, ..default() },
+        children![(
+            Text::new("GAME OVER — Enter: újra"),
+            TextFont { font_size: 42.0, ..default() },
+            TextColor(Color::srgb(1.0, 0.4, 0.3)),
+        )],
+    ));
+}
+
+fn ujrainditas(
+    billentyuk: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    mut kovetkezo: ResMut&lt;NextState&lt;Allapot&gt;&gt;,
+) {
+    if billentyuk.just_pressed(KeyCode::Enter) {
+        kovetkezo.set(Allapot::Jatszik);
+    }
+}</code></pre></div>
+
+<div class="kimenet">cargo run --features bevy/dynamic_linking
+   ...megnyílik az ablak, hullanak a csillagok...</div>
+
+<h3>Fejlesztési ötletek</h3>
+<ul>
+<li><strong>Pixel art:</strong> cseréld a négyzeteket sprite sheetekre a 0x0D szerint (nearest szűrés már be van kapcsolva).</li>
+<li><strong>Nehezedés:</strong> a <code>CsillagIdozito</code> periódusát csökkentsd a pontszám függvényében.</li>
+<li><strong>Combo-rendszer:</strong> egymás utáni elkapásokért szorzó — egy <code>Local</code> vagy resource számlálóval.</li>
+<li><strong>Hang:</strong> elkapáskor effekt — a <code>CsillagElkapva</code> üzenetre már csak rá kell kötni egy lejátszó rendszert.</li>
+<li><strong>Főmenü:</strong> harmadik állapot a 0x0F + 0x11 mintáival.</li>
+</ul>
+</section>
+
+<!-- ============ 0x14 ============ -->
+<section class="fejezet" id="f14">
+<div class="fejcim"><span class="hex">0x14</span><h2>Merre tovább?</h2></div>
+
+<p>Az ECS-alapok és egy működő játék birtokában az út kifelé vezet, az ökoszisztémába:</p>
+
+<table>
+<tr><th>Terület</th><th>Eszköz</th><th>Megjegyzés</th></tr>
+<tr><td>Fizika</td><td><code>avian2d</code> / <code>bevy_rapier2d</code></td><td>Az Avian Bevy-natív, ECS-komponensekkel vezérelt; a Rapier a régebbi, bejáratott motor kötése.</td></tr>
+<tr><td>Csempetérképek</td><td><code>bevy_ecs_tilemap</code></td><td>Nagy térképek hatékonyan; LDtk/Tiled szerkesztőkhöz külön betöltők vannak.</td></tr>
+<tr><td>Bemenet</td><td><code>leafwing-input-manager</code></td><td>Akció-alapú, átképezhető irányítás (billentyű + gamepad egyben).</td></tr>
+<tr><td>Hang</td><td><code>bevy_kira_audio</code></td><td>A beépített audiónál rugalmasabb keverés.</td></tr>
+<tr><td>Részecskék</td><td><code>bevy_hanabi</code></td><td>GPU-s részecskerendszer.</td></tr>
+<tr><td>UI (komplexebb)</td><td><code>bevy_egui</code></td><td>Azonnali módú UI — fejlesztői eszközökhöz, szerkesztőkhöz remek.</td></tr>
+<tr><td>Mentés/sorosítás</td><td><code>serde</code> + <code>ron</code></td><td>A RON a Rust-ökoszisztéma kedvelt konfigurációs formátuma.</td></tr>
+</table>
+
+<h3>Források</h3>
+<ul>
+<li><strong>Hivatalos példák:</strong> a Bevy-repó <code>examples/</code> mappája a legjobb dokumentáció — több száz kicsi, fókuszált, mindig friss példa.</li>
+<li><strong>Bevy Cheat Book</strong> (<code>bevy-cheatbook.github.io</code>) — gyakorlati receptek; egyes oldalai régebbi verzióhoz íródtak, a mintázatok így is értékesek.</li>
+<li><strong>API-dokumentáció:</strong> <code>docs.rs/bevy</code> — az ECS-fogalmak ismeretében meglepően olvasmányos.</li>
+<li><strong>Közösség:</strong> a hivatalos Discord és a heti <em>This Week in Bevy</em> hírlevél a verziókövetéshez.</li>
+</ul>
+
+<div class="doboz tipp"><span class="dcim">Tipp — a verziókövetés stratégiája</span>
+<p>A Bevy kb. 3 havonta ad ki törő verziót. Játékprojektben rögzítsd a verziót, és csak tudatosan, a migrációs útmutatóval a kézben frissíts — vagy maradj egy verzión a kiadásig. A tananyag fogalmai (entitás, komponens, query, schedule, message, observer) verziók közt stabilak; ami változik, az többnyire a felszíni API.</p></div>
+
+<p>És ami a legfontosabb: az ECS-gondolkodás — adat és transzformáció szétválasztása, kompozíció öröklés helyett, deklarált adathozzáférés — nem csak Bevy-tudás. Aki innen néz egy szimulációs vagy adatfeldolgozó problémára, az másként, és gyakran tisztábban látja. Jó építkezést!</p>
+</section>
+
+<footer>
+Bevy-műhely — magyar nyelvű Bevy 0.18 tananyag · 21 fejezet · Készült 2026-ban.<br>
+A dokumentum önálló: internetkapcsolat nélkül, böngészőben működik, nyomtatható.
+</footer>
+
+</div><!-- .page -->
+</main>
+</div><!-- .layout -->
+<script>
+/* ---------- egyszerű Rust/Bash szintaxiskiemelő ---------- */
+(function(){
+  const KW = new Set(("fn let mut const static if else match for while loop in break continue return "+
+    "struct enum impl trait type where pub use mod crate super self Self as move ref dyn async await "+
+    "unsafe extern union true false").split(" "));
+  const TYPES = new Set(("i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64 bool char str "+
+    "String Vec Option Some None Result Ok Err Box Rc Arc RefCell Cell Mutex HashMap HashSet BTreeMap "+
+    "VecDeque Ordering Duration Iterator Display Debug Clone Copy Default From Into Drop Send Sync "+
+    "PartialEq Eq PartialOrd Ord Add Hash Path File Formatter").split(" "));
+
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+  function highlightRust(src){
+    let out = "", i = 0, n = src.length;
+    while(i < n){
+      const c = src[i];
+      // kommentek
+      if(c === "/" && src[i+1] === "/"){
+        let j = src.indexOf("\n", i); if(j < 0) j = n;
+        out += '<span class="k-com">'+esc(src.slice(i,j))+'</span>'; i = j; continue;
+      }
+      // stringek
+      if(c === '"'){
+        let j = i+1;
+        while(j < n && (src[j] !== '"' || src[j-1] === "\\")) j++;
+        out += '<span class="k-str">'+esc(src.slice(i,j+1))+'</span>'; i = j+1; continue;
+      }
+      // char literál / élettartam
+      if(c === "'"){
+        const m = /^'(\\.|[^'\\]){1}'/.exec(src.slice(i));
+        if(m){ out += '<span class="k-str">'+esc(m[0])+'</span>'; i += m[0].length; continue; }
+        const l = /^'[A-Za-z_][A-Za-z0-9_]*/.exec(src.slice(i));
+        if(l){ out += '<span class="k-life">'+esc(l[0])+'</span>'; i += l[0].length; continue; }
+        out += esc(c); i++; continue;
+      }
+      // szám
+      if(/[0-9]/.test(c)){
+        const m = /^[0-9][0-9_]*(\.[0-9_]+)?([eE][+-]?[0-9]+)?(_?[iuf](8|16|32|64|128|size)?)?|^0x[0-9A-Fa-f_]+|^0b[01_]+/.exec(src.slice(i));
+        if(m){ out += '<span class="k-num">'+esc(m[0])+'</span>'; i += m[0].length; continue; }
+      }
+      // azonosító / kulcsszó / makró / fn-hívás
+      if(/[A-Za-z_]/.test(c)){
+        const m = /^[A-Za-z_][A-Za-z0-9_]*/.exec(src.slice(i));
+        const word = m[0]; const after = src[i+word.length];
+        if(after === "!"){ out += '<span class="k-mac">'+word+'!</span>'; i += word.length+1; continue; }
+        if(KW.has(word)){ out += '<span class="k-kw">'+word+'</span>'; }
+        else if(TYPES.has(word) || /^[A-Z]/.test(word)){ out += '<span class="k-type">'+word+'</span>'; }
+        else if(after === "("){ out += '<span class="k-fn">'+word+'</span>'; }
+        else { out += word; }
+        i += word.length; continue;
+      }
+      out += esc(c); i++;
+    }
+    return out;
+  }
+
+  function highlightBash(src){
+    return src.split("\n").map(line=>{
+      const h = line.indexOf("#");
+      if(h >= 0){
+        return esc(line.slice(0,h)) + '<span class="k-com">'+esc(line.slice(h))+'</span>';
+      }
+      return esc(line);
+    }).join("\n");
+  }
+
+  document.querySelectorAll("pre code").forEach(el=>{
+    const raw = el.textContent;
+    if(el.classList.contains("rust")) el.innerHTML = highlightRust(raw);
+    else if(el.classList.contains("bash")) el.innerHTML = highlightBash(raw);
+  });
+
+  /* ---------- másolás gombok ---------- */
+  document.querySelectorAll(".kod").forEach(blokk=>{
+    const gomb = blokk.querySelector(".masol");
+    const kod = blokk.querySelector("pre code");
+    if(!gomb || !kod) return;
+    gomb.addEventListener("click", ()=>{
+      navigator.clipboard.writeText(kod.textContent).then(()=>{
+        const regi = gomb.textContent;
+        gomb.textContent = "Másolva ✓";
+        setTimeout(()=>{ gomb.textContent = regi; }, 1400);
+      });
+    });
+  });
+
+  /* ---------- aktív fejezet a sidebarban ---------- */
+  const linkek = Array.from(document.querySelectorAll("#sidebar a"));
+  const fejezetek = Array.from(document.querySelectorAll("section.fejezet"));
+  function frissit(){
+    let aktiv = fejezetek[0];
+    for(const f of fejezetek){
+      if(f.getBoundingClientRect().top <= 120) aktiv = f;
+    }
+    linkek.forEach(a=>a.classList.toggle("active", a.getAttribute("href") === "#"+aktiv.id));
+  }
+  document.addEventListener("scroll", frissit, {passive:true});
+  frissit();
+})();
+</script>
+</body>
+</html>

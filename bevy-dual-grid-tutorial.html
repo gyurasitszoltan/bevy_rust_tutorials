@@ -1,0 +1,1744 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dual-Grid Tilemap — Bevy 0.18 tutorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13;
+  --bg-deep:#0b110c;
+  --panel:#1a241b;
+  --panel-2:#162017;
+  --ink:#e9e3cd;
+  --muted:#9caa90;
+  --grass:#7ecb52;
+  --grass-hi:#a5e87d;
+  --grass-dk:#4e8f33;
+  --dirt:#c99c66;
+  --dirt-dk:#9a6e43;
+  --water:#6cc8d9;
+  --line:#2d3b2c;
+  --line-hi:#41543e;
+  --code-bg:#0c120d;
+  --shadow:rgba(0,0,0,.45);
+  --kw:#ff9d5c;      /* rust kulcsszó */
+  --ty:#8fd8e8;      /* típus */
+  --fnc:#a5e87d;     /* függvény */
+  --str:#e8c878;     /* string */
+  --cmt:#6d7c64;     /* komment */
+  --mac:#d8a0e8;     /* makró */
+  --num:#f0b8a0;     /* szám */
+  --sidebar-w:288px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  font-size:16.5px;
+  line-height:1.7;
+}
+/* finom scanline-textúra a háttérben */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px);
+}
+::selection{background:var(--grass-dk);color:#fff}
+
+/* ---------- SIDEBAR ---------- */
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);
+  background:var(--bg-deep);
+  border-right:3px solid var(--line);
+  overflow-y:auto;z-index:30;
+  padding:22px 0 40px;
+}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{
+  padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px;
+}
+.logo .title{
+  font-family:"Pixelify Sans";font-size:24px;font-weight:700;letter-spacing:.5px;
+  color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15;
+}
+.logo .sub{
+  font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em;
+}
+.logo .badge{
+  display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;
+  color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;
+  box-shadow:2px 2px 0 var(--shadow);
+}
+.nav-part{
+  font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);
+  padding:16px 20px 6px;text-transform:uppercase;
+}
+.nav a{
+  display:block;padding:7px 20px 7px 34px;color:var(--muted);text-decoration:none;
+  font-size:14.5px;position:relative;border-left:4px solid transparent;
+  transition:color .12s,background .12s;
+}
+.nav a::before{
+  content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);
+  transition:opacity .12s,left .12s;
+}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{
+  color:var(--grass-hi);background:rgba(126,203,82,.10);
+  border-left-color:var(--grass);font-weight:600;
+}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{
+  display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;
+  background:var(--grass);color:#10180f;border:none;padding:8px 14px;
+  box-shadow:3px 3px 0 var(--shadow);text-decoration:none;
+  transition:transform .08s,box-shadow .08s;
+}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+
+/* hamburger mobilra */
+.menu-toggle{
+  display:none;position:fixed;top:14px;left:14px;z-index:40;
+  font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;
+  background:var(--panel);color:var(--ink);border:3px solid var(--line);
+  box-shadow:3px 3px 0 var(--shadow);
+}
+
+/* ---------- FŐ TARTALOM ---------- */
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:860px;margin:0 auto;padding:0 36px 120px}
+
+/* HERO */
+.hero{
+  padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px;
+}
+.hero .eyebrow{
+  font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;
+  text-transform:uppercase;margin-bottom:14px;
+}
+.hero h1{
+  font-family:"Pixelify Sans";font-weight:700;font-size:clamp(38px,5.6vw,58px);
+  line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);
+  margin-bottom:18px;
+}
+.hero h1 .g{color:var(--grass-hi)}
+.hero h1 .d{color:var(--dirt)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:620px;margin-bottom:26px}
+.hero-strip{
+  border:3px solid var(--line);background:var(--bg-deep);padding:14px;
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  box-shadow:4px 4px 0 var(--shadow);
+}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6}
+.hero-strip .cap b{color:var(--grass)}
+
+/* SZEKCIÓK */
+section{padding-top:56px}
+.part-divider{
+  margin-top:72px;padding:14px 0 0;
+  border-top:3px dashed var(--line-hi);
+}
+.part-divider .pd-label{
+  font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);
+  text-transform:uppercase;
+}
+.ch-eyebrow{
+  font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);
+  text-transform:uppercase;margin-bottom:8px;
+}
+h2{
+  font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;
+  color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px;
+}
+h3{
+  font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);
+  margin:34px 0 12px;
+}
+p{margin-bottom:14px}
+p+p{margin-top:2px}
+strong{color:#fff}
+em{color:var(--dirt)}
+a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}
+li{margin-bottom:7px}
+code:not(pre code){
+  font-family:"IBM Plex Mono";font-size:.86em;background:var(--code-bg);
+  color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap;
+}
+
+/* KÓD DOBOZ */
+.code{
+  margin:22px 0;border:3px solid var(--line);background:var(--code-bg);
+  box-shadow:4px 4px 0 var(--shadow);
+}
+.code-head{
+  display:flex;justify-content:space-between;align-items:center;
+  background:var(--panel);border-bottom:3px solid var(--line);
+  padding:7px 12px;
+}
+.code-head .fname{
+  font-family:"IBM Plex Mono";font-size:12.5px;color:var(--dirt);letter-spacing:.05em;
+}
+.copy-btn{
+  font-family:"Pixelify Sans";font-size:12.5px;cursor:pointer;
+  background:transparent;color:var(--muted);border:2px solid var(--line-hi);
+  padding:2px 9px;transition:all .1s;
+}
+.copy-btn:hover{color:var(--grass-hi);border-color:var(--grass)}
+.code pre{
+  overflow-x:auto;padding:16px 18px;
+  font-family:"IBM Plex Mono";font-size:13.5px;line-height:1.62;
+}
+.code pre::-webkit-scrollbar{height:8px}
+.code pre::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.k{color:var(--kw)}.t{color:var(--ty)}.f{color:var(--fnc)}.s{color:var(--str)}
+.c{color:var(--cmt);font-style:italic}.m{color:var(--mac)}.n{color:var(--num)}
+
+/* ASCII ÁBRA */
+.diagram{
+  margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);
+  box-shadow:4px 4px 0 var(--shadow);
+}
+.diagram .d-head{
+  font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;
+  padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase;
+}
+.diagram pre{
+  overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";
+  font-size:13px;line-height:1.5;color:var(--ink);
+}
+.diagram pre .gr{color:var(--grass)}
+.diagram pre .di{color:var(--dirt)}
+.diagram pre .wa{color:var(--water)}
+.diagram pre .mu{color:var(--muted)}
+.diagram .d-cap{
+  font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55;
+}
+
+/* BEVY FOGALOM doboz */
+.bevy-box{
+  margin:24px 0;border:3px solid #2a4a52;background:#0d181b;
+  box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px;
+}
+.bevy-box .tag{
+  font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;
+  margin-bottom:8px;text-transform:uppercase;
+}
+.bevy-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.bevy-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.bevy-box ul{font-size:15px;color:#cfdbd5}
+
+/* TIPP / FIGYELEM doboz */
+.note{
+  margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);
+  background:var(--panel);padding:12px 16px;font-size:15px;
+}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{
+  font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--grass);margin-bottom:4px;
+}
+.note.warn .n-tag{color:var(--dirt)}
+
+/* TÁBLÁZAT */
+table{
+  width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;
+  border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow);
+}
+th{
+  background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;
+  color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);
+  letter-spacing:.04em;
+}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+
+/* JÁTSZÓTÉR */
+.playground{
+  margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);
+  box-shadow:5px 5px 0 var(--shadow);
+}
+.playground .pg-head{
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
+  background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);
+  border-bottom:3px solid var(--grass-dk);padding:10px 14px;
+}
+.playground .pg-title{
+  font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em;
+}
+.playground .pg-body{padding:16px;display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{
+  image-rendering:pixelated;border:3px solid var(--line);background:#000;
+  cursor:crosshair;touch-action:none;max-width:100%;
+}
+.playground .pg-side{flex:1;min-width:220px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:2}
+.pg-chip{
+  display:inline-block;width:14px;height:14px;vertical-align:-2px;margin-right:7px;
+  border:2px solid var(--line);
+}
+.pg-controls{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.kbd{
+  font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);
+  border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink);
+}
+
+/* tileset preview rács */
+.atlas-flex{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start;margin:20px 0}
+.atlas-flex .col{flex:1;min-width:250px}
+.mask-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+.mask-cell{
+  border:2px solid var(--line);background:var(--bg-deep);padding:6px;
+  text-align:center;font-family:"IBM Plex Mono";font-size:11px;color:var(--muted);
+}
+.mask-cell canvas{image-rendering:pixelated;display:block;margin:0 auto 4px}
+
+footer{
+  margin-top:90px;border-top:3px solid var(--line);padding-top:24px;
+  font-size:13.5px;color:var(--muted);
+}
+footer .pix{font-family:"Pixelify Sans";color:var(--grass);font-size:15px}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}
+  .menu-toggle{display:block}
+  .main{margin-left:0}
+  .wrap{padding:0 20px 100px}
+  .hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">DUAL-GRID<br>TILEMAP</div>
+    <div class="sub">top-down pixel art · Rust</div>
+    <span class="badge">BEVY 0.18</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I. rész — Elmélet</div>
+    <a href="#ch1">1 · Miért dual-grid?</a>
+    <a href="#ch2">2 · Két rács, fél eltolás</a>
+    <a href="#ch3">3 · Bitmask: a 16 eset</a>
+    <a href="#ch4">4 · A tileset (+ generátor)</a>
+    <div class="nav-part">II. rész — Bevy alapok</div>
+    <a href="#ch5">5 · Projekt indítása</a>
+    <a href="#ch6">6 · ECS gyorstalpaló</a>
+    <a href="#ch7">7 · Kamera, asset, sprite</a>
+    <div class="nav-part">III. rész — Implementáció</div>
+    <a href="#ch8">8 · A world grid</a>
+    <a href="#ch9">9 · A display grid</a>
+    <a href="#ch10">10 · Rajzolás egérrel</a>
+    <a href="#ch11">11 · Frissítés üzenetekkel</a>
+    <a href="#ch12">12 · A teljes main.rs</a>
+    <a href="#ch13">13 · Merre tovább?</a>
+  </nav>
+  <div class="dl-box">
+    <p>A 4. fejezet generátora elkészíti neked a 16 tile-os <span class="mono">tileset.png</span>-t — nem kell semmit kézzel rajzolnod az induláshoz.</p>
+    <a class="btn secondary" href="#ch4">Ugrás oda ▸</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// tutorial · magyar nyelven · ~1 délután</div>
+  <h1><span class="g">16 tile</span>, nem <span class="d">256</span> —<br>dual-grid rendszer Bevy-ben</h1>
+  <p class="lead">Lépésről lépésre felépítünk egy teljes, egérrel rajzolható dual-grid tilemapet a Bevy 0.18-cal — a nulláról, külön elmagyarázva minden Bevy-fogalmat, amivel találkozunk.</p>
+  <div class="hero-strip">
+    <canvas id="heroCanvas" width="256" height="64" style="width:384px;height:96px"></canvas>
+    <div class="cap">↑ Ez a teljes tileset, amire szükségünk lesz.<br><b>Mind a 16 darab.</b> Ennyi. Tényleg.</div>
+  </div>
+</header>
+
+<!-- ================= 1. FEJEZET ================= -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Elmélet</span></div>
+
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>Miért dual-grid?</h2>
+
+  <p>Top-down játékban a terep tile-okból áll: fű, föld, víz, ösvény. A gond ott kezdődik, amikor két tereptípus <strong>találkozik</strong> — az átmenetekhez külön tile-okat kell rajzolni. Egy cellának 8 szomszédja van, és ha minden szomszéd-kombinációhoz egyedi tile kellene, az <strong>2⁸ = 256 tile</strong> lenne tereptípus-páronként. Ezt nyilván senki nem rajzolja meg, ezért a gyakorlatban kompromisszumos tileset-eket használunk:</p>
+
+  <table>
+    <tr><th>Tileset</th><th>Darab</th><th>Előny</th><th>Hátrány</th></tr>
+    <tr>
+      <td><strong>15 darabos</strong></td><td class="mono">15</td>
+      <td>Kevés rajzolnivaló</td>
+      <td>Az élek a tile <em>közepén</em> futnak, így nem igazodnak a világrácshoz → kétértelmű cellák („ez most fű vagy föld?”), zavaró interakció</td>
+    </tr>
+    <tr>
+      <td><strong>47 darabos (blob)</strong></td><td class="mono">47</td>
+      <td>Az élek a rács széléhez igazodnak, szép eredmény</td>
+      <td>47 tile rajzolása tereptípusonként rengeteg munka</td>
+    </tr>
+    <tr>
+      <td><strong>16 darabos részhalmaz</strong></td><td class="mono">16</td>
+      <td>Gyors, rácshoz igazított</td>
+      <td>A belső sarkok „töröttnek” tűnhetnek, nem minden art style bírja el</td>
+    </tr>
+    <tr>
+      <td><strong>Dual-grid</strong></td><td class="mono">16</td>
+      <td>Rácshoz igazított <em>és</em> egyformán lekerekített külső–belső sarkok</td>
+      <td>Két rácsot kell kezelni a kódban (de ezt most megírjuk!)</td>
+    </tr>
+  </table>
+
+  <p>A dual-grid rendszert <strong>Oskar Stålberg</strong> (Townscaper) tette ismertté. A trükk lényege, hogy a <em>logikát</em> és a <em>megjelenítést</em> két, egymáshoz képest fél tile-lal eltolt rácsra bontjuk — ettől egy megjelenített tile kinézetét már nem 8, hanem csak <strong>4 szomszéd</strong> határozza meg, ami 2⁴ = 16 kombináció.</p>
+
+  <div class="note">
+    <div class="n-tag">▲ Konkrét számokban</div>
+    A videó készítője (jess::codes) a vízpartjához 11 frame-es animációt akart. Hagyományos autotilinggel ez 507 tile lett volna — dual-griddel <strong>155 tile-ból megúszta</strong>. Statikus terepnél 47 helyett 16: a megtakarítás minden megrajzolt tereptípusnál újra jelentkezik.
+  </div>
+
+  <h3>Mit építünk pontosan?</h3>
+  <p>Egy futtatható Bevy 0.18 alkalmazást, amiben:</p>
+  <ul>
+    <li>van egy <strong>world grid</strong> (a logikai világ: melyik cella fű, melyik föld),</li>
+    <li>van egy <strong>display grid</strong> (a kirajzolt sprite-ok, fél tile-lal eltolva),</li>
+    <li><strong>bal egérgombbal füvet</strong>, jobbal földet rajzolhatsz, és az átmenetek azonnal, szépen lekerekítve frissülnek,</li>
+    <li>és minden assetet <strong>ez az oldal generál le neked</strong> (4. fejezet).</li>
+  </ul>
+  <p>Közben minden Bevy-építőelemet (App, ECS, Resource, Query, Message…) külön dobozban magyarázok el — a tutorial feltételezi, hogy a Rust alapjai megvannak, de a Bevy teljesen új.</p>
+</section>
+
+<!-- ================= 2. FEJEZET ================= -->
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>Két rács, fél tile eltolás</h2>
+
+  <p>A rendszer nevében a „dual” két rácsra utal, és a kettő <strong>szerepe élesen elválik</strong>:</p>
+  <ul>
+    <li>A <strong>world grid</strong> tárolja a játéklogikát: a <code>(x, y)</code> cella füves vagy földes. Ez a rács <em>semmit nem jelenít meg</em>. Ütközés, útkeresés, „mire kattintott a játékos” — minden ehhez igazodik.</li>
+    <li>A <strong>display grid</strong> fél tile-lal el van tolva a world gridhez képest. Minden display-tile pontosan <strong>4 world-cella találkozási pontjára</strong> kerül, és a kinézetét ez a 4 cella határozza meg.</li>
+  </ul>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A két rács egymáson</div>
+    <pre>
+  world grid (logika)              display grid (kirajzolás, -½ tile eltolva)
+
+  ┌─────┬─────┬─────┐                 ╔══╦═════╦═════╦══╗
+  │     │     │     │                 ║  ║     ║     ║  ║
+  │ <span class="di">FÖLD</span>│ <span class="gr">FŰ</span>  │ <span class="gr">FŰ</span>  │                 ╠══╬═════╬═════╬══╣
+  │     │     │     │                 ║  ║ <span class="wa">D</span>   ║     ║  ║
+  ├─────┼─────┼─────┤      ──►       ║  ║     ║     ║  ║
+  │     │     │     │                 ╠══╬═════╬═════╬══╣
+  │ <span class="gr">FŰ</span>  │ <span class="gr">FŰ</span>  │ <span class="di">FÖLD</span>│                 ║  ║     ║     ║  ║
+  │     │     │     │                 ╚══╩═════╩═════╩══╝
+  └─────┴─────┴─────┘
+                                      a <span class="wa">D</span> display-tile négy sarka a
+                                      world grid 4 cellájába lóg bele</pre>
+    <div class="d-cap">Egy display-tile mindig 4 world-cella metszéspontján „ül”. A world grid cellái közül a bal felső FÖLD, a másik három a környéken FŰ — a display-tile ennek megfelelő átmeneti grafikát kap.</div>
+  </div>
+
+  <h3>Miért old ez meg mindent?</h3>
+  <p>Gondold végig, mi történt: a hagyományos autotilingnél egy tile kinézete a saját celláján <em>plusz</em> 8 szomszédján múlik. A dual-gridnél a display-tile <em>nem tartozik egyetlen cellához sem</em> — ő maga az átmenet, a 4 sarok-cella „véleményének” összegzése. Ebből következik:</p>
+  <ul>
+    <li><strong>2⁴ = 16 kombináció</strong> — minden lehetséges esethez van tile, nincs „majdnem jó” kompromisszum.</li>
+    <li>A tileseten az éleket <em>direkt</em> a tile közepére rajzoljuk (mint a 15 darabosnál!) — de mivel a display grid fél tile-lal el van tolva, a végeredményben az élek <strong>pont a world grid vonalaira</strong> kerülnek. A 15 darabos rendszer fő hibája így erénnyé válik.</li>
+    <li>Mivel minden sarok-eset saját tile-t kap, a belső és külső sarkok <strong>egyformán lekerekíthetők</strong>.</li>
+  </ul>
+
+  <div class="note warn">
+    <div class="n-tag">⚠ Gyakori félreértés</div>
+    A display grid <strong>eggyel nagyobb</strong> mindkét irányban, mint a world grid: egy <code>W × H</code> világhoz <code>(W+1) × (H+1)</code> display-tile kell, mert a világ szélein „túllógó” átmeneteket is ki kell rajzolni. A világon kívüli cellákat egyszerűen földnek (vagy a háttér-terepnek) tekintjük majd.
+  </div>
+</section>
+
+<!-- ================= 3. FEJEZET ================= -->
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>Bitmask: a 16 eset</h2>
+
+  <p>Hogyan döntjük el, melyik tile kerüljön egy display-pozícióra? A 4 sarok-cella mindegyike kétállapotú (fű / nem fű), így a 4 állapotot <strong>4 bitbe</strong> csomagolhatjuk. Ezt hívják bitmasknak, és ez lesz a rendszer szíve:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A bitkiosztásunk</div>
+    <pre>
+        bal felső (TL)── bit 3 ──┐   ┌── bit 2 ── jobb felső (TR)
+                                 ▼   ▼
+                               ┌───┬───┐
+                               │ <span class="gr">8</span> │ <span class="gr">4</span> │      mask = TL·8 + TR·4 + BL·2 + BR·1
+                               ├───┼───┤
+                               │ <span class="gr">2</span> │ <span class="gr">1</span> │      érték: 0 … 15
+                               └───┴───┘
+                                 ▲   ▲
+         bal alsó (BL)── bit 1 ──┘   └── bit 0 ── jobb alsó (BR)</pre>
+    <div class="d-cap">Példa: ha a bal felső és a jobb felső sarok fű, a két alsó föld, akkor mask = 8 + 4 = <strong>12</strong> → a 12-es indexű tile-t rajzoljuk ki (felső fele fű, alsó fele föld).</div>
+  </div>
+
+  <p>A zseniális rész: ha a tileset atlaszunkban a tile-okat <strong>pont a maszk sorrendjében</strong> helyezzük el (a 0. tile a 0-s maszké, az 1. az 1-esé…), akkor <em>nem is kell lookup tábla</em> — az atlasz-index maga a bitmask. Pontosan így fogjuk generálni a tilesetet a következő fejezetben.</p>
+
+  <h3>Ki kicsoda a koordinátákban?</h3>
+  <p>Itt jön az egyetlen pont, ahol könnyű elcsúszni (a videó készítője is bevallotta, hogy ezen agyalt a legtöbbet). Rögzítsük a konvenciónkat, és tartsuk magunkat hozzá végig:</p>
+  <ul>
+    <li>A world-cella <code>(x, y)</code> középpontja a világban: <code>(x·TILE, y·TILE)</code>. Bevy-ben az <strong>Y tengely felfelé nő</strong>.</li>
+    <li>A display-tile <code>(dx, dy)</code> középpontja: <code>((dx−0,5)·TILE, (dy−0,5)·TILE)</code> — azaz fél tile-lal balra-le toljuk.</li>
+  </ul>
+  <p>Ebből levezethető, hogy a <code>(dx, dy)</code> display-tile melyik 4 world-cellát fedi át:</p>
+
+  <table>
+    <tr><th>Sarok</th><th>World-cella</th><th>Bit</th><th>Érték</th></tr>
+    <tr><td>Bal felső (TL)</td><td class="mono">(dx−1, dy)</td><td class="mono">3</td><td class="mono">8</td></tr>
+    <tr><td>Jobb felső (TR)</td><td class="mono">(dx, dy)</td><td class="mono">2</td><td class="mono">4</td></tr>
+    <tr><td>Bal alsó (BL)</td><td class="mono">(dx−1, dy−1)</td><td class="mono">1</td><td class="mono">2</td></tr>
+    <tr><td>Jobb alsó (BR)</td><td class="mono">(dx, dy−1)</td><td class="mono">0</td><td class="mono">1</td></tr>
+  </table>
+
+  <p>És fordítva — ez kell majd a frissítéshez —, ha a <code>(x, y)</code> <strong>world-cella megváltozik</strong>, pontosan 4 display-tile-t érint: <code>(x, y)</code>, <code>(x+1, y)</code>, <code>(x, y+1)</code> és <code>(x+1, y+1)</code>. Vedd észre a szimmetriát: world→display irányban <em>kivonunk</em>, display→world irányban <em>hozzáadunk</em>. A videóban ez volt a híres „csak egy mínuszjel a különbség” pillanat.</p>
+
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ JÁTSZÓTÉR — próbáld ki élőben!</span>
+      <button class="btn" id="pgClear" style="font-size:13px;padding:5px 10px">Törlés</button>
+    </div>
+    <div class="pg-body">
+      <canvas id="pgCanvas" width="416" height="288" style="width:624px"></canvas>
+      <div class="pg-side">
+        <p>Ez ugyanaz a dual-grid logika JavaScriptben, amit mindjárt Rustban is megírunk — a tile-grafikát is ez az oldal generálja.</p>
+        <div class="legend">
+          <span class="pg-chip" style="background:#7ecb52"></span>Bal gomb / húzás: <strong>fű</strong><br>
+          <span class="pg-chip" style="background:#c99c66"></span>Jobb gomb (v. <span class="kbd">Shift</span>+húzás): <strong>föld</strong><br>
+          <span class="pg-chip" style="background:transparent;border-color:#6cc8d9"></span><span class="kbd">G</span>: world grid rácsvonalai be/ki
+        </div>
+        <p style="margin-top:10px">Figyeld meg: a fű élei mindig pontosan a (kék) world-rács vonalaira esnek, pedig a kirajzolt tile-ok fél tile-lal el vannak csúszva.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 4. FEJEZET ================= -->
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>A tileset — és a generátor</h2>
+
+  <p>A dual-grid tileset különlegessége, hogy az átmeneti éleket <strong>szándékosan a tile közepén át</strong> rajzoljuk (a fél tile-os eltolás majd a helyükre csúsztatja őket). A 16 tile mindegyike egy bitmask-esetnek felel meg. Nézzük meg őket egyenként:</p>
+
+  <div class="atlas-flex">
+    <div class="col">
+      <h3 style="margin-top:0">Mind a 16 eset</h3>
+      <div class="mask-grid" id="maskGrid"></div>
+    </div>
+    <div class="col">
+      <h3 style="margin-top:0">Az atlasz elrendezése</h3>
+      <p style="font-size:14.5px">A <code>tileset.png</code> egy 64×64 px-es kép: 4×4 darab 16×16 px-es tile, <strong>balról jobbra, fentről lefelé</strong> a maszk értéke szerint sorban. Így az atlasz-index = bitmask, lookup tábla nélkül.</p>
+      <div class="diagram" style="margin:14px 0">
+        <div class="d-head">⊞ atlasz-indexek</div>
+        <pre>
+   ┌────┬────┬────┬────┐
+   │ <span class="mu">0</span>  │ <span class="mu">1</span>  │ <span class="mu">2</span>  │ <span class="mu">3</span>  │
+   ├────┼────┼────┼────┤
+   │ <span class="mu">4</span>  │ <span class="mu">5</span>  │ <span class="mu">6</span>  │ <span class="mu">7</span>  │
+   ├────┼────┼────┼────┤
+   │ <span class="mu">8</span>  │ <span class="mu">9</span>  │ <span class="mu">10</span> │ <span class="mu">11</span> │
+   ├────┼────┼────┼────┤
+   │ <span class="mu">12</span> │ <span class="mu">13</span> │ <span class="mu">14</span> │ <span class="mu">15</span> │
+   └────┴────┴────┴────┘</pre>
+      </div>
+    </div>
+  </div>
+
+  <p>Vedd észre a mintázatot a 16 esetben: az <strong>1 sarkos</strong> tile-ok negyed-körívnyi füvet kapnak (külső sarok), a <strong>3 sarkosak</strong> negyed-körívnyi „kiharapott” földet (belső sarok) — és a két ív <strong>ugyanakkora sugarú</strong>. Ez az az „egyformán lekerekített sarok”, amit a hagyományos tileset-ekkel nem lehet szépen elérni.</p>
+
+  <h3>Generáld le a tileset.png-t</h3>
+  <p>Hogy ne kelljen pixel art-ot rajzolnod a tutorialhoz, ez az oldal legenerálja neked a teljes atlaszt (negyed-körös élek, kis pixel-zaj, kontúr — ugyanaz a kép, amit a játszótér is használ):</p>
+
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ TILESET GENERÁTOR</span>
+      <button class="btn" id="dlTileset">⤓ tileset.png letöltése</button>
+    </div>
+    <div class="pg-body">
+      <canvas id="atlasPreview" width="64" height="64" style="width:256px;height:256px"></canvas>
+      <div class="pg-side">
+        <p>A letöltött fájl <strong>64×64 px</strong>, 16 darab 16×16-os tile. Tedd a Bevy-projekted <code>assets/</code> mappájába <code>tileset.png</code> néven:</p>
+        <div class="code" style="margin:12px 0">
+          <div class="code-head"><span class="fname">projektszerkezet</span></div>
+          <pre>dual_grid/
+├── assets/
+│   └── tileset.png   ◄ ide!
+├── src/
+│   └── main.rs
+└── Cargo.toml</pre>
+        </div>
+        <p>Később bármikor lecserélheted egy kézzel rajzolt, szebb verzióra — amíg a 16 tile a maszk-sorrendben van, a kód egy betűnyit sem változik.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▲ Ha saját tilesetet rajzolsz</div>
+    Aseprite-ban (vagy bármiben) a legkényelmesebb először egy 2×2 cellás „minta-világot” rajzolni fűvel-földdel, és abból kivágni a 16 esetet. A lényeg: az élek a tile-ok <em>közepén</em> fussanak át, és minden tile széle illeszkedjen a szomszédos esetek széleihez. Ha más a tile-sorrend, mint itt, a 8. fejezetben egy <code>const</code> lookup táblával tudod átmappelni.
+  </div>
+</section>
+<!-- ================= II. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ II. rész — Bevy alapok</span></div>
+
+<!-- ================= 5. FEJEZET ================= -->
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Projekt indítása</h2>
+
+  <p>Hozzunk létre egy új Rust-projektet, és húzzuk be a Bevy 0.18-at:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">terminál</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-sh">cargo new dual_grid
+cd dual_grid
+cargo add bevy@0.18</code></pre>
+  </div>
+
+  <p>A Bevy fordítása elsőre lassú (sok függőség), de van pár beállítás, amivel a <em>további</em> fordítások másodpercekre rövidülnek. Tedd ezt a <code>Cargo.toml</code>-ba:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">Cargo.toml</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-toml">[package]
+name = "dual_grid"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = "0.18"
+
+# A függőségek (köztük a Bevy) optimalizálva forduljanak
+# debug módban is — enélkül a játék debug buildben csigalassú.
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.dev]
+opt-level = 1</code></pre>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▲ Tipp: dynamic linking</div>
+    Fejlesztés közben futtathatod így is: <code>cargo run --features bevy/dynamic_linking</code> — ilyenkor a Bevy egy dinamikus könyvtárba fordul, és a saját kódod újrafordítása drasztikusan gyorsabb. Kiadási (release) buildbe viszont ne kerüljön bele! A 0.18 újdonsága emellett, hogy léteznek <em>feature-gyűjtemények</em> (<code>2d</code>, <code>3d</code>, <code>ui</code>), amikkel csak a tényleg szükséges motor-részeket fordítod le — most maradunk az alapértelmezettnél, mert az a legegyszerűbb.
+  </div>
+
+  <h3>A legkisebb Bevy-app</h3>
+  <p>Mielőtt bármi dual-grid-specifikusat írnánk, értsük meg a vázat:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — első változat</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_systems(Startup, hello)
+        .run();
+}
+
+fn hello() {
+    info!("Helló, dual-grid!");
+}</code></pre>
+  </div>
+
+  <p><code>cargo run</code> — és kapsz egy üres, szürke ablakot, a konzolban pedig a logsort. Unalmas, de máris három alapfogalommal találkoztunk:</p>
+
+  <aside class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — App</div>
+    <p>Az <code>App</code> az alkalmazásod „gerince”: ebbe regisztrálsz mindent (pluginokat, rendszereket, erőforrásokat), a <code>.run()</code> pedig elindítja a fő ciklust. A Bevy ettől kezdve <strong>minden frame-ben</strong> lefuttatja a megfelelő ütemezésekhez (schedule) rendelt rendszereidet. A hívásláncolás (builder pattern) a Bevy-ben mindenhol visszaköszön.</p>
+  </aside>
+
+  <aside class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — Plugin és DefaultPlugins</div>
+    <p>A Bevy-ben szinte minden funkció <strong>plugin</strong>: önálló csomag, ami rendszereket és erőforrásokat ad az apphoz. A <code>DefaultPlugins</code> egy gyűjtemény — ablakkezelés, renderelő, input, asset-betöltő, hang, log… Saját kódodat is érdemes később pluginokba szervezni; egy plugin csak egy <code>fn build(&amp;self, app: &amp;mut App)</code>-ot megvalósító típus.</p>
+    <p>Egy gyűjteményen belül az egyes pluginok a <code>.set(...)</code> hívással konfigurálhatók — mindjárt pontosan ezt tesszük az <code>ImagePlugin</code>-nal.</p>
+  </aside>
+
+  <aside class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — System és Schedule</div>
+    <p>A <strong>system</strong> egy sima Rust-függvény, amit a Bevy futtat. Nem te hívod meg — te csak beregisztrálod egy <strong>schedule</strong>-ba:</p>
+    <ul>
+      <li><code>Startup</code> — egyszer fut le, induláskor (pl. világ felépítése),</li>
+      <li><code>Update</code> — minden frame-ben fut (pl. input, játéklogika).</li>
+    </ul>
+    <p>A system paraméterlistája „varázslatos”: abból, hogy <em>mit kérsz</em> paraméterként (<code>Query</code>, <code>Res</code>, <code>Commands</code>…), a Bevy kitalálja, milyen adatokhoz kell hozzáférést adnia — és ami még jobb: az egymással nem ütköző rendszereket automatikusan <strong>párhuzamosan</strong> futtatja.</p>
+  </aside>
+
+  <h3>Pixel art mód: nearest filtering</h3>
+  <p>Pixel art-nál létfontosságú, hogy a textúrákat a GPU ne „mossa el” (lineáris szűrés), hanem éles, kockás pixeleket kapjunk (nearest). Ezt globálisan az <code>ImagePlugin</code>-on állítjuk, és rögtön adjunk az ablaknak címet is:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — pluginok beállítása</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn main() {
+    App::new()
+        .add_plugins(
+            DefaultPlugins
+                .set(ImagePlugin::default_nearest())
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: "Dual-grid tilemap — Bevy 0.18".into(),
+                        ..default()
+                    }),
+                    ..default()
+                }),
+        )
+        .insert_resource(ClearColor(Color::srgb(0.32, 0.22, 0.13)))
+        .run();
+}</code></pre>
+  </div>
+
+  <p>A <code>ClearColor</code> a háttérszín (egy sötét földbarna illik majd a tilesethez). A <code>..default()</code> Rust-minta a Bevy-ben mindenhol ott van: „a többi mezőt töltsd ki az alapértelmezett értékkel”.</p>
+</section>
+
+<!-- ================= 6. FEJEZET ================= -->
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>ECS gyorstalpaló</h2>
+
+  <p>A Bevy lelke az <strong>ECS</strong> (Entity–Component–System) architektúra. Ha objektumorientált motorokhoz (Unity, Godot) szoktál, ez eleinte furcsa, de a dual-grid pont egy ideális első ECS-projekt, mert minden szerepkör tisztán látszik benne. A három alapfogalom:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ ECS dióhéjban</div>
+    <pre>
+  <span class="gr">ENTITY</span>      egy azonosító, semmi több          pl. a (3,5) display-tile
+     │
+     ├── <span class="di">COMPONENT</span>  sima adat-struct az entityn     DisplayTile { dx, dy }
+     ├── <span class="di">COMPONENT</span>                                  Sprite { ... }
+     └── <span class="di">COMPONENT</span>                                  Transform { ... }
+
+  <span class="wa">SYSTEM</span>      függvény, ami component-csoportokon dolgozik
+              „minden entityre, aminek van DisplayTile-ja ÉS Sprite-ja: …”
+
+  <span class="mu">RESOURCE</span>    globális, egyetlen példányú adat    WorldGrid (a teljes pálya)</pre>
+    <div class="d-cap">Az entity csak egy ID. Az adatot a componentek hordozzák, a viselkedést a systemek adják, a „singleton” jellegű adatok pedig resource-ok.</div>
+  </div>
+
+  <aside class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — Component</div>
+    <p>Bármilyen Rust-struct vagy enum lehet component, csak rá kell tenni a <code>#[derive(Component)]</code>-et. A component <em>csak adat</em> — nincs benne logika. Egy entityre componenteket „aggatunk”, és a systemek ezek alapján találják meg.</p>
+    <p>A Bevy 0.15 óta léteznek <strong>required components</strong>: ha egy entityre <code>Sprite</code>-ot teszel, automatikusan kap <code>Transform</code>-ot, <code>Visibility</code>-t stb. is — ezért nem kell (a régi tutorialokból ismerős) „Bundle”-ökkel bajlódni.</p>
+  </aside>
+
+  <aside class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — Resource</div>
+    <p>A <code>#[derive(Resource)]</code>-szal jelölt típusból az appban <strong>pontosan egy példány</strong> él. Ide való minden, ami „a világé”, nem egy-egy entityé: pontszám, beállítások — nálunk a <code>WorldGrid</code>. Regisztrálás: <code>app.insert_resource(...)</code> vagy system-ből <code>commands.insert_resource(...)</code>. Hozzáférés systemben: <code>Res&lt;T&gt;</code> (olvasás) vagy <code>ResMut&lt;T&gt;</code> (írás).</p>
+  </aside>
+
+  <aside class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — Commands</div>
+    <p>A <code>Commands</code> a „világszerkesztő eszközöd” systemen belül: <code>commands.spawn((CompA, CompB, ...))</code> hoz létre entityt a felsorolt componentekkel, <code>commands.entity(e).despawn()</code> törli. Fontos: a parancsok <strong>késleltetve</strong>, a system lefutása után hajtódnak végre — így a Bevy biztonságosan tudja párhuzamosítani a rendszereket.</p>
+  </aside>
+
+  <aside class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — Query</div>
+    <p>A <code>Query&lt;(&amp;A, &amp;mut B), With&lt;C&gt;&gt;</code> azt jelenti: „add ide az összes entityt, amelyiknek van <code>A</code>, <code>B</code> és <code>C</code> componentje; az <code>A</code>-t olvasnám, a <code>B</code>-t írnám”. A query-n <code>for</code>-ral iterálsz. A <code>With&lt;C&gt;</code> csak szűrő: a <code>C</code> adataira nincs szükséged, csak a jelenlétére.</p>
+    <p>Ha tudod, hogy pontosan <strong>egy</strong> ilyen entity létezik (pl. a kamera), a <code>Single&lt;...&gt;</code> paramétert használhatod query helyett — kényelmesebb, és a Bevy szól, ha a feltevés megdől.</p>
+  </aside>
+
+  <h3>Hogy áll össze ez nálunk?</h3>
+  <table>
+    <tr><th>Dual-grid elem</th><th>ECS szerep</th><th>Miért?</th></tr>
+    <tr><td>A pálya cellái (fű/föld)</td><td><code>WorldGrid</code> <strong>Resource</strong></td><td>Egyetlen, globális adathalmaz — felesleges lenne cellánként entity</td></tr>
+    <tr><td>Egy kirajzolt tile</td><td><strong>Entity</strong> + <code>DisplayTile</code>, <code>Sprite</code>, <code>Transform</code> componentek</td><td>Sok van belőle, mindegyiknek pozíciója és képe van</td></tr>
+    <tr><td>„Megváltozott a (x,y) cella”</td><td><code>CellChanged</code> <strong>Message</strong></td><td>A rajzoló system így üzen a frissítő systemnek (11. fejezet)</td></tr>
+    <tr><td>Rajzolás, frissítés</td><td><strong>System</strong>-ek az <code>Update</code>-ben</td><td>Minden frame-ben reagálnak az inputra</td></tr>
+  </table>
+
+  <div class="note">
+    <div class="n-tag">▲ Tervezési döntés</div>
+    Csinálhatnánk world-cellánként is entityt — működne, de semmit nem nyernénk vele, viszont minden cella-olvasás query-zés lenne. A <strong>„rács = Resource, kirajzolt tile = entity”</strong> felosztás a tilemapek bevett ECS-mintája.
+  </div>
+</section>
+
+<!-- ================= 7. FEJEZET ================= -->
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>Kamera, assetek, sprite-ok</h2>
+
+  <p>Még három Bevy-építőelem hiányzik a szerszámosládából, mielőtt összerakjuk a rendszert: a kamera, az asset-kezelés és a texture atlas-os sprite.</p>
+
+  <h3>Kamera</h3>
+  <div class="code">
+    <div class="code-head"><span class="fname">kamera spawnolása</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn setup_camera(mut commands: Commands) {
+    commands.spawn((
+        Camera2d,
+        // a kamerát a pálya közepére tesszük
+        Transform::from_xyz(192.0, 128.0, 0.0),
+        // 0.4-es skála = ~2,5x nagyítás (pixel artnál jól jön)
+        Projection::from(OrthographicProjection {
+            scale: 0.4,
+            ..OrthographicProjection::default_2d()
+        }),
+    ));
+}</code></pre>
+  </div>
+
+  <aside class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — Camera2d és Projection</div>
+    <p>A <code>Camera2d</code> egy marker component: „ez az entity egy 2D kamera”. A required components mechanizmus miatt automatikusan megkapja a <code>Camera</code>, <code>Transform</code>, <code>Projection</code> stb. componenteket is — mi csak azokat adjuk meg kézzel, amiket testre akarunk szabni. Az <code>OrthographicProjection::scale</code> &lt; 1 nagyít (kevesebb világ-egység fér a képernyőre), &gt; 1 kicsinyít. Pixel artnál egész számú nagyítás (pl. 0.5, 0.25) adja a legtisztább képet.</p>
+  </aside>
+
+  <h3>Assetek betöltése</h3>
+  <div class="code">
+    <div class="code-head"><span class="fname">tileset betöltése</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn setup_tileset(
+    mut commands: Commands,
+    asset_server: Res&lt;AssetServer&gt;,
+    mut layouts: ResMut&lt;Assets&lt;TextureAtlasLayout&gt;&gt;,
+) {
+    // assets/tileset.png — aszinkron töltődik be
+    let image = asset_server.load("tileset.png");
+
+    // 4×4 rács, 16×16 px-es tile-ok
+    let layout = layouts.add(TextureAtlasLayout::from_grid(
+        UVec2::splat(16), // egy tile mérete px-ben
+        4,                // oszlopok
+        4,                // sorok
+        None,             // nincs köz a tile-ok közt
+        None,             // nincs margó
+    ));
+
+    commands.insert_resource(Tileset { image, layout });
+}</code></pre>
+  </div>
+
+  <aside class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — AssetServer, Handle, Assets</div>
+    <p>Az <code>asset_server.load("tileset.png")</code> <strong>nem</strong> a képet adja vissza, hanem egy <code>Handle&lt;Image&gt;</code>-et — egy könnyű hivatkozást. A betöltés a háttérben történik; a renderelő egyszerűen addig nem rajzolja ki a sprite-ot, amíg a kép meg nem érkezett. Az útvonal mindig az <code>assets/</code> mappához képest értendő.</p>
+    <p>Az <code>Assets&lt;T&gt;</code> resource a ténylegesen tárolt assetek gyűjteménye; a <code>layouts.add(...)</code>-dal mi magunk teszünk bele egy kézzel épített assetet (az atlasz-kiosztást), és cserébe handle-t kapunk. A handle-ök olcsón klónozhatók — ezt ki is fogjuk használni, amikor 425 sprite kapja meg ugyanazt a képet.</p>
+  </aside>
+
+  <h3>Sprite texture atlasból</h3>
+  <p>Egy atlasz-beli tile kirajzolása: a <code>Sprite</code> component képes egy nagy képből csak egy indexelt kivágást mutatni.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">egy tile sprite-ja</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">commands.spawn((
+    Sprite::from_atlas_image(
+        tileset.image.clone(),
+        TextureAtlas {
+            layout: tileset.layout.clone(),
+            index: 12, // ◄ a bitmask lesz majd az index!
+        },
+    ),
+    Transform::from_xyz(x, y, 0.0),
+));</code></pre>
+  </div>
+
+  <aside class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — Transform és GlobalTransform</div>
+    <p>A <code>Transform</code> az entity pozíciója / forgatása / skálája — 2D-ben a <code>translation.x/.y</code> a világkoordináta, a <code>z</code> pedig a rajzolási sorrend (nagyobb z = előrébb). A <code>GlobalTransform</code> a szülő-hierarchiával összeszorzott, „végleges” transzform, amit a Bevy számol ki — olvasni szoktuk (pl. a kameráét), kézzel írni nem.</p>
+  </aside>
+
+  <p>Ezzel minden alkatrész megvan. Irány a tényleges implementáció!</p>
+</section>
+<!-- ================= III. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Implementáció</span></div>
+
+<!-- ================= 8. FEJEZET ================= -->
+<section id="ch8">
+  <div class="ch-eyebrow">8. fejezet</div>
+  <h2>A world grid</h2>
+
+  <p>Kezdjük a logikai réteggel. Konstansok, tereptípus, és a rácsot tároló resource:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — adatmodell</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
+
+const TILE: f32 = 16.0;   // egy tile mérete világ-egységben (px)
+const GRID_W: i32 = 24;   // világ szélessége cellában
+const GRID_H: i32 = 16;   // világ magassága cellában
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum TileKind {
+    Dirt,
+    Grass,
+}
+
+/// A logikai világ: melyik cella micsoda.
+/// Ez SEMMIT nem jelenít meg — csak adat.
+#[derive(Resource)]
+struct WorldGrid {
+    w: i32,
+    h: i32,
+    cells: Vec&lt;TileKind&gt;,
+}
+
+impl WorldGrid {
+    fn new(w: i32, h: i32) -&gt; Self {
+        Self {
+            w,
+            h,
+            cells: vec![TileKind::Dirt; (w * h) as usize],
+        }
+    }
+
+    /// A rácson kívüli cella: föld. Így a világ szélein
+    /// is helyes átmenet rajzolódik, külön esetkezelés nélkül.
+    fn get(&amp;self, x: i32, y: i32) -&gt; TileKind {
+        if x &lt; 0 || y &lt; 0 || x &gt;= self.w || y &gt;= self.h {
+            TileKind::Dirt
+        } else {
+            self.cells[(y * self.w + x) as usize]
+        }
+    }
+
+    /// Visszaadja, hogy történt-e tényleges változás —
+    /// erre építünk majd a frissítésnél.
+    fn set(&amp;mut self, x: i32, y: i32, kind: TileKind) -&gt; bool {
+        if x &lt; 0 || y &lt; 0 || x &gt;= self.w || y &gt;= self.h {
+            return false;
+        }
+        let i = (y * self.w + x) as usize;
+        if self.cells[i] == kind {
+            return false;
+        }
+        self.cells[i] = kind;
+        true
+    }
+}</code></pre>
+  </div>
+
+  <p>Három apró, de tudatos döntés van itt, ami később sok fejfájást spórol meg:</p>
+  <ul>
+    <li><strong><code>i32</code> koordináták</strong> <code>usize</code> helyett: a display grid a <code>-1</code>-es world-cellákra is rá fog kérdezni (a világ szélein), és az előjeles típus ezt fájdalommentessé teszi.</li>
+    <li><strong>A <code>get</code> sosem hibázik</strong>: a rácson kívül „föld” a válasz. A peremkezelés így egyetlen helyre koncentrálódik.</li>
+    <li><strong>A <code>set</code> jelez</strong>: csak akkor ad <code>true</code>-t, ha tényleg változott valami — felesleges újrarajzolás így el sem indul.</li>
+  </ul>
+
+  <p>A sarok-bitmask kiszámítása a 3. fejezet táblázatának szó szerinti fordítása:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — bitmask</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">/// A (dx, dy) display-tile 4 sarok-cellájából képzett maszk.
+/// Mivel a tileset.png tile-jai maszk-sorrendben vannak,
+/// ez az érték egyben az atlasz-index is.
+fn corner_mask(grid: &amp;WorldGrid, dx: i32, dy: i32) -&gt; usize {
+    let tl = (grid.get(dx - 1, dy) == TileKind::Grass) as usize;     // bal felső
+    let tr = (grid.get(dx, dy) == TileKind::Grass) as usize;         // jobb felső
+    let bl = (grid.get(dx - 1, dy - 1) == TileKind::Grass) as usize; // bal alsó
+    let br = (grid.get(dx, dy - 1) == TileKind::Grass) as usize;     // jobb alsó
+    (tl &lt;&lt; 3) | (tr &lt;&lt; 2) | (bl &lt;&lt; 1) | br
+}</code></pre>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▲ Ha kézzel rajzolt, más sorrendű tilesetet használsz</div>
+    Ilyenkor jön képbe a lookup tábla: <code>const LOOKUP: [usize; 16] = [ ... ];</code>, és az index <code>LOOKUP[mask]</code> lesz. A videóbeli Godot-implementáció pontosan ezt csinálja egy 16 elemű szótárral — mi a generált atlasszal megspóroltuk.
+  </div>
+
+  <p>Végül a kezdővilág: induljunk egy fű-szigettel, hogy már az első futtatáskor látszódjon valami érdekes.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — setup system</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">#[derive(Resource)]
+struct Tileset {
+    image: Handle&lt;Image&gt;,
+    layout: Handle&lt;TextureAtlasLayout&gt;,
+}
+
+fn setup(
+    mut commands: Commands,
+    asset_server: Res&lt;AssetServer&gt;,
+    mut layouts: ResMut&lt;Assets&lt;TextureAtlasLayout&gt;&gt;,
+) {
+    // --- kamera a pálya közepén ---
+    let center = Vec3::new(
+        GRID_W as f32 * TILE * 0.5,
+        GRID_H as f32 * TILE * 0.5,
+        0.0,
+    );
+    commands.spawn((
+        Camera2d,
+        Transform::from_translation(center),
+        Projection::from(OrthographicProjection {
+            scale: 0.4,
+            ..OrthographicProjection::default_2d()
+        }),
+    ));
+
+    // --- tileset ---
+    let image = asset_server.load("tileset.png");
+    let layout = layouts.add(TextureAtlasLayout::from_grid(
+        UVec2::splat(16), 4, 4, None, None,
+    ));
+    commands.insert_resource(Tileset { image, layout });
+
+    // --- kezdővilág: egy fű-sziget ---
+    let mut grid = WorldGrid::new(GRID_W, GRID_H);
+    for y in 5..11 {
+        for x in 7..17 {
+            grid.set(x, y, TileKind::Grass);
+        }
+    }
+    grid.set(7, 10, TileKind::Dirt);  // csorbítsuk ki az egyik sarkát,
+    grid.set(16, 5, TileKind::Dirt);  // hogy belső sarkok is legyenek
+    commands.insert_resource(grid);
+}</code></pre>
+  </div>
+</section>
+
+<!-- ================= 9. FEJEZET ================= -->
+<section id="ch9">
+  <div class="ch-eyebrow">9. fejezet</div>
+  <h2>A display grid felépítése</h2>
+
+  <p>Most jön a látvány. Minden display-pozícióra spawnolunk egy entityt, három componenttel: a saját rács-koordinátáját hordozó <code>DisplayTile</code>-lal (hogy később megtaláljuk), egy atlasz-sprite-tal (index = bitmask), és a fél tile-lal eltolt <code>Transform</code>-mal.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — display grid</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">/// Marker + koordináta: ettől tudjuk, melyik sprite
+/// melyik display-pozíciót jeleníti meg.
+#[derive(Component)]
+struct DisplayTile {
+    dx: i32,
+    dy: i32,
+}
+
+fn spawn_display_grid(
+    mut commands: Commands,
+    grid: Res&lt;WorldGrid&gt;,
+    tileset: Res&lt;Tileset&gt;,
+) {
+    // FIGYELEM: ..= — a display grid (W+1) × (H+1) méretű!
+    for dy in 0..=grid.h {
+        for dx in 0..=grid.w {
+            let mask = corner_mask(&amp;grid, dx, dy);
+            commands.spawn((
+                DisplayTile { dx, dy },
+                Sprite::from_atlas_image(
+                    tileset.image.clone(),
+                    TextureAtlas {
+                        layout: tileset.layout.clone(),
+                        index: mask,
+                    },
+                ),
+                // ITT történik a fél tile-os eltolás:
+                Transform::from_xyz(
+                    (dx as f32 - 0.5) * TILE,
+                    (dy as f32 - 0.5) * TILE,
+                    0.0,
+                ),
+            ));
+        }
+    }
+}</code></pre>
+  </div>
+
+  <p>Ennyi az egész dual-grid „varázslat” a renderelés oldalán: <strong>egyetlen <code>- 0.5</code></strong> a transformban. A 24×16-os világhoz 25×17 = 425 sprite jön létre — a Bevy-nek ez meg sem kottyan, és mivel mindegyik ugyanazt az image/layout handle-t klónozza, a GPU-n az egész egyetlen textúra.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Mi hová kerül a világban?</div>
+    <pre>
+  world-cella (0,0) középpontja:      (0, 0)
+  world-cella (1,0) középpontja:      (16, 0)
+
+  display-tile (0,0) középpontja:     (<span class="gr">-8, -8</span>)     = (0-0.5)·16
+  display-tile (1,1) középpontja:     (<span class="gr">8, 8</span>)       = (1-0.5)·16
+                                       ▲
+                        pont a (0,0), (1,0), (0,1), (1,1)
+                        world-cellák találkozási pontján!</pre>
+    <div class="d-cap">A display-tile (1,1) középpontja a négy szomszédos world-cella közös sarkán ül — pontosan ezt akartuk.</div>
+  </div>
+
+  <p>Kössük be a két startup-systemet. A sorrend számít — a <code>spawn_display_grid</code>-nek már léteznie kell a <code>WorldGrid</code> és <code>Tileset</code> resource-oknak:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — main() bővítése</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">.add_systems(Startup, (setup, spawn_display_grid).chain())</code></pre>
+  </div>
+
+  <aside class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — .chain() és a futási sorrend</div>
+    <p>Alapból a Bevy az egy schedule-ben lévő rendszereket <strong>tetszőleges sorrendben, akár párhuzamosan</strong> futtatja. A <code>(a, b).chain()</code> kikényszeríti, hogy <code>a</code> fusson <code>b</code> előtt. Finomabb eszközök is vannak (<code>.before()</code>, <code>.after()</code>, system set-ek), de induláshoz a <code>chain</code> tökéletes.</p>
+    <p>Apró finomság: a <code>Commands</code>-szal beszúrt resource a system <em>lefutása után</em> jön létre — a <code>chain</code> ezt is rendezi, mert a parancsok a két láncolt system között kiürülnek.</p>
+  </aside>
+
+  <p>Ha most futtatod (<code>cargo run</code>), már látnod kell a fű-szigetet, szépen lekerekített sarkokkal. Csak épp még nem tudsz hozzányúlni.</p>
+</section>
+
+<!-- ================= 10. FEJEZET ================= -->
+<section id="ch10">
+  <div class="ch-eyebrow">10. fejezet</div>
+  <h2>Rajzolás egérrel</h2>
+
+  <p>A cél: bal gomb = fű, jobb gomb = föld, nyomva tartva festeni is lehessen. Ehhez három lépés kell minden frame-ben: <strong>(1)</strong> melyik gomb van lenyomva, <strong>(2)</strong> a kurzor képernyő-pozíciójából világ-pozíció, <strong>(3)</strong> abból world-cella koordináta.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — festő system</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn paint_cells(
+    buttons: Res&lt;ButtonInput&lt;MouseButton&gt;&gt;,
+    window: Single&lt;&amp;Window, With&lt;PrimaryWindow&gt;&gt;,
+    camera: Single&lt;(&amp;Camera, &amp;GlobalTransform)&gt;,
+    mut grid: ResMut&lt;WorldGrid&gt;,
+    mut changed: MessageWriter&lt;CellChanged&gt;,
+) {
+    // (1) melyik gomb? — pressed: nyomva tartásra is igaz
+    let kind = if buttons.pressed(MouseButton::Left) {
+        TileKind::Grass
+    } else if buttons.pressed(MouseButton::Right) {
+        TileKind::Dirt
+    } else {
+        return;
+    };
+
+    // (2) kurzor → világkoordináta
+    let Some(cursor) = window.cursor_position() else {
+        return; // a kurzor az ablakon kívül van
+    };
+    let (camera, cam_transform) = *camera;
+    let Ok(world_pos) = camera.viewport_to_world_2d(cam_transform, cursor)
+    else {
+        return;
+    };
+
+    // (3) világkoordináta → world-cella
+    // a cella középpontja x·TILE, tehát kerekítünk:
+    let x = (world_pos.x / TILE).round() as i32;
+    let y = (world_pos.y / TILE).round() as i32;
+
+    // csak akkor üzenünk, ha tényleg változott valami
+    if grid.set(x, y, kind) {
+        changed.write(CellChanged { x, y });
+    }
+}</code></pre>
+  </div>
+
+  <aside class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — ButtonInput</div>
+    <p>A <code>ButtonInput&lt;T&gt;</code> resource gombállapotokat követ (<code>MouseButton</code>, <code>KeyCode</code>, gamepad). Három kérdést tehetsz fel neki: <code>just_pressed</code> (ebben a frame-ben nyomták le), <code>pressed</code> (épp lenyomva van), <code>just_released</code>. A festéshez a <code>pressed</code> kell — húzásra folyamatosan fest.</p>
+  </aside>
+
+  <aside class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — kurzorból világkoordináta</div>
+    <p>A <code>window.cursor_position()</code> <em>képernyő</em>-pixelt ad (bal felső sarok az origó, Y lefelé nő) — a világunk viszont a kamera mögött van, ahol az Y felfelé nő és az origó máshol van. A <code>camera.viewport_to_world_2d(&amp;GlobalTransform, Vec2)</code> ezt a teljes átszámítást elvégzi, figyelembe véve a kamera pozícióját és a projection skálát is. <code>Result</code>-tal tér vissza (elméletben hibázhat, pl. ha a kamera még nem áll készen), ezért bontjuk ki <code>let Ok(...) else</code> mintával.</p>
+  </aside>
+
+  <div class="note warn">
+    <div class="n-tag">⚠ Miért .round() és nem .floor()?</div>
+    Mert a konvenciónkban a world-cella <strong>középpontja</strong> van az <code>x·TILE</code> ponton, tehát a cella az <code>x·TILE − 8</code> … <code>x·TILE + 8</code> sávot fedi le. Ha a cella <em>bal alsó sarkát</em> tennéd az <code>x·TILE</code>-ra, akkor <code>.floor()</code> kellene — mindkettő működik, de a kerekítésnek és a sprite-transzformoknak <strong>ugyanazt</strong> a konvenciót kell követnie, különben fél cellával félremegy a festés.
+  </div>
+</section>
+
+<!-- ================= 11. FEJEZET ================= -->
+<section id="ch11">
+  <div class="ch-eyebrow">11. fejezet</div>
+  <h2>Frissítés üzenetekkel</h2>
+
+  <p>A festő system megváltoztatta a world gridet — de honnan tudja meg a display grid, hogy frissülnie kell? Megoldhatnánk úgy, hogy minden frame-ben minden sprite újraszámolja a maszkját, de ez pazarlás. Ehelyett a festő <strong>üzenetet küld</strong>, a frissítő pedig csak az érintett tile-okhoz nyúl. Ez a Bevy <code>Message</code> rendszere:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — üzenettípus</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">/// „A (x, y) world-cella tartalma megváltozott.”
+#[derive(Message)]
+struct CellChanged {
+    x: i32,
+    y: i32,
+}</code></pre>
+  </div>
+
+  <aside class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — Message (régi nevén: buffered Event)</div>
+    <p>A <code>Message</code> a rendszerek közti laza kommunikáció eszköze: az egyik system <code>MessageWriter&lt;T&gt;</code>-vel ír, egy másik <code>MessageReader&lt;T&gt;</code>-rel olvas — a Bevy pufferel és két frame-ig megőrzi az üzeneteket. Regisztrálni kell: <code>app.add_message::&lt;CellChanged&gt;()</code>.</p>
+    <p><strong>Verziófigyelmeztetés:</strong> a Bevy 0.16-ig ezt <code>Event</code> / <code>EventReader</code> / <code>EventWriter</code> néven találod a régebbi tutorialokban — a 0.17 nevezte át <code>Message</code>-re, az <code>Event</code> név azóta a megfigyelőknek (observer) van fenntartva. Ha régi példakódot olvasol, fejben cseréld a neveket.</p>
+  </aside>
+
+  <p>A frissítő system: összegyűjti az érintett display-koordinátákat (cellánként a 4 „jobbra-fel” szomszéd — emlékszel, ez a 3. fejezet plusz-os iránya), majd a query-ben átírja a megfelelő sprite-ok atlasz-indexét:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — frissítő system</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn refresh_display(
+    mut changed: MessageReader&lt;CellChanged&gt;,
+    grid: Res&lt;WorldGrid&gt;,
+    mut tiles: Query&lt;(&amp;DisplayTile, &amp;mut Sprite)&gt;,
+) {
+    // a (x,y) cella változása ezt a 4 display-tile-t érinti:
+    let dirty: Vec&lt;(i32, i32)&gt; = changed
+        .read()
+        .flat_map(|m| {
+            [
+                (m.x, m.y),
+                (m.x + 1, m.y),
+                (m.x, m.y + 1),
+                (m.x + 1, m.y + 1),
+            ]
+        })
+        .collect();
+
+    if dirty.is_empty() {
+        return; // a legtöbb frame-ben itt kilépünk — olcsó!
+    }
+
+    for (tile, mut sprite) in &amp;mut tiles {
+        if dirty.contains(&amp;(tile.dx, tile.dy)) {
+            if let Some(atlas) = sprite.texture_atlas.as_mut() {
+                atlas.index = corner_mask(&amp;grid, tile.dx, tile.dy);
+            }
+        }
+    }
+}</code></pre>
+  </div>
+
+  <p>Kössük be az új darabokat a <code>main()</code>-be — a festő fusson a frissítő előtt, hogy a változás még ugyanabban a frame-ben megjelenjen:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — main() bővítése</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">.add_message::&lt;CellChanged&gt;()
+.add_systems(Update, (paint_cells, refresh_display).chain())</code></pre>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▲ Miért nem közvetlenül hívja a festő a frissítést?</div>
+    Mert ECS-ben a rendszerek <em>nem hívják egymást</em> — adaton (resource, component) vagy üzeneten keresztül kommunikálnak. Cserébe a festéstől függetlenül <strong>bárki</strong> küldhet <code>CellChanged</code>-et (pl. egy procedurális generátor, egy hálózati system, egy ásás-mechanika), és a megjelenítés magától követi. Ez a lazán csatolt felépítés az ECS egyik legnagyobb ajándéka.
+  </div>
+</section>
+<!-- ================= 12. FEJEZET ================= -->
+<section id="ch12">
+  <div class="ch-eyebrow">12. fejezet</div>
+  <h2>A teljes main.rs</h2>
+
+  <p>Az összes darab egyben — másold be, tedd mellé a 4. fejezetben letöltött <code>assets/tileset.png</code>-t, és <code>cargo run</code>:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — teljes, futtatható kód (Bevy 0.18)</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
+
+// ============== konstansok ==============
+
+const TILE: f32 = 16.0;
+const GRID_W: i32 = 24;
+const GRID_H: i32 = 16;
+
+// ============== adatmodell ==============
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum TileKind {
+    Dirt,
+    Grass,
+}
+
+#[derive(Resource)]
+struct WorldGrid {
+    w: i32,
+    h: i32,
+    cells: Vec&lt;TileKind&gt;,
+}
+
+impl WorldGrid {
+    fn new(w: i32, h: i32) -&gt; Self {
+        Self {
+            w,
+            h,
+            cells: vec![TileKind::Dirt; (w * h) as usize],
+        }
+    }
+
+    fn get(&amp;self, x: i32, y: i32) -&gt; TileKind {
+        if x &lt; 0 || y &lt; 0 || x &gt;= self.w || y &gt;= self.h {
+            TileKind::Dirt
+        } else {
+            self.cells[(y * self.w + x) as usize]
+        }
+    }
+
+    fn set(&amp;mut self, x: i32, y: i32, kind: TileKind) -&gt; bool {
+        if x &lt; 0 || y &lt; 0 || x &gt;= self.w || y &gt;= self.h {
+            return false;
+        }
+        let i = (y * self.w + x) as usize;
+        if self.cells[i] == kind {
+            return false;
+        }
+        self.cells[i] = kind;
+        true
+    }
+}
+
+#[derive(Component)]
+struct DisplayTile {
+    dx: i32,
+    dy: i32,
+}
+
+#[derive(Resource)]
+struct Tileset {
+    image: Handle&lt;Image&gt;,
+    layout: Handle&lt;TextureAtlasLayout&gt;,
+}
+
+#[derive(Message)]
+struct CellChanged {
+    x: i32,
+    y: i32,
+}
+
+// ============== dual-grid mag ==============
+
+fn corner_mask(grid: &amp;WorldGrid, dx: i32, dy: i32) -&gt; usize {
+    let tl = (grid.get(dx - 1, dy) == TileKind::Grass) as usize;
+    let tr = (grid.get(dx, dy) == TileKind::Grass) as usize;
+    let bl = (grid.get(dx - 1, dy - 1) == TileKind::Grass) as usize;
+    let br = (grid.get(dx, dy - 1) == TileKind::Grass) as usize;
+    (tl &lt;&lt; 3) | (tr &lt;&lt; 2) | (bl &lt;&lt; 1) | br
+}
+
+// ============== app ==============
+
+fn main() {
+    App::new()
+        .add_plugins(
+            DefaultPlugins
+                .set(ImagePlugin::default_nearest())
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: "Dual-grid tilemap — Bevy 0.18".into(),
+                        ..default()
+                    }),
+                    ..default()
+                }),
+        )
+        .insert_resource(ClearColor(Color::srgb(0.32, 0.22, 0.13)))
+        .add_message::&lt;CellChanged&gt;()
+        .add_systems(Startup, (setup, spawn_display_grid).chain())
+        .add_systems(Update, (paint_cells, refresh_display).chain())
+        .run();
+}
+
+// ============== systemek ==============
+
+fn setup(
+    mut commands: Commands,
+    asset_server: Res&lt;AssetServer&gt;,
+    mut layouts: ResMut&lt;Assets&lt;TextureAtlasLayout&gt;&gt;,
+) {
+    let center = Vec3::new(
+        GRID_W as f32 * TILE * 0.5,
+        GRID_H as f32 * TILE * 0.5,
+        0.0,
+    );
+    commands.spawn((
+        Camera2d,
+        Transform::from_translation(center),
+        Projection::from(OrthographicProjection {
+            scale: 0.4,
+            ..OrthographicProjection::default_2d()
+        }),
+    ));
+
+    let image = asset_server.load("tileset.png");
+    let layout = layouts.add(TextureAtlasLayout::from_grid(
+        UVec2::splat(16), 4, 4, None, None,
+    ));
+    commands.insert_resource(Tileset { image, layout });
+
+    let mut grid = WorldGrid::new(GRID_W, GRID_H);
+    for y in 5..11 {
+        for x in 7..17 {
+            grid.set(x, y, TileKind::Grass);
+        }
+    }
+    grid.set(7, 10, TileKind::Dirt);
+    grid.set(16, 5, TileKind::Dirt);
+    commands.insert_resource(grid);
+}
+
+fn spawn_display_grid(
+    mut commands: Commands,
+    grid: Res&lt;WorldGrid&gt;,
+    tileset: Res&lt;Tileset&gt;,
+) {
+    for dy in 0..=grid.h {
+        for dx in 0..=grid.w {
+            let mask = corner_mask(&amp;grid, dx, dy);
+            commands.spawn((
+                DisplayTile { dx, dy },
+                Sprite::from_atlas_image(
+                    tileset.image.clone(),
+                    TextureAtlas {
+                        layout: tileset.layout.clone(),
+                        index: mask,
+                    },
+                ),
+                Transform::from_xyz(
+                    (dx as f32 - 0.5) * TILE,
+                    (dy as f32 - 0.5) * TILE,
+                    0.0,
+                ),
+            ));
+        }
+    }
+}
+
+fn paint_cells(
+    buttons: Res&lt;ButtonInput&lt;MouseButton&gt;&gt;,
+    window: Single&lt;&amp;Window, With&lt;PrimaryWindow&gt;&gt;,
+    camera: Single&lt;(&amp;Camera, &amp;GlobalTransform)&gt;,
+    mut grid: ResMut&lt;WorldGrid&gt;,
+    mut changed: MessageWriter&lt;CellChanged&gt;,
+) {
+    let kind = if buttons.pressed(MouseButton::Left) {
+        TileKind::Grass
+    } else if buttons.pressed(MouseButton::Right) {
+        TileKind::Dirt
+    } else {
+        return;
+    };
+
+    let Some(cursor) = window.cursor_position() else {
+        return;
+    };
+    let (camera, cam_transform) = *camera;
+    let Ok(world_pos) = camera.viewport_to_world_2d(cam_transform, cursor)
+    else {
+        return;
+    };
+
+    let x = (world_pos.x / TILE).round() as i32;
+    let y = (world_pos.y / TILE).round() as i32;
+
+    if grid.set(x, y, kind) {
+        changed.write(CellChanged { x, y });
+    }
+}
+
+fn refresh_display(
+    mut changed: MessageReader&lt;CellChanged&gt;,
+    grid: Res&lt;WorldGrid&gt;,
+    mut tiles: Query&lt;(&amp;DisplayTile, &amp;mut Sprite)&gt;,
+) {
+    let dirty: Vec&lt;(i32, i32)&gt; = changed
+        .read()
+        .flat_map(|m| {
+            [
+                (m.x, m.y),
+                (m.x + 1, m.y),
+                (m.x, m.y + 1),
+                (m.x + 1, m.y + 1),
+            ]
+        })
+        .collect();
+
+    if dirty.is_empty() {
+        return;
+    }
+
+    for (tile, mut sprite) in &amp;mut tiles {
+        if dirty.contains(&amp;(tile.dx, tile.dy)) {
+            if let Some(atlas) = sprite.texture_atlas.as_mut() {
+                atlas.index = corner_mask(&amp;grid, tile.dx, tile.dy);
+            }
+        }
+    }
+}</code></pre>
+  </div>
+
+  <p>Ha mindent jól csináltunk, ezt látod: barna háttér, közepén fű-sziget lekerekített partvonallal, és az egérrel szabadon átrajzolhatod a terepet. <strong>~200 sor, 16 tile, teljes dual-grid.</strong></p>
+
+  <h3>Ha valami nem stimmel</h3>
+  <table>
+    <tr><th>Tünet</th><th>Valószínű ok</th></tr>
+    <tr><td>Üres barna ablak, semmi tile</td><td>A <code>tileset.png</code> nincs az <code>assets/</code> mappában, vagy elgépelted a nevét — nézd a konzol logját</td></tr>
+    <tr><td>A festés fél cellával „mellé” megy</td><td><code>.floor()</code>-t használsz <code>.round()</code> helyett, vagy a display-transformból kimaradt a <code>- 0.5</code></td></tr>
+    <tr><td>A fű-föld átmenetek „fordítva” vannak</td><td>A bitkiosztás és az atlasz sorrendje nem egyezik — ellenőrizd a 3–4. fejezet táblázatát</td></tr>
+    <tr><td>Elmosódott, homályos pixelek</td><td>Lemaradt az <code>ImagePlugin::default_nearest()</code></td></tr>
+    <tr><td>Panic: „expected exactly one entity”</td><td>Két kamerád van (pl. duplán hívod a setupot) — a <code>Single</code> ezt jelzi</td></tr>
+  </table>
+</section>
+
+<!-- ================= 13. FEJEZET ================= -->
+<section id="ch13">
+  <div class="ch-eyebrow">13. fejezet</div>
+  <h2>Merre tovább?</h2>
+
+  <p>A működő alaprendszerre sok irányban lehet építkezni — nagyjából nehézségi sorrendben:</p>
+
+  <h3>1 · Gyorsabb tile-keresés</h3>
+  <p>A <code>refresh_display</code> jelenleg végigmegy mind a 425 sprite-on, hogy megtalálja a 4 érintettet. Kis pályán ez tökéletes, de nagy világnál tarts egy <code>Resource</code>-ban egy <code>HashMap&lt;(i32, i32), Entity&gt;</code> indexet (a spawnoláskor töltsd fel), és a query-ből <code>tiles.get_mut(entity)</code>-vel közvetlenül emeld ki a sprite-ot.</p>
+
+  <h3>2 · Több tereptípus</h3>
+  <p>A dual-grid alapformája <strong>terep-párokban</strong> gondolkodik (fű↔föld). Több terephez a bevett minta a rétegezés: minden tereppár saját display-réteget kap (növekvő <code>z</code>-vel), pl. „föld az alap, fölötte fű-réteg, fölötte ösvény-réteg”. Egy réteg tilesetje átlátszó hátterű, és csak a saját terepének átmeneteit tartalmazza. A <code>corner_mask</code>-ot ilyenkor paraméterezd: <em>melyik</em> <code>TileKind</code>-ot tekintse „1”-nek.</p>
+
+  <h3>3 · Variációk és animáció</h3>
+  <p>Hogy ne legyen monoton a fű: rajzolj a 15-ös (csupa fű) tile-ból 3–4 változatot az atlasz további soraiba, és a maszk mellé sorsolj determinisztikusan (pl. a koordináták hash-éből) változatot. Animált vízhez frame-enként külön 16-os blokkokat tegyél az atlaszba, és egy <code>Timer</code>-es system léptesse az indexet <code>+16</code>-tal — a videó készítője pontosan így csinálta a 11 frame-es partvonalát.</p>
+
+  <h3>4 · bevy_ecs_tilemap</h3>
+  <p>Ez a tutorial direkt sima sprite-okkal dolgozott, hogy minden látható legyen — de nagy (több tízezer tile-os) világnál a <a href="https://github.com/StarArawn/bevy_ecs_tilemap" target="_blank" rel="noopener">bevy_ecs_tilemap</a> crate GPU-barát chunkolt renderelést ad. A dual-grid logika változatlan: két tilemap-réteg, a display réteg transformja fél tile-lal eltolva, és a <code>TileTextureIndex</code>-et írod a maszk alapján. Telepítés előtt ellenőrizd, hogy a crate melyik Bevy-verziót támogatja éppen!</p>
+
+  <h3>5 · Mentés / betöltés</h3>
+  <p>A szép az architektúránkban, hogy a teljes pályaállapot egyetlen <code>Vec&lt;TileKind&gt;</code> — szerializáld <code>serde</code>-vel, betöltés után pedig küldj minden cellára <code>CellChanged</code>-et (vagy egyszerűbben: despawnold és spawnold újra a display gridet), és kész a pályaszerkesztőd.</p>
+
+  <h3>Források</h3>
+  <ul>
+    <li><strong>jess::codes — Draw fewer tiles by using a Dual-Grid system!</strong> — a videó, ami a tutorial kiindulópontja volt (Godot/Unity demó-repókkal)</li>
+    <li><strong>Oskar Stålberg — Beyond Townscapers</strong> (SGC21 előadás) — a dual-grid ötlet eredete</li>
+    <li><strong>ThinMatrix devlog</strong> a farmjátéka terepgenerálásáról — másik jó magyarázat</li>
+    <li><strong>bevy.org</strong> — hivatalos Quick Start és a 0.17→0.18 migrációs útmutató</li>
+    <li><strong>wareya webtyler</strong> — eszköz 15 darabos tileset 47 darabossá bővítésére, ha mégis klasszikus autotilingoznál</li>
+  </ul>
+
+  <div class="note">
+    <div class="n-tag">▲ Záró gondolat</div>
+    A dual-grid igazi tanulsága nem a 16-os szám, hanem a szétválasztás: <strong>a logikai világ és a megjelenítés két különböző rács</strong> — és a kettő közti leképezés (a bitmask) egy tiszta, tesztelhető függvény. Ez a gondolat a tilemapeken túl is hasznos lesz a Bevy-s utadon. Jó kódolást! ▸▸
+  </div>
+</section>
+
+<footer>
+  <span class="pix">DUAL-GRID × BEVY 0.18</span> · magyar nyelvű tutorial · a tileset-generátor és a játszótér ebben a fájlban fut, internet nélkül is működik · a betűtípusok online töltődnek, offline rendszer-fontokra vált
+</footer>
+
+</div><!-- /wrap -->
+</div><!-- /main -->
+<script>
+(function(){
+"use strict";
+
+/* ============ 1) TILE-GENERÁTOR — ugyanaz a logika, mint Rustban ============ */
+var T = 16, R = 8;
+var COL = {
+  dirt:    "#b07c4c", dirtDk: "#9a6a40", dirtLt: "#c08a58", dirtSp: "#8a5c36",
+  grass:   "#6fbf48", grassLt:"#8edb63", grassMd:"#63b03f", grassDk:"#3f7a2e"
+};
+// sarok-pozíciók a tile-on belül: TL, TR, BL, BR (bit 3,2,1,0)
+var CORNERS = [[0,0],[T,0],[0,T],[T,T]];
+
+function bits(mask){ return [(mask>>3)&1,(mask>>2)&1,(mask>>1)&1,mask&1]; }
+
+function d2(x,y,c){ var dx=x-c[0], dy=y-c[1]; return dx*dx+dy*dy; }
+
+// fű van-e a (x,y) ponton a 'mask' tile-on belül? (pixel-középpontokkal hívjuk)
+function isGrass(mask,x,y){
+  var b=bits(mask), n=b[0]+b[1]+b[2]+b[3];
+  if(n===0) return false;
+  if(n===4) return true;
+  var i, R2=R*R;
+  if(n===1){
+    for(i=0;i<4;i++) if(b[i]) return d2(x,y,CORNERS[i])<R2;
+  }
+  if(n===3){
+    for(i=0;i<4;i++) if(!b[i]) return d2(x,y,CORNERS[i])>R2;
+  }
+  // n === 2
+  if(b[0]&&b[1]) return y<R;          // felső fél
+  if(b[2]&&b[3]) return y>R;          // alsó fél
+  if(b[0]&&b[2]) return x<R;          // bal fél
+  if(b[1]&&b[3]) return x>R;          // jobb fél
+  // átlós: két negyed-kör
+  for(i=0;i<4;i++) if(b[i]&&d2(x,y,CORNERS[i])<R2) return true;
+  return false;
+}
+
+function hash(x,y){
+  var h=(x*374761393 + y*668265263)|0;
+  h=(h^(h>>13))*1274126177|0;
+  return ((h^(h>>16))>>>0)%100;
+}
+
+function drawTile(ctx,mask,ox,oy){
+  for(var py=0;py<T;py++)for(var px=0;px<T;px++){
+    var cx=px+0.5, cy=py+0.5, c;
+    var v=hash(ox+px,oy+py);
+    if(isGrass(mask,cx,cy)){
+      var rim = !isGrass(mask,cx+1,cy)||!isGrass(mask,cx-1,cy)||
+                !isGrass(mask,cx,cy+1)||!isGrass(mask,cx,cy-1);
+      c = rim ? COL.grassDk : (v<10 ? COL.grassLt : v>86 ? COL.grassMd : COL.grass);
+    }else{
+      c = v<7 ? COL.dirtSp : v<14 ? COL.dirtDk : v>90 ? COL.dirtLt : COL.dirt;
+    }
+    ctx.fillStyle=c;
+    ctx.fillRect(ox+px,oy+py,1,1);
+  }
+}
+
+// a 64×64-es atlasz (4×4, index = mask)
+var atlas=document.createElement("canvas");
+atlas.width=64; atlas.height=64;
+var atx=atlas.getContext("2d");
+for(var m=0;m<16;m++) drawTile(atx,m,(m%4)*T,((m/4)|0)*T);
+
+/* ============ 2) HERO csík + atlasz előnézet + 16 eset ============ */
+var hero=document.getElementById("heroCanvas");
+if(hero){
+  var hctx=hero.getContext("2d");
+  hctx.imageSmoothingEnabled=false;
+  for(var i=0;i<16;i++)
+    hctx.drawImage(atlas,(i%4)*T,((i/4)|0)*T,T,T, i*16,24,16,16);
+}
+
+var prev=document.getElementById("atlasPreview");
+if(prev){
+  var pctx=prev.getContext("2d");
+  pctx.imageSmoothingEnabled=false;
+  pctx.drawImage(atlas,0,0);
+}
+
+var mg=document.getElementById("maskGrid");
+if(mg){
+  for(var mm=0;mm<16;mm++){
+    var cell=document.createElement("div");
+    cell.className="mask-cell";
+    var cv=document.createElement("canvas");
+    cv.width=T; cv.height=T;
+    cv.style.width="48px"; cv.style.height="48px";
+    cv.getContext("2d").drawImage(atlas,(mm%4)*T,((mm/4)|0)*T,T,T,0,0,T,T);
+    cell.appendChild(cv);
+    var b=bits(mm);
+    var g=function(v){return v? "■":"·";};
+    var lab=document.createElement("div");
+    lab.textContent = mm+" · "+g(b[0])+g(b[1])+"/"+g(b[2])+g(b[3]);
+    cell.appendChild(lab);
+    mg.appendChild(cell);
+  }
+}
+
+/* ============ 3) tileset.png letöltés ============ */
+var dl=document.getElementById("dlTileset");
+if(dl) dl.addEventListener("click",function(){
+  var a=document.createElement("a");
+  a.href=atlas.toDataURL("image/png");
+  a.download="tileset.png";
+  document.body.appendChild(a); a.click(); a.remove();
+});
+
+/* ============ 4) JÁTSZÓTÉR — dual-grid élőben ============ */
+(function(){
+  var cv=document.getElementById("pgCanvas");
+  if(!cv) return;
+  var ctx=cv.getContext("2d");
+  ctx.imageSmoothingEnabled=false;
+  var W=25,H=17;                 // world grid mérete
+  var cells=new Uint8Array(W*H); // 0 = föld, 1 = fű
+  var showGrid=true;
+
+  function get(x,y){ return (x<0||y<0||x>=W||y>=H)?0:cells[y*W+x]; }
+  function set(x,y,v){
+    if(x<0||y<0||x>=W||y>=H) return false;
+    if(cells[y*W+x]===v) return false;
+    cells[y*W+x]=v; return true;
+  }
+  // képernyő-konvenció (y lefelé nő): a (dx,dy) display-tile sarkai
+  function mask(dx,dy){
+    return (get(dx-1,dy-1)<<3)|(get(dx,dy-1)<<2)|(get(dx-1,dy)<<1)|get(dx,dy);
+  }
+  function initIsland(){
+    cells.fill(0);
+    for(var y=0;y<H;y++)for(var x=0;x<W;x++){
+      var ex=(x-12)/8.2, ey=(y-8)/5.2;
+      if(ex*ex+ey*ey<1) cells[y*W+x]=1;
+    }
+    set(6,5,0); set(18,11,0); // két belső sarok, hogy izgalmasabb legyen
+  }
+  function render(){
+    ctx.fillStyle="#2a1d12";
+    ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.save();
+    ctx.translate(8,8);
+    for(var dy=0;dy<=H;dy++)for(var dx=0;dx<=W;dx++){
+      var k=mask(dx,dy);
+      ctx.drawImage(atlas,(k%4)*T,((k/4)|0)*T,T,T,dx*T-8,dy*T-8,T,T);
+    }
+    if(showGrid){
+      ctx.strokeStyle="rgba(108,200,217,.38)";
+      ctx.lineWidth=1;
+      ctx.beginPath();
+      for(var gx=0;gx<=W;gx++){ ctx.moveTo(gx*T+.5,0); ctx.lineTo(gx*T+.5,H*T); }
+      for(var gy=0;gy<=H;gy++){ ctx.moveTo(0,gy*T+.5); ctx.lineTo(W*T,gy*T+.5); }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function paint(e){
+    var r=cv.getBoundingClientRect();
+    var px=(e.clientX-r.left)*(cv.width/r.width)-8;
+    var py=(e.clientY-r.top)*(cv.height/r.height)-8;
+    var x=Math.floor(px/T), y=Math.floor(py/T);
+    var v=(e.buttons===2 || e.shiftKey)?0:1;
+    if(set(x,y,v)) render();
+  }
+  cv.addEventListener("contextmenu",function(e){e.preventDefault();});
+  cv.addEventListener("pointerdown",function(e){
+    cv.setPointerCapture(e.pointerId); paint(e);
+  });
+  cv.addEventListener("pointermove",function(e){ if(e.buttons) paint(e); });
+  document.addEventListener("keydown",function(e){
+    if(e.key==="g"||e.key==="G"){ showGrid=!showGrid; render(); }
+  });
+  var clr=document.getElementById("pgClear");
+  if(clr) clr.addEventListener("click",function(){ initIsland(); render(); });
+  initIsland(); render();
+})();
+
+/* ============ 5) Egyszerű Rust szintaxis-kiemelő ============ */
+var KW=/\b(?:fn|let|mut|use|struct|enum|impl|const|pub|return|if|else|for|in|while|loop|match|as|mod|crate|self|Self|true|false|move|ref|static|dyn|where|name|version|edition)\b/;
+var TOKEN=new RegExp(
+  "(\\/\\/[^\\n]*)"+                       // 1 komment
+  "|(#!?\\[[^\\]]*\\])"+                   // 2 attribútum
+  "|(\"(?:[^\"\\\\]|\\\\.)*\")"+           // 3 string
+  "|([A-Za-z_][A-Za-z0-9_]*!)"+            // 4 makró
+  "|("+KW.source.slice(2,-2)+")"+          // 5 kulcsszó
+  "|(\\b[A-Z][A-Za-z0-9_]*\\b)"+           // 6 típus
+  "|(\\b\\d[\\d_]*(?:\\.\\d+)?\\b)","g");  // 7 szám
+var CLS=[null,"c","m","s","m","k","t","n"];
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+document.querySelectorAll("pre code").forEach(function(code){
+  var src=code.textContent, out="", last=0, m;
+  TOKEN.lastIndex=0;
+  while((m=TOKEN.exec(src))){
+    out+=esc(src.slice(last,m.index));
+    for(var gi=1;gi<=7;gi++) if(m[gi]!==undefined){
+      out+='<span class="'+CLS[gi]+'">'+esc(m[gi])+"</span>"; break;
+    }
+    last=m.index+m[0].length;
+  }
+  out+=esc(src.slice(last));
+  code.innerHTML=out;
+});
+
+/* ============ 6) Másolás gombok ============ */
+document.querySelectorAll(".copy-btn").forEach(function(btn){
+  btn.addEventListener("click",function(){
+    var code=btn.closest(".code").querySelector("pre");
+    var txt=code.textContent;
+    function done(){ btn.textContent="✓ másolva"; setTimeout(function(){btn.textContent="másolás";},1500); }
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(done);
+    }else{
+      var ta=document.createElement("textarea");
+      ta.value=txt; document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); ta.remove(); done();
+    }
+  });
+});
+
+/* ============ 7) Scrollspy + mobil menü ============ */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){
+  var pos=window.scrollY+140, active=0;
+  for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i;
+  links.forEach(function(a,i){a.classList.toggle("active",i===active);});
+}
+window.addEventListener("scroll",spy,{passive:true});
+spy();
+
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+</body>
+</html>

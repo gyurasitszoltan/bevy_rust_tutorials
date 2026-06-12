@@ -1,0 +1,2037 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tile-ok és entitások — Top-down játék Bevy-ben</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e1216;
+  --bg2:#121922;
+  --panel:#151d26;
+  --panel2:#19232e;
+  --line:#24313d;
+  --line2:#2e3f4e;
+  --ink:#e9f1f4;
+  --muted:#93a6b1;
+  --faint:#5e7280;
+  --grass:#84d96c;
+  --grass-dim:#3f7a3a;
+  --amber:#f0b35e;
+  --blue:#6cc3f0;
+  --coral:#ef8472;
+  --violet:#c9a2f5;
+  --code-bg:#0b0f13;
+  --code-kw:#f07ca0;
+  --code-ty:#8be3c9;
+  --code-st:#f0c674;
+  --code-cm:#5c7180;
+  --code-mc:#6cc3f0;
+  --code-nb:#d2a6f0;
+  --code-fn:#82c7f5;
+  --code-at:#f0b35e;
+  --sidebar-w:300px;
+  --radius:2px;
+  font-size:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.001s !important;transition-duration:.001s !important}
+}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:rgba(132,217,108,.28)}
+
+/* ---------- pixel border utility (stepped corners) ---------- */
+.px-box{
+  position:relative;
+  background:var(--panel);
+  border:1px solid var(--line);
+  clip-path:polygon(0 6px,6px 6px,6px 0,calc(100% - 6px) 0,calc(100% - 6px) 6px,100% 6px,100% calc(100% - 6px),calc(100% - 6px) calc(100% - 6px),calc(100% - 6px) 100%,6px 100%,6px calc(100% - 6px),0 calc(100% - 6px));
+}
+
+/* ---------- layout ---------- */
+.layout{display:flex;min-height:100vh}
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);
+  background:var(--bg2);
+  border-right:1px solid var(--line);
+  overflow-y:auto;
+  padding:26px 18px 40px 22px;
+  z-index:50;
+  scrollbar-width:thin;
+  scrollbar-color:var(--line2) transparent;
+}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line2)}
+main{
+  margin-left:var(--sidebar-w);
+  flex:1;
+  min-width:0;
+}
+.content{
+  max-width:860px;
+  margin:0 auto;
+  padding:0 44px 120px;
+}
+
+/* ---------- sidebar ---------- */
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:26px;text-decoration:none;color:var(--ink)}
+.brand-tile{
+  width:34px;height:34px;flex:0 0 34px;
+  image-rendering:pixelated;
+  background:
+    linear-gradient(transparent 0 0),
+    var(--grass);
+  position:relative;border:1px solid var(--line2);
+}
+.brand-tile::after{
+  content:"";position:absolute;inset:0;
+  background-image:
+    radial-gradient(circle at 25% 30%, rgba(0,0,0,.25) 0 2px, transparent 2px),
+    radial-gradient(circle at 70% 65%, rgba(255,255,255,.3) 0 2px, transparent 2px),
+    radial-gradient(circle at 55% 20%, rgba(0,0,0,.18) 0 2px, transparent 2px);
+}
+.brand h1{
+  font-family:"Pixelify Sans",monospace;
+  font-size:1.02rem;font-weight:600;line-height:1.25;letter-spacing:.02em;
+}
+.brand small{display:block;color:var(--muted);font-family:"Instrument Sans",sans-serif;font-size:.72rem;font-weight:500;letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
+
+nav.toc{font-size:.875rem}
+.toc-part{margin-bottom:18px}
+.toc-part-label{
+  display:flex;align-items:center;gap:8px;
+  font-family:"Pixelify Sans",monospace;
+  font-size:.78rem;letter-spacing:.06em;
+  color:var(--muted);
+  text-transform:uppercase;
+  margin-bottom:7px;
+}
+.toc-part-label .sq{width:9px;height:9px;flex:0 0 9px}
+.toc a{
+  display:block;
+  color:var(--muted);
+  text-decoration:none;
+  padding:5px 10px 5px 14px;
+  border-left:2px solid var(--line);
+  margin-left:4px;
+  transition:color .15s,border-color .15s,background .15s;
+  line-height:1.4;
+}
+.toc a:hover{color:var(--ink);background:rgba(255,255,255,.025)}
+.toc a.active{
+  color:var(--grass);
+  border-left-color:var(--grass);
+  background:rgba(132,217,108,.06);
+}
+.toc a:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+
+.sidebar-foot{margin-top:26px;padding-top:16px;border-top:1px dashed var(--line);color:var(--faint);font-size:.74rem;line-height:1.5}
+.sidebar-foot code{font-family:"JetBrains Mono",monospace;font-size:.7rem;color:var(--muted)}
+
+/* mobile toggle */
+.nav-toggle{
+  display:none;
+  position:fixed;top:14px;left:14px;z-index:60;
+  background:var(--panel);border:1px solid var(--line2);color:var(--ink);
+  font-family:"Pixelify Sans",monospace;font-size:.85rem;
+  padding:8px 14px;cursor:pointer;
+}
+@media (max-width:980px){
+  .nav-toggle{display:block}
+  .sidebar{transform:translateX(-100%);transition:transform .22s ease}
+  .sidebar.open{transform:translateX(0);box-shadow:0 0 0 100vmax rgba(0,0,0,.45)}
+  main{margin-left:0}
+  .content{padding:0 20px 90px}
+}
+
+/* ---------- hero ---------- */
+.hero{padding:74px 0 30px}
+.hero .eyebrow{
+  font-family:"Pixelify Sans",monospace;
+  color:var(--amber);font-size:.85rem;letter-spacing:.1em;text-transform:uppercase;
+  display:flex;align-items:center;gap:10px;margin-bottom:14px;
+}
+.hero .eyebrow::before{content:"";width:22px;height:2px;background:var(--amber)}
+.hero h2.title{
+  font-family:"Pixelify Sans",monospace;
+  font-size:clamp(1.9rem,4.4vw,2.9rem);
+  font-weight:700;line-height:1.12;
+  margin-bottom:18px;
+}
+.hero h2.title em{font-style:normal;color:var(--grass)}
+.hero p.lede{font-size:1.06rem;color:var(--muted);max-width:62ch;margin-bottom:24px}
+.hero-canvas-wrap{margin-top:8px}
+.hero-canvas-wrap canvas{
+  width:100%;max-width:760px;display:block;
+  image-rendering:pixelated;
+  border:1px solid var(--line2);
+}
+.hero-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.chip{
+  font-family:"JetBrains Mono",monospace;font-size:.72rem;
+  color:var(--muted);background:var(--panel);
+  border:1px solid var(--line);padding:4px 10px;
+}
+.chip b{color:var(--grass);font-weight:500}
+
+/* ---------- sections / chapters ---------- */
+section.chapter{padding-top:64px}
+section.chapter > header{margin-bottom:22px}
+.part-tag{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:"Pixelify Sans",monospace;font-size:.74rem;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+  margin-bottom:8px;
+}
+.sq{display:inline-block;width:10px;height:10px;image-rendering:pixelated}
+.sq.g{background:var(--grass)} .sq.a{background:var(--amber)} .sq.b{background:var(--blue)} .sq.c{background:var(--coral)} .sq.v{background:var(--violet)}
+section.chapter h2{
+  font-family:"Pixelify Sans",monospace;
+  font-size:1.7rem;font-weight:600;line-height:1.2;
+  padding-bottom:12px;border-bottom:1px solid var(--line);
+}
+section.chapter h3{
+  font-size:1.12rem;font-weight:700;margin:34px 0 10px;
+  color:var(--ink);
+}
+section.chapter h3::before{content:"▸ ";color:var(--grass);font-size:.95em}
+p{margin-bottom:14px;color:#cfdbe2}
+p strong{color:var(--ink)}
+ul.plain,ol.plain{margin:0 0 16px 22px;color:#cfdbe2}
+ul.plain li,ol.plain li{margin-bottom:7px}
+ul.plain li::marker{color:var(--grass)}
+ol.plain li::marker{color:var(--amber);font-family:"JetBrains Mono",monospace;font-size:.85em}
+a.inline{color:var(--blue);text-decoration:none;border-bottom:1px dotted var(--blue)}
+a.inline:hover{border-bottom-style:solid}
+code.inl{
+  font-family:"JetBrains Mono",monospace;font-size:.84em;
+  background:var(--code-bg);border:1px solid var(--line);
+  padding:1px 6px;color:var(--code-ty);white-space:nowrap;
+}
+
+/* ---------- code blocks ---------- */
+.codeblock{
+  margin:18px 0 22px;
+  border:1px solid var(--line);
+  background:var(--code-bg);
+}
+.codeblock .cb-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 14px;border-bottom:1px solid var(--line);
+  background:var(--panel);
+}
+.cb-head .fname{font-family:"JetBrains Mono",monospace;font-size:.74rem;color:var(--muted)}
+.cb-head .lang{
+  font-family:"Pixelify Sans",monospace;font-size:.7rem;letter-spacing:.08em;
+  color:var(--amber);text-transform:uppercase;
+}
+.codeblock pre{
+  overflow-x:auto;padding:16px 18px;
+  scrollbar-width:thin;scrollbar-color:var(--line2) transparent;
+}
+.codeblock code{
+  font-family:"JetBrains Mono",monospace;
+  font-size:.83rem;line-height:1.62;
+  color:#cfe0e8;
+}
+.tk-kw{color:var(--code-kw)} .tk-ty{color:var(--code-ty)} .tk-st{color:var(--code-st)}
+.tk-cm{color:var(--code-cm);font-style:italic} .tk-mc{color:var(--code-mc)}
+.tk-nb{color:var(--code-nb)} .tk-fn{color:var(--code-fn)} .tk-at{color:var(--code-at)}
+.tk-lf{color:var(--coral)}
+
+/* ---------- callout boxes ---------- */
+.bevy-box{
+  margin:20px 0 24px;padding:16px 18px 14px;
+  background:linear-gradient(180deg,rgba(108,195,240,.06),rgba(108,195,240,.02));
+  border:1px solid rgba(108,195,240,.3);
+  border-left:3px solid var(--blue);
+}
+.bevy-box .tag{
+  font-family:"Pixelify Sans",monospace;font-size:.7rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--blue);margin-bottom:6px;display:flex;align-items:center;gap:7px;
+}
+.bevy-box .tag::before{content:"";width:8px;height:8px;background:var(--blue)}
+.bevy-box h4{font-size:1rem;font-weight:700;margin-bottom:6px;font-family:"JetBrains Mono",monospace}
+.bevy-box p{font-size:.92rem;margin-bottom:8px}
+.bevy-box p:last-child{margin-bottom:2px}
+.bevy-box code.inl{font-size:.8em}
+
+.note{
+  margin:18px 0 22px;padding:13px 16px;
+  background:rgba(240,179,94,.05);
+  border:1px dashed rgba(240,179,94,.4);
+  font-size:.92rem;color:#dcc9a8;
+}
+.note b{color:var(--amber)}
+.warn{
+  margin:18px 0 22px;padding:13px 16px;
+  background:rgba(239,132,114,.05);
+  border:1px dashed rgba(239,132,114,.45);
+  font-size:.92rem;color:#e8c0b8;
+}
+.warn b{color:var(--coral)}
+
+/* ---------- figures / diagrams ---------- */
+figure.diagram{margin:22px 0 26px;text-align:center}
+figure.diagram svg{max-width:100%;height:auto;border:1px solid var(--line);background:var(--bg2)}
+figure.diagram figcaption{
+  font-size:.8rem;color:var(--faint);margin-top:8px;
+  font-family:"JetBrains Mono",monospace;
+}
+
+/* ---------- table ---------- */
+table.tbl{width:100%;border-collapse:collapse;margin:16px 0 24px;font-size:.9rem}
+table.tbl th{
+  text-align:left;font-family:"Pixelify Sans",monospace;font-weight:600;font-size:.78rem;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+  padding:8px 12px;border-bottom:2px solid var(--line2);
+}
+table.tbl td{padding:9px 12px;border-bottom:1px solid var(--line);color:#cfdbe2;vertical-align:top}
+table.tbl code{font-family:"JetBrains Mono",monospace;font-size:.8rem;color:var(--code-ty)}
+
+/* ---------- sandbox ---------- */
+.sandbox{
+  margin:24px 0;
+  border:1px solid var(--line2);
+  background:var(--bg2);
+}
+.sandbox-head{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+  padding:10px 14px;border-bottom:1px solid var(--line);
+  background:var(--panel);
+}
+.sandbox-head .t{font-family:"Pixelify Sans",monospace;font-size:.85rem;color:var(--grass);letter-spacing:.05em}
+.sandbox-head .hint{font-size:.76rem;color:var(--faint);font-family:"JetBrains Mono",monospace;margin-left:auto}
+.sandbox-body{display:flex;gap:0;flex-wrap:wrap}
+.sandbox-canvas-wrap{flex:1 1 480px;min-width:300px;padding:14px;display:flex;align-items:flex-start;justify-content:center;background:#0a0d10}
+#sbx{
+  image-rendering:pixelated;width:100%;max-width:640px;display:block;
+  outline:none;border:1px solid var(--line);cursor:crosshair;
+}
+#sbx:focus-visible{border-color:var(--grass)}
+.sandbox-side{
+  flex:1 1 220px;min-width:220px;max-width:300px;
+  border-left:1px solid var(--line);
+  padding:14px 16px;font-size:.85rem;
+}
+.sandbox-side h5{
+  font-family:"Pixelify Sans",monospace;font-size:.72rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);margin:14px 0 8px;
+}
+.sandbox-side h5:first-child{margin-top:0}
+.sandbox-side label{display:flex;align-items:center;gap:8px;margin-bottom:7px;cursor:pointer;color:#cfdbe2}
+.sandbox-side input[type=checkbox]{accent-color:var(--grass);width:14px;height:14px}
+.sandbox-side select{
+  background:var(--code-bg);color:var(--ink);border:1px solid var(--line2);
+  font-family:"JetBrains Mono",monospace;font-size:.78rem;padding:4px 8px;width:100%;
+}
+.kbd{
+  font-family:"JetBrains Mono",monospace;font-size:.72rem;
+  background:var(--panel2);border:1px solid var(--line2);border-bottom-width:2px;
+  padding:1px 6px;color:var(--ink);
+}
+.dbg{
+  font-family:"JetBrains Mono",monospace;font-size:.72rem;color:var(--muted);
+  background:var(--code-bg);border:1px solid var(--line);padding:8px 10px;
+  white-space:pre;line-height:1.7;margin-top:4px;
+}
+.dbg .v{color:var(--grass)}
+.legend{display:grid;grid-template-columns:16px 1fr;gap:6px 9px;align-items:center;margin-bottom:4px}
+.legend .lsw{width:14px;height:14px;border:1px solid rgba(255,255,255,.15);image-rendering:pixelated}
+.legend span{color:var(--muted);font-size:.78rem}
+.sbx-dialog{
+  margin-top:10px;padding:9px 11px;min-height:54px;
+  background:var(--code-bg);border:1px solid var(--line);
+  font-size:.8rem;color:var(--muted);font-style:italic;
+}
+.sbx-dialog.active{color:var(--ink);font-style:normal;border-color:var(--grass)}
+.sbx-dialog .who{color:var(--amber);font-family:"Pixelify Sans",monospace;font-style:normal;font-size:.74rem;display:block;margin-bottom:3px;letter-spacing:.06em}
+
+/* ---------- outro ---------- */
+.outro-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:20px 0}
+.outro-grid .px-box{padding:16px}
+.outro-grid h4{font-family:"Pixelify Sans",monospace;font-size:.95rem;margin-bottom:8px;color:var(--grass)}
+.outro-grid p{font-size:.88rem;margin-bottom:0;color:var(--muted)}
+
+footer.page-foot{
+  margin-top:80px;padding-top:24px;border-top:1px solid var(--line);
+  color:var(--faint);font-size:.8rem;
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;
+}
+footer.page-foot .px{font-family:"Pixelify Sans",monospace}
+</style>
+</head>
+<body>
+<button class="nav-toggle" id="navToggle" aria-label="Tartalomjegyzék megnyitása">≡ Tartalom</button>
+
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="brand" href="#bevezetes">
+    <span class="brand-tile" aria-hidden="true"></span>
+    <h1>Tile-ok és entitások<small>Bevy · top-down tutorial</small></h1>
+  </a>
+  <nav class="toc" aria-label="Fejezetek">
+    <div class="toc-part">
+      <div class="toc-part-label"><span class="sq g"></span>1. rész · Alapok</div>
+      <a href="#bevezetes">Bevezetés: két világ találkozik</a>
+      <a href="#ecs-gyorstalpalo">Bevy ECS gyorstalpaló</a>
+      <a href="#koordinatak">Koordináta-rendszerek</a>
+      <a href="#z-retegek">Z-rétegek és mélység</a>
+    </div>
+    <div class="toc-part">
+      <div class="toc-part-label"><span class="sq a"></span>2. rész · Entitások a pályán</div>
+      <a href="#jatekos">A játékos spawnolása</a>
+      <a href="#npc-statikus">NPC-k és statikus elemek</a>
+      <a href="#terkep-adatbol">Spawnolás térkép-adatból</a>
+    </div>
+    <div class="toc-part">
+      <div class="toc-part-label"><span class="sq b"></span>3. rész · Mozgás és ütközés</div>
+      <a href="#input-mozgas">Input és mozgás</a>
+      <a href="#utkozesi-terkep">Az ütközési térkép</a>
+      <a href="#aabb">AABB a tile-rács ellen</a>
+      <a href="#entitas-utkozes">Entitás–entitás és triggerek</a>
+      <a href="#fizikai-motor">Mikor jön a fizikai motor?</a>
+    </div>
+    <div class="toc-part">
+      <div class="toc-part-label"><span class="sq v"></span>4. rész · Gyakorlat</div>
+      <a href="#sandbox">Sandbox: minden együtt</a>
+      <a href="#osszefoglalas">Összefoglalás és következő lépések</a>
+    </div>
+  </nav>
+  <div class="sidebar-foot">
+    Bevy <code>0.16+</code> API-konvenciókkal, <code>0.17/0.18</code> változásokra külön megjegyzésekkel.<br><br>
+    A sandbox JavaScriptben szimulálja ugyanazt a logikát, amit Rustban megírsz.
+  </div>
+</aside>
+
+<main>
+<div class="content">
+
+<!-- ================= HERO ================= -->
+<header class="hero" id="top">
+  <div class="eyebrow">Top-down pixel art · 2. fejezet</div>
+  <h2 class="title">A térkép kész. <em>Keltsük életre</em> entitásokkal.</h2>
+  <p class="lede">
+    A tilemap generálás megvan — van egy szép, statikus világod. Ez a tutorial onnan folytatja:
+    hogyan kerül a rácsra a játékos, az NPC-k és a statikus objektumok, hogyan mozognak
+    <em>világkoordinátákban</em> egy <em>tile-koordinátás</em> pálya fölött, és hogyan ütköznek
+    a fallal meg egymással. Minden Bevy-fogalmat útközben magyarázunk el.
+  </p>
+  <div class="hero-canvas-wrap">
+    <canvas id="heroCanvas" width="380" height="96" aria-label="Pixel art tilemap dekoráció"></canvas>
+  </div>
+  <div class="hero-meta">
+    <span class="chip">engine: <b>Bevy (Rust)</b></span>
+    <span class="chip">téma: <b>tile ↔ entitás kapcsolat</b></span>
+    <span class="chip">ütközés: <b>AABB + tile-rács</b></span>
+    <span class="chip">interaktív: <b>sandbox a 4. részben</b></span>
+  </div>
+</header>
+
+<!-- ================= 1.1 ================= -->
+<section class="chapter" id="bevezetes">
+  <header>
+    <div class="part-tag"><span class="sq g"></span>1. rész · Alapok</div>
+    <h2>Bevezetés: két világ találkozik</h2>
+  </header>
+
+  <p>
+    Egy top-down játékban valójában <strong>két párhuzamos világ</strong> él egymás fölött, és a kettő
+    teljesen másképp gondolkodik:
+  </p>
+  <ul class="plain">
+    <li><strong>A tile-világ</strong> egy diszkrét rács. Minden cellának egész koordinátája van
+      (<code class="inl">(x: u32, y: u32)</code>), a tartalma pedig <em>adat</em>: fű, fal, víz.
+      Olcsó tárolni, gyors lekérdezni, és tökéletes ütközési térképnek.</li>
+    <li><strong>Az entitás-világ</strong> folytonos. A játékos, az NPC-k, a ládák mind ECS-entitások,
+      amelyeknek <code class="inl">Transform</code>-juk van: lebegőpontos világpozíció
+      (<code class="inl">Vec3</code>), ami bármilyen érték lehet — két tile között is.</li>
+  </ul>
+  <p>
+    A tutorial gerince pontosan ez a határfelület: <strong>hogyan fordítunk a két világ között oda-vissza</strong>.
+    Spawnoláskor tile-koordinátából világkoordinátát számolunk; ütközésnél fordítva, az entitás
+    világpozíciójából kérdezzük le, melyik tile-okon áll éppen.
+  </p>
+
+  <div class="note">
+    <b>Fontos tervezési döntés:</b> a tile-ok <em>nem</em> entitások ebben a megközelítésben — a tilemap
+    egy erőforrás (adat + egyetlen renderelt réteg). Léteznek könyvtárak (pl.
+    <code class="inl">bevy_ecs_tilemap</code>), ahol minden tile külön entitás; az itt tanult elvek ott is
+    ugyanígy működnek, csak a tárolás más.
+  </div>
+
+  <h3>Mit építünk fel a fejezetek alatt?</h3>
+  <ol class="plain">
+    <li>Koordináta-konverziós segédfüggvények (<code class="inl">tile_to_world</code>, <code class="inl">world_to_tile</code>).</li>
+    <li>Játékos, NPC és statikus objektumok spawnolása marker komponensekkel.</li>
+    <li>Billentyűzet-vezérelt mozgás <code class="inl">Time</code>-alapú delta idővel.</li>
+    <li>Ütközési térkép a tilemapból, AABB-ütközés tengelyenként szétválasztva (a „falon csúszás” trükkje).</li>
+    <li>Entitás–entitás közelség: NPC-interakció trigger-zónával.</li>
+    <li>Y-rendezés, hogy a fa mögé be lehessen sétálni.</li>
+  </ol>
+</section>
+
+<!-- ================= 1.2 ================= -->
+<section class="chapter" id="ecs-gyorstalpalo">
+  <header>
+    <div class="part-tag"><span class="sq g"></span>1. rész · Alapok</div>
+    <h2>Bevy ECS gyorstalpaló</h2>
+  </header>
+
+  <p>
+    Mielőtt kódot írnánk, rögzítsük a négy alapfogalmat, amire minden további fejezet épül.
+    Ha az ECS már ismerős, ugorhatsz a <a class="inline" href="#koordinatak">koordinátákhoz</a> —
+    de a dobozokra később is visszahivatkozunk.
+  </p>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>Entity · Component · System</h4>
+    <p><strong>Entity:</strong> egy puszta azonosító (gyakorlatilag egy index + generáció). Önmagában semmit sem tud.</p>
+    <p><strong>Component:</strong> sima Rust struct vagy enum, amit egy entitásra „ráakasztunk” — ez az adat.
+       A <code class="inl">#[derive(Component)]</code> attribútum teszi komponenssé.</p>
+    <p><strong>System:</strong> egy közönséges Rust függvény, amelynek paraméterei megmondják a Bevy-nek,
+       milyen adatokhoz akar hozzáférni. A Bevy ütemezője (scheduler) hívogatja őket — ahol lehet, párhuzamosan.</p>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>Resource</h4>
+    <p>Globális, egyetlen példányban létező adat — nem entitáshoz kötött. Ilyen lesz nálunk az ütközési
+       térkép (<code class="inl">CollisionMap</code>), és ilyen a beépített <code class="inl">Time</code> is.
+       Rendszerben <code class="inl">Res&lt;T&gt;</code> (olvasás) vagy <code class="inl">ResMut&lt;T&gt;</code> (írás) paraméterrel kérhető.</p>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>Commands</h4>
+    <p>Entitások létrehozása/törlése és komponensek hozzáadása <em>nem</em> történhet azonnal, miközben más
+       rendszerek párhuzamosan futnak. A <code class="inl">Commands</code> ezért egy parancs-puffer: a
+       <code class="inl">commands.spawn((...))</code> hívásaid összegyűlnek, és a frame egy biztonságos
+       pontján futnak le egyben. Ezért nem kapod vissza azonnal „a kész entitást” — csak az
+       <code class="inl">Entity</code> azonosítót.</p>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>Query</h4>
+    <p>A <code class="inl">Query&lt;(&amp;A, &amp;mut B), With&lt;C&gt;&gt;</code> azt jelenti: „adj minden entitást,
+       amelynek van <code class="inl">A</code> és <code class="inl">B</code> komponense (B-t írnám is), és van rajta
+       <code class="inl">C</code> is — de a C adatára nem vagyok kíváncsi”. A <code class="inl">With</code> tehát
+       csak szűrő. A query-k a Bevy lelke: ezekből tudja a scheduler, mely rendszerek futhatnak párhuzamosan.</p>
+  </div>
+
+  <p>Így néz ki mindez együtt egy minimális vázban — ezt fogjuk fejezetről fejezetre kitölteni:</p>
+
+  <div class="codeblock"><div class="cb-head"><span class="fname">src/main.rs</span><span class="lang">rust</span></div><pre><code class="lang-rust">use bevy::prelude::*;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .add_plugins(ActorsPlugin) // ezt írjuk meg ebben a tutorialban
+        .run();
+}
+
+pub struct ActorsPlugin;
+
+impl Plugin for ActorsPlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app.add_systems(Startup, (spawn_player, spawn_from_map))
+            .add_systems(Update, (read_input, apply_movement, y_sort).chain());
+    }
+}</code></pre></div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>Plugin, Schedule és .chain()</h4>
+    <p>A <code class="inl">Plugin</code> a Bevy moduláris egysége: egy csomagba rendezi az összetartozó
+       rendszereket és erőforrásokat. A <code class="inl">Startup</code> ütemezés egyszer fut az induláskor,
+       az <code class="inl">Update</code> minden frame-ben. A <code class="inl">.chain()</code> sorrendet kényszerít:
+       input → mozgás → y-rendezés, mert alapból a Bevy <em>nem garantál sorrendet</em> a rendszerek között.</p>
+  </div>
+
+  <div class="note">
+    <b>Pixel art tipp:</b> az <code class="inl">ImagePlugin::default_nearest()</code> kapcsolja ki a textúra-szűrést
+    (bilineáris elmosást) — enélkül a pixel artod homályos lesz. Top-down pixel játéknál ez gyakorlatilag kötelező első sor.
+  </div>
+</section>
+
+<!-- ================= 1.3 ================= -->
+<section class="chapter" id="koordinatak">
+  <header>
+    <div class="part-tag"><span class="sq g"></span>1. rész · Alapok</div>
+    <h2>Koordináta-rendszerek és konverzió</h2>
+  </header>
+
+  <p>
+    A Bevy 2D-ben a világ <strong>Y-tengelye felfelé nő</strong>, az origó pedig ott van, ahova te teszed
+    (a kamera alapból a <code class="inl">(0,0)</code>-t nézi). A tile-rácsunkat érdemes úgy lefektetni, hogy
+    a <code class="inl">(0,0)</code> tile bal alsó sarka legyen a világ origójában — így a konverzió triviális marad.
+  </p>
+
+  <figure class="diagram">
+    <svg viewBox="0 0 560 240" width="560" height="240" role="img" aria-label="Tile-koordináta és világkoordináta kapcsolata">
+      <defs>
+        <pattern id="grid16" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#24313d" stroke-width="1"/>
+        </pattern>
+      </defs>
+      <rect x="40" y="20" width="360" height="200" fill="url(#grid16)" stroke="#2e3f4e"/>
+      <!-- highlighted tile (3,2): grid bottom-left at (40,220), tile size 40 -->
+      <rect x="160" y="100" width="40" height="40" fill="rgba(132,217,108,.18)" stroke="#84d96c" stroke-width="1.5"/>
+      <circle cx="180" cy="120" r="3.5" fill="#f0b35e"/>
+      <text x="190" y="114" fill="#f0b35e" font-family="JetBrains Mono,monospace" font-size="11">world: (56, 40)</text>
+      <text x="166" y="156" fill="#84d96c" font-family="JetBrains Mono,monospace" font-size="11">tile (3,2)</text>
+      <!-- axes -->
+      <line x1="40" y1="220" x2="412" y2="220" stroke="#93a6b1" stroke-width="1.5"/>
+      <line x1="40" y1="220" x2="40" y2="12" stroke="#93a6b1" stroke-width="1.5"/>
+      <text x="416" y="224" fill="#93a6b1" font-family="JetBrains Mono,monospace" font-size="11">+X</text>
+      <text x="32" y="10" fill="#93a6b1" font-family="JetBrains Mono,monospace" font-size="11">+Y</text>
+      <text x="30" y="234" fill="#5e7280" font-family="JetBrains Mono,monospace" font-size="10">(0,0)</text>
+      <!-- annotation right -->
+      <text x="430" y="60" fill="#cfdbe2" font-family="JetBrains Mono,monospace" font-size="11">TILE_SIZE = 16</text>
+      <text x="430" y="84" fill="#5e7280" font-family="JetBrains Mono,monospace" font-size="10">x = 3·16 + 8 = 56</text>
+      <text x="430" y="102" fill="#5e7280" font-family="JetBrains Mono,monospace" font-size="10">y = 2·16 + 8 = 40</text>
+      <text x="430" y="132" fill="#5e7280" font-family="JetBrains Mono,monospace" font-size="10">a sárga pont a tile</text>
+      <text x="430" y="148" fill="#5e7280" font-family="JetBrains Mono,monospace" font-size="10">középpontja</text>
+    </svg>
+    <figcaption>1. ábra — a (3,2) tile középpontja világkoordinátában: (56, 40), ha TILE_SIZE = 16.</figcaption>
+  </figure>
+
+  <p>A két irányú konverzió, plusz egy <code class="inl">TilePos</code> típus, amit komponensként is használunk majd:</p>
+
+  <div class="codeblock"><div class="cb-head"><span class="fname">src/grid.rs</span><span class="lang">rust</span></div><pre><code class="lang-rust">use bevy::prelude::*;
+
+pub const TILE_SIZE: f32 = 16.0;
+
+/// Diszkrét rács-pozíció. Komponensként is felkerülhet entitásokra.
+#[derive(Component, Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct TilePos {
+    pub x: u32,
+    pub y: u32,
+}
+
+/// Tile -&gt; világ: a tile KÖZÉPPONTJÁT adja vissza.
+pub fn tile_to_world(pos: TilePos) -&gt; Vec2 {
+    Vec2::new(
+        pos.x as f32 * TILE_SIZE + TILE_SIZE * 0.5,
+        pos.y as f32 * TILE_SIZE + TILE_SIZE * 0.5,
+    )
+}
+
+/// Világ -&gt; tile: melyik cellába esik egy világpont?
+/// i32-t adunk vissza, mert a pont a pályán KÍVÜL is lehet (negatív index).
+pub fn world_to_tile(world: Vec2) -&gt; (i32, i32) {
+    (
+        (world.x / TILE_SIZE).floor() as i32,
+        (world.y / TILE_SIZE).floor() as i32,
+    )
+}</code></pre></div>
+
+  <ul class="plain">
+    <li><strong>Miért középpont?</strong> A spritejaink alapból középre horgonyzottak, így ha az entitás
+      <code class="inl">Transform</code>-ját a tile közepére tesszük, a sprite pontosan a cellát fedi.</li>
+    <li><strong>Miért <code class="inl">floor()</code> és nem cast?</strong> Az <code class="inl">as i32</code>
+      a nulla felé csonkít, így a <code class="inl">-0.3 as i32 == 0</code> lenne — a negatív oldalon hibás cellát kapnánk.
+      A <code class="inl">floor()</code> mindig lefelé kerekít, ami rács-logikához kell.</li>
+    <li><strong>Miért <code class="inl">i32</code> a visszatérés?</strong> Ütközésvizsgálatnál rendszeresen
+      rákérdezünk pályán kívüli pontokra is; jobb ezt típus-szinten megengedni és az ütközési térképben kezelni.</li>
+  </ul>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>Transform és GlobalTransform</h4>
+    <p>A <code class="inl">Transform</code> az entitás <em>szülőhöz viszonyított</em> pozíciója, forgatása és skálája;
+       a <code class="inl">GlobalTransform</code> a Bevy által ebből kiszámolt világbeli érték. Gyerek-szülő
+       hierarchia nélkül a kettő megegyezik. Te mindig a <code class="inl">Transform</code>-ot írod, és többnyire
+       azt is olvasod — a <code class="inl">GlobalTransform</code> akkor kell, ha beágyazott entitás abszolút
+       pozíciójára vagy kíváncsi.</p>
+  </div>
+</section>
+
+<!-- ================= 1.4 ================= -->
+<section class="chapter" id="z-retegek">
+  <header>
+    <div class="part-tag"><span class="sq g"></span>1. rész · Alapok</div>
+    <h2>Z-rétegek és mélység (y-sort)</h2>
+  </header>
+
+  <p>
+    2D-ben a <code class="inl">Transform</code> Z-koordinátája dönti el a kirajzolási sorrendet: a nagyobb Z
+    van felül. Top-down játékban két szinten kell ezt kezelni:
+  </p>
+
+  <table class="tbl">
+    <thead><tr><th>Réteg</th><th>Z-tartomány</th><th>Mi kerül ide</th></tr></thead>
+    <tbody>
+      <tr><td>Talaj</td><td><code>0.0</code></td><td>a tilemap alapréteg (fű, út, víz)</td></tr>
+      <tr><td>Talaj-dekor</td><td><code>1.0</code></td><td>virág, repedés — entitás nélkül, a tilemap 2. rétege</td></tr>
+      <tr><td>Szereplők</td><td><code>10.0 ± y·ε</code></td><td>játékos, NPC-k, fák, ládák — <strong>y-rendezve</strong></td></tr>
+      <tr><td>Fák lombja, tetők</td><td><code>20.0</code></td><td>ami mindig a szereplők fölött van</td></tr>
+      <tr><td>UI / effektek</td><td><code>100.0+</code></td><td>kijelölés, lebegő szövegek</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    Az <strong>y-rendezés</strong> a top-down illúzió kulcsa: aki a képernyőn <em>lejjebb</em> áll, az van
+    <em>közelebb</em> a kamerához, tehát nagyobb Z-t kap. Így tudsz besétálni egy fa mögé. Egy apró rendszer
+    minden frame-ben frissíti az érintett entitások Z-jét:
+  </p>
+
+  <div class="codeblock"><div class="cb-head"><span class="fname">src/depth.rs</span><span class="lang">rust</span></div><pre><code class="lang-rust">use bevy::prelude::*;
+
+pub const Z_ACTORS: f32 = 10.0;
+
+/// Marker: ezt az entitást y szerint kell rendezni.
+#[derive(Component)]
+pub struct YSorted;
+
+pub fn y_sort(mut query: Query&lt;&amp;mut Transform, With&lt;YSorted&gt;&gt;) {
+    for mut transform in &amp;mut query {
+        // Minél kisebb az y (lejjebb áll), annál nagyobb a z.
+        transform.translation.z = Z_ACTORS - transform.translation.y * 0.001;
+    }
+}</code></pre></div>
+
+  <div class="note">
+    <b>Horgony-tipp:</b> y-rendezésnél a sprite-okat érdemes <em>alsó-közép</em> horgonyra
+    (<code class="inl">Anchor::BOTTOM_CENTER</code>) állítani, így a „lábánál” hasonlítod össze a szereplőket,
+    nem a sprite közepénél — egy magas fa és egy alacsony karakter így is jól rendeződik.
+    (Bevy 0.17 előtt az anchor a <code class="inl">Sprite</code> struct mezője volt; 0.17-től önálló
+    <code class="inl">Anchor</code> komponens.)
+  </div>
+
+  <p>A sandboxban (4. rész) van egy fa pontosan ezért — próbáld majd ki, hogy elé és mögé is odaállsz.</p>
+</section>
+
+<!-- ================= 2.1 ================= -->
+<section class="chapter" id="jatekos">
+  <header>
+    <div class="part-tag"><span class="sq a"></span>2. rész · Entitások a pályán</div>
+    <h2>A játékos spawnolása</h2>
+  </header>
+
+  <p>
+    A játékos egy entitás lesz, három saját komponenssel: egy <strong>marker</strong>
+    (<code class="inl">Player</code> — üres struct, csak címkének), egy sebesség, és egy ütközőtest
+    (ezt a 3. részben töltjük meg élettel). Ehhez jön a Bevy beépített <code class="inl">Sprite</code> és
+    <code class="inl">Transform</code> komponense.
+  </p>
+
+  <div class="codeblock"><div class="cb-head"><span class="fname">src/player.rs</span><span class="lang">rust</span></div><pre><code class="lang-rust">use bevy::prelude::*;
+use bevy::sprite::Anchor;
+use crate::grid::{tile_to_world, TilePos, TILE_SIZE};
+use crate::depth::{YSorted, Z_ACTORS};
+
+#[derive(Component)]
+pub struct Player; // marker: nincs adata, csak címke
+
+#[derive(Component)]
+pub struct Speed(pub f32); // pixel / másodperc
+
+#[derive(Component)]
+pub struct Collider {
+    pub half: Vec2,   // fél-szélesség, fél-magasság
+    pub offset: Vec2, // eltolás a Transformhoz képest
+}
+
+pub fn spawn_player(mut commands: Commands, assets: Res&lt;AssetServer&gt;) {
+    let start = TilePos { x: 5, y: 7 };
+
+    commands.spawn((
+        Player,
+        Speed(80.0),
+        Collider {
+            // Szándékosan KISEBB, mint a 16x16-os sprite:
+            // csak a karakter "lába" ütközik, a feje belelóghat a fal tile-ba.
+            half: Vec2::new(5.0, 4.0),
+            offset: Vec2::new(0.0, 4.0),
+        },
+        Sprite {
+            image: assets.load("sprites/skeleton.png"),
+            ..default()
+        },
+        Anchor::BOTTOM_CENTER,
+        Transform::from_translation(
+            (tile_to_world(start) - Vec2::Y * TILE_SIZE * 0.5).extend(Z_ACTORS),
+        ),
+        YSorted,
+    ));
+}</code></pre></div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>commands.spawn((...)) és a required components</h4>
+    <p>A <code class="inl">spawn</code> egy <em>tuple-t</em> kap: minden eleme egy komponens, amit az új entitás megkap.
+       A modern Bevy-ben (0.15+) nem kell „bundle”-öket keresgélni: a <code class="inl">Sprite</code> komponens
+       <em>required components</em> mechanizmussal automatikusan maga mellé húzza a hiányzó
+       <code class="inl">Transform</code>, <code class="inl">Visibility</code> stb. komponenseket alapértékekkel.
+       Mi a <code class="inl">Transform</code>-ot azért adjuk meg kézzel, mert nem az alapértéket (origó) akarjuk.</p>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>AssetServer és a Handle</h4>
+    <p>Az <code class="inl">assets.load("sprites/skeleton.png")</code> <em>nem</em> blokkol: azonnal visszaad egy
+       <code class="inl">Handle&lt;Image&gt;</code>-t (egy könnyű hivatkozást), a betöltés a háttérben történik az
+       <code class="inl">assets/</code> mappából. Amíg tölt, a sprite egyszerűen nem látszik — induló projektnél
+       ez tökéletes, később jöhet a <code class="inl">bevy_asset_loader</code> a betöltőképernyőhöz.</p>
+  </div>
+
+  <p>Két apró, de fontos döntés van a fenti kódban:</p>
+  <ul class="plain">
+    <li><strong>Az ütközőtest kisebb a sprite-nál.</strong> Top-down játékokban a karakternek csak a
+      „talplenyomata” ütközik (kb. az alsó fele) — így a feje vizuálisan átfedhet egy mögötte lévő fal-tile-lal,
+      ami sokkal természetesebben néz ki. Ezt a sandboxban be tudod majd kapcsolva nézni.</li>
+    <li><strong>Alsó-közép horgony + fél tile lefelé tolás:</strong> így a karakter <em>lába</em> kerül a
+      kiválasztott tile aljára, és az y-sort is a lábpozícióval dolgozik.</li>
+  </ul>
+</section>
+
+<!-- ================= 2.2 ================= -->
+<section class="chapter" id="npc-statikus">
+  <header>
+    <div class="part-tag"><span class="sq a"></span>2. rész · Entitások a pályán</div>
+    <h2>NPC-k és statikus elemek</h2>
+  </header>
+
+  <p>
+    Az NPC és a láda <strong>szerkezetileg ugyanaz</strong>, mint a játékos — entitás komponensekkel —, csak
+    más markereket és adatokat kap. Pontosan ez az ECS ereje: nem öröklődési hierarchiát építünk
+    (<em>GameObject → Character → NPC</em>), hanem komponenseket komponálunk.
+  </p>
+
+  <table class="tbl">
+    <thead><tr><th>Entitás</th><th>Komponensek</th><th>Miért</th></tr></thead>
+    <tbody>
+      <tr><td>Játékos</td><td><code>Player, Speed, Collider, Sprite, YSorted</code></td><td>mozog, ütközik, y-rendezett</td></tr>
+      <tr><td>NPC</td><td><code>Npc, Speed, Collider, Sprite, YSorted, Name</code></td><td>mint a játékos, de input helyett AI mozgatja</td></tr>
+      <tr><td>Láda</td><td><code>Chest, Collider, Sprite, YSorted, TilePos</code></td><td>nem mozog → nincs Speed; rácshoz kötött</td></tr>
+      <tr><td>Fa</td><td><code>Solid, Sprite, YSorted, TilePos</code></td><td>az ütközését a tile-térkép kezeli (lásd 3. rész)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="codeblock"><div class="cb-head"><span class="fname">src/npc.rs</span><span class="lang">rust</span></div><pre><code class="lang-rust">use bevy::prelude::*;
+use crate::grid::{tile_to_world, TilePos};
+use crate::depth::{YSorted, Z_ACTORS};
+use crate::player::{Collider, Speed};
+
+#[derive(Component)]
+pub struct Npc {
+    pub dialog: String,
+}
+
+#[derive(Component)]
+pub struct Chest {
+    pub opened: bool,
+}
+
+pub fn spawn_npc(mut commands: Commands, assets: Res&lt;AssetServer&gt;) {
+    commands.spawn((
+        Npc { dialog: "Üdv, vándor! A híd keletre van.".into() },
+        Name::new("Boltos"),
+        Speed(40.0),
+        Collider { half: Vec2::new(5.0, 4.0), offset: Vec2::new(0.0, 4.0) },
+        Sprite { image: assets.load("sprites/villager.png"), ..default() },
+        Transform::from_translation(tile_to_world(TilePos { x: 12, y: 6 }).extend(Z_ACTORS)),
+        YSorted,
+    ));
+}</code></pre></div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>Name</h4>
+    <p>A <code class="inl">Name</code> a Bevy beépített „címke” komponense. A játéklogikának nem kell, de a
+       debug-eszközök (pl. <code class="inl">bevy-inspector-egui</code>) ezt jelenítik meg az entitáslistában —
+       a 4096-os <code class="inl">Entity(4096v1)</code> helyett azt látod: <em>Boltos</em>. Vedd fel korán a szokást.</p>
+  </div>
+
+  <h3>Statikus elem: rácshoz kötve vagy szabadon?</h3>
+  <p>Statikus objektumoknál két iskola létezik, és érdemes tudatosan választani:</p>
+  <ul class="plain">
+    <li><strong>Rácshoz kötött</strong> (láda, ajtó, fa): kap egy <code class="inl">TilePos</code> komponenst is, és
+      az ütközését nem AABB-vel, hanem az <em>ütközési térképben</em> kezeljük — spawnoláskor egyszerűen
+      „fallá” jelöljük a celláját. Olcsó és robusztus.</li>
+    <li><strong>Szabad pozíciójú</strong> (eldobott tárgy, lövedék): nincs <code class="inl">TilePos</code>, AABB-vel
+      vagy körrel ütközik, mint a mozgó szereplők.</li>
+  </ul>
+  <p>
+    A hüvelykujjszabály: <strong>ami sosem mozdul és cellára esik, az a tile-világ ütközési adatába tartozik</strong>,
+    még akkor is, ha vizuálisan entitásként (saját sprite-tal) jelenik meg. A két világ tehát itt is összeér:
+    a fa <em>sprite-ja</em> entitás (hogy y-rendezhető legyen), az <em>ütközése</em> tile-adat.
+  </p>
+</section>
+
+<!-- ================= 2.3 ================= -->
+<section class="chapter" id="terkep-adatbol">
+  <header>
+    <div class="part-tag"><span class="sq a"></span>2. rész · Entitások a pályán</div>
+    <h2>Spawnolás térkép-adatból</h2>
+  </header>
+
+  <p>
+    Kézzel spawnolgatni csak prototípusban szabad. A pályagenerátorod (vagy pályaszerkesztőd) ideális esetben
+    nemcsak tile-okat ad, hanem egy <strong>spawn-listát</strong> is: „ide játékos, oda két NPC, amoda láda”.
+    Az LDtk és a Tiled szerkesztők ezt <em>entity layer</em>-nek hívják — procedurális generálásnál te magad
+    állítod elő ugyanezt a listát.
+  </p>
+
+  <div class="codeblock"><div class="cb-head"><span class="fname">src/map.rs</span><span class="lang">rust</span></div><pre><code class="lang-rust">use bevy::prelude::*;
+use crate::grid::TilePos;
+
+#[derive(Clone, Copy, Debug)]
+pub enum SpawnKind {
+    Player,
+    Npc,
+    Chest,
+    Tree,
+}
+
+pub struct MapSpawn {
+    pub kind: SpawnKind,
+    pub tile: TilePos,
+}
+
+/// Ezt az erőforrást a (már kész) tilemap-generátorod tölti fel.
+#[derive(Resource)]
+pub struct MapData {
+    pub width: u32,
+    pub height: u32,
+    pub solid_tiles: Vec&lt;bool&gt;,   // soronként: width * height elem
+    pub spawns: Vec&lt;MapSpawn&gt;,
+}</code></pre></div>
+
+  <p>A spawnoló rendszer ezután egyetlen <code class="inl">match</code>: adatból entitás.</p>
+
+  <div class="codeblock"><div class="cb-head"><span class="fname">src/map.rs (folytatás)</span><span class="lang">rust</span></div><pre><code class="lang-rust">pub fn spawn_from_map(
+    mut commands: Commands,
+    map: Res&lt;MapData&gt;,
+    assets: Res&lt;AssetServer&gt;,
+) {
+    for spawn in &amp;map.spawns {
+        match spawn.kind {
+            SpawnKind::Player =&gt; spawn_player_at(&amp;mut commands, &amp;assets, spawn.tile),
+            SpawnKind::Npc    =&gt; spawn_npc_at(&amp;mut commands, &amp;assets, spawn.tile),
+            SpawnKind::Chest  =&gt; spawn_chest_at(&amp;mut commands, &amp;assets, spawn.tile),
+            SpawnKind::Tree   =&gt; spawn_tree_at(&amp;mut commands, &amp;assets, spawn.tile),
+        }
+    }
+}</code></pre></div>
+
+  <div class="note">
+    <b>Miért jó ez a felépítés?</b> A pálya <em>adat</em>, az entitások <em>viselkedés</em>. Ha később LDtk-ra
+    vagy Tiled-re váltasz (<code class="inl">bevy_ecs_ldtk</code> / <code class="inl">bevy_ecs_tiled</code>), csak a
+    <code class="inl">MapData</code> feltöltése változik — a spawn-rendszered és minden, ami utána jön, marad.
+    Ugyanez igaz visszafelé: a procedurális generátorod kimenetét elég erre az egy struktúrára illeszteni.
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>Res&lt;MapData&gt; és a futási sorrend</h4>
+    <p>A <code class="inl">Res&lt;MapData&gt;</code> paraméter miatt ez a rendszer <em>pánikol</em>, ha az erőforrás
+       még nem létezik. Két megoldás: az erőforrást még az <code class="inl">App</code> felépítésekor szúrd be
+       (<code class="inl">app.insert_resource(map_data)</code>), vagy a rendszerek közé tegyél sorrendet:
+       <code class="inl">spawn_from_map.after(generate_map)</code>. Opcionális erőforráshoz a paraméter
+       <code class="inl">Option&lt;Res&lt;MapData&gt;&gt;</code> is lehet.</p>
+  </div>
+</section>
+
+<!-- ================= 3.1 ================= -->
+<section class="chapter" id="input-mozgas">
+  <header>
+    <div class="part-tag"><span class="sq b"></span>3. rész · Mozgás és ütközés</div>
+    <h2>Input és mozgás</h2>
+  </header>
+
+  <p>
+    A mozgást két rendszerre bontjuk: az egyik az <strong>inputból szándékot</strong> csinál
+    (egy irányvektort), a másik a <strong>szándékból elmozdulást</strong> — ütközésvizsgálattal.
+    Ez a szétválasztás később ajándék: az NPC-AI ugyanabba a „szándék” komponensbe ír, mint a billentyűzet,
+    és a mozgató rendszer nem tudja (nem is kell tudnia), ki vezérli az entitást.
+  </p>
+
+  <div class="codeblock"><div class="cb-head"><span class="fname">src/movement.rs</span><span class="lang">rust</span></div><pre><code class="lang-rust">use bevy::prelude::*;
+use crate::player::Player;
+
+/// "Szándék": merre akar menni az entitás ebben a frame-ben. (-1..1 komponensek)
+#[derive(Component, Default)]
+pub struct MoveIntent(pub Vec2);
+
+pub fn read_input(
+    keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    mut query: Query&lt;&amp;mut MoveIntent, With&lt;Player&gt;&gt;,
+) {
+    let Ok(mut intent) = query.single_mut() else { return };
+
+    let mut dir = Vec2::ZERO;
+    if keys.pressed(KeyCode::KeyW) || keys.pressed(KeyCode::ArrowUp)    { dir.y += 1.0; }
+    if keys.pressed(KeyCode::KeyS) || keys.pressed(KeyCode::ArrowDown)  { dir.y -= 1.0; }
+    if keys.pressed(KeyCode::KeyA) || keys.pressed(KeyCode::ArrowLeft)  { dir.x -= 1.0; }
+    if keys.pressed(KeyCode::KeyD) || keys.pressed(KeyCode::ArrowRight) { dir.x += 1.0; }
+
+    // Átló: normalizálás nélkül √2-szer gyorsabb lenne.
+    intent.0 = dir.normalize_or_zero();
+}</code></pre></div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>ButtonInput&lt;KeyCode&gt;</h4>
+    <p>Beépített erőforrás, a Bevy minden frame-ben frissíti. Három fő kérdés tehető fel neki:
+       <code class="inl">pressed()</code> — éppen lenyomva tartva; <code class="inl">just_pressed()</code> — ebben a
+       frame-ben nyomták le (interakcióhoz, ugráshoz); <code class="inl">just_released()</code> — most engedték fel.
+       A <code class="inl">KeyCode</code> <em>fizikai</em> billentyűt jelöl (a QWERTY „W” helye), tehát magyar
+       kiosztáson is jó helyen lesz a WASD.</p>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>query.single_mut() és a let-else</h4>
+    <p>Ha egy query-ről tudod, hogy pontosan egy entitást érint (egy játékos van), a
+       <code class="inl">single_mut()</code> kényelmes — <code class="inl">Result</code>-ot ad, ami hibázik, ha 0 vagy
+       több találat van. A <code class="inl">let Ok(..) = .. else { return }</code> minta csendben kilép, amíg pl.
+       a játékos még nem spawnolt. (Bevy 0.15-ben létezik a <code class="inl">Single&lt;T&gt;</code> paramétertípus is,
+       ami ugyanezt deklaratívan oldja meg: a rendszer egyszerűen nem fut, ha nincs pont egy találat.)</p>
+  </div>
+
+  <p>Az elmozdulást a <code class="inl">Time</code>-ból számoljuk — még ütközés nélkül (azt a következő fejezet adja hozzá):</p>
+
+  <div class="codeblock"><div class="cb-head"><span class="fname">src/movement.rs (első verzió, még ütközés nélkül)</span><span class="lang">rust</span></div><pre><code class="lang-rust">use crate::player::Speed;
+
+pub fn apply_movement(
+    time: Res&lt;Time&gt;,
+    mut query: Query&lt;(&amp;mut Transform, &amp;MoveIntent, &amp;Speed)&gt;,
+) {
+    for (mut transform, intent, speed) in &amp;mut query {
+        let delta = intent.0 * speed.0 * time.delta_secs();
+        transform.translation += delta.extend(0.0);
+    }
+}</code></pre></div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>Time és a delta idő</h4>
+    <p>A <code class="inl">time.delta_secs()</code> az előző frame óta eltelt idő másodpercben. A
+       <code class="inl">sebesség × delta</code> szorzat teszi a mozgást képkockasebesség-függetlenné: 60 és 144 FPS-en
+       ugyanannyi <em>pixel/másodperc</em> lesz a tempó. Determinisztikusabb fizikához létezik a
+       <code class="inl">FixedUpdate</code> ütemezés (fix, pl. 64 Hz-es lépésköz) — egy egyszerű top-down játéknak
+       az <code class="inl">Update</code> + delta idő bőven elég.</p>
+  </div>
+</section>
+
+<!-- ================= 3.2 ================= -->
+<section class="chapter" id="utkozesi-terkep">
+  <header>
+    <div class="part-tag"><span class="sq b"></span>3. rész · Mozgás és ütközés</div>
+    <h2>Az ütközési térkép</h2>
+  </header>
+
+  <p>
+    Itt fizetődik ki igazán a tile-világ. Nem kell minden falnak külön ütközőtest-entitás: a tilemapból
+    egyszer legeneráljuk a <strong>tömör cellák bittérképét</strong>, és onnantól bármely világpontról
+    O(1) időben megmondható, falban van-e.
+  </p>
+
+  <div class="codeblock"><div class="cb-head"><span class="fname">src/collision.rs</span><span class="lang">rust</span></div><pre><code class="lang-rust">use bevy::prelude::*;
+use crate::grid::TILE_SIZE;
+use crate::map::MapData;
+
+#[derive(Resource)]
+pub struct CollisionMap {
+    pub width: u32,
+    pub height: u32,
+    pub solid: Vec&lt;bool&gt;, // soronként tárolva: index = y * width + x
+}
+
+impl CollisionMap {
+    pub fn from_map(map: &amp;MapData) -&gt; Self {
+        Self {
+            width: map.width,
+            height: map.height,
+            solid: map.solid_tiles.clone(),
+        }
+    }
+
+    /// Tömör-e az (x, y) tile? A pályán kívül MINDEN tömör –
+    /// így a pálya széle automatikusan fal, külön határellenőrzés nélkül.
+    pub fn is_solid(&amp;self, x: i32, y: i32) -&gt; bool {
+        if x &lt; 0 || y &lt; 0 || x &gt;= self.width as i32 || y &gt;= self.height as i32 {
+            return true;
+        }
+        self.solid[(y as u32 * self.width + x as u32) as usize]
+    }
+
+    /// Tömör tile alá esik-e egy világbeli PONT?
+    pub fn is_solid_at_world(&amp;self, p: Vec2) -&gt; bool {
+        let tx = (p.x / TILE_SIZE).floor() as i32;
+        let ty = (p.y / TILE_SIZE).floor() as i32;
+        self.is_solid(tx, ty)
+    }
+}</code></pre></div>
+
+  <ul class="plain">
+    <li><strong>„Pályán kívül = fal”</strong> — ez az apró döntés rengeteg határeset-hibától véd meg, és a
+      játékos sosem eshet le a világ pereméről.</li>
+    <li>Az erőforrást a térkép elkészülte után egyszer hozzuk létre:
+      <code class="inl">commands.insert_resource(CollisionMap::from_map(&amp;map))</code>. Ha a pálya futás közben
+      változhat (ajtó kinyílik, fát kivágnak), ugyanitt kell átbillenteni a megfelelő cellát — pontosan ezt
+      csinálja a sandbox, amikor kattintással falat raksz le.</li>
+    <li>Nagyobb pályán a <code class="inl">Vec&lt;bool&gt;</code> cserélhető bitmaszkra vagy
+      <code class="inl">HashSet&lt;(i32,i32)&gt;</code>-re ritkás falaknál — az interfész (<code class="inl">is_solid</code>) marad.</li>
+  </ul>
+</section>
+
+<!-- ================= 3.3 ================= -->
+<section class="chapter" id="aabb">
+  <header>
+    <div class="part-tag"><span class="sq b"></span>3. rész · Mozgás és ütközés</div>
+    <h2>AABB a tile-rács ellen</h2>
+  </header>
+
+  <p>
+    A szereplőink ütközőteste egy <strong>AABB</strong> (axis-aligned bounding box — tengelyekkel párhuzamos
+    téglalap). Az ütközésvizsgálat ötlete egyszerű: nézzük meg, hogy az AABB által <em>lefedett összes tile</em>
+    között van-e tömör. Mivel az ütközőtest kisebb egy tile-nál vagy alig nagyobb, ez tipikusan 1–4 cella ellenőrzése.
+  </p>
+
+  <figure class="diagram">
+    <svg viewBox="0 0 560 250" width="560" height="250" role="img" aria-label="AABB a tile-rácson: a doboz négy sarka négy cellát fed le">
+      <defs>
+        <pattern id="grid2" width="50" height="50" patternUnits="userSpaceOnUse">
+          <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#24313d" stroke-width="1"/>
+        </pattern>
+      </defs>
+      <rect x="30" y="25" width="350" height="200" fill="url(#grid2)" stroke="#2e3f4e"/>
+      <!-- solid tile -->
+      <rect x="180" y="75" width="50" height="50" fill="rgba(239,132,114,.22)" stroke="#ef8472" stroke-width="1.5"/>
+      <text x="187" y="105" fill="#ef8472" font-family="JetBrains Mono,monospace" font-size="10">fal</text>
+      <!-- AABB overlapping 4 cells -->
+      <rect x="160" y="105" width="58" height="44" fill="rgba(132,217,108,.16)" stroke="#84d96c" stroke-width="2"/>
+      <circle cx="160" cy="105" r="3" fill="#f0b35e"/>
+      <circle cx="218" cy="105" r="3" fill="#f0b35e"/>
+      <circle cx="160" cy="149" r="3" fill="#f0b35e"/>
+      <circle cx="218" cy="149" r="3" fill="#f0b35e"/>
+      <text x="166" y="142" fill="#84d96c" font-family="JetBrains Mono,monospace" font-size="10">AABB</text>
+      <!-- annotations -->
+      <text x="400" y="60" fill="#cfdbe2" font-family="JetBrains Mono,monospace" font-size="11">min = center - half</text>
+      <text x="400" y="80" fill="#cfdbe2" font-family="JetBrains Mono,monospace" font-size="11">max = center + half</text>
+      <text x="400" y="112" fill="#5e7280" font-family="JetBrains Mono,monospace" font-size="10">a doboz a (3,2)..(4,3)</text>
+      <text x="400" y="128" fill="#5e7280" font-family="JetBrains Mono,monospace" font-size="10">cellatartományt fedi —</text>
+      <text x="400" y="144" fill="#5e7280" font-family="JetBrains Mono,monospace" font-size="10">a jobb felső cella fal,</text>
+      <text x="400" y="160" fill="#ef8472" font-family="JetBrains Mono,monospace" font-size="10">tehát ÜTKÖZÉS</text>
+    </svg>
+    <figcaption>2. ábra — az AABB cellatartományát járjuk be; ha bármelyik cella tömör, az elmozdulás tilos.</figcaption>
+  </figure>
+
+  <div class="codeblock"><div class="cb-head"><span class="fname">src/collision.rs (folytatás)</span><span class="lang">rust</span></div><pre><code class="lang-rust">/// Ütközik-e egy AABB (középpont + fél-méretek) bármely tömör tile-lal?
+pub fn aabb_hits_solid(map: &amp;CollisionMap, center: Vec2, half: Vec2) -&gt; bool {
+    let min = center - half;
+    let max = center + half;
+
+    // A lefedett cellatartomány. A max oldalon egy pici epsilont levonunk,
+    // hogy a pontosan cellahatáron álló doboz ne "lógjon át" a szomszédba.
+    let x0 = (min.x / TILE_SIZE).floor() as i32;
+    let y0 = (min.y / TILE_SIZE).floor() as i32;
+    let x1 = ((max.x - 0.001) / TILE_SIZE).floor() as i32;
+    let y1 = ((max.y - 0.001) / TILE_SIZE).floor() as i32;
+
+    for ty in y0..=y1 {
+        for tx in x0..=x1 {
+            if map.is_solid(tx, ty) {
+                return true;
+            }
+        }
+    }
+    false
+}</code></pre></div>
+
+  <h3>A „falon csúszás” trükkje: tengelyek szétválasztása</h3>
+  <p>
+    Ha az elmozdulást egyben próbálnánk (és ütközésnél egyszerűen eldobnánk), a játékos átlósan nekifutva
+    a falnak <strong>megállna</strong> — pedig az elvárt viselkedés, hogy a fal mentén <strong>csússzon</strong>.
+    A megoldás meglepően egyszerű: az X és Y elmozdulást <strong>külön-külön</strong> próbáljuk meg.
+    Ha X-ben ütköznénk, csak az X-et dobjuk el; az Y még átmehet.
+  </p>
+
+  <div class="codeblock"><div class="cb-head"><span class="fname">src/movement.rs (végleges)</span><span class="lang">rust</span></div><pre><code class="lang-rust">pub fn apply_movement(
+    time: Res&lt;Time&gt;,
+    map: Res&lt;CollisionMap&gt;,
+    mut query: Query&lt;(&amp;mut Transform, &amp;MoveIntent, &amp;Speed, &amp;Collider)&gt;,
+) {
+    for (mut transform, intent, speed, collider) in &amp;mut query {
+        let delta = intent.0 * speed.0 * time.delta_secs();
+        let mut pos = transform.translation.truncate();
+
+        // 1) X tengely külön
+        let try_x = pos + Vec2::new(delta.x, 0.0);
+        if !aabb_hits_solid(&amp;map, try_x + collider.offset, collider.half) {
+            pos = try_x;
+        }
+
+        // 2) Y tengely külön (a már frissített X-szel!)
+        let try_y = pos + Vec2::new(0.0, delta.y);
+        if !aabb_hits_solid(&amp;map, try_y + collider.offset, collider.half) {
+            pos = try_y;
+        }
+
+        transform.translation.x = pos.x;
+        transform.translation.y = pos.y;
+    }
+}</code></pre></div>
+
+  <div class="warn">
+    <b>Korlát, amit érdemes ismerni:</b> ez az „elmozdulok, ha nem ütköznék” módszer <em>diszkrét</em> — nagyon
+    nagy sebességnél (egy frame alatt egy teljes tile-nyi út) az entitás átugorhatna egy vékony falon
+    (<em>tunneling</em>). 16 px-es tile-nál és ~100 px/s sebességnél ez 60 FPS-en kizárt
+    (100/60 ≈ 1,7 px/frame), de ha valaha lövedékeket vagy dash-t adsz hozzá, az elmozdulást több kis lépésre
+    kell bontani, vagy sugárral (raycast) ellenőrizni.
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>Change Detection — ingyen kapott optimalizáció</h4>
+    <p>A Bevy minden komponens-írást nyilvántart. A <code class="inl">Query&lt;.., Changed&lt;Transform&gt;&gt;</code>
+       szűrővel egy rendszer csak azokon az entitásokon fut, amelyek Transformja tényleg változott — a fenti
+       <code class="inl">y_sort</code> például így csak a mozgó szereplőket rendezné újra. Fontos finomság: a
+       <code class="inl">&amp;mut</code> hozzáférés már önmagában „changed”-nek jelöl, ezért a forró ciklusokban csak
+       akkor kérj <code class="inl">&amp;mut</code>-ot, ha tényleg írsz.</p>
+  </div>
+</section>
+
+<!-- ================= 3.4 ================= -->
+<section class="chapter" id="entitas-utkozes">
+  <header>
+    <div class="part-tag"><span class="sq b"></span>3. rész · Mozgás és ütközés</div>
+    <h2>Entitás–entitás ütközés és trigger-zónák</h2>
+  </header>
+
+  <p>
+    A tile-ütközés a <em>világ</em> ellen véd; az entitások <em>egymás</em> elleni vizsgálata külön kérdés,
+    és top-down játékban tipikusan két, eltérő célú formája van:
+  </p>
+  <ul class="plain">
+    <li><strong>Tömör ütközés</strong> (ne sétáljunk át az NPC-n): két AABB átfedés-vizsgálata, és a mozgás blokkolása.</li>
+    <li><strong>Trigger-zóna</strong> (elég közel vagyok, hogy beszéljek vele?): átfedés vagy távolság-vizsgálat,
+      ami <em>nem</em> blokkol, csak eseményt vált ki.</li>
+  </ul>
+
+  <p>Két AABB átfedése egysoros logika — akkor fedik egymást, ha mindkét tengelyen átfednek:</p>
+
+  <div class="codeblock"><div class="cb-head"><span class="fname">src/collision.rs (folytatás)</span><span class="lang">rust</span></div><pre><code class="lang-rust">pub fn aabb_overlap(ca: Vec2, ha: Vec2, cb: Vec2, hb: Vec2) -&gt; bool {
+    (ca.x - cb.x).abs() &lt; (ha.x + hb.x) &amp;&amp;
+    (ca.y - cb.y).abs() &lt; (ha.y + hb.y)
+}</code></pre></div>
+
+  <p>
+    Az NPC-interakcióhoz viszont kör (távolság) alapú trigger a természetes — a játékos „aurája”.
+    Eseményt küldünk, amit egy másik rendszer (a dialógus-UI) dolgoz fel:
+  </p>
+
+  <div class="codeblock"><div class="cb-head"><span class="fname">src/interact.rs</span><span class="lang">rust</span></div><pre><code class="lang-rust">use bevy::prelude::*;
+use crate::npc::Npc;
+use crate::player::Player;
+
+const INTERACT_RADIUS: f32 = 20.0;
+
+/// Bevy 0.17+ neve: Message (#[derive(Message)], MessageWriter/MessageReader).
+/// Bevy 0.16-ban és korábban: #[derive(Event)], EventWriter/EventReader.
+#[derive(Message)]
+pub struct InteractWithNpc {
+    pub npc: Entity,
+}
+
+pub fn try_interact(
+    keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    player_q: Query&lt;&amp;Transform, With&lt;Player&gt;&gt;,
+    npc_q: Query&lt;(Entity, &amp;Transform), With&lt;Npc&gt;&gt;,
+    mut writer: MessageWriter&lt;InteractWithNpc&gt;,
+) {
+    if !keys.just_pressed(KeyCode::KeyE) {
+        return;
+    }
+    let Ok(player) = player_q.single() else { return };
+    let p = player.translation.truncate();
+
+    // A legközelebbi, sugáron belüli NPC-t keressük.
+    let closest = npc_q
+        .iter()
+        .map(|(e, t)| (e, t.translation.truncate().distance_squared(p)))
+        .filter(|(_, d2)| *d2 &lt; INTERACT_RADIUS * INTERACT_RADIUS)
+        .min_by(|a, b| a.1.total_cmp(&amp;b.1));
+
+    if let Some((entity, _)) = closest {
+        writer.write(InteractWithNpc { npc: entity });
+    }
+}
+
+pub fn handle_interaction(
+    mut reader: MessageReader&lt;InteractWithNpc&gt;,
+    npc_q: Query&lt;(&amp;Npc, &amp;Name)&gt;,
+) {
+    for msg in reader.read() {
+        if let Ok((npc, name)) = npc_q.get(msg.npc) {
+            info!("{}: {}", name, npc.dialog); // itt jönne a dialógus-UI
+        }
+    }
+}</code></pre></div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>Üzenetek (Message) és események (Event)</h4>
+    <p>A pufferelt üzenet a rendszerek közti laza csatolás eszköze: az író rendszer nem tud a feldolgozóról.
+       Regisztrálni kell: <code class="inl">app.add_message::&lt;InteractWithNpc&gt;()</code>. Az üzenetek két frame-ig
+       élnek, az olvasó saját kurzorral jár (minden olvasó mindent megkap egyszer).</p>
+    <p><b>Verzió-térkép:</b> Bevy ≤0.16: <code class="inl">Event</code> + <code class="inl">EventWriter/EventReader</code> +
+       <code class="inl">add_event</code>. Bevy 0.17-től a pufferelt változat átnevezve <code class="inl">Message</code>-re,
+       az <code class="inl">Event</code> név pedig a <em>megfigyelőknek</em> (observer) maradt: az
+       <code class="inl">commands.trigger(..)</code> + <code class="inl">app.add_observer(..)</code> páros azonnali,
+       reaktív kézbesítést ad pufferelés helyett. Egyszeri reakciókhoz (láda kinyílt) az observer elegánsabb;
+       frame-enként sokszor előforduló jelzésekhez az üzenet hatékonyabb.</p>
+  </div>
+
+  <div class="note">
+    <b>distance_squared?</b> A gyökvonás megspórolható: ha <code class="inl">d² &lt; r²</code>, akkor
+    <code class="inl">d &lt; r</code>. Apróság, de jól mutatja az elvet — a sugaras trigger zónánál soha nincs
+    szükség a tényleges távolságra, csak az összehasonlításra.
+  </div>
+
+  <h3>És ha az NPC tömör?</h3>
+  <p>
+    Ha az NPC-n nem lehet átsétálni, a tengely-szétválasztós mozgásba az
+    <code class="inl">aabb_hits_solid</code> mellé egy második feltétel kerül: „és nem fedek át más
+    <code class="inl">Collider</code>-es entitással”. Ehhez a mozgató rendszer egy extra query-vel végigmegy a
+    többi ütközőtesten. Néhány tucat szereplőig a naiv O(n²) is bőven elég; ha száz fölé mész, jön a térbeli
+    rácsozás (spatial hash) — vagy a következő fejezet.
+  </p>
+</section>
+
+<!-- ================= 3.5 ================= -->
+<section class="chapter" id="fizikai-motor">
+  <header>
+    <div class="part-tag"><span class="sq b"></span>3. rész · Mozgás és ütközés</div>
+    <h2>Mikor jön a fizikai motor?</h2>
+  </header>
+
+  <p>
+    Jogos kérdés: minek kézzel ütközést írni, ha létezik <code class="inl">avian2d</code> (a Bevy-natív
+    fizikai motor)? A válasz a játéktípusban van. A fenti ~80 sor <strong>pontosan azt</strong> a viselkedést adja,
+    amit egy top-down RPG-től vársz: determinisztikus, pixelre kiszámítható, falon csúszós mozgást —
+    visszapattanás, impulzus és tehetetlenség <em>nélkül</em>.
+  </p>
+
+  <table class="tbl">
+    <thead><tr><th>Maradj a kézi tile-ütközésnél, ha…</th><th>Válts avian2d-re, ha…</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>a mozgás rács-jellegű, a falak tile-ok, a viselkedés „RPG-s”</td>
+        <td>kell valódi dinamika: lökdösés, visszapattanó lövedék, fizikai puzzle</td>
+      </tr>
+      <tr>
+        <td>kevés mozgó entitásod van, és érted akarod tartani minden sorát</td>
+        <td>sok szereplő ütközik egymással, és kell a beépített térbeli gyorsítás</td>
+      </tr>
+      <tr>
+        <td>tanulsz — és ez a réteg a műfaj egyik legtanulságosabb része</td>
+        <td>kell a kész szenzor/trigger, rétegmaszk, raycast infrastruktúra</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    A jó hír, hogy a fogalmak egy az egyben átvihetők: az avian2d-ben a <code class="inl">Collider</code>
+    komponensed helyét a könyvtár <code class="inl">Collider::rectangle(w, h)</code>-je veszi át, a trigger-zóna
+    neve <code class="inl">Sensor</code>, a tile-okból pedig (mivel ott minden ütköző entitás) falanként vagy
+    összevont téglalapokként generálsz statikus testeket. A tutorial elve — <em>a tilemap az ütközési adat
+    forrása</em> — ott is ugyanúgy áll.
+  </p>
+</section>
+
+<!-- ================= 4.1 SANDBOX ================= -->
+<section class="chapter" id="sandbox">
+  <header>
+    <div class="part-tag"><span class="sq v"></span>4. rész · Gyakorlat</div>
+    <h2>Sandbox: minden együtt</h2>
+  </header>
+
+  <p>
+    Az alábbi sandbox <strong>JavaScriptben szimulálja</strong> pontosan azt a logikát, amit a tutorialban
+    Rustban megírtál: tile-rács + ütközési térkép, AABB tengely-szétválasztott mozgással, y-rendezés,
+    NPC trigger-zónával. Nem Bevy fut benne — de a függvények egy az egyben az itteni kód tükrei
+    (<code class="inl">tileToWorld</code>, <code class="inl">aabbHitsSolid</code>, <code class="inl">ySort</code>…),
+    így pontosan azt látod mozogni, amit a Rust kódod csinálna.
+  </p>
+
+  <ul class="plain">
+    <li><strong>Kattints a vászonra</strong>, hogy fókuszt kapjon, majd mozogj <span class="kbd">WASD</span> /
+      <span class="kbd">nyilak</span> billentyűkkel.</li>
+    <li><strong>Kattintás egy cellára:</strong> falat rak le / vesz fel — élőben írja át a <code class="inl">CollisionMap</code>-et.</li>
+    <li><span class="kbd">E</span> az NPC közelében: interakció (figyeld a trigger-kört és a dialógus-dobozt).</li>
+    <li>Sétálj a <strong>fa elé és mögé</strong> — az y-sort intézi a takarást.</li>
+    <li>Futtass neki <strong>átlósan a falnak</strong> — a tengely-szétválasztás miatt csúszik, nem ragad be.</li>
+  </ul>
+
+  <div class="sandbox">
+    <div class="sandbox-head">
+      <span class="t">▶ tile_entity_sandbox</span>
+      <span class="hint">kattints a vászonra a fókuszhoz</span>
+    </div>
+    <div class="sandbox-body">
+      <div class="sandbox-canvas-wrap">
+        <canvas id="sbx" width="640" height="384" tabindex="0" aria-label="Interaktív top-down sandbox: mozgás WASD-vel, fal lerakása kattintással"></canvas>
+      </div>
+      <div class="sandbox-side">
+        <h5>Debug nézetek</h5>
+        <label><input type="checkbox" id="cbColliders"> Ütközőtestek (AABB)</label>
+        <label><input type="checkbox" id="cbGrid"> Tile-rács</label>
+        <label><input type="checkbox" id="cbSolid"> Tömör cellák kiemelése</label>
+        <label><input type="checkbox" id="cbTrigger" checked> NPC trigger-zóna</label>
+        <label><input type="checkbox" id="cbYsort" checked> Y-sort bekapcsolva</label>
+
+        <h5>Jelmagyarázat</h5>
+        <div class="legend"><span class="lsw" style="background:#5d9c46"></span><span>fű (járható)</span></div>
+        <div class="legend"><span class="lsw" style="background:#6e6a72"></span><span>szikla / fal (tömör)</span></div>
+        <div class="legend"><span class="lsw" style="background:#3f6fb5"></span><span>víz (tömör)</span></div>
+        <div class="legend"><span class="lsw" style="background:#b08948"></span><span>láda (tile-hoz kötött)</span></div>
+
+        <h5>Állapot (élő)</h5>
+        <div class="dbg" id="dbgOut">betöltés…</div>
+
+        <h5>Dialógus</h5>
+        <div class="sbx-dialog" id="sbxDialog">Menj az NPC közelébe és nyomj <b>E</b>-t…</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>Kísérletezz:</b> kapcsold be az ütközőtesteket, és figyeld meg, hogy a karakter AABB-je kisebb a
+    sprite-nál, és a lába környékén ül — pont, ahogy a 2.1 fejezetben beállítottuk. Aztán építs fal-labirintust
+    kattintgatással, és nézd, hogyan csúszik a karakter a falak mentén.
+  </div>
+</section>
+
+<!-- ================= 4.2 ================= -->
+<section class="chapter" id="osszefoglalas">
+  <header>
+    <div class="part-tag"><span class="sq v"></span>4. rész · Gyakorlat</div>
+    <h2>Összefoglalás és következő lépések</h2>
+  </header>
+
+  <p>A teljes kép, amit felépítettünk — érdemes egyszer fejben végigfuttatni egy frame életét:</p>
+  <ol class="plain">
+    <li><strong>Startup:</strong> a térképadatból <code class="inl">CollisionMap</code> erőforrás készül, a
+      spawn-lista entitásokká válik (<code class="inl">Commands</code>).</li>
+    <li><strong>Update / input:</strong> a <code class="inl">read_input</code> a billentyűzetből
+      <code class="inl">MoveIntent</code>-et ír.</li>
+    <li><strong>Update / mozgás:</strong> az <code class="inl">apply_movement</code> a szándékból delta-idős
+      elmozdulást számol, és tengelyenként, AABB-vel a tile-rács ellen validálja.</li>
+    <li><strong>Update / interakció:</strong> távolság-trigger üzenetet küld, másik rendszer feldolgozza.</li>
+    <li><strong>Update / mélység:</strong> a <code class="inl">y_sort</code> a lábpozícióból Z-t számol.</li>
+  </ol>
+
+  <div class="outro-grid">
+    <div class="px-box">
+      <h4>Animáció</h4>
+      <p>A <code class="inl">MoveIntent</code>-ből irány és „mozog-e” állapot olvasható — ebből vezérelhető a
+      sprite-lap (TextureAtlas) animáció. Aseprite-hoz: <code class="inl">bevy_aseprite_ultra</code>.</p>
+    </div>
+    <div class="px-box">
+      <h4>Kamera-követés</h4>
+      <p>Egy rendszer, ami a kamera Transformját a játékoséhoz simítja (lerp), a pálya széleire clampelve —
+      minden hozzávalót ismersz már hozzá.</p>
+    </div>
+    <div class="px-box">
+      <h4>NPC-mozgás</h4>
+      <p>Az NPC ugyanazt a <code class="inl">MoveIntent</code>-et írja, csak nem inputból, hanem pl. véletlen
+      sétából vagy útkeresésből (A* a tile-rácson — az ütközési térkép ehhez is kész adat).</p>
+    </div>
+    <div class="px-box">
+      <h4>Pályaváltás</h4>
+      <p><code class="inl">States</code> + a pálya entitásainak közös marker komponense, amit váltáskor
+      despawnolsz — a spawn-from-data felépítés miatt az új pálya betöltése ugyanaz a kódút.</p>
+    </div>
+  </div>
+
+  <footer class="page-foot">
+    <span class="px">tile-ok és entitások · Bevy top-down tutorial</span>
+    <span>készült: 2026 · egyetlen HTML fájl, offline is működik (a betűtípusok kivételével)</span>
+  </footer>
+</section>
+
+</div><!-- /content -->
+</main>
+</div><!-- /layout -->
+
+<script>
+/* ============================================================
+   1) Mobil nav toggle
+============================================================ */
+(function(){
+  const btn = document.getElementById('navToggle');
+  const sb  = document.getElementById('sidebar');
+  btn.addEventListener('click', () => sb.classList.toggle('open'));
+  sb.addEventListener('click', e => {
+    if (e.target.closest('a')) sb.classList.remove('open');
+  });
+})();
+
+/* ============================================================
+   2) Scrollspy — a sidebar követi a görgetést
+============================================================ */
+(function(){
+  const links = Array.from(document.querySelectorAll('.toc a'));
+  const map = new Map();
+  links.forEach(a => {
+    const id = a.getAttribute('href').slice(1);
+    const sec = document.getElementById(id);
+    if (sec) map.set(sec, a);
+  });
+  let current = null;
+  function setActive(link){
+    if (current === link) return;
+    links.forEach(a => a.classList.remove('active'));
+    if (link){ link.classList.add('active'); current = link;
+      // tartsd láthatóan a sidebarban
+      const sb = document.getElementById('sidebar');
+      const r = link.getBoundingClientRect();
+      if (r.top < 80 || r.bottom > window.innerHeight - 40) {
+        link.scrollIntoView({block:'center', behavior:'smooth'});
+      }
+    }
+  }
+  const visible = new Map();
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if (en.isIntersecting) visible.set(en.target, en.boundingClientRect.top);
+      else visible.delete(en.target);
+    });
+    if (visible.size){
+      // a legfelső látható szekció
+      let best=null, bestTop=Infinity;
+      visible.forEach((top, sec) => {
+        const t = sec.getBoundingClientRect().top;
+        if (t < bestTop){ bestTop = t; best = sec; }
+      });
+      if (best) setActive(map.get(best));
+    }
+  }, {rootMargin:'-15% 0px -60% 0px', threshold:[0,0.05]});
+  map.forEach((_, sec) => io.observe(sec));
+  // fallback görgetésre (rövid szekciók / lap alja)
+  window.addEventListener('scroll', () => {
+    const secs = Array.from(map.keys());
+    let best = null;
+    for (const s of secs){
+      if (s.getBoundingClientRect().top <= window.innerHeight * 0.35) best = s;
+    }
+    if (best) setActive(map.get(best));
+  }, {passive:true});
+})();
+
+/* ============================================================
+   3) Minimál Rust szintaxiskiemelő
+============================================================ */
+(function(){
+  const KW = new Set(('use pub fn struct enum impl for in if else let mut return match while loop ' +
+    'const static mod crate self Self super trait where as ref move break continue dyn type unsafe').split(' '));
+  const TY = new Set(('Vec2 Vec3 Vec App Plugin Startup Update FixedUpdate Commands Res ResMut Query With Without ' +
+    'Changed Option Some None Ok Err Result Entity Component Resource Transform GlobalTransform Sprite Anchor ' +
+    'Time ButtonInput KeyCode AssetServer Handle Image String Name DefaultPlugins ImagePlugin TilePos MapData ' +
+    'MapSpawn SpawnKind CollisionMap Collider Player Npc Chest Speed MoveIntent YSorted Message MessageWriter ' +
+    'MessageReader Event EventWriter EventReader InteractWithNpc Single States TextureAtlas ' +
+    'f32 f64 u8 u16 u32 u64 i8 i16 i32 i64 usize isize bool char str Clone Copy PartialEq Eq Hash Debug Default').split(' '));
+
+  function highlight(src){
+    let out = '';
+    let i = 0;
+    const n = src.length;
+    const isIdent = c => /[A-Za-z0-9_]/.test(c);
+    while (i < n){
+      const c = src[i];
+      // comment
+      if (c === '/' && src[i+1] === '/'){
+        let j = src.indexOf('\n', i); if (j === -1) j = n;
+        out += '<span class="tk-cm">' + esc(src.slice(i, j)) + '</span>'; i = j; continue;
+      }
+      // string
+      if (c === '"'){
+        let j = i + 1;
+        while (j < n && src[j] !== '"'){ if (src[j] === '\\') j++; j++; }
+        j = Math.min(j + 1, n);
+        out += '<span class="tk-st">' + esc(src.slice(i, j)) + '</span>'; i = j; continue;
+      }
+      // attribute #[...]
+      if (c === '#' && src[i+1] === '['){
+        let depth = 0, j = i + 1;
+        while (j < n){ if (src[j]==='[') depth++; if (src[j]===']'){depth--; if(!depth){j++;break;}} j++; }
+        out += '<span class="tk-at">' + esc(src.slice(i, j)) + '</span>'; i = j; continue;
+      }
+      // lifetime / char
+      if (c === "'" && /[a-z_]/.test(src[i+1]||'') && src[i+2] !== "'"){
+        let j = i + 1; while (j < n && isIdent(src[j])) j++;
+        out += '<span class="tk-lf">' + esc(src.slice(i, j)) + '</span>'; i = j; continue;
+      }
+      // number
+      if (/[0-9]/.test(c) && !isIdent(src[i-1]||' ')){
+        let j = i; while (j < n && /[0-9._]/.test(src[j])) j++;
+        if (src.slice(j, j+3).match(/^(f32|f64|u32|i32)/)) j += 3;
+        out += '<span class="tk-nb">' + esc(src.slice(i, j)) + '</span>'; i = j; continue;
+      }
+      // identifier
+      if (/[A-Za-z_]/.test(c)){
+        let j = i; while (j < n && isIdent(src[j])) j++;
+        const w = src.slice(i, j);
+        // macro?
+        if (src[j] === '!'){
+          out += '<span class="tk-mc">' + esc(w + '!') + '</span>'; i = j + 1; continue;
+        }
+        let cls = null;
+        if (KW.has(w)) cls = 'tk-kw';
+        else if (TY.has(w) || /^[A-Z]/.test(w)) cls = 'tk-ty';
+        else {
+          // function call?
+          let k = j; while (k < n && src[k] === ' ') k++;
+          if (src[k] === '(' ) cls = 'tk-fn';
+        }
+        out += cls ? '<span class="'+cls+'">' + esc(w) + '</span>' : esc(w);
+        i = j; continue;
+      }
+      out += esc(c); i++;
+    }
+    return out;
+  }
+  function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  document.querySelectorAll('code.lang-rust').forEach(code => {
+    // a forrásban HTML-escape-elt szöveg van; textContent visszaadja nyersen
+    const src = code.textContent;
+    code.innerHTML = highlight(src);
+  });
+})();
+
+/* ============================================================
+   4) Hero dekor-canvas: kis tilemap + tébláboló csontváz
+============================================================ */
+(function(){
+  const cv = document.getElementById('heroCanvas');
+  const cx = cv.getContext('2d');
+  const T = 16, W = Math.floor(cv.width / T), H = Math.floor(cv.height / T);
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function rng(seed){ let s = seed; return () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff; }
+  const rand = rng(42);
+  const tiles = [];
+  for (let y = 0; y < H; y++){
+    for (let x = 0; x < W; x++){
+      let t = 'g';
+      if (y === 0) t = 'r';
+      else if (x > W - 4 && y > H - 4) t = 'w';
+      else if (rand() < 0.07) t = 'r';
+      tiles.push(t);
+    }
+  }
+  function drawTile(x, y, t, r){
+    const px = x * T, py = y * T;
+    if (t === 'g'){
+      cx.fillStyle = '#4f8c3f'; cx.fillRect(px, py, T, T);
+      cx.fillStyle = '#5d9c46';
+      cx.fillRect(px, py, T, 2); 
+      if (r() < .5){ cx.fillStyle = '#6fb053'; cx.fillRect(px + (r()*12|0)+1, py + (r()*12|0)+2, 2, 2); }
+      if (r() < .3){ cx.fillStyle = '#447a36'; cx.fillRect(px + (r()*12|0)+1, py + (r()*12|0)+2, 2, 2); }
+    } else if (t === 'r'){
+      cx.fillStyle = '#6e6a72'; cx.fillRect(px, py, T, T);
+      cx.fillStyle = '#7f7b85'; cx.fillRect(px, py, T, 3);
+      cx.fillStyle = '#57535c'; cx.fillRect(px, py + T - 3, T, 3);
+      cx.fillStyle = '#8d8995'; cx.fillRect(px + 3, py + 5, 3, 2); cx.fillRect(px + 9, py + 9, 3, 2);
+    } else if (t === 'w'){
+      cx.fillStyle = '#3f6fb5'; cx.fillRect(px, py, T, T);
+      cx.fillStyle = '#4d80c7'; cx.fillRect(px + 2, py + 4, 5, 1); cx.fillRect(px + 8, py + 10, 5, 1);
+    }
+  }
+  function drawSkeleton(px, py, frame){
+    px |= 0; py |= 0;
+    const bone = '#e8e4d8', dark = '#b9b4a4';
+    // fej
+    cx.fillStyle = bone; cx.fillRect(px + 4, py + 1, 8, 7);
+    cx.fillStyle = '#1a1d22'; cx.fillRect(px + 6, py + 3, 2, 2); cx.fillRect(px + 10, py + 3, 2, 2);
+    cx.fillStyle = dark; cx.fillRect(px + 6, py + 6, 4, 1);
+    // test
+    cx.fillStyle = bone; cx.fillRect(px + 6, py + 8, 4, 4);
+    cx.fillStyle = dark; cx.fillRect(px + 6, py + 9, 4, 1);
+    // karok
+    cx.fillStyle = bone;
+    cx.fillRect(px + 4, py + 8, 2, 3); cx.fillRect(px + 10, py + 8, 2, 3);
+    // lábak (2 frame-es lépés)
+    if (frame % 2 === 0){ cx.fillRect(px + 5, py + 12, 2, 3); cx.fillRect(px + 9, py + 13, 2, 2); }
+    else { cx.fillRect(px + 5, py + 13, 2, 2); cx.fillRect(px + 9, py + 12, 2, 3); }
+  }
+  let t0 = 0, sx = -20;
+  function frame(ts){
+    const r = rng(7);
+    cx.imageSmoothingEnabled = false;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) drawTile(x, y, tiles[y * W + x], r);
+    sx += 0.35; if (sx > cv.width + 16) sx = -20;
+    drawSkeleton(sx, 56, Math.floor(ts / 180));
+    if (!reduced) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  if (reduced){ const r = rng(7);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) drawTile(x, y, tiles[y * W + x], r);
+    drawSkeleton(120, 56, 0);
+  }
+})();
+</script>
+
+<script>
+/* ============================================================
+   5) SANDBOX — a tutorial Rust-logikájának JS tükre
+      tileToWorld / worldToTile / CollisionMap / aabbHitsSolid /
+      tengely-szétválasztott mozgás / y-sort / trigger-zóna
+============================================================ */
+(function(){
+  const cv = document.getElementById('sbx');
+  if (!cv) return;
+  const cx = cv.getContext('2d');
+
+  // Logikai felbontás: 320x192 (20x12 tile, TILE=16), 2x-re skálázva a 640x384-es canvasra.
+  const TILE = 16, GW = 20, GH = 12, SCALE = 2;
+  const LW = GW * TILE, LH = GH * TILE;
+
+  /* ---------- grid.rs tükre ---------- */
+  function tileToWorld(tx, ty){ return { x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2 }; }
+  function worldToTile(x, y){ return { x: Math.floor(x / TILE), y: Math.floor(y / TILE) }; }
+
+  /* ---------- MapData ---------- */
+  // 0 fű, 1 szikla, 2 víz, 3 láda
+  const KIND = { GRASS:0, ROCK:1, WATER:2, CHEST:3 };
+  const tiles = new Array(GW * GH).fill(KIND.GRASS);
+  const at  = (x, y) => tiles[y * GW + x];
+  const set = (x, y, k) => tiles[y * GW + x] = k;
+
+  // pálya: perem-sziklák, tavacska, pár kő, láda
+  for (let x = 0; x < GW; x++){ set(x, 0, KIND.ROCK); set(x, GH - 1, KIND.ROCK); }
+  for (let y = 0; y < GH; y++){ set(0, y, KIND.ROCK); set(GW - 1, y, KIND.ROCK); }
+  [[14,2],[15,2],[16,2],[14,3],[15,3],[16,3],[15,4]].forEach(([x,y]) => set(x, y, KIND.WATER));
+  [[4,3],[5,3],[9,7],[9,8],[10,8],[3,9]].forEach(([x,y]) => set(x, y, KIND.ROCK));
+  set(17, 8, KIND.CHEST);
+
+  const TREE = { tx: 7, ty: 5 }; // a fa entitás; a törzse tile-szinten tömör
+
+  /* ---------- CollisionMap tükre ---------- */
+  const collision = {
+    isSolid(tx, ty){
+      if (tx < 0 || ty < 0 || tx >= GW || ty >= GH) return true; // pályán kívül = fal
+      if (tx === TREE.tx && ty === TREE.ty) return true;          // a fa törzse
+      return at(tx, ty) !== KIND.GRASS;
+    }
+  };
+  function aabbHitsSolid(map, cxp, cyp, hw, hh){
+    const x0 = Math.floor((cxp - hw) / TILE);
+    const y0 = Math.floor((cyp - hh) / TILE);
+    const x1 = Math.floor((cxp + hw - 0.001) / TILE);
+    const y1 = Math.floor((cyp + hh - 0.001) / TILE);
+    for (let ty = y0; ty <= y1; ty++)
+      for (let tx = x0; tx <= x1; tx++)
+        if (map.isSolid(tx, ty)) return true;
+    return false;
+  }
+
+  /* ---------- entitások ---------- */
+  // pos = a "láb" (alsó-közép horgony); a collider a láb fölött ül
+  function makeActor(tx, ty, speed){
+    const w = tileToWorld(tx, ty);
+    return { x: w.x, y: w.y + TILE/2 - 1, speed,
+             col: { hw: 5, hh: 4, ox: 0, oy: -4 },
+             intent: { x: 0, y: 0 }, frame: 0, moving: false, facing: 1 };
+  }
+  const player = makeActor(3, 6, 80);
+  const npc    = makeActor(12, 4, 28);
+  npc.dialog = [
+    "Üdv, vándor! Látom, működik az ütközésed.",
+    "A tavat kerüld el — a víz tile tömör cella.",
+    "Rakj le falakat kattintással, próbára teszlek!",
+    "A fa mögé is besétálhatsz. Y-sort varázslat."
+  ];
+  npc.dialogIdx = 0;
+  npc.wanderT = 0;
+  const INTERACT_RADIUS = 22;
+
+  /* ---------- input ---------- */
+  const keys = new Set();
+  let interactPressed = false;
+  cv.addEventListener('keydown', e => {
+    const k = e.key.toLowerCase();
+    if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k) || ['w','a','s','d','e'].includes(k)) e.preventDefault();
+    if (k === 'e' && !keys.has('e')) interactPressed = true; // just_pressed
+    keys.add(k);
+  });
+  cv.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+  cv.addEventListener('blur', () => keys.clear());
+
+  // kattintás: fal le/fel — élő CollisionMap-módosítás
+  cv.addEventListener('mousedown', e => {
+    cv.focus();
+    const r = cv.getBoundingClientRect();
+    const lx = (e.clientX - r.left) * (LW / r.width);
+    const ly = (e.clientY - r.top)  * (LH / r.height);
+    const t = worldToTile(lx, ly);
+    if (t.x <= 0 || t.y <= 0 || t.x >= GW - 1 || t.y >= GH - 1) return; // peremet hagyjuk
+    if (t.x === TREE.tx && t.y === TREE.ty) return;
+    const k = at(t.x, t.y);
+    if (k === KIND.WATER || k === KIND.CHEST) return;
+    // ne falazzuk be a szereplőket
+    const occupied = [player, npc].some(a => {
+      const c = worldToTile(a.x + a.col.ox, a.y + a.col.oy);
+      return c.x === t.x && c.y === t.y;
+    });
+    if (occupied) return;
+    set(t.x, t.y, k === KIND.ROCK ? KIND.GRASS : KIND.ROCK);
+  });
+
+  /* ---------- movement.rs tükre (tengely-szétválasztás) ---------- */
+  function moveAndCollide(actor, dt){
+    const len = Math.hypot(actor.intent.x, actor.intent.y);
+    let dx = 0, dy = 0;
+    if (len > 0){
+      dx = actor.intent.x / len * actor.speed * dt;
+      dy = actor.intent.y / len * actor.speed * dt;
+    }
+    actor.moving = len > 0;
+    if (actor.intent.x !== 0) actor.facing = Math.sign(actor.intent.x);
+
+    // 1) X tengely
+    let nx = actor.x + dx;
+    if (!aabbHitsSolid(collision, nx + actor.col.ox, actor.y + actor.col.oy, actor.col.hw, actor.col.hh)){
+      actor.x = nx;
+    }
+    // 2) Y tengely (a frissített X-szel)
+    let ny = actor.y + dy;
+    if (!aabbHitsSolid(collision, actor.x + actor.col.ox, ny + actor.col.oy, actor.col.hw, actor.col.hh)){
+      actor.y = ny;
+    }
+  }
+
+  /* ---------- NPC "AI": ugyanabba a MoveIntent-be ír, mint az input ---------- */
+  function npcWander(dt){
+    npc.wanderT -= dt;
+    if (npc.wanderT <= 0){
+      npc.wanderT = 1 + Math.random() * 2;
+      if (Math.random() < 0.45){ npc.intent.x = 0; npc.intent.y = 0; }
+      else {
+        const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+        const d = dirs[(Math.random() * 4) | 0];
+        npc.intent.x = d[0]; npc.intent.y = d[1];
+      }
+    }
+  }
+
+  /* ---------- pixel art rajzolók ---------- */
+  function cellRng(ix){ let s = (ix * 2654435761) >>> 0; return () => ((s = (s * 1103515245 + 12345) >>> 0) & 0xffff) / 0x10000; }
+
+  function drawTileAt(tx, ty, time){
+    const k = at(tx, ty), px = tx * TILE, py = ty * TILE;
+    const r = cellRng(ty * GW + tx + 1);
+    if (k === KIND.GRASS || k === KIND.CHEST){
+      cx.fillStyle = '#4f8c3f'; cx.fillRect(px, py, TILE, TILE);
+      if (r() < .6){ cx.fillStyle = '#5d9c46'; cx.fillRect(px + (r()*12|0)+1, py + (r()*12|0)+1, 2, 2); }
+      if (r() < .4){ cx.fillStyle = '#447a36'; cx.fillRect(px + (r()*12|0)+1, py + (r()*12|0)+1, 2, 1); }
+      if (r() < .12){ cx.fillStyle = '#d8d263'; cx.fillRect(px + (r()*13|0)+1, py + (r()*13|0)+1, 1, 1); }
+    }
+    if (k === KIND.ROCK){
+      cx.fillStyle = '#6e6a72'; cx.fillRect(px, py, TILE, TILE);
+      cx.fillStyle = '#7f7b85'; cx.fillRect(px, py, TILE, 3);
+      cx.fillStyle = '#57535c'; cx.fillRect(px, py + TILE - 3, TILE, 3);
+      cx.fillStyle = '#8d8995';
+      cx.fillRect(px + 2 + (r()*4|0), py + 5, 3, 2);
+      cx.fillRect(px + 8 + (r()*3|0), py + 9, 3, 2);
+    }
+    if (k === KIND.WATER){
+      cx.fillStyle = '#3f6fb5'; cx.fillRect(px, py, TILE, TILE);
+      const ph = ((time * 1.5 + tx + ty) | 0) % 2;
+      cx.fillStyle = '#4d80c7';
+      cx.fillRect(px + 2 + ph * 3, py + 4, 5, 1);
+      cx.fillRect(px + 8 - ph * 2, py + 11, 5, 1);
+    }
+    if (k === KIND.CHEST){
+      cx.fillStyle = '#7a5a2e'; cx.fillRect(px + 2, py + 4, 12, 10);
+      cx.fillStyle = '#b08948'; cx.fillRect(px + 2, py + 4, 12, 4);
+      cx.fillStyle = '#f0b35e'; cx.fillRect(px + 7, py + 7, 2, 3);
+      cx.fillStyle = '#4a3318'; cx.fillRect(px + 2, py + 13, 12, 1);
+    }
+  }
+
+  function drawSkeleton(a, time){
+    const px = (a.x - 8) | 0, py = (a.y - 15) | 0;
+    const bone = '#e8e4d8', dark = '#b9b4a4';
+    const step = a.moving ? ((time * 8) | 0) % 2 : 0;
+    cx.fillStyle = 'rgba(0,0,0,.25)';
+    cx.fillRect(px + 4, (a.y - 1) | 0, 8, 2); // árnyék a lábnál
+    cx.fillStyle = bone; cx.fillRect(px + 4, py + 1, 8, 7);
+    cx.fillStyle = '#16191e';
+    if (a.facing >= 0){ cx.fillRect(px + 7, py + 3, 2, 2); cx.fillRect(px + 11, py + 3, 2, 2); }
+    else { cx.fillRect(px + 3, py + 3, 2, 2); cx.fillRect(px + 7, py + 3, 2, 2); }
+    cx.fillStyle = dark; cx.fillRect(px + 6, py + 6, 4, 1);
+    cx.fillStyle = bone; cx.fillRect(px + 6, py + 8, 4, 4);
+    cx.fillStyle = dark; cx.fillRect(px + 6, py + 9, 4, 1);
+    cx.fillStyle = bone;
+    cx.fillRect(px + 4, py + 8 + step, 2, 3); cx.fillRect(px + 10, py + 9 - step, 2, 3);
+    if (step === 0){ cx.fillRect(px + 5, py + 12, 2, 3); cx.fillRect(px + 9, py + 12, 2, 3); }
+    else { cx.fillRect(px + 5, py + 12, 2, 2); cx.fillRect(px + 9, py + 12, 2, 3); }
+  }
+
+  function drawVillager(a, time){
+    const px = (a.x - 8) | 0, py = (a.y - 15) | 0;
+    const hood = '#b3543f', skin = '#e8b88f', robe = '#8a3f30';
+    const step = a.moving ? ((time * 6) | 0) % 2 : 0;
+    cx.fillStyle = 'rgba(0,0,0,.25)'; cx.fillRect(px + 4, (a.y - 1) | 0, 8, 2);
+    cx.fillStyle = hood; cx.fillRect(px + 4, py, 8, 5);
+    cx.fillStyle = skin; cx.fillRect(px + 5, py + 3, 6, 4);
+    cx.fillStyle = '#2a1d16'; cx.fillRect(px + 6, py + 4, 1, 1); cx.fillRect(px + 9, py + 4, 1, 1);
+    cx.fillStyle = robe; cx.fillRect(px + 4, py + 7, 8, 6);
+    cx.fillStyle = '#6e3226'; cx.fillRect(px + 4, py + 9, 8, 1);
+    cx.fillStyle = '#3a2a20';
+    if (step === 0){ cx.fillRect(px + 5, py + 13, 2, 2); cx.fillRect(px + 9, py + 13, 2, 2); }
+    else { cx.fillRect(px + 6, py + 13, 2, 2); cx.fillRect(px + 8, py + 13, 2, 2); }
+  }
+
+  function drawTree2(){
+    const bx = TREE.tx * TILE, by = TREE.ty * TILE;
+    cx.fillStyle = 'rgba(0,0,0,.22)'; cx.fillRect(bx + 3, by + TILE - 3, 10, 2);
+    cx.fillStyle = '#6b4226'; cx.fillRect(bx + 6, by + 4, 4, 11);
+    cx.fillStyle = '#52331c'; cx.fillRect(bx + 6, by + 4, 1, 11);
+    // lombkorona: a törzs cellája FÖLÉ lóg — ezért kell az y-sort
+    cx.fillStyle = '#2f6b33';
+    cx.fillRect(bx - 4, by - 12, 24, 14);
+    cx.fillRect(bx, by - 16, 16, 6);
+    cx.fillStyle = '#3d8a41';
+    cx.fillRect(bx - 2, by - 14, 12, 6); cx.fillRect(bx + 8, by - 8, 10, 5);
+    cx.fillStyle = '#255427';
+    cx.fillRect(bx - 4, by - 2, 24, 4); cx.fillRect(bx + 14, by - 12, 6, 4);
+  }
+
+  /* ---------- debug rétegek ---------- */
+  const cb = id => document.getElementById(id);
+  function drawDebug(time){
+    if (cb('cbSolid').checked){
+      for (let ty = 0; ty < GH; ty++) for (let tx = 0; tx < GW; tx++)
+        if (collision.isSolid(tx, ty)){
+          cx.fillStyle = 'rgba(239,132,114,.18)';
+          cx.fillRect(tx * TILE, ty * TILE, TILE, TILE);
+        }
+    }
+    if (cb('cbGrid').checked){
+      cx.strokeStyle = 'rgba(255,255,255,.10)'; cx.lineWidth = 1;
+      for (let x = 0; x <= GW; x++){ cx.beginPath(); cx.moveTo(x * TILE + .5, 0); cx.lineTo(x * TILE + .5, LH); cx.stroke(); }
+      for (let y = 0; y <= GH; y++){ cx.beginPath(); cx.moveTo(0, y * TILE + .5); cx.lineTo(LW, y * TILE + .5); cx.stroke(); }
+    }
+    if (cb('cbTrigger').checked){
+      cx.strokeStyle = 'rgba(240,179,94,.55)'; cx.lineWidth = 1;
+      cx.beginPath(); cx.arc(npc.x, npc.y - 6, INTERACT_RADIUS, 0, Math.PI * 2); cx.stroke();
+    }
+    if (cb('cbColliders').checked){
+      for (const a of [player, npc]){
+        cx.strokeStyle = '#84d96c'; cx.lineWidth = 1;
+        cx.strokeRect((a.x + a.col.ox - a.col.hw) | 0, (a.y + a.col.oy - a.col.hh) | 0, a.col.hw * 2, a.col.hh * 2);
+      }
+      // a fa tömör cellája
+      cx.strokeStyle = '#ef8472';
+      cx.strokeRect(TREE.tx * TILE + .5, TREE.ty * TILE + .5, TILE - 1, TILE - 1);
+    }
+  }
+
+  /* ---------- interakció (trigger-zóna) ---------- */
+  const dialogBox = document.getElementById('sbxDialog');
+  let dialogTimer = 0;
+  function interaction(dt){
+    const dx = player.x - npc.x, dy = (player.y - 6) - (npc.y - 6);
+    const inRange = (dx * dx + dy * dy) < INTERACT_RADIUS * INTERACT_RADIUS;
+    if (inRange && interactPressed){
+      const line = npc.dialog[npc.dialogIdx % npc.dialog.length];
+      npc.dialogIdx++;
+      dialogBox.classList.add('active');
+      dialogBox.innerHTML = '<span class="who">BOLTOS</span>' + line;
+      dialogTimer = 6;
+    }
+    interactPressed = false;
+    if (dialogTimer > 0){
+      dialogTimer -= dt;
+      if (dialogTimer <= 0){
+        dialogBox.classList.remove('active');
+        dialogBox.innerHTML = 'Menj az NPC közelébe és nyomj <b>E</b>-t…';
+      }
+    }
+    return inRange;
+  }
+
+  /* ---------- fő ciklus ---------- */
+  const dbg = document.getElementById('dbgOut');
+  let last = performance.now();
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function loop(now){
+    let dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+    const time = now / 1000;
+
+    // input -> MoveIntent (read_input tükre)
+    let ix = 0, iy = 0;
+    if (keys.has('w') || keys.has('arrowup')) iy -= 1;
+    if (keys.has('s') || keys.has('arrowdown')) iy += 1;
+    if (keys.has('a') || keys.has('arrowleft')) ix -= 1;
+    if (keys.has('d') || keys.has('arrowright')) ix += 1;
+    player.intent.x = ix; player.intent.y = iy;
+
+    npcWander(dt);
+    moveAndCollide(player, dt);
+    moveAndCollide(npc, dt);
+    const inRange = interaction(dt);
+
+    // ---- render ----
+    cx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+    cx.imageSmoothingEnabled = false;
+    cx.clearRect(0, 0, LW, LH);
+    for (let ty = 0; ty < GH; ty++) for (let tx = 0; tx < GW; tx++) drawTileAt(tx, ty, time);
+
+    // y-sort: a "láb" pozíció szerint rendezve rajzolunk (y_sort tükre)
+    const drawables = [
+      { y: player.y, draw: t => drawSkeleton(player, t) },
+      { y: npc.y,    draw: t => drawVillager(npc, t) },
+      { y: TREE.ty * TILE + TILE - 1, draw: () => drawTree2() },
+    ];
+    if (cb('cbYsort').checked) drawables.sort((a, b) => a.y - b.y);
+    drawables.forEach(d => d.draw(time));
+
+    // "E" jelzés az NPC fölött
+    if (inRange){
+      cx.fillStyle = '#0b0f13'; cx.fillRect(npc.x - 5, npc.y - 26, 10, 9);
+      cx.strokeStyle = '#f0b35e'; cx.strokeRect(npc.x - 4.5, npc.y - 25.5, 9, 8);
+      cx.fillStyle = '#f0b35e'; cx.font = '7px "JetBrains Mono", monospace';
+      cx.fillText('E', npc.x - 2, npc.y - 19);
+    }
+
+    drawDebug(time);
+
+    // debug panel
+    const pt = worldToTile(player.x, player.y - 1);
+    dbg.innerHTML =
+      'world  <span class="v">(' + player.x.toFixed(1) + ', ' + player.y.toFixed(1) + ')</span>\n' +
+      'tile   <span class="v">(' + pt.x + ', ' + pt.y + ')</span>\n' +
+      'intent <span class="v">(' + player.intent.x + ', ' + player.intent.y + ')</span>\n' +
+      'NPC-d² <span class="v">' + Math.round((player.x-npc.x)**2 + (player.y-npc.y)**2) + '</span> / ' + (INTERACT_RADIUS*INTERACT_RADIUS);
+
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

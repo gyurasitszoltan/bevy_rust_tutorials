@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bevy Pixel Art Skeleton — fejlesztési workflow oktatóanyag</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#131520;
+  --panel:#1b1e2b;
+  --panel-2:#222639;
+  --border:#2c3147;
+  --ink:#e9ebf3;
+  --muted:#9aa3b8;
+  --grass:#58b849;
+  --grass-dark:#3c8f3a;
+  --sun:#f2c14e;
+  --sky:#5aa9e6;
+  --berry:#e36588;
+  --code-bg:#0d0f17;
+  --pix:"Press Start 2P", monospace;
+  --mono:ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace;
+  --body:system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--body); font-size:16.5px; line-height:1.65;
+}
+::selection{background:var(--grass); color:#0c130b}
+
+/* ---------- layout ---------- */
+.shell{display:grid; grid-template-columns:280px minmax(0,1fr); max-width:1280px; margin:0 auto}
+main{padding:0 48px 120px; max-width:900px}
+@media (max-width:980px){
+  .shell{grid-template-columns:1fr}
+  main{padding:0 20px 80px}
+  nav.toc{position:static; height:auto; border-right:none; border-bottom:3px solid var(--border)}
+}
+
+/* ---------- TOC ---------- */
+nav.toc{
+  position:sticky; top:0; height:100vh; overflow-y:auto;
+  padding:28px 20px 40px; border-right:3px solid var(--border);
+  background:var(--bg);
+}
+nav.toc .toc-title{
+  font-family:var(--pix); font-size:10px; color:var(--sun);
+  text-transform:uppercase; letter-spacing:1px; margin:0 0 18px;
+}
+nav.toc a{
+  display:flex; gap:10px; align-items:baseline;
+  color:var(--muted); text-decoration:none; padding:7px 8px;
+  border-left:3px solid transparent; font-size:14.5px;
+}
+nav.toc a:hover{color:var(--ink); background:var(--panel); border-left-color:var(--grass)}
+nav.toc a .n{font-family:var(--pix); font-size:9px; color:var(--grass); min-width:22px}
+
+/* ---------- hero ---------- */
+header.hero{padding:56px 0 8px}
+.hero h1{
+  font-family:var(--pix); font-size:clamp(18px,3.2vw,30px); line-height:1.7;
+  margin:0 0 14px; color:var(--ink);
+  text-shadow:3px 3px 0 var(--grass-dark);
+}
+.hero .sub{color:var(--muted); max-width:640px; margin:0 0 8px}
+.hero .meta{
+  display:flex; flex-wrap:wrap; gap:10px; margin:22px 0 30px; font-family:var(--mono); font-size:13px;
+}
+.hero .meta span{
+  background:var(--panel); border:2px solid var(--border); padding:5px 12px; color:var(--muted);
+}
+.hero .meta b{color:var(--sun); font-weight:600}
+
+/* ---------- a játék mockup (CSS pixel art) ---------- */
+.gamemock{
+  position:relative; aspect-ratio:16/9; max-width:760px;
+  border:4px solid var(--border); box-shadow:8px 8px 0 #0a0b12;
+  image-rendering:pixelated; overflow:hidden;
+  background:
+    repeating-conic-gradient(#5cab43 0% 25%, #54a03d 0% 50%) 0 0/64px 64px;
+  margin:8px 0 14px;
+}
+.gamemock .prop{position:absolute; box-shadow:2px 2px 0 rgba(0,0,0,.25)}
+.gamemock .hudpanel{
+  position:absolute; top:10px; right:10px;
+  background:rgba(10,14,9,.78); border:3px solid #324a2a;
+  padding:10px 14px; font-family:var(--pix); color:#fff; font-size:9px; line-height:2.2;
+}
+.gamemock .hudpanel .clock{font-size:13px; color:var(--sun)}
+.gamemock .invbar{
+  position:absolute; bottom:10px; left:0; right:0;
+  display:flex; justify-content:center; gap:8px;
+}
+.gamemock .slot{
+  width:46px; height:46px; background:rgba(10,14,9,.78);
+  border:3px solid #324a2a; display:flex; align-items:center; justify-content:center;
+}
+.gamemock .slot.sel{border-color:var(--sun)}
+.gamemock .slot i{display:block; width:24px; height:24px}
+.mockcap{font-size:13.5px; color:var(--muted); font-family:var(--mono); margin:0 0 10px}
+
+/* ---------- fejezetek ---------- */
+section.ch{padding-top:64px}
+.chhead{display:flex; align-items:center; gap:16px; margin:0 0 6px}
+.chnum{
+  font-family:var(--pix); font-size:11px; color:var(--sun);
+  width:46px; height:46px; flex:0 0 46px;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--panel); border:3px solid var(--border);
+  box-shadow:3px 3px 0 #0a0b12;
+}
+h2{font-size:25px; margin:0; letter-spacing:.2px}
+h3{font-size:18.5px; margin:34px 0 8px; color:var(--sun)}
+p{margin:12px 0}
+a{color:var(--sky)}
+strong{color:var(--ink)}
+em{color:var(--muted)}
+hr.chsep{border:0; border-top:3px solid var(--border); margin:64px 0 0}
+
+ul,ol{padding-left:24px; margin:12px 0}
+li{margin:6px 0}
+
+/* ---------- kód ---------- */
+.codeblock{margin:20px 0; border:3px solid var(--border); box-shadow:4px 4px 0 #0a0b12; background:var(--code-bg)}
+.codeblock .filebar{
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--panel-2); padding:7px 12px; border-bottom:3px solid var(--border);
+}
+.codeblock .filebar .fname{font-family:var(--mono); font-size:13px; color:var(--sun)}
+.codeblock .filebar .fname::before{content:"▰ "; color:var(--grass)}
+.codeblock .filebar button{
+  font-family:var(--mono); font-size:12px; cursor:pointer;
+  background:var(--panel); color:var(--muted); border:2px solid var(--border); padding:3px 10px;
+}
+.codeblock .filebar button:hover{color:var(--ink); border-color:var(--grass)}
+.codeblock pre{margin:0; padding:16px 18px; overflow-x:auto}
+.codeblock code{
+  font-family:var(--mono); font-size:13.8px; line-height:1.6; color:#d7dcec;
+  white-space:pre; display:block;
+}
+code.inline{
+  font-family:var(--mono); font-size:.88em; background:var(--panel);
+  border:1px solid var(--border); padding:1px 6px; color:#ffd98a;
+}
+
+/* terminál blokk */
+.codeblock.term .filebar .fname{color:var(--sky)}
+.codeblock.term .filebar .fname::before{content:"❯ "; color:var(--sky)}
+
+/* ---------- dobozok ---------- */
+.box{border:3px solid var(--border); background:var(--panel); padding:14px 18px; margin:20px 0}
+.box .boxtitle{font-family:var(--pix); font-size:9.5px; letter-spacing:.5px; margin:2px 0 8px; text-transform:uppercase}
+.box.why{border-left:6px solid var(--sky)} .box.why .boxtitle{color:var(--sky)}
+.box.check{border-left:6px solid var(--grass)} .box.check .boxtitle{color:var(--grass)}
+.box.warn{border-left:6px solid var(--berry)} .box.warn .boxtitle{color:var(--berry)}
+.box.tip{border-left:6px solid var(--sun)} .box.tip .boxtitle{color:var(--sun)}
+.box p:first-of-type{margin-top:4px}
+.box p:last-child{margin-bottom:4px}
+
+/* fa struktúra */
+.tree{font-family:var(--mono); font-size:13.8px; line-height:1.7; color:#cdd3e4}
+.tree .d{color:var(--sun)} .tree .c{color:var(--muted)}
+
+table{border-collapse:collapse; width:100%; margin:18px 0; font-size:15px}
+th,td{border:2px solid var(--border); padding:8px 12px; text-align:left}
+th{background:var(--panel-2); font-family:var(--mono); font-size:13px; color:var(--sun)}
+td code{font-family:var(--mono); color:#ffd98a; font-size:.9em}
+
+kbd{
+  font-family:var(--mono); font-size:.85em; background:var(--panel-2);
+  border:2px solid var(--border); border-bottom-width:3px; padding:1px 7px;
+}
+footer{margin-top:80px; color:var(--muted); font-size:13.5px; font-family:var(--mono); border-top:3px solid var(--border); padding-top:18px}
+@media print{
+  nav.toc{display:none} .shell{display:block} main{padding:0}
+  body{background:#fff; color:#111}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<nav class="toc">
+  <p class="toc-title">Tartalom</p>
+  <a href="#ch1"><span class="n">01</span> Mit építünk?</a>
+  <a href="#ch2"><span class="n">02</span> A workflow madártávlatból</a>
+  <a href="#ch3"><span class="n">03</span> Projekt setup</a>
+  <a href="#ch4"><span class="n">04</span> Az app váza — main.rs</a>
+  <a href="#ch5"><span class="n">05</span> Kamera és pixel art renderelés</a>
+  <a href="#ch6"><span class="n">06</span> A mező és a sprite-ok</a>
+  <a href="#ch7"><span class="n">07</span> Scrollozás a térképen</a>
+  <a href="#ch8"><span class="n">08</span> Játékidő: óra, napszak, évszak</a>
+  <a href="#ch9"><span class="n">09</span> HUD panel (jobb felső sarok)</a>
+  <a href="#ch10"><span class="n">10</span> Inventory sáv (alul, 4 slot)</a>
+  <a href="#ch11"><span class="n">11</span> Futtatás, debug, iteráció</a>
+  <a href="#ch12"><span class="n">12</span> Merre tovább?</a>
+</nav>
+
+<main>
+
+<header class="hero">
+  <h1>Bevy Pixel Art<br>Skeleton</h1>
+  <p class="sub">Egy topdown pixel art játék vázának felépítése a Bevy game engine-nel — nem csak a kód, hanem a teljes fejlesztési workflow: tervezés, projektstruktúra, iteráció, debug.</p>
+  <div class="meta">
+    <span>Engine: <b>Bevy 0.16</b></span>
+    <span>Nyelv: <b>Rust</b></span>
+    <span>Szint: <b>kezdő Bevy / haladó programozó</b></span>
+    <span>Idő: <b>~2–3 óra</b></span>
+  </div>
+
+  <p class="mockcap">// Ezt fogjuk megépíteni — a kész skeleton képernyőterve:</p>
+  <div class="gamemock" aria-label="A kész játék képernyőterve">
+    <!-- elszórt "sprite-ok" -->
+    <i class="prop" style="left:12%;top:30%;width:26px;height:26px;background:#2e6128"></i>
+    <i class="prop" style="left:30%;top:62%;width:26px;height:26px;background:#2e6128"></i>
+    <i class="prop" style="left:55%;top:24%;width:26px;height:26px;background:#2e6128"></i>
+    <i class="prop" style="left:8%;top:74%;width:18px;height:13px;background:#7d8089"></i>
+    <i class="prop" style="left:44%;top:46%;width:18px;height:13px;background:#7d8089"></i>
+    <i class="prop" style="left:70%;top:68%;width:18px;height:13px;background:#7d8089"></i>
+    <i class="prop" style="left:22%;top:18%;width:9px;height:9px;background:#e98cb0"></i>
+    <i class="prop" style="left:62%;top:80%;width:9px;height:9px;background:#e98cb0"></i>
+    <i class="prop" style="left:38%;top:12%;width:9px;height:9px;background:#f2d35c"></i>
+    <i class="prop" style="left:50%;top:72%;width:9px;height:9px;background:#f2d35c"></i>
+    <!-- felső idő-panel -->
+    <div class="hudpanel">
+      <span class="clock">08:24</span><br>
+      Nappal<br>
+      3. nap<br>
+      Tavasz
+    </div>
+    <!-- inventory -->
+    <div class="invbar">
+      <span class="slot sel"><i style="background:#a87440"></i></span>
+      <span class="slot"><i style="background:#f2d35c"></i></span>
+      <span class="slot"></span>
+      <span class="slot"><i style="background:#9aa0aa"></i></span>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<section class="ch" id="ch1">
+<div class="chhead"><span class="chnum">01</span><h2>Mit építünk?</h2></div>
+
+<p>A célunk egy <strong>skeleton</strong> — egy minimális, de jól strukturált játékváz, amire később bármilyen topdown pixel art játék (farm szimulátor, survival, RPG) ráépíthető. A skeleton funkciói:</p>
+
+<ul>
+  <li><strong>Topdown nézet</strong>, pixel art rendereléssel (éles, nem elmosott pixelek)</li>
+  <li><strong>Zöld mező</strong> mint scene, csempékből (tile-okból) felépítve</li>
+  <li><strong>Elszórt sprite-ok</strong> a mezőn (bokrok, kövek, virágok)</li>
+  <li><strong>Scrollozás</strong>: a kamera mozgatható a mezőn (WASD / nyilak)</li>
+  <li><strong>Idő-panel</strong> a jobb felső sarokban: ingame óra, napszak, eltelt napok, évszak</li>
+  <li><strong>Inventory sáv</strong> alul 4 slottal — a felső panellel együtt mindig látható, a kamerától függetlenül</li>
+</ul>
+
+<div class="box why">
+  <p class="boxtitle">Miért skeleton, és miért nem „kész játék”?</p>
+  <p>Egy játékprojekt legnagyobb kockázata az elején van: ha az alaprendszerek (renderelés, idő, UI, input) rosszul strukturáltak, minden későbbi feature ezekkel fog harcolni. A profi workflow ezért mindig egy <em>vertikális szelettel</em> indul: minden réteg (világ, kamera, idő, UI) megvan minimális formában, és már az első naptól <em>futtatható</em>. Tartalmat hozzáadni könnyű — architektúrát utólag javítani fájdalmas.</p>
+</div>
+
+<h3>Mire lesz szükséged</h3>
+<ul>
+  <li>Telepített <strong>Rust toolchain</strong> (rustup, stabil csatorna) — <a href="https://rustup.rs">rustup.rs</a></li>
+  <li>Egy editor Rust-támogatással (VS Code + rust-analyzer, vagy RustRover)</li>
+  <li>Git a verziókezeléshez</li>
+  <li>Rust alapismeret (ownership, traitek, enumok) — Bevy-ismeret <em>nem</em> kell, azt itt tanuljuk</li>
+</ul>
+
+<p>A tutorial a <strong>Bevy 0.16</strong>-ra épül. A Bevy gyorsan fejlődik és a minor verziók között törő API-változások vannak — a 12. fejezetben megnézzük, hogyan kezeld ezt a workflow részeként.</p>
+</section>
+<hr class="chsep">
+
+<!-- ============================================================ -->
+<section class="ch" id="ch2">
+<div class="chhead"><span class="chnum">02</span><h2>A workflow madártávlatból</h2></div>
+
+<p>Mielőtt egyetlen sor kódot írnánk, nézzük meg, <em>hogyan</em> dolgozik az ember egy ilyen skeletonon. A fejezetek sorrendje nem véletlen — ez maga a workflow.</p>
+
+<h3>1. lépés — Feature-bontás papíron</h3>
+<p>A követelménylistát (lásd 1. fejezet) <strong>független funkciókra</strong> bontjuk. A jó bontás ismérve: minden funkció önállóan fejleszthető és tesztelhető, és minimális a függés köztük.</p>
+
+<table>
+  <tr><th>Funkció</th><th>Felelőssége</th><th>Mitől függ?</th></tr>
+  <tr><td><code>camera</code></td><td>Camera2d létrehozása, mozgatás, pixel art beállítások</td><td>world (térképméret a clampoláshoz)</td></tr>
+  <tr><td><code>world</code></td><td>Mező (tile-ok) és elszórt sprite-ok spawnolása</td><td>—</td></tr>
+  <tr><td><code>game_time</code></td><td>Ingame idő léptetése; óra/napszak/nap/évszak kiszámítása</td><td>—</td></tr>
+  <tr><td><code>hud</code></td><td>Felső idő-panel kirajzolása és frissítése</td><td>game_time (olvassa)</td></tr>
+  <tr><td><code>inventory</code></td><td>Inventory állapot + alsó 4 slotos sáv</td><td>—</td></tr>
+</table>
+
+<p>Figyeld meg: a <code class="inline">game_time</code> <strong>nem tud</strong> a HUD-ról. Az idő-logika tisztán adat; a HUD csak <em>olvassa</em>. Ez a szétválasztás (logika vs. megjelenítés) később ingyen ad tesztelhetőséget és cserélhető UI-t.</p>
+
+<h3>2. lépés — A bontás leképezése Bevy-fogalmakra</h3>
+<p>A Bevy egy <strong>ECS</strong> (Entity–Component–System) engine. A fenti táblázat oszlopai szinte egy-az-egyben megfeleltethetők Bevy-fogalmaknak:</p>
+
+<ul>
+  <li><strong>Entity</strong> — egy „dolog” a játékban: egy fűcsempe, egy bokor, a kamera, egy UI-slot. Önmagában csak egy azonosító.</li>
+  <li><strong>Component</strong> — adat, amit egy entityre ragasztunk: <code class="inline">Transform</code> (pozíció), <code class="inline">Sprite</code> (kinézet), vagy saját markerek, pl. <code class="inline">Prop</code>.</li>
+  <li><strong>System</strong> — egy sima Rust függvény, ami componenseken/erőforrásokon dolgozik: pl. „minden frame-ben mozgasd a kamerát az input szerint”.</li>
+  <li><strong>Resource</strong> — globális singleton adat: pl. a <code class="inline">GameTime</code> vagy az <code class="inline">Inventory</code>.</li>
+  <li><strong>Plugin</strong> — a csomagolás egysége: egy plugin összefogja egy funkció összes systemjét, resource-át. <strong>Egy funkció = egy plugin = egy file.</strong> Ez lesz a projektstruktúránk gerince.</li>
+</ul>
+
+<div class="box tip">
+  <p class="boxtitle">Ökölszabály</p>
+  <p>Ha egy új feature-ön gondolkodsz, mindig ebben a sorrendben kérdezz: <strong>Milyen adat kell?</strong> (component vagy resource) → <strong>Mikor és mi módosítja?</strong> (systemek) → <strong>Hova csomagolom?</strong> (plugin). A Bevy-fejlesztés 80%-a ez a három kérdés.</p>
+</div>
+
+<h3>3. lépés — Az iterációs ciklus</h3>
+<p>A fejlesztés nem „megírom az egészet, aztán futtatom”, hanem rövid ciklusok sorozata:</p>
+
+<ol>
+  <li><strong>Egy plugin / egy kis funkció megírása</strong> (15–45 perc munka)</li>
+  <li><code class="inline">cargo run</code> — <strong>vizuális ellenőrzés</strong>: azt látom-e, amit vártam?</li>
+  <li>Ha igen: <strong>git commit</strong>. Ha nem: debug (11. fejezet), javítás, újra.</li>
+</ol>
+
+<p>Minden fejezet végén lesz egy <strong>Ellenőrzőpont</strong> doboz: pontosan leírja, mit kell látnod a képernyőn, és mit érdemes commitolni. Így ha valami elromlik, mindig tudod, melyik lépésnél.</p>
+
+<h3>4. lépés — Placeholder-first grafika</h3>
+<p>Pixel art játéknál csábító rögtön asseteket rajzolni. <strong>Ne tedd.</strong> A skeleton fázisban minden grafika egyszínű négyzet (a Bevy ezt natívan tudja, asset nélkül): a fű zöld csempe, a bokor sötétzöld kocka, az item színes négyzet a slotban. Amikor a rendszerek működnek, a placeholder lecserélése egy PNG-re <em>egyetlen sor</em> módosítása — ezt minden érintett helyen kommentben jelölöm is.</p>
+
+<div class="box why">
+  <p class="boxtitle">Miért éri ez meg?</p>
+  <p>1) A logikai hibák színes kockákkal ugyanúgy látszanak, mint kész grafikával. 2) Nem kötöd magad korai art-döntésekhez (tile-méret, paletta). 3) A git history tiszta marad: a kód és az assetek külön életet élnek.</p>
+</div>
+</section>
+<hr class="chsep">
+
+<!-- ============================================================ -->
+<section class="ch" id="ch3">
+<div class="chhead"><span class="chnum">03</span><h2>Projekt setup</h2></div>
+
+<p>Hozzuk létre a projektet, és <em>azonnal</em> állítsuk be azt a két dolgot, ami a Bevy-fejlesztés komfortját meghatározza: a gyors újrafordítást és a könyvtárstruktúrát.</p>
+
+<h3>Projekt létrehozása</h3>
+
+<div class="codeblock term">
+  <div class="filebar"><span class="fname">terminál</span><button onclick="copyCode(this)">Másolás</button></div>
+  <pre><code>cargo new pixel-skeleton
+cd pixel-skeleton
+cargo add bevy@0.16
+cargo add rand@0.8</code></pre>
+</div>
+
+<p>A <code class="inline">rand</code> crate-et a sprite-ok véletlenszerű szétszórásához használjuk majd a 6. fejezetben.</p>
+
+<h3>Cargo.toml — gyors fordítás beállítása</h3>
+
+<p>A Bevy nagy függőség, és Rustban az alapértelmezett dev-fordítás lassú futásidejű kódot ad. A bevett gyakorlat: <strong>a saját kódunkat</strong> enyhén optimalizáljuk, <strong>a függőségeket</strong> (köztük a Bevy-t) pedig teljesen — ezeket úgyis csak egyszer fordítja le a cargo, utána cache-eli.</p>
+
+<div class="codeblock">
+  <div class="filebar"><span class="fname">Cargo.toml</span><button onclick="copyCode(this)">Másolás</button></div>
+  <pre><code>[package]
+name = "pixel-skeleton"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = "0.16"
+rand = "0.8"
+
+# A sajat kodunk: enyhe optimalizacio, gyors fordulas
+[profile.dev]
+opt-level = 1
+
+# A fuggosegek (Bevy is): teljes optimalizacio.
+# Egyszer fordul le, utana cache-bol jon — de a jatek
+# dev modban is jatszhato sebessegu lesz.
+[profile.dev.package."*"]
+opt-level = 3</code></pre>
+</div>
+
+<div class="box tip">
+  <p class="boxtitle">Még gyorsabb iteráció (opcionális)</p>
+  <p>A <code class="inline">cargo run --features bevy/dynamic_linking</code> a Bevy-t dinamikus libként linkeli, ami drasztikusan gyorsítja az újrafordítást fejlesztés közben. <strong>Release buildbe soha ne kerüljön</strong> — ezért flag-ként használd, ne a Cargo.toml-ba írd. Linuxon ehhez kellhet a <code class="inline">mold</code> vagy <code class="inline">lld</code> linker is; a Bevy hivatalos <em>setup</em> oldala platformonként leírja.</p>
+</div>
+
+<h3>Könyvtárstruktúra megtervezése</h3>
+
+<p>A 2. fejezet feature-bontása egy-az-egyben a file-struktúránk. Ezt <em>előre</em> rögzítjük — üres modulokkal —, így a fejlesztés végig „kitöltögetés”, nem pedig folyamatos átszervezés:</p>
+
+<div class="box">
+<pre class="tree">pixel-skeleton/
+├── Cargo.toml
+├── assets/              <span class="c">// kepek, fontok — most meg ures, de letrehozzuk</span>
+│   ├── fonts/
+│   └── sprites/
+└── src/
+    ├── <span class="d">main.rs</span>          <span class="c">// app osszerakasa: pluginek regisztralasa — SEMMI mas</span>
+    ├── <span class="d">camera.rs</span>        <span class="c">// CameraPlugin: kamera + mozgatas (05, 07. fejezet)</span>
+    ├── <span class="d">world.rs</span>         <span class="c">// WorldPlugin: mezo + elszort sprite-ok (06. fejezet)</span>
+    ├── <span class="d">game_time.rs</span>     <span class="c">// GameTimePlugin: ingame ido logika (08. fejezet)</span>
+    ├── <span class="d">hud.rs</span>           <span class="c">// HudPlugin: felso ido-panel (09. fejezet)</span>
+    └── <span class="d">inventory.rs</span>     <span class="c">// InventoryPlugin: inventory allapot + also sav (10. fejezet)</span></pre>
+</div>
+
+<div class="codeblock term">
+  <div class="filebar"><span class="fname">terminál</span><button onclick="copyCode(this)">Másolás</button></div>
+  <pre><code>mkdir -p assets/fonts assets/sprites
+touch src/camera.rs src/world.rs src/game_time.rs src/hud.rs src/inventory.rs</code></pre>
+</div>
+
+<h3>Git: első commit</h3>
+
+<p>A <code class="inline">cargo new</code> már inicializált egy git repót és .gitignore-t (a <code class="inline">/target</code> benne van). Rögzítsük a kiindulópontot:</p>
+
+<div class="codeblock term">
+  <div class="filebar"><span class="fname">terminál</span><button onclick="copyCode(this)">Másolás</button></div>
+  <pre><code>git add -A
+git commit -m "chore: projekt setup, fuggosegek, mappastruktura"</code></pre>
+</div>
+
+<div class="box check">
+  <p class="boxtitle">Ellenőrzőpont</p>
+  <p>A <code class="inline">cargo build</code> lefut hibátlanul (első alkalommal több perc — a Bevy-t fordítja, ez egyszeri költség). A mappastruktúra megegyezik a fentivel.</p>
+</div>
+</section>
+<hr class="chsep">
+
+<!-- ============================================================ -->
+<section class="ch" id="ch4">
+<div class="chhead"><span class="chnum">04</span><h2>Az app váza — main.rs</h2></div>
+
+<p>Az első kód, amit megírunk, a <code class="inline">main.rs</code> — és <strong>ez az utolsó alkalom, hogy hozzányúlunk érdemben</strong>. A main.rs egyetlen feladata: összerakni az appot a pluginekből. Most még csak az „üres” vázat írjuk meg; a saját pluginjeink sorai kommentben várakoznak, és fejezetről fejezetre kommentezzük ki őket. Így a projekt <em>minden fejezet végén fordul és fut</em>.</p>
+
+<div class="codeblock">
+  <div class="filebar"><span class="fname">src/main.rs</span><button onclick="copyCode(this)">Másolás</button></div>
+  <pre><code>use bevy::prelude::*;
+
+// A modulok mar leteznek (ures file-okkent), itt regisztraljuk oket.
+// Fejezetrol fejezetre kommentezzuk ki a hozzajuk tartozo plugint lent.
+mod camera;
+mod game_time;
+mod hud;
+mod inventory;
+mod world;
+
+fn main() {
+    App::new()
+        .add_plugins(
+            DefaultPlugins
+                // PIXEL ART KULCSBEALLITAS: a texturak nagyitasa
+                // "nearest neighbor" modban tortenjen, ne linearisan.
+                // Enelkul minden sprite elmosodott lenne.
+                .set(ImagePlugin::default_nearest())
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: "Pixel Skeleton".into(),
+                        resolution: (1280.0, 720.0).into(),
+                        ..default()
+                    }),
+                    ..default()
+                }),
+        )
+        // Hatterszin arra az esetre, ha valahol kilatszana a "vilag moge"
+        .insert_resource(ClearColor(Color::srgb(0.08, 0.10, 0.08)))
+        .add_plugins((
+            camera::CameraPlugin,      // 05. fejezet
+            // world::WorldPlugin,     // 06. fejezet
+            // game_time::GameTimePlugin, // 08. fejezet
+            // hud::HudPlugin,         // 09. fejezet
+            // inventory::InventoryPlugin, // 10. fejezet
+        ))
+        .run();
+}</code></pre>
+</div>
+
+<h3>Mit csinál itt mi?</h3>
+<ul>
+  <li><code class="inline">App::new()</code> — a Bevy app builder. Mindent (plugin, resource, system) erre fűzünk fel.</li>
+  <li><code class="inline">DefaultPlugins</code> — a Bevy „batteries included” csomagja: ablak, renderelés, input, asset-kezelés, idő, hang… A <code class="inline">.set(...)</code> hívásokkal egy-egy beépített plugint konfigurálunk át.</li>
+  <li><code class="inline">ImagePlugin::default_nearest()</code> — <strong>a</strong> pixel art beállítás. A GPU alapból lineárisan interpolálja a felnagyított textúrákat (ez fotóknál szép, pixel artnál katasztrófa). A <em>nearest</em> mód minden képpontot éles négyzetként nagyít.</li>
+  <li><code class="inline">ClearColor</code> — az első saját <strong>resource</strong>-unk: a Bevy minden frame elején erre a színre törli a képernyőt.</li>
+</ul>
+
+<div class="box warn">
+  <p class="boxtitle">Gyakori hiba</p>
+  <p>Ha a <code class="inline">mod</code> sorok bent vannak, de a file-ok üresek, a fordító még nem szól. Amint viszont egy pluginre hivatkozol, ami még nincs megírva, <code class="inline">cannot find ... in module</code> hibát kapsz. Ezért tartjuk kommentben a még meg nem írt plugineket — a „mindig forduló main” a workflow része.</p>
+</div>
+
+<div class="box check">
+  <p class="boxtitle">Ellenőrzőpont</p>
+  <p>A <code class="inline">camera::CameraPlugin</code> sort még kommentezd vissza (az 5. fejezetben írjuk meg), majd <code class="inline">cargo run</code>: egy 1280×720-as, sötét, üres ablakot kapsz „Pixel Skeleton” címmel. Ez az első futó build — <code class="inline">git commit -m "feat: app vaz, ablak, pixel art image sampling"</code></p>
+</div>
+</section>
+<hr class="chsep">
+
+<!-- ============================================================ -->
+<section class="ch" id="ch5">
+<div class="chhead"><span class="chnum">05</span><h2>Kamera és pixel art renderelés</h2></div>
+
+<p>Az első igazi plugin. Egyben ez a minta minden további pluginhez: <strong>struct + Plugin trait impl + systemek</strong>, mindez egyetlen file-ban. A mozgatást a 7. fejezetben adjuk hozzá; most csak a spawnolás és a pixel art szempontból fontos beállítások jönnek.</p>
+
+<div class="codeblock">
+  <div class="filebar"><span class="fname">src/camera.rs</span><button onclick="copyCode(this)">Másolás</button></div>
+  <pre><code>use bevy::prelude::*;
+
+pub struct CameraPlugin;
+
+impl Plugin for CameraPlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        // Startup schedule: egyszer fut le, az app indulasakor
+        app.add_systems(Startup, spawn_camera);
+    }
+}
+
+fn spawn_camera(mut commands: Commands) {
+    commands.spawn((
+        // A Camera2d "required components" mechanizmussal automatikusan
+        // maga melle huzza a Camera, Transform, Projection stb. komponenseket.
+        Camera2d,
+        // Pixel artnal az elsimitas (MSAA) csak artana az eles eleknek:
+        Msaa::Off,
+        // A projekcio skalaja = zoom. 0.75 -> kicsit kozelebbi nezet,
+        // a pixelek lathatoan nagyobbak. (1.0 = 1 vilag-egyseg = 1 kepernyopixel)
+        Projection::from(OrthographicProjection {
+            scale: 0.75,
+            ..OrthographicProjection::default_2d()
+        }),
+    ));
+}</code></pre>
+</div>
+
+<p>És élesítsük a main.rs-ben — ez mostantól minden fejezet végén egy egysoros mozdulat lesz:</p>
+
+<div class="codeblock">
+  <div class="filebar"><span class="fname">src/main.rs (módosítás)</span><button onclick="copyCode(this)">Másolás</button></div>
+  <pre><code>        .add_plugins((
+            camera::CameraPlugin,          // &lt;-- kikommentezve
+            // world::WorldPlugin,
+            ...
+        ))</code></pre>
+</div>
+
+<h3>A plugin-minta anatómiája</h3>
+<ul>
+  <li>A <code class="inline">Plugin</code> trait <code class="inline">build()</code> metódusa kapja meg az <code class="inline">App</code>-ot — ide regisztrálunk mindent, ami a funkcióhoz tartozik. A main.rs-nek nem kell tudnia, mi van benne.</li>
+  <li>A <code class="inline">spawn_camera</code> egy <strong>system</strong>: paraméterei (itt: <code class="inline">Commands</code>) mondják meg a Bevy-nek, mihez kér hozzáférést. A <code class="inline">Commands</code>-szal entityket hozunk létre/törlünk.</li>
+  <li>A <code class="inline">commands.spawn((A, B, C))</code> egy entityt hoz létre a tuple összes komponensével. Ez a tuple-spawnolás a Bevy leggyakoribb mozdulata.</li>
+</ul>
+
+<div class="box why">
+  <p class="boxtitle">Pixel art döntés: zoom a projekcióval</p>
+  <p>Topdown pixel art játéknál a „mennyire látunk rá a világra” kérdést a kamera <code class="inline">Projection</code> skálájával felelhetjük meg: kisebb scale = nagyobb pixelek. Az alternatíva (minden sprite-ot Transformmal felskálázni) szétzilálná a koordinátarendszert. Ha később <em>tökéletesen</em> pixelhű megjelenítés kell (minden világ-pixel pontosan N képernyő-pixel), a bevett technika az alacsony felbontású render target felskálázása — a 12. fejezetben adok hozzá kiindulópontot. A skeletonhoz a nearest sampling + Msaa::Off + fix zoom bőven elég.</p>
+</div>
+
+<div class="box check">
+  <p class="boxtitle">Ellenőrzőpont</p>
+  <p><code class="inline">cargo run</code>: még mindig üres, sötét ablak — de a logban nincs hiba, és a kamera már létezik. <code class="inline">git commit -m "feat: 2d kamera pixel art beallitasokkal"</code></p>
+</div>
+</section>
+<hr class="chsep">
+
+<!-- ============================================================ -->
+<section class="ch" id="ch6">
+<div class="chhead"><span class="chnum">06</span><h2>A mező és a sprite-ok</h2></div>
+
+<p>Most kap látványt a játék. Két startup-systemet írunk: az egyik felépíti a <strong>zöld mezőt</strong> csempékből, a másik <strong>elszórja a sprite-okat</strong> (bokrok, kövek, virágok). Előtte azonban — és ez a workflow-lecke — rögzítjük a <strong>koordinátarendszert</strong>, mert erre minden későbbi rendszer (kamera-clamp, később ütközés, item-lerakás) építeni fog.</p>
+
+<h3>Tervezési döntések, kód előtt</h3>
+<ul>
+  <li><strong>Tile-méret:</strong> 32 világ-egység. Pixel artnál tipikus a 16 vagy 32 px-es tile; a 32 jó alap.</li>
+  <li><strong>Térképméret:</strong> 60×40 tile = 1920×1280 világ-egység — nagyobb, mint az ablak, hogy legyen mit scrollozni.</li>
+  <li><strong>Origó:</strong> a világ <em>közepe</em> a (0,0). A Bevy 2D-ben az Y felfelé nő. A kamera (0,0)-n indul, így rögtön a mező közepét látjuk.</li>
+  <li><strong>Z-rétegek:</strong> fű z=0, propok z=1. 2D-ben a Z dönti el a kirajzolási sorrendet.</li>
+</ul>
+
+<div class="codeblock">
+  <div class="filebar"><span class="fname">src/world.rs</span><button onclick="copyCode(this)">Másolás</button></div>
+  <pre><code>use bevy::prelude::*;
+use rand::prelude::*;
+
+pub struct WorldPlugin;
+
+impl Plugin for WorldPlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app.add_systems(Startup, (spawn_field, scatter_props));
+    }
+}
+
+// ---- A vilag "alkotmanya": ezekre az ertekekre epit minden mas modul ----
+
+pub const TILE_SIZE: f32 = 32.0;
+pub const MAP_WIDTH: u32 = 60; // csempeben
+pub const MAP_HEIGHT: u32 = 40;
+
+pub const WORLD_WIDTH: f32 = MAP_WIDTH as f32 * TILE_SIZE;
+pub const WORLD_HEIGHT: f32 = MAP_HEIGHT as f32 * TILE_SIZE;
+
+// Ket fuszin: a sakktablas valtakozas olcso trukk, amitol a szem
+// erzekeli a kamera mozgasat egyszinu mezo helyett.
+const GRASS_A: Color = Color::srgb(0.36, 0.55, 0.25);
+const GRASS_B: Color = Color::srgb(0.33, 0.51, 0.23);
+
+/// Marker component: ezzel jeloljuk a mezon elszort objektumokat.
+/// Most ures; kesobb barmely system lekerdezheti vele a propokat.
+#[derive(Component)]
+pub struct Prop;
+
+/// Tile racskoordinata -&gt; vilagkoordinata.
+/// A (0,0) tile a vilag bal also sarka; a vilag kozepe az origo.
+fn tile_position(x: u32, y: u32) -&gt; Vec2 {
+    Vec2::new(
+        x as f32 * TILE_SIZE - WORLD_WIDTH / 2.0 + TILE_SIZE / 2.0,
+        y as f32 * TILE_SIZE - WORLD_HEIGHT / 2.0 + TILE_SIZE / 2.0,
+    )
+}
+
+fn spawn_field(mut commands: Commands) {
+    for y in 0..MAP_HEIGHT {
+        for x in 0..MAP_WIDTH {
+            let color = if (x + y) % 2 == 0 { GRASS_A } else { GRASS_B };
+            commands.spawn((
+                // PLACEHOLDER: egyszinu negyzet. Csere kesz assetre:
+                // Sprite::from_image(asset_server.load("sprites/grass.png"))
+                Sprite::from_color(color, Vec2::splat(TILE_SIZE)),
+                Transform::from_translation(tile_position(x, y).extend(0.0)),
+            ));
+        }
+    }
+}
+
+fn scatter_props(mut commands: Commands) {
+    // Fix seed: minden inditasnal ugyanaz az elrendezes.
+    // Fejlesztes kozben ez ANY, mert reprodukalhatova teszi, amit latsz.
+    let mut rng = StdRng::seed_from_u64(42);
+
+    for _ in 0..120 {
+        let x = rng.gen_range((-WORLD_WIDTH / 2.0 + TILE_SIZE)..(WORLD_WIDTH / 2.0 - TILE_SIZE));
+        let y = rng.gen_range((-WORLD_HEIGHT / 2.0 + TILE_SIZE)..(WORLD_HEIGHT / 2.0 - TILE_SIZE));
+
+        // PLACEHOLDER propok: (szin, meret) parok.
+        // Kesobb: Sprite::from_image(asset_server.load("sprites/bush.png")) stb.
+        let (color, size) = match rng.gen_range(0..3) {
+            0 =&gt; (Color::srgb(0.18, 0.38, 0.16), Vec2::new(20.0, 20.0)), // bokor
+            1 =&gt; (Color::srgb(0.50, 0.50, 0.52), Vec2::new(14.0, 10.0)), // ko
+            _ =&gt; (Color::srgb(0.91, 0.55, 0.69), Vec2::new(6.0, 6.0)),   // virag
+        };
+
+        commands.spawn((
+            Prop,
+            Sprite::from_color(color, size),
+            Transform::from_translation(Vec3::new(x, y, 1.0)), // z=1: a fu FELETT
+        ));
+    }
+}</code></pre>
+</div>
+
+<p>Élesítés: a main.rs-ben kommentezd ki a <code class="inline">world::WorldPlugin,</code> sort.</p>
+
+<h3>Workflow-megjegyzések</h3>
+<ul>
+  <li><strong>A konstansok publikusak.</strong> A <code class="inline">WORLD_WIDTH</code>/<code class="inline">WORLD_HEIGHT</code> a modul „szerződése” a külvilág felé — a kamera-clamp (7. fejezet) ezekre épül. Ha a térkép nő, egyetlen helyen kell átírni.</li>
+  <li><strong>Determinisztikus random.</strong> A fix seed fejlesztés közben hatalmas segítség: a „azon a bokron furcsa valami” típusú hibák reprodukálhatók. Release-ben cserélheted <code class="inline">rand::thread_rng()</code>-re.</li>
+  <li><strong>2400 tile-entity sok?</strong> Egy skeletonnak nem — a Bevy renderer az azonos kinézetű sprite-okat batch-eli. Ha majd 1000×1000-es térkép kell, a <code class="inline">bevy_ecs_tilemap</code> crate a megoldás (12. fejezet); a koordinátarendszerünk változatlan marad, pont ezért éri meg most rögzíteni.</li>
+</ul>
+
+<div class="box check">
+  <p class="boxtitle">Ellenőrzőpont</p>
+  <p><code class="inline">cargo run</code>: zöld, finoman sakktáblás mező tölti ki a képernyőt, rajta elszórt sötétzöld/szürke/rózsaszín foltok. A mező szélét még nem látod — nagyobb, mint az ablak. <code class="inline">git commit -m "feat: mezo tile-okbol + elszort prop sprite-ok"</code></p>
+</div>
+</section>
+<hr class="chsep">
+
+<!-- ============================================================ -->
+<section class="ch" id="ch7">
+<div class="chhead"><span class="chnum">07</span><h2>Scrollozás a térképen</h2></div>
+
+<p>Itt jelenik meg először a Bevy futásidejű lelke: az <strong>Update</strong> systemek, amik minden frame-ben futnak. A scrollozást úgy valósítjuk meg, hogy <strong>a kamerát mozgatjuk</strong> a világ felett — a világ áll, a nézőpont megy. Visszatérünk a <code class="inline">camera.rs</code>-be, és bővítjük (a teljes, végleges file-t mutatom):</p>
+
+<div class="codeblock">
+  <div class="filebar"><span class="fname">src/camera.rs (végleges)</span><button onclick="copyCode(this)">Másolás</button></div>
+  <pre><code>use bevy::prelude::*;
+
+use crate::world::{WORLD_HEIGHT, WORLD_WIDTH};
+
+pub struct CameraPlugin;
+
+impl Plugin for CameraPlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app.add_systems(Startup, spawn_camera)
+            .add_systems(Update, move_camera); // UJ: minden frame-ben fut
+    }
+}
+
+/// Kamera sebessege, vilag-egyseg / masodperc.
+const CAMERA_SPEED: f32 = 400.0;
+
+fn spawn_camera(mut commands: Commands) {
+    commands.spawn((
+        Camera2d,
+        Msaa::Off,
+        Projection::from(OrthographicProjection {
+            scale: 0.75,
+            ..OrthographicProjection::default_2d()
+        }),
+    ));
+}
+
+fn move_camera(
+    keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    time: Res&lt;Time&gt;,
+    mut camera: Query&lt;&amp;mut Transform, With&lt;Camera2d&gt;&gt;,
+) {
+    // Pontosan egy kamerat varunk; ha (meg) nincs, csendben kilepunk.
+    let Ok(mut transform) = camera.single_mut() else {
+        return;
+    };
+
+    let mut direction = Vec2::ZERO;
+    if keys.pressed(KeyCode::KeyW) || keys.pressed(KeyCode::ArrowUp)    { direction.y += 1.0; }
+    if keys.pressed(KeyCode::KeyS) || keys.pressed(KeyCode::ArrowDown)  { direction.y -= 1.0; }
+    if keys.pressed(KeyCode::KeyA) || keys.pressed(KeyCode::ArrowLeft)  { direction.x -= 1.0; }
+    if keys.pressed(KeyCode::KeyD) || keys.pressed(KeyCode::ArrowRight) { direction.x += 1.0; }
+
+    // normalize_or_zero: atloban se legyen gyorsabb (es a nullvektort is turi)
+    let delta = direction.normalize_or_zero() * CAMERA_SPEED * time.delta_secs();
+
+    // Clamp: a kamera kozeppontja nem hagyhatja el a vilagot.
+    let half_w = WORLD_WIDTH / 2.0;
+    let half_h = WORLD_HEIGHT / 2.0;
+    transform.translation.x = (transform.translation.x + delta.x).clamp(-half_w, half_w);
+    transform.translation.y = (transform.translation.y + delta.y).clamp(-half_h, half_h);
+}</code></pre>
+</div>
+
+<h3>A system-paraméterek nyelve</h3>
+<p>A <code class="inline">move_camera</code> szignatúrája maga a dokumentáció — a Bevy ebből tudja, mit adjon át, és mit futtathat párhuzamosan mivel:</p>
+<ul>
+  <li><code class="inline">Res&lt;ButtonInput&lt;KeyCode&gt;&gt;</code> — csak olvasott resource: az aktuális billentyűállapot. A <code class="inline">.pressed()</code> a nyomva tartást, a <code class="inline">.just_pressed()</code> az adott frame-beli lenyomást figyeli.</li>
+  <li><code class="inline">Res&lt;Time&gt;</code> — a frame-idő. A <code class="inline">time.delta_secs()</code>-szel szorzás teszi a mozgást <strong>framerate-függetlenné</strong>: 60 és 240 FPS-en is ugyanolyan gyors a scroll.</li>
+  <li><code class="inline">Query&lt;&amp;mut Transform, With&lt;Camera2d&gt;&gt;</code> — „add ide az összes entity Transformját, amelyiken van Camera2d”. A <code class="inline">With&lt;&gt;</code> csak szűr, az adatát nem kérjük. A <code class="inline">single_mut()</code> <code class="inline">Result</code>-ot ad — a <code class="inline">let Ok(...) else &#123; return &#125;</code> minta a Bevy-ben bevett védekező írásmód.</li>
+</ul>
+
+<div class="box why">
+  <p class="boxtitle">Miért a kamera mozog, és miért clampelünk?</p>
+  <p>Topdown játékban a „scroll” szinte mindig kameramozgás: a világ entityk Transformja stabil marad, így minden világbeli logika (ütközés, lerakás, mentés) egyszerű. A clamp pedig az első olyan pont, ahol kifizetődik, hogy a <code class="inline">world.rs</code> publikus konstansokban rögzítette a méreteket: a camera modul függ a worldtől, fordítva soha — pont, ahogy a 2. fejezet függőségi táblázata előírta.</p>
+</div>
+
+<div class="box tip">
+  <p class="boxtitle">Finomítási ötlet (most ne)</p>
+  <p>A clamp jelenleg a kamera <em>középpontját</em> tartja a világon belül, így a széleken túl is kilátunk kicsit. Ha „edge-perfect” határt akarsz, a fél képernyőméretet (ablakméret × projection scale / 2) is le kell vonni a határból. Skeleton fázisban ez tudatosan elhagyott finomítás — jegyezd fel a TODO-listára. A scope-fegyelem is workflow.</p>
+</div>
+
+<div class="box check">
+  <p class="boxtitle">Ellenőrzőpont</p>
+  <p><code class="inline">cargo run</code>: a mező <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>-vel vagy nyilakkal scrollozható, a szélein megáll (a sötét háttér legfeljebb fél képernyőnyit látszik). Átlós mozgás nem gyorsabb. <code class="inline">git commit -m "feat: kamera scroll inputtal, vilaghatar clamp"</code></p>
+</div>
+</section>
+<hr class="chsep">
+
+<!-- ============================================================ -->
+<section class="ch" id="ch8">
+<div class="chhead"><span class="chnum">08</span><h2>Játékidő: óra, napszak, évszak</h2></div>
+
+<p>A HUD-on négy adatot kell mutatnunk: óra, napszak, eltelt napok, évszak. A kezdő hiba az lenne, hogy ezt a négy dolgot négy külön változóként tároljuk és külön léptetjük. Ehelyett <strong>egyetlen forrásértéket</strong> tárolunk — az eltelt játékbeli perceket —, és minden mást abból <em>számolunk</em>. Így az idő nem tud inkonzisztens állapotba kerülni (pl. „4. nap, de még Tavasz 1. hete”).</p>
+
+<h3>Tervezés: az idő paraméterei</h3>
+<ul>
+  <li><strong>Időskála:</strong> 1 valós másodperc = 12 játékperc → egy teljes nap 2 valós perc. Skeletonnál szándékosan gyors, hogy tesztelés közben lásd váltani a napszakokat. Egyetlen konstans, később hangolod.</li>
+  <li><strong>Évszak:</strong> 7 nap. Négy évszak: Tavasz → Nyár → Ősz → Tél, körbe.</li>
+  <li><strong>Napszakok:</strong> Hajnal 5–8, Nappal 8–18, Este 18–22, Éjszaka 22–5.</li>
+</ul>
+
+<div class="codeblock">
+  <div class="filebar"><span class="fname">src/game_time.rs</span><button onclick="copyCode(this)">Másolás</button></div>
+  <pre><code>use bevy::prelude::*;
+
+pub struct GameTimePlugin;
+
+impl Plugin for GameTimePlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app.init_resource::&lt;GameTime&gt;()
+            .add_systems(Update, tick_game_time);
+    }
+}
+
+// ---- Hangolhato parameterek ----
+
+/// 1 valos masodperc = ennyi jatekbeli perc. (12 -&gt; egy nap = 2 valos perc)
+pub const MINUTES_PER_REAL_SECOND: f32 = 12.0;
+pub const MINUTES_PER_DAY: f32 = 24.0 * 60.0;
+pub const DAYS_PER_SEASON: u32 = 7;
+
+// ---- Az allapot: EGYETLEN forrasertek ----
+
+#[derive(Resource, Default)]
+pub struct GameTime {
+    /// Osszes eltelt jatekbeli perc a jatek kezdete ota.
+    /// MINDEN mas (ora, nap, evszak) ebbol szarmaztatott ertek.
+    pub total_minutes: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Season {
+    Tavasz,
+    Nyar,
+    Osz,
+    Tel,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DayPart {
+    Hajnal,
+    Nappal,
+    Este,
+    Ejszaka,
+}
+
+impl GameTime {
+    /// Hanyadik napon jarunk (1-tol indul).
+    pub fn day(&amp;self) -&gt; u32 {
+        (self.total_minutes / MINUTES_PER_DAY) as u32 + 1
+    }
+
+    /// A napon beluli ora (0..=23).
+    pub fn hour(&amp;self) -&gt; u32 {
+        ((self.total_minutes % MINUTES_PER_DAY) / 60.0) as u32
+    }
+
+    /// Az oran beluli perc (0..=59).
+    pub fn minute(&amp;self) -&gt; u32 {
+        (self.total_minutes % 60.0) as u32
+    }
+
+    pub fn season(&amp;self) -&gt; Season {
+        match ((self.day() - 1) / DAYS_PER_SEASON) % 4 {
+            0 =&gt; Season::Tavasz,
+            1 =&gt; Season::Nyar,
+            2 =&gt; Season::Osz,
+            _ =&gt; Season::Tel,
+        }
+    }
+
+    pub fn day_part(&amp;self) -&gt; DayPart {
+        match self.hour() {
+            5..=7 =&gt; DayPart::Hajnal,
+            8..=17 =&gt; DayPart::Nappal,
+            18..=21 =&gt; DayPart::Este,
+            _ =&gt; DayPart::Ejszaka,
+        }
+    }
+}
+
+impl Season {
+    pub fn label(self) -&gt; &amp;'static str {
+        match self {
+            Season::Tavasz =&gt; "Tavasz",
+            Season::Nyar =&gt; "Nyár",
+            Season::Osz =&gt; "Ősz",
+            Season::Tel =&gt; "Tél",
+        }
+    }
+}
+
+impl DayPart {
+    pub fn label(self) -&gt; &amp;'static str {
+        match self {
+            DayPart::Hajnal =&gt; "Hajnal",
+            DayPart::Nappal =&gt; "Nappal",
+            DayPart::Este =&gt; "Este",
+            DayPart::Ejszaka =&gt; "Éjszaka",
+        }
+    }
+}
+
+/// Az egyetlen system, ami IRJA az idot.
+fn tick_game_time(time: Res&lt;Time&gt;, mut game_time: ResMut&lt;GameTime&gt;) {
+    game_time.total_minutes += time.delta_secs() * MINUTES_PER_REAL_SECOND;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn evszakok_korbe_fordulnak() {
+        // 29. nap = 4 evszak (28 nap) utan ujra Tavasz
+        let gt = GameTime { total_minutes: 28.0 * MINUTES_PER_DAY + 1.0 };
+        assert_eq!(gt.day(), 29);
+        assert_eq!(gt.season(), Season::Tavasz);
+    }
+
+    #[test]
+    fn napszak_hatarok() {
+        let at_hour = |h: f32| GameTime { total_minutes: h * 60.0 };
+        assert_eq!(at_hour(5.0).day_part(), DayPart::Hajnal);
+        assert_eq!(at_hour(8.0).day_part(), DayPart::Nappal);
+        assert_eq!(at_hour(18.0).day_part(), DayPart::Este);
+        assert_eq!(at_hour(23.0).day_part(), DayPart::Ejszaka);
+        assert_eq!(at_hour(2.0).day_part(), DayPart::Ejszaka);
+    }
+}</code></pre>
+</div>
+
+<p>Élesítés: main.rs-ben <code class="inline">game_time::GameTimePlugin,</code> kikommentezése.</p>
+
+<h3>Workflow-megjegyzések</h3>
+<ul>
+  <li><strong>Derivált értékek metódusként.</strong> A <code class="inline">day()</code>, <code class="inline">season()</code> stb. nem tárolt mezők, hanem számítások. Az állapotgép így nem tud „szétcsúszni”, és a HUD-nak (következő fejezet) kész, formázható API-t adunk.</li>
+  <li><strong>Egy író, sok olvasó.</strong> A <code class="inline">GameTime</code>-ot kizárólag a <code class="inline">tick_game_time</code> módosítja. Minden más rendszer <code class="inline">Res&lt;GameTime&gt;</code>-ként (csak olvasásra) kéri. Ez a fegyelem ECS-ben aranyat ér: a Bevy a csak-olvasó rendszereket párhuzamosan futtathatja.</li>
+  <li><strong>Unit tesztek — mert lehet!</strong> Mivel az idő-logika tiszta számítás (nincs benne renderelés, entity, semmi Bevy-futtatókörnyezet), <code class="inline">cargo test</code>-tel azonnal tesztelhető. A napszak-határok (pont 8:00 = már Nappal?) tipikus off-by-one terep — a teszt megírása olcsóbb, mint kivárni az ingame 8 órát. <em>Ez az igazi oka a logika/megjelenítés szétválasztásának.</em></li>
+</ul>
+
+<div class="box check">
+  <p class="boxtitle">Ellenőrzőpont</p>
+  <p><code class="inline">cargo test</code>: 2 teszt zöld. <code class="inline">cargo run</code>: látványban semmi új — az idő már ketyeg, csak még nem látszik. Pont ezért jön most azonnal a HUD. <code class="inline">git commit -m "feat: jatekido resource szarmaztatott ertekekkel + tesztek"</code></p>
+</div>
+</section>
+<hr class="chsep">
+
+<!-- ============================================================ -->
+<section class="ch" id="ch9">
+<div class="chhead"><span class="chnum">09</span><h2>HUD panel (jobb felső sarok)</h2></div>
+
+<p>Most lépünk be a <strong>Bevy UI</strong> világába. Kulcsfontosságú megérteni: a Bevy UI <strong>screen-space</strong> — a képernyőhöz van rögzítve, nem a világhoz. Ezért lesz a panel (és a 10. fejezet inventoryja) automatikusan „mindig látható”: hiába scrollozod a kamerát a mező felett, az UI nem mozdul. Semmi extra trükk nem kell hozzá.</p>
+
+<h3>A UI gondolkodásmódja</h3>
+<ul>
+  <li>A UI is entitykből áll, de a <code class="inline">Transform</code> helyett <code class="inline">Node</code> component írja le őket — ez lényegében egy <strong>flexbox</strong> (ha írtál CSS-t, otthon leszel: <code class="inline">flex_direction</code>, <code class="inline">padding</code>, <code class="inline">row_gap</code>…).</li>
+  <li><code class="inline">PositionType::Absolute</code> + <code class="inline">top</code>/<code class="inline">right</code> = a panel a képernyő jobb felső sarkához tűzve.</li>
+  <li>A szöveg a <code class="inline">Text</code> komponens; a <code class="inline">TextFont</code> és <code class="inline">TextColor</code> a formázás.</li>
+</ul>
+
+<h3>A frissítés megtervezése — egy tipikus Bevy-csapda kikerülése</h3>
+<p>Négy szövegsort kell frissíteni. A naiv megoldás: négy marker komponens (<code class="inline">ClockText</code>, <code class="inline">DayText</code>…) és négy <code class="inline">Query&lt;&amp;mut Text, With&lt;...&gt;&gt;</code> paraméter egy systemben. Ez <strong>futásidőben pánikol</strong> (B0001 hiba): a Bevy nem tudja bizonyítani, hogy a négy mutable Text-query diszjunkt entityhalmazokat érint. Az elegáns megoldás: <strong>egyetlen enum-marker</strong> komponens, egyetlen query, és a mezőtípus szerint formázunk:</p>
+
+<div class="codeblock">
+  <div class="filebar"><span class="fname">src/hud.rs</span><button onclick="copyCode(this)">Másolás</button></div>
+  <pre><code>use bevy::prelude::*;
+
+use crate::game_time::GameTime;
+
+pub struct HudPlugin;
+
+impl Plugin for HudPlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app.add_systems(Startup, spawn_time_panel)
+            .add_systems(Update, update_time_panel);
+    }
+}
+
+/// EGY marker komponens, ami megmondja, melyik sor mit mutat.
+/// Igy egyetlen query-vel, konfliktus nelkul frissitheto mind a negy sor.
+#[derive(Component)]
+enum HudField {
+    Clock,
+    DayPart,
+    Day,
+    Season,
+}
+
+const PANEL_BG: Color = Color::srgba(0.04, 0.07, 0.04, 0.78);
+
+fn spawn_time_panel(mut commands: Commands) {
+    commands.spawn((
+        Name::new("TimePanel"),
+        Node {
+            // Screen-space rogzites a jobb felso sarokba:
+            position_type: PositionType::Absolute,
+            top: Val::Px(12.0),
+            right: Val::Px(12.0),
+            // A sorok fuggolegesen, kis kozzel:
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(2.0),
+            padding: UiRect::axes(Val::Px(14.0), Val::Px(10.0)),
+            ..default()
+        },
+        BackgroundColor(PANEL_BG),
+        // children!: a panel negy gyerek-entityt (szovegsort) kap.
+        children![
+            time_row("--:--", 22.0, HudField::Clock),
+            time_row("Nappal", 14.0, HudField::DayPart),
+            time_row("1. nap", 14.0, HudField::Day),
+            time_row("Tavasz", 14.0, HudField::Season),
+        ],
+    ));
+}
+
+/// Segedfuggveny: egy szovegsor bundle-je.
+/// Pixel fonthoz kesobb: TextFont { font: asset_server.load("fonts/PressStart2P.ttf"), .. }
+fn time_row(initial: &amp;str, size: f32, field: HudField) -&gt; impl Bundle {
+    (
+        Text::new(initial),
+        TextFont {
+            font_size: size,
+            ..default()
+        },
+        TextColor(Color::WHITE),
+        field,
+    )
+}
+
+fn update_time_panel(
+    game_time: Res&lt;GameTime&gt;,
+    mut rows: Query&lt;(&amp;HudField, &amp;mut Text)&gt;,
+) {
+    for (field, mut text) in &amp;mut rows {
+        // A Text egy String korul newtype: text.0 maga a String.
+        text.0 = match field {
+            HudField::Clock =&gt; {
+                format!("{:02}:{:02}", game_time.hour(), game_time.minute())
+            }
+            HudField::DayPart =&gt; game_time.day_part().label().to_string(),
+            HudField::Day =&gt; format!("{}. nap", game_time.day()),
+            HudField::Season =&gt; game_time.season().label().to_string(),
+        };
+    }
+}</code></pre>
+</div>
+
+<p>Élesítés: main.rs-ben <code class="inline">hud::HudPlugin,</code> kikommentezése.</p>
+
+<h3>Workflow-megjegyzések</h3>
+<ul>
+  <li><strong><code class="inline">Name</code> komponens.</strong> Ingyen van, és minden debug-eszközben (log, inspector — 11. fejezet) olvasható nevet ad az entitynek. Szokj rá minden „gyökér” entitynél.</li>
+  <li><strong><code class="inline">children![]</code> makró.</strong> Deklaratívan írja le a UI-fát: a panel és a sorai egy helyen, egy spawn-hívásban. Az alternatíva a <code class="inline">.with_children(|parent| ...)</code> closure — azt a 10. fejezetben látod majd, mert ott ciklusból spawnolunk.</li>
+  <li><strong>Frissítés minden frame-ben?</strong> Itt igen, és ez rendben van — 4 string formázása semmi. Ha optimalizálni akarsz: a system elejére <code class="inline">if !game_time.is_changed() &#123; return; &#125;</code>. Az inventorynál (ahol az állapot ritkán változik) ezt meg is lépjük.</li>
+</ul>
+
+<div class="box check">
+  <p class="boxtitle">Ellenőrzőpont</p>
+  <p><code class="inline">cargo run</code>: a jobb felső sarokban félig átlátszó panel: pörgő óra, „Nappal”, „1. nap”, „Tavasz”. Scrollozz — a panel nem mozdul. Várj ~2 valós percet: a nap átfordul 2-re, az óra 00:00-ra. <code class="inline">git commit -m "feat: HUD ido-panel"</code></p>
+</div>
+</section>
+<hr class="chsep">
+
+<!-- ============================================================ -->
+<section class="ch" id="ch10">
+<div class="chhead"><span class="chnum">10</span><h2>Inventory sáv (alul, 4 slot)</h2></div>
+
+<p>Az utolsó funkcionális plugin, és egyben a skeleton legteljesebb mintája: <strong>állapot (resource) + UI (spawn) + input (kiválasztás) + szinkronizáció (állapot → UI)</strong>. Ugyanez a négyes minden későbbi játékrendszerben (crafting, párbeszéd, bolt…) visszaköszön majd.</p>
+
+<h3>Tervezés</h3>
+<ul>
+  <li>Az inventory <strong>igazsága</strong> egy resource-ban él: 4 slot, mindegyik <code class="inline">Option&lt;ItemKind&gt;</code>, plusz a kiválasztott index. Az UI ennek csak a <em>vetülete</em>.</li>
+  <li>A sáv alul, vízszintesen középre igazítva, screen-space — a HUD-hoz hasonlóan magától „mindig látható”.</li>
+  <li>Kiválasztás az <kbd>1</kbd>–<kbd>4</kbd> billentyűkkel; a kiválasztott slot kerete arany.</li>
+  <li>Az itemek placeholderként színes négyzetek a slotban — a kommentek jelzik, hol cserélheted képre.</li>
+</ul>
+
+<div class="codeblock">
+  <div class="filebar"><span class="fname">src/inventory.rs</span><button onclick="copyCode(this)">Másolás</button></div>
+  <pre><code>use bevy::prelude::*;
+
+pub struct InventoryPlugin;
+
+impl Plugin for InventoryPlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app.init_resource::&lt;Inventory&gt;()
+            .add_systems(Startup, spawn_inventory_bar)
+            .add_systems(Update, (select_slot_by_key, refresh_slots).chain());
+    }
+}
+
+pub const SLOT_COUNT: usize = 4;
+
+// ---- Allapot ----
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ItemKind {
+    Kapa,
+    Mag,
+    Fejsze,
+}
+
+impl ItemKind {
+    /// PLACEHOLDER megjelenes: szin. Kesobb itt adhatsz vissza
+    /// asset utvonalat: "sprites/items/kapa.png", es a slot-ikon
+    /// BackgroundColor helyett ImageNode-ot kap.
+    fn color(self) -&gt; Color {
+        match self {
+            ItemKind::Kapa =&gt; Color::srgb(0.66, 0.45, 0.25),
+            ItemKind::Mag =&gt; Color::srgb(0.95, 0.83, 0.36),
+            ItemKind::Fejsze =&gt; Color::srgb(0.60, 0.63, 0.67),
+        }
+    }
+}
+
+#[derive(Resource)]
+pub struct Inventory {
+    pub slots: [Option&lt;ItemKind&gt;; SLOT_COUNT],
+    pub selected: usize,
+}
+
+impl Default for Inventory {
+    fn default() -&gt; Self {
+        Self {
+            // Indulo demo-tartalom, hogy legyen mit nezni:
+            slots: [
+                Some(ItemKind::Kapa),
+                Some(ItemKind::Mag),
+                None,
+                Some(ItemKind::Fejsze),
+            ],
+            selected: 0,
+        }
+    }
+}
+
+// ---- UI markerek ----
+
+/// A slot kerete (ezen valt a kijeloles szine).
+#[derive(Component)]
+struct SlotIndex(usize);
+
+/// A slot belso ikonja (ezen valt az item szine/kepe).
+#[derive(Component)]
+struct SlotItemIcon(usize);
+
+const SLOT_BG: Color = Color::srgba(0.04, 0.07, 0.04, 0.78);
+const BORDER_NORMAL: Color = Color::srgb(0.25, 0.32, 0.24);
+const BORDER_SELECTED: Color = Color::srgb(0.95, 0.76, 0.31);
+
+// ---- UI felepites ----
+
+fn spawn_inventory_bar(mut commands: Commands) {
+    commands
+        .spawn((
+            Name::new("InventoryBar"),
+            Node {
+                // Teljes szelessegu, lathatatlan sav a kepernyo aljan,
+                // ami kozepre rendezi a slotokat:
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(12.0),
+                left: Val::Px(0.0),
+                right: Val::Px(0.0),
+                justify_content: JustifyContent::Center,
+                column_gap: Val::Px(8.0),
+                ..default()
+            },
+        ))
+        .with_children(|bar| {
+            for i in 0..SLOT_COUNT {
+                bar.spawn((
+                    SlotIndex(i),
+                    Node {
+                        width: Val::Px(56.0),
+                        height: Val::Px(56.0),
+                        border: UiRect::all(Val::Px(3.0)),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    BackgroundColor(SLOT_BG),
+                    BorderColor(BORDER_NORMAL),
+                ))
+                .with_children(|slot| {
+                    // A belso ikon: ures slotnal atlatszo.
+                    slot.spawn((
+                        SlotItemIcon(i),
+                        Node {
+                            width: Val::Px(32.0),
+                            height: Val::Px(32.0),
+                            ..default()
+                        },
+                        BackgroundColor(Color::NONE),
+                        // Kep-assethez csere:
+                        // ImageNode::new(asset_server.load("sprites/items/kapa.png"))
+                    ));
+                });
+            }
+        });
+}
+
+// ---- Input ----
+
+fn select_slot_by_key(keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;, mut inventory: ResMut&lt;Inventory&gt;) {
+    const SLOT_KEYS: [KeyCode; SLOT_COUNT] = [
+        KeyCode::Digit1,
+        KeyCode::Digit2,
+        KeyCode::Digit3,
+        KeyCode::Digit4,
+    ];
+    for (i, key) in SLOT_KEYS.iter().enumerate() {
+        if keys.just_pressed(*key) {
+            inventory.selected = i;
+        }
+    }
+}
+
+// ---- Allapot -&gt; UI szinkron ----
+
+fn refresh_slots(
+    inventory: Res&lt;Inventory&gt;,
+    mut borders: Query&lt;(&amp;SlotIndex, &amp;mut BorderColor)&gt;,
+    mut icons: Query&lt;(&amp;SlotItemIcon, &amp;mut BackgroundColor)&gt;,
+) {
+    // Change detection: csak akkor dolgozunk, ha az inventory valtozott.
+    // (Az elso frame-ben az init_resource miatt "valtozott" — pont jo:
+    // akkor rajzoljuk ki az indulo allapotot.)
+    if !inventory.is_changed() {
+        return;
+    }
+
+    for (slot, mut border) in &amp;mut borders {
+        border.0 = if slot.0 == inventory.selected {
+            BORDER_SELECTED
+        } else {
+            BORDER_NORMAL
+        };
+    }
+
+    for (icon, mut bg) in &amp;mut icons {
+        bg.0 = match inventory.slots[icon.0] {
+            Some(item) =&gt; item.color(),
+            None =&gt; Color::NONE,
+        };
+    }
+}</code></pre>
+</div>
+
+<p>Élesítés: main.rs-ben az utolsó plugin, <code class="inline">inventory::InventoryPlugin,</code> kikommentezése. A main.rs ezzel elnyerte végleges formáját:</p>
+
+<div class="codeblock">
+  <div class="filebar"><span class="fname">src/main.rs (végleges)</span><button onclick="copyCode(this)">Másolás</button></div>
+  <pre><code>use bevy::prelude::*;
+
+mod camera;
+mod game_time;
+mod hud;
+mod inventory;
+mod world;
+
+fn main() {
+    App::new()
+        .add_plugins(
+            DefaultPlugins
+                .set(ImagePlugin::default_nearest())
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: "Pixel Skeleton".into(),
+                        resolution: (1280.0, 720.0).into(),
+                        ..default()
+                    }),
+                    ..default()
+                }),
+        )
+        .insert_resource(ClearColor(Color::srgb(0.08, 0.10, 0.08)))
+        .add_plugins((
+            camera::CameraPlugin,
+            world::WorldPlugin,
+            game_time::GameTimePlugin,
+            hud::HudPlugin,
+            inventory::InventoryPlugin,
+        ))
+        .run();
+}</code></pre>
+</div>
+
+<h3>Workflow-megjegyzések</h3>
+<ul>
+  <li><strong><code class="inline">.chain()</code></strong> — a két Update-system (input, majd szinkron) garantáltan ebben a sorrendben fut. Enélkül a Bevy szabadon ütemezné őket, és a kijelölés egy frame késéssel jelenhetne meg. Apróság, de a determinisztikus sorrend olcsó biztosíték.</li>
+  <li><strong>Két külön marker</strong> (<code class="inline">SlotIndex</code> a keretre, <code class="inline">SlotItemIcon</code> az ikonra) — a két query különböző komponenseket ír (<code class="inline">BorderColor</code> vs. <code class="inline">BackgroundColor</code>), így nincs konfliktus, és mindkettő pontosan azt találja meg, amit kell.</li>
+  <li><strong>Az állapot a király.</strong> Figyeld meg: az input-system <em>csak</em> a resource-ot írja, az UI-hoz nem nyúl. Ha holnap gamepad-támogatást adsz hozzá, csak egy újabb input-systemet írsz — a megjelenítés változatlan.</li>
+</ul>
+
+<div class="box check">
+  <p class="boxtitle">Ellenőrzőpont</p>
+  <p><code class="inline">cargo run</code>: alul középen 4 slot; az 1., 2., 4.-ben színes item, a 3. üres; az 1. kerete arany. <kbd>1</kbd>–<kbd>4</kbd>-gyel ugrál a kijelölés. Scroll közben a sáv (és a felső panel) a helyén marad. <strong>A skeleton elkészült.</strong> <code class="inline">git commit -m "feat: inventory resource + also 4 slotos sav"</code></p>
+</div>
+</section>
+<hr class="chsep">
+
+<!-- ============================================================ -->
+<section class="ch" id="ch11">
+<div class="chhead"><span class="chnum">11</span><h2>Futtatás, debug, iteráció</h2></div>
+
+<p>A skeleton kész — most nézzük azt a napi rutint, amivel <em>tovább</em> fejleszted. Ez a fejezet a Bevy-specifikus szerszámosláda.</p>
+
+<h3>A belső ciklus felgyorsítása</h3>
+
+<div class="codeblock term">
+  <div class="filebar"><span class="fname">terminál</span><button onclick="copyCode(this)">Másolás</button></div>
+  <pre><code># Gyors tipushiba-ellenorzes futtatas nelkul (masodpercek):
+cargo check
+
+# Automatikus ujrainditas minden mentesnel (cargo install cargo-watch):
+cargo watch -cx "run --features bevy/dynamic_linking"
+
+# Tesztek (a game_time logikara mar van!):
+cargo test</code></pre>
+</div>
+
+<p>A jó belső ciklus: editorban a <strong>rust-analyzer</strong> azonnal jelzi a hibák zömét → <code class="inline">cargo check</code> a gyors megerősítés → <code class="inline">cargo run</code> csak akkor, ha vizuálisan akarsz ellenőrizni.</p>
+
+<h3>Asset hot-reload</h3>
+<p>Amikor majd igazi sprite-okat használsz: a <code class="inline">bevy/file_watcher</code> feature bekapcsolásával a Bevy figyeli az <code class="inline">assets/</code> mappát, és a módosított képeket <strong>futó játékban</strong> újratölti. Pixel art rajzolásnál (Aseprite mellett futó játékkal) ez aranyat ér:</p>
+
+<div class="codeblock term">
+  <div class="filebar"><span class="fname">terminál</span><button onclick="copyCode(this)">Másolás</button></div>
+  <pre><code>cargo run --features bevy/file_watcher</code></pre>
+</div>
+
+<h3>Tipikus Bevy-hibák és olvasásuk</h3>
+
+<table>
+  <tr><th>Tünet</th><th>Ok és teendő</th></tr>
+  <tr>
+    <td>Panic: <code>B0001</code> / „conflicting access”</td>
+    <td>Egy systemben két query ugyanahhoz a komponenshez fér hozzá mutálhatóan, átfedhető entityhalmazon. Megoldás: enum-marker (9. fejezet), <code>Without&lt;&gt;</code> szűrő, vagy <code>ParamSet</code>.</td>
+  </tr>
+  <tr>
+    <td>Sprite/UI nem jelenik meg</td>
+    <td>Leggyakoribb okok: nincs kamera; rossz Z (a fű <em>fölé</em> spawnoltál fűt); UI-nál a Node hierarchián kívül lóg. Először mindig: létezik-e az entity? (lásd inspector lent)</td>
+  </tr>
+  <tr>
+    <td>Elmosott pixelek</td>
+    <td>Kimaradt az <code>ImagePlugin::default_nearest()</code>, vagy nem egész koordinátára került a sprite és a kamera. Utóbbira megoldás a pozíciók kerekítése.</td>
+  </tr>
+  <tr>
+    <td>Semmi hiba, de „nem történik semmi”</td>
+    <td>A system nincs regisztrálva (hiányzó <code>add_systems</code>), vagy a plugin nincs hozzáadva a main.rs-ben. A Bevy ezt nem tudja jelezni — checklist-szerűen ellenőrizd.</td>
+  </tr>
+</table>
+
+<h3>Inspector: belelátni a futó játékba</h3>
+<p>A <code class="inline">bevy-inspector-egui</code> crate egy fejlesztői panelt ad, amiben futás közben látod az összes entityt (a <code class="inline">Name</code> komponensek itt fizetnek!), és <strong>élőben átírhatod</strong> a komponensértékeket — kamerapozíciót, színeket, akár a <code class="inline">GameTime</code>-ot is. Hangolásnál (mennyi legyen a <code class="inline">CAMERA_SPEED</code>?) ez a leggyorsabb visszacsatolás:</p>
+
+<div class="codeblock term">
+  <div class="filebar"><span class="fname">terminál</span><button onclick="copyCode(this)">Másolás</button></div>
+  <pre><code>cargo add bevy-inspector-egui
+# A Bevy 0.16-hoz illo verziot a crate doksija jelzi —
+# a fo verzioszamuk a Bevy verziojat koveti.</code></pre>
+</div>
+
+<div class="codeblock">
+  <div class="filebar"><span class="fname">src/main.rs (csak fejlesztéshez)</span><button onclick="copyCode(this)">Másolás</button></div>
+  <pre><code>use bevy_inspector_egui::quick::WorldInspectorPlugin;
+
+// az add_plugins lancba, idiglenesen:
+.add_plugins(WorldInspectorPlugin::new())</code></pre>
+</div>
+
+<div class="box tip">
+  <p class="boxtitle">Workflow-szokás: a hangolható értékek útja</p>
+  <p>1) Az érték konstansként születik a modul tetején (<code class="inline">CAMERA_SPEED</code>, <code class="inline">MINUTES_PER_REAL_SECOND</code> — mind ott van). 2) Ha sokat hangolod, resource-ba költözik, és az inspectorból élőben állítod. 3) Ha a játékosnak is állíthatónak kell lennie, config file-ba kerül. A skeletonunk az 1. lépcsőn áll — szándékosan.</p>
+</div>
+
+<h3>Verziókezelési ritmus</h3>
+<p>Ahogy a fejezetek végig csinálták: <strong>egy működő funkció = egy commit</strong>. A commit-üzenet a funkcióról szól (feat:/fix:/chore:), nem a file-okról. Mielőtt nagyobb refaktorba kezdesz (pl. a tile-rendszer cseréje <code class="inline">bevy_ecs_tilemap</code>-re), branchelj — a működő skeleton a legértékesebb vagyonod.</p>
+</section>
+<hr class="chsep">
+
+<!-- ============================================================ -->
+<section class="ch" id="ch12">
+<div class="chhead"><span class="chnum">12</span><h2>Merre tovább?</h2></div>
+
+<p>A skeleton mostantól hordozó rakéta. Néhány irány, mindegyikhez azzal, hogy <em>hova</em> illeszkedik a meglévő struktúrában:</p>
+
+<table>
+  <tr><th>Következő lépés</th><th>Hova épül?</th></tr>
+  <tr><td><strong>Igazi pixel art assetek</strong> (Aseprite → PNG az <code>assets/sprites</code>-be)</td><td>A kommentekkel jelölt <code>Sprite::from_color</code> → <code>Sprite::from_image</code> cserék a <code>world.rs</code>-ben és <code>inventory.rs</code>-ben. Pixel font a HUD-ra: <code>TextFont.font</code>.</td></tr>
+  <tr><td><strong>Játékos-karakter</strong>, kamera követéssel</td><td>Új <code>player.rs</code> plugin; a <code>move_camera</code> input-logikája átköltözik a playerre, a kamera pedig a player Transformját követi (a clamp marad).</td></tr>
+  <tr><td><strong>Nagy térképek</strong></td><td>A <code>spawn_field</code> cseréje <code>bevy_ecs_tilemap</code>-re — a <code>TILE_SIZE</code>/<code>WORLD_*</code> konstansok és minden más modul változatlan.</td></tr>
+  <tr><td><strong>Napszak szerinti fény</strong></td><td>Új system a <code>game_time.rs</code>-ben (vagy külön <code>lighting.rs</code>): a <code>day_part()</code> alapján egy képernyőt fedő, félig átlátszó sötétkék sprite alfáját animálja. A GameTime API-ja már most kész erre.</td></tr>
+  <tr><td><strong>Item felvétel/lerakás</strong></td><td>Az <code>Inventory</code> resource-on műveletek (<code>add_item</code>, <code>remove_selected</code>) + egy system, ami a <code>Prop</code> entityk és a kamera/player pozícióját veti össze. A <code>refresh_slots</code> a change detection miatt magától követi.</td></tr>
+  <tr><td><strong>Game state-ek</strong> (menü / játék / pause)</td><td>Bevy <code>States</code>: a systemek <code>run_if(in_state(...))</code> feltételt kapnak — pluginonként egy sor.</td></tr>
+  <tr><td><strong>Pixelhű renderelés</strong> (integer scaling)</td><td>Alacsony felbontású render target + felskálázó kamera; a hivatalos Bevy-példák közt a <em>pixel grid snapping</em> a kiindulópont.</td></tr>
+</table>
+
+<h3>Bevy-verziók kezelése — a workflow utolsó pillére</h3>
+<p>A Bevy ~3–4 havonta ad ki minor verziót, törő változásokkal (pl. a 0.17 átalakította a <code class="inline">BorderColor</code>-t oldalankéntire, a 0.18 tovább formálja az API-t). A fenntartható hozzáállás:</p>
+<ul>
+  <li><strong>Pinneld a verziót</strong> (mi a 0.16-on vagyunk), és <em>ne</em> frissíts reflexből.</li>
+  <li>Frissítéskor a hivatalos <strong>migration guide</strong>-ot kövesd (minden release-hez készül a bevy.org-on), egy dedikált branchen, fejezetnyi lépésekben — pont úgy, ahogy építkeztünk.</li>
+  <li>A plugin-per-file struktúra itt is fizet: a törő változások modulonként, izoláltan javíthatók, és a <code class="inline">cargo check</code> modulonként mutatja a tennivalót.</li>
+</ul>
+
+<p>Jó építkezést! 🌱</p>
+
+<footer>
+  Bevy Pixel Art Skeleton oktatóanyag · Bevy 0.16 · Készült 2026-ban · A kódrészletek szabadon felhasználhatók.
+</footer>
+
+</section>
+</main>
+</div>
+
+<script>
+function copyCode(btn){
+  const pre = btn.closest('.codeblock').querySelector('pre code');
+  navigator.clipboard.writeText(pre.textContent).then(()=>{
+    const t = btn.textContent;
+    btn.textContent = 'Másolva ✓';
+    setTimeout(()=>{ btn.textContent = t; }, 1400);
+  });
+}
+</script>
+</body>
+</html>

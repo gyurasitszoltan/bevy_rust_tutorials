@@ -1,0 +1,1895 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Üzenetek Bevy-ben — MessageWriter, MessageReader és a kettős puffer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d1218;
+  --bg2:#111a24;
+  --panel:#141e2a;
+  --panel2:#182433;
+  --line:#233444;
+  --line2:#2d4258;
+  --ink:#e9f1f4;
+  --muted:#93a6b1;
+  --faint:#5e7280;
+  --blue:#6cc3f0;
+  --blue-dim:#33688a;
+  --amber:#f0b35e;
+  --grass:#84d96c;
+  --coral:#ef8472;
+  --violet:#c9a2f5;
+  --code-bg:#0a0e13;
+  --code-kw:#f07ca0;
+  --code-ty:#8be3c9;
+  --code-st:#f0c674;
+  --code-cm:#5c7180;
+  --code-mc:#6cc3f0;
+  --code-nb:#d2a6f0;
+  --code-fn:#82c7f5;
+  --code-at:#f0b35e;
+  --sidebar-w:300px;
+  font-size:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.001s !important;transition-duration:.001s !important}
+}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:rgba(108,195,240,.3)}
+
+.px-box{
+  position:relative;
+  background:var(--panel);
+  border:1px solid var(--line);
+  clip-path:polygon(0 6px,6px 6px,6px 0,calc(100% - 6px) 0,calc(100% - 6px) 6px,100% 6px,100% calc(100% - 6px),calc(100% - 6px) calc(100% - 6px),calc(100% - 6px) 100%,6px 100%,6px calc(100% - 6px),0 calc(100% - 6px));
+}
+
+/* ---------- layout ---------- */
+.layout{display:flex;min-height:100vh}
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);
+  background:var(--bg2);
+  border-right:1px solid var(--line);
+  overflow-y:auto;
+  padding:26px 18px 40px 22px;
+  z-index:50;
+  scrollbar-width:thin;
+  scrollbar-color:var(--line2) transparent;
+}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line2)}
+main{margin-left:var(--sidebar-w);flex:1;min-width:0}
+.content{max-width:860px;margin:0 auto;padding:0 44px 120px}
+
+/* ---------- sidebar ---------- */
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:26px;text-decoration:none;color:var(--ink)}
+.brand-tile{
+  width:34px;height:34px;flex:0 0 34px;
+  image-rendering:pixelated;
+  background:var(--blue);
+  position:relative;border:1px solid var(--line2);
+}
+.brand-tile::after{
+  content:"";position:absolute;inset:0;
+  background-image:
+    linear-gradient(135deg, rgba(255,255,255,.35) 0 48%, transparent 50%),
+    linear-gradient(225deg, rgba(255,255,255,.35) 0 48%, transparent 50%),
+    linear-gradient(0deg, rgba(0,0,0,.22) 0 30%, transparent 30%);
+}
+.brand h1{
+  font-family:"Pixelify Sans",monospace;
+  font-size:1.02rem;font-weight:600;line-height:1.25;letter-spacing:.02em;
+}
+.brand small{display:block;color:var(--muted);font-family:"Instrument Sans",sans-serif;font-size:.72rem;font-weight:500;letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
+
+nav.toc{font-size:.875rem}
+.toc-part{margin-bottom:18px}
+.toc-part-label{
+  display:flex;align-items:center;gap:8px;
+  font-family:"Pixelify Sans",monospace;
+  font-size:.78rem;letter-spacing:.06em;
+  color:var(--muted);
+  text-transform:uppercase;
+  margin-bottom:7px;
+}
+.toc-part-label .sq{width:9px;height:9px;flex:0 0 9px}
+.toc a{
+  display:block;
+  color:var(--muted);
+  text-decoration:none;
+  padding:5px 10px 5px 14px;
+  border-left:2px solid var(--line);
+  margin-left:4px;
+  transition:color .15s,border-color .15s,background .15s;
+  line-height:1.4;
+}
+.toc a:hover{color:var(--ink);background:rgba(255,255,255,.025)}
+.toc a.active{
+  color:var(--blue);
+  border-left-color:var(--blue);
+  background:rgba(108,195,240,.07);
+}
+.toc a:focus-visible{outline:2px solid var(--amber);outline-offset:-2px}
+
+.sidebar-foot{margin-top:26px;padding-top:16px;border-top:1px dashed var(--line);color:var(--faint);font-size:.74rem;line-height:1.5}
+.sidebar-foot code{font-family:"JetBrains Mono",monospace;font-size:.7rem;color:var(--muted)}
+
+.nav-toggle{
+  display:none;
+  position:fixed;top:14px;left:14px;z-index:60;
+  background:var(--panel);border:1px solid var(--line2);color:var(--ink);
+  font-family:"Pixelify Sans",monospace;font-size:.85rem;
+  padding:8px 14px;cursor:pointer;
+}
+@media (max-width:980px){
+  .nav-toggle{display:block}
+  .sidebar{transform:translateX(-100%);transition:transform .22s ease}
+  .sidebar.open{transform:translateX(0);box-shadow:0 0 0 100vmax rgba(0,0,0,.45)}
+  main{margin-left:0}
+  .content{padding:0 20px 90px}
+}
+
+/* ---------- hero ---------- */
+.hero{padding:74px 0 30px}
+.hero .eyebrow{
+  font-family:"Pixelify Sans",monospace;
+  color:var(--amber);font-size:.85rem;letter-spacing:.1em;text-transform:uppercase;
+  display:flex;align-items:center;gap:10px;margin-bottom:14px;
+}
+.hero .eyebrow::before{content:"";width:22px;height:2px;background:var(--amber)}
+.hero h2.title{
+  font-family:"Pixelify Sans",monospace;
+  font-size:clamp(1.9rem,4.4vw,2.9rem);
+  font-weight:700;line-height:1.12;
+  margin-bottom:18px;
+}
+.hero h2.title em{font-style:normal;color:var(--blue)}
+.hero p.lede{font-size:1.06rem;color:var(--muted);max-width:62ch;margin-bottom:24px}
+.hero-canvas-wrap{margin-top:8px}
+.hero-canvas-wrap canvas{
+  width:100%;max-width:760px;display:block;
+  image-rendering:pixelated;
+  border:1px solid var(--line2);
+}
+.hero-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.chip{
+  font-family:"JetBrains Mono",monospace;font-size:.72rem;
+  color:var(--muted);background:var(--panel);
+  border:1px solid var(--line);padding:4px 10px;
+}
+.chip b{color:var(--blue);font-weight:500}
+
+/* ---------- sections ---------- */
+section.chapter{padding-top:64px}
+section.chapter > header{margin-bottom:22px}
+.part-tag{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:"Pixelify Sans",monospace;font-size:.74rem;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+  margin-bottom:8px;
+}
+.sq{display:inline-block;width:10px;height:10px;image-rendering:pixelated}
+.sq.g{background:var(--grass)} .sq.a{background:var(--amber)} .sq.b{background:var(--blue)} .sq.c{background:var(--coral)} .sq.v{background:var(--violet)}
+section.chapter h2{
+  font-family:"Pixelify Sans",monospace;
+  font-size:1.7rem;font-weight:600;line-height:1.2;
+  padding-bottom:12px;border-bottom:1px solid var(--line);
+}
+section.chapter h3{
+  font-size:1.12rem;font-weight:700;margin:34px 0 10px;
+  color:var(--ink);
+}
+section.chapter h3::before{content:"▸ ";color:var(--blue);font-size:.95em}
+p{margin-bottom:14px;color:#cfdbe2}
+p strong{color:var(--ink)}
+ul.plain,ol.plain{margin:0 0 16px 22px;color:#cfdbe2}
+ul.plain li,ol.plain li{margin-bottom:7px}
+ul.plain li::marker{color:var(--blue)}
+ol.plain li::marker{color:var(--amber);font-family:"JetBrains Mono",monospace;font-size:.85em}
+code.inl{
+  font-family:"JetBrains Mono",monospace;font-size:.84em;
+  background:var(--code-bg);border:1px solid var(--line);
+  padding:1px 6px;color:var(--code-ty);white-space:nowrap;
+}
+
+/* ---------- code blocks ---------- */
+.codeblock{margin:18px 0 22px;border:1px solid var(--line);background:var(--code-bg)}
+.codeblock .cb-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 14px;border-bottom:1px solid var(--line);
+  background:var(--panel);
+}
+.cb-head .fname{font-family:"JetBrains Mono",monospace;font-size:.74rem;color:var(--muted)}
+.cb-head .lang{
+  font-family:"Pixelify Sans",monospace;font-size:.7rem;letter-spacing:.08em;
+  color:var(--amber);text-transform:uppercase;
+}
+.codeblock pre{overflow-x:auto;padding:16px 18px;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+.codeblock code{font-family:"JetBrains Mono",monospace;font-size:.83rem;line-height:1.62;color:#cfe0e8}
+.tk-kw{color:var(--code-kw)} .tk-ty{color:var(--code-ty)} .tk-st{color:var(--code-st)}
+.tk-cm{color:var(--code-cm);font-style:italic} .tk-mc{color:var(--code-mc)}
+.tk-nb{color:var(--code-nb)} .tk-fn{color:var(--code-fn)} .tk-at{color:var(--code-at)}
+.tk-lf{color:var(--coral)}
+.hl-line{background:rgba(108,195,240,.09);display:inline-block;width:100%}
+
+/* ---------- callouts ---------- */
+.bevy-box{
+  margin:20px 0 24px;padding:16px 18px 14px;
+  background:linear-gradient(180deg,rgba(108,195,240,.06),rgba(108,195,240,.02));
+  border:1px solid rgba(108,195,240,.3);
+  border-left:3px solid var(--blue);
+}
+.bevy-box .tag{
+  font-family:"Pixelify Sans",monospace;font-size:.7rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--blue);margin-bottom:6px;display:flex;align-items:center;gap:7px;
+}
+.bevy-box .tag::before{content:"";width:8px;height:8px;background:var(--blue)}
+.bevy-box h4{font-size:1rem;font-weight:700;margin-bottom:6px;font-family:"JetBrains Mono",monospace}
+.bevy-box p{font-size:.92rem;margin-bottom:8px}
+.bevy-box p:last-child{margin-bottom:2px}
+.bevy-box code.inl{font-size:.8em}
+
+.note{
+  margin:18px 0 22px;padding:13px 16px;
+  background:rgba(240,179,94,.05);
+  border:1px dashed rgba(240,179,94,.4);
+  font-size:.92rem;color:#dcc9a8;
+}
+.note b{color:var(--amber)}
+.warn{
+  margin:18px 0 22px;padding:13px 16px;
+  background:rgba(239,132,114,.05);
+  border:1px dashed rgba(239,132,114,.45);
+  font-size:.92rem;color:#e8c0b8;
+}
+.warn b{color:var(--coral)}
+
+figure.diagram{margin:22px 0 26px;text-align:center}
+figure.diagram svg{max-width:100%;height:auto;border:1px solid var(--line);background:var(--bg2)}
+figure.diagram figcaption{font-size:.8rem;color:var(--faint);margin-top:8px;font-family:"JetBrains Mono",monospace}
+
+table.tbl{width:100%;border-collapse:collapse;margin:16px 0 24px;font-size:.9rem}
+table.tbl th{
+  text-align:left;font-family:"Pixelify Sans",monospace;font-weight:600;font-size:.78rem;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+  padding:8px 12px;border-bottom:2px solid var(--line2);
+}
+table.tbl td{padding:9px 12px;border-bottom:1px solid var(--line);color:#cfdbe2;vertical-align:top}
+table.tbl code{font-family:"JetBrains Mono",monospace;font-size:.8rem;color:var(--code-ty)}
+
+/* ---------- sandbox ---------- */
+.sandbox{margin:24px 0;border:1px solid var(--line2);background:var(--bg2)}
+.sandbox-head{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+  padding:10px 14px;border-bottom:1px solid var(--line);
+  background:var(--panel);
+}
+.sandbox-head .t{font-family:"Pixelify Sans",monospace;font-size:.85rem;color:var(--blue);letter-spacing:.05em}
+.sandbox-head .hint{font-size:.76rem;color:var(--faint);font-family:"JetBrains Mono",monospace;margin-left:auto}
+.sandbox-body{display:flex;gap:0;flex-wrap:wrap}
+.sandbox-canvas-wrap{flex:1 1 440px;min-width:300px;padding:14px;display:flex;flex-direction:column;gap:12px;align-items:center;background:#090d12}
+#sbx{
+  image-rendering:pixelated;width:100%;max-width:560px;display:block;
+  outline:none;border:1px solid var(--line);cursor:pointer;
+}
+.sandbox-side{
+  flex:1 1 250px;min-width:250px;max-width:320px;
+  border-left:1px solid var(--line);
+  padding:14px 16px;font-size:.85rem;
+}
+.sandbox-side h5{
+  font-family:"Pixelify Sans",monospace;font-size:.72rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);margin:16px 0 8px;
+}
+.sandbox-side h5:first-child{margin-top:0}
+.sandbox-side label{display:flex;align-items:center;gap:8px;margin-bottom:7px;cursor:pointer;color:#cfdbe2}
+.sandbox-side input[type=checkbox]{accent-color:var(--blue);width:14px;height:14px}
+.kbd{
+  font-family:"JetBrains Mono",monospace;font-size:.72rem;
+  background:var(--panel2);border:1px solid var(--line2);border-bottom-width:2px;
+  padding:1px 6px;color:var(--ink);
+}
+.btn{
+  font-family:"Pixelify Sans",monospace;font-size:.82rem;letter-spacing:.04em;
+  background:var(--panel2);color:var(--ink);
+  border:1px solid var(--line2);padding:7px 14px;cursor:pointer;
+  transition:background .12s,border-color .12s;
+}
+.btn:hover{background:#203044;border-color:var(--blue-dim)}
+.btn:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.btn.primary{background:rgba(108,195,240,.14);border-color:var(--blue-dim);color:var(--blue)}
+.btn.primary:hover{background:rgba(108,195,240,.22)}
+.btn[aria-pressed="true"]{background:rgba(108,195,240,.2);border-color:var(--blue);color:var(--blue)}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+.dbg{
+  font-family:"JetBrains Mono",monospace;font-size:.72rem;color:var(--muted);
+  background:var(--code-bg);border:1px solid var(--line);padding:8px 10px;
+  white-space:pre;line-height:1.7;margin-top:4px;overflow-x:auto;
+}
+.dbg .v{color:var(--blue)} .dbg .g{color:var(--grass)} .dbg .c{color:var(--coral)}
+
+/* message queue visual panel */
+.mq-wrap{width:100%;max-width:560px}
+.mq{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;
+}
+.mq-buf{
+  border:1px solid var(--line);background:var(--code-bg);
+  min-height:86px;padding:8px 9px 9px;
+}
+.mq-buf.front{border-color:var(--blue-dim)}
+.mq-buf h6{
+  font-family:"Pixelify Sans",monospace;font-size:.66rem;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--faint);margin-bottom:6px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.mq-buf.front h6{color:var(--blue)}
+.mq-buf h6 .cnt{font-family:"JetBrains Mono",monospace;font-size:.66rem}
+.msg-pill{
+  display:inline-block;
+  font-family:"JetBrains Mono",monospace;font-size:.66rem;
+  background:rgba(108,195,240,.12);border:1px solid var(--blue-dim);color:#bfe3f7;
+  padding:2px 7px;margin:0 5px 5px 0;
+}
+.msg-pill.read{opacity:.42;border-style:dashed;text-decoration:line-through}
+.msg-pill.fresh{border-color:var(--blue);background:rgba(108,195,240,.22)}
+.mq-empty{font-size:.7rem;color:var(--faint);font-style:italic;font-family:"JetBrains Mono",monospace}
+.phase-strip{
+  display:flex;gap:6px;margin:10px 0 0;
+}
+.phase{
+  flex:1;text-align:center;
+  font-family:"Pixelify Sans",monospace;font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--faint);border:1px solid var(--line);padding:5px 4px;background:var(--code-bg);
+}
+.phase.on{color:var(--bg);background:var(--blue);border-color:var(--blue);font-weight:600}
+
+.legend{display:grid;grid-template-columns:16px 1fr;gap:6px 9px;align-items:center;margin-bottom:4px}
+.legend .lsw{width:14px;height:14px;border:1px solid rgba(255,255,255,.15);image-rendering:pixelated}
+.legend span{color:var(--muted);font-size:.78rem}
+
+/* ---------- outro ---------- */
+.outro-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:20px 0}
+.outro-grid .px-box{padding:16px}
+.outro-grid h4{font-family:"Pixelify Sans",monospace;font-size:.95rem;margin-bottom:8px;color:var(--blue)}
+.outro-grid p{font-size:.88rem;margin-bottom:0;color:var(--muted)}
+
+footer.page-foot{
+  margin-top:80px;padding-top:24px;border-top:1px solid var(--line);
+  color:var(--faint);font-size:.8rem;
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;
+}
+footer.page-foot .px{font-family:"Pixelify Sans",monospace}
+</style>
+</head>
+<body>
+
+<button class="nav-toggle" id="navToggle" aria-label="Menü">≡ menü</button>
+
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="brand" href="#bevezetes">
+    <span class="brand-tile" aria-hidden="true"></span>
+    <h1>Üzenetek Bevy-ben
+      <small>Bevy tutorial sorozat · 2. rész</small>
+    </h1>
+  </a>
+  <nav class="toc" aria-label="Tartalomjegyzék">
+    <div class="toc-part">
+      <div class="toc-part-label"><span class="sq b"></span> 1. rész — Alapok</div>
+      <a href="#bevezetes">Miért üzenetek?</a>
+      <a href="#fogalomtar">Message vs. Event — verziók</a>
+      <a href="#irasa-olvasasa">Írás és olvasás</a>
+      <a href="#eletciklus">Az üzenet életciklusa</a>
+    </div>
+    <div class="toc-part">
+      <div class="toc-part-label"><span class="sq a"></span> 2. rész — A motorháztető alatt</div>
+      <a href="#pufferek">A kettős puffer</a>
+      <a href="#kurzorok">Olvasó-kurzorok</a>
+      <a href="#sorrend">Rendszer-sorrend és késleltetés</a>
+    </div>
+    <div class="toc-part">
+      <div class="toc-part-label"><span class="sq v"></span> 3. rész — A példa boncolása</div>
+      <a href="#pelda-kontextus">Dual-grid: a kontextus</a>
+      <a href="#pelda-soronkent">refresh_display soronként</a>
+      <a href="#teljesitmeny">Teljesítmény és finomítás</a>
+      <a href="#observerek">Üzenet vagy Observer?</a>
+    </div>
+    <div class="toc-part">
+      <div class="toc-part-label"><span class="sq g"></span> 4. rész — Gyakorlat</div>
+      <a href="#sandbox">Sandbox: üzenetek élőben</a>
+      <a href="#osszefoglalas">Összefoglalás</a>
+    </div>
+  </nav>
+  <div class="sidebar-foot">
+    Bevy <code>0.17+</code> üzenet-API, <code>0.16</code> megfeleltetésekkel.<br>
+    Egyetlen HTML fájl — offline is működik.
+  </div>
+</aside>
+
+<main>
+<div class="content">
+
+<header class="hero" id="top">
+  <div class="eyebrow">Bevy · ECS · kommunikáció</div>
+  <h2 class="title">Üzenetek Bevy-ben: <em>MessageWriter</em>, <em>MessageReader</em> és a kettős puffer</h2>
+  <p class="lede">
+    Hogyan szól oda az egyik rendszer a másiknak úgy, hogy közben nem is ismerik egymást?
+    Ez a tutorial kizárólag a Bevy üzenetrendszerével foglalkozik: megnézzük, hogyan születik,
+    utazik és hal meg egy üzenet, mi az a kettős puffer, és soronként szétszedjük a
+    <code class="inl">refresh_display</code> rendszert, ami üzenetek alapján frissíti a dual-grid kijelző-tile-okat.
+  </p>
+  <div class="hero-canvas-wrap">
+    <canvas id="heroCv" width="380" height="96" aria-label="Pixeles animáció: üzenetek utaznak az író rendszertől a pufferen át az olvasó rendszerig"></canvas>
+  </div>
+  <div class="hero-meta">
+    <span class="chip">motor <b>Bevy 0.17+</b></span>
+    <span class="chip">téma <b>Messages</b></span>
+    <span class="chip">példa <b>refresh_display</b></span>
+    <span class="chip">szint <b>kezdő-középhaladó</b></span>
+  </div>
+</header>
+
+<!-- ========================================================= 1. RÉSZ -->
+<section class="chapter" id="bevezetes">
+  <header>
+    <div class="part-tag"><span class="sq b"></span> 1. rész — Alapok</div>
+    <h2>Miért üzenetek?</h2>
+  </header>
+
+  <p>
+    Egy ECS-alapú játékban a logika apró, egymástól független <strong>rendszerekre</strong> (system) van szétszedve.
+    Ez nagyszerű — amíg a rendszereknek nem kell beszélgetniük egymással. Márpedig kell:
+    a térképszerkesztő rendszer megváltoztat egy cellát, és erről a kirajzoló rendszernek
+    <em>tudnia kell</em>. A lövedék-rendszer eltalál egy ellenséget, és erről a hang-, a részecske-
+    és a pontszám-rendszernek is értesülnie kell.
+  </p>
+  <p>A naiv megoldások mind csúnyák:</p>
+  <ul class="plain">
+    <li><strong>Minden egy rendszerben:</strong> a cellamódosító rendszer rajzol, hangot játszik le, pontot számol… óriás-system, ami mindenhez hozzányúl. Pont azt veszítjük el, amiért az ECS-t választottuk.</li>
+    <li><strong>Jelzőkomponensek:</strong> rárakunk egy <code class="inl">Dirty</code> komponenst az entitásra, a másik rendszer leszedi. Működik, de archetípus-mozgatással jár (lassú, ha gyakori), és nehéz vele „eseményt” kifejezni, aminek nincs is entitása.</li>
+    <li><strong>Közös mutable állapot:</strong> egy <code class="inl">Resource</code>-ba írogatott teendő-lista. Ez már majdnem jó — annyira, hogy a Bevy üzenetrendszere pontosan ez, csak rendesen megcsinálva.</li>
+  </ul>
+  <p>
+    Az <strong>üzenet</strong> (message) a Bevy válasza: egy sima Rust struct, amit az egyik rendszer
+    <em>beleír</em> egy központi pufferbe, egy másik pedig <em>kiolvas</em> belőle — akár még ugyanabban
+    a frame-ben, akár a következőben. Az író nem tudja, ki olvas (lehet senki, lehet öt rendszer is),
+    az olvasó nem tudja, ki írt. Ezt hívják <strong>laza csatolásnak</strong> (decoupling), és ettől marad
+    a kódbázis átrendezhető akkor is, amikor már negyven rendszered van.
+  </p>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>Message — pufferelt, sok-a-sokhoz üzenet</h4>
+    <p>
+      Bármilyen <code class="inl">Send + Sync + 'static</code> típus lehet üzenet, amire ráteszed a
+      <code class="inl">#[derive(Message)]</code>-et. Az üzenetek frame-enként <em>kötegelve</em> gyűlnek
+      egy pufferben, és minden olvasó rendszer mindegyiket pontosan egyszer látja. Nem azonnali hívás:
+      az olvasó akkor dolgozza fel, amikor legközelebb lefut.
+    </p>
+  </div>
+
+  <p>
+    A tutorial végén lévő <a class="inline" href="#sandbox">sandboxban</a> mindezt élőben is megnézheted:
+    cellákra kattintva üzeneteket írsz, és frame-enként lépkedve figyelheted, ahogy a puffereken átutazva
+    elérik az olvasó rendszert.
+  </p>
+</section>
+
+<section class="chapter" id="fogalomtar">
+  <header>
+    <div class="part-tag"><span class="sq b"></span> 1. rész — Alapok</div>
+    <h2>Message vs. Event — mi mit jelent melyik verzióban?</h2>
+  </header>
+
+  <p>
+    Mielőtt bármit írnánk: a Bevy <strong>0.17-ben átnevezte</strong> a fél üzenetrendszert, ezért a neten
+    talált példakódok fele „régi nyelven” beszél. Ez a táblázat a fordítókulcs:
+  </p>
+
+  <table class="tbl">
+    <thead>
+      <tr><th>Fogalom</th><th>Bevy ≤ 0.16</th><th>Bevy 0.17+</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Pufferelt üzenet típusa</td>
+        <td><code>#[derive(Event)]</code></td>
+        <td><code>#[derive(Message)]</code></td>
+      </tr>
+      <tr>
+        <td>Regisztrálás az appban</td>
+        <td><code>app.add_event::&lt;T&gt;()</code></td>
+        <td><code>app.add_message::&lt;T&gt;()</code></td>
+      </tr>
+      <tr>
+        <td>Író paraméter</td>
+        <td><code>EventWriter&lt;T&gt;</code></td>
+        <td><code>MessageWriter&lt;T&gt;</code></td>
+      </tr>
+      <tr>
+        <td>Olvasó paraméter</td>
+        <td><code>EventReader&lt;T&gt;</code></td>
+        <td><code>MessageReader&lt;T&gt;</code></td>
+      </tr>
+      <tr>
+        <td>Központi tároló (Resource)</td>
+        <td><code>Events&lt;T&gt;</code></td>
+        <td><code>Messages&lt;T&gt;</code></td>
+      </tr>
+      <tr>
+        <td>Observer-rel kiváltott esemény</td>
+        <td><code>Event</code> + <code>Trigger&lt;T&gt;</code></td>
+        <td><code>Event</code> + <code>On&lt;T&gt;</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    A 0.17 előtt tehát <em>egyetlen</em> <code class="inl">Event</code> fogalom volt, és ugyanazt a typeot
+    lehetett pufferelve (writer/reader) <em>és</em> observerrel is használni. A 0.17 ezt kettévágta:
+  </p>
+  <ul class="plain">
+    <li><strong><code class="inl">Message</code></strong> — pufferelt, kötegelt, frame-ritmusú. Erről szól ez a tutorial.</li>
+    <li><strong><code class="inl">Event</code></strong> — observerrel (<code class="inl">On&lt;T&gt;</code>) azonnal, „push” módon kiváltott esemény. A <a class="inline" href="#observerek">3. rész végén</a> hasonlítjuk össze a kettőt.</li>
+  </ul>
+
+  <div class="note">
+    <b>Régi kódot olvasol?</b> Ha egy 0.16-os példában <code class="inl">EventReader</code>-t látsz,
+    fejben cseréld <code class="inl">MessageReader</code>-re — a viselkedés ugyanaz, csak a név változott.
+    A <code class="inl">.send()</code> metódus új neve <code class="inl">.write()</code> (a 0.16 már
+    mindkettőt ismerte, a régebbi verziók csak a <code class="inl">.send()</code>-et).
+  </div>
+</section>
+
+<section class="chapter" id="irasa-olvasasa">
+  <header>
+    <div class="part-tag"><span class="sq b"></span> 1. rész — Alapok</div>
+    <h2>Írás és olvasás — a minimális példa</h2>
+  </header>
+
+  <p>
+    Három lépés kell: <strong>(1)</strong> definiáld az üzenettípust, <strong>(2)</strong> regisztráld az appban,
+    <strong>(3)</strong> írd és olvasd a rendszerekben. Itt a teljes, fordítható minimum — szándékosan a
+    térképes témánknál maradva:
+  </p>
+
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">main.rs</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+/// (1) Az üzenet: sima struct, annyi adattal, amennyi kell.
+/// Itt: melyik világ-cella változott meg.
+#[derive(Message)]
+struct CellChanged {
+    x: i32,
+    y: i32,
+}
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        // (2) Regisztrálás: létrehozza a Messages&lt;CellChanged&gt; Resource-ot,
+        //     és beüzemeli a frame-enkénti karbantartást (erről mindjárt).
+        .add_message::&lt;CellChanged&gt;()
+        .add_systems(Update, (edit_cells, refresh_display).chain())
+        .run();
+}
+
+/// (3a) ÍRÓ rendszer: kattintásra megváltoztat egy cellát,
+///      és üzenetet ír róla.
+fn edit_cells(
+    buttons: Res&lt;ButtonInput&lt;MouseButton&gt;&gt;,
+    mut grid: ResMut&lt;WorldGrid&gt;,
+    mut writer: MessageWriter&lt;CellChanged&gt;,
+) {
+    if buttons.just_pressed(MouseButton::Left) {
+        let (x, y) = cursor_cell(); // egyszerűsítve
+        grid.toggle(x, y);
+        writer.write(CellChanged { x, y });
+    }
+}
+
+/// (3b) OLVASÓ rendszer: minden eddig nem látott üzenetet megkap.
+fn refresh_display(mut changed: MessageReader&lt;CellChanged&gt;) {
+    for msg in changed.read() {
+        info!("változott cella: ({}, {})", msg.x, msg.y);
+    }
+}</code></pre>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy API</div>
+    <h4>MessageWriter&lt;T&gt;</h4>
+    <p>
+      System-paraméter, ami írási hozzáférést ad a <code class="inl">Messages&lt;T&gt;</code> pufferhez.
+      Fő metódusai: <code class="inl">write(msg)</code> — egy üzenet;
+      <code class="inl">write_batch(iter)</code> — sok üzenet egyszerre (gyorsabb, mint ciklusban írni);
+      <code class="inl">write_default()</code> — ha az üzenet <code class="inl">Default</code>.
+      Belül csak egy <code class="inl">ResMut&lt;Messages&lt;T&gt;&gt;</code>, tehát két, ugyanazt a típust
+      író rendszer nem futhat párhuzamosan.
+    </p>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy API</div>
+    <h4>MessageReader&lt;T&gt;</h4>
+    <p>
+      System-paraméter olvasáshoz. A <code class="inl">read()</code> iterátort ad az <em>összes olyan</em>
+      üzenetre, amit <strong>ez a rendszer</strong> még nem látott — és közben előre is lépteti a rendszer
+      saját könyvjelzőjét (kurzorát). Hasznos még: <code class="inl">len()</code>,
+      <code class="inl">is_empty()</code>, és <code class="inl">clear()</code> — utóbbi olvasás nélkül
+      „elolvasottnak” jelöl mindent.
+    </p>
+    <p>
+      Mivel csak a kurzor mutálódik (a puffer nem), <strong>akárhány olvasó futhat párhuzamosan</strong>
+      ugyanarra az üzenettípusra.
+    </p>
+  </div>
+
+  <div class="note">
+    <b>Fontos szemléleti pont:</b> az olvasó <em>nem veszi ki</em> az üzenetet a pufferből, csak megjegyzi,
+    meddig jutott. Ezért láthatja ugyanazt az üzenetet öt különböző rendszer is — mindegyik a saját
+    kurzorával halad. Ez nem sor (queue) fogyasztással, hanem inkább egy közös faliújság, amit mindenki
+    a saját könyvjelzőjétől olvas tovább.
+  </div>
+</section>
+
+<section class="chapter" id="eletciklus">
+  <header>
+    <div class="part-tag"><span class="sq b"></span> 1. rész — Alapok</div>
+    <h2>Az üzenet életciklusa: legalább 1, legfeljebb 2 frame</h2>
+  </header>
+
+  <p>
+    A kulcskérdés: <strong>meddig él egy üzenet?</strong> A Bevy válasza meglepően pontos:
+    a megírása utáni <em>következő</em> puffercseréig — vagyis minden üzenet
+    <strong>legalább egy teljes frame-en át elérhető</strong>, és legfeljebb kettőn át.
+    Ezt egy kettős pufferrel (double buffer) éri el, amit frame-enként egyszer a
+    <code class="inl">message_update_system</code> nevű beépített rendszer „forgat meg”
+    a <code class="inl">First</code> ütemezőben.
+  </p>
+
+  <figure class="diagram">
+    <svg viewBox="0 0 760 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Idővonal: az N. frame-ben írt üzenet az N. és N+1. frame olvasói számára elérhető, az N+2. frame elején törlődik">
+      <style>
+        .ax{stroke:#2d4258;stroke-width:1}
+        .lbl{font:600 13px "Pixelify Sans",monospace;fill:#93a6b1;letter-spacing:.05em}
+        .sm{font:11px "JetBrains Mono",monospace;fill:#5e7280}
+        .smb{font:11px "JetBrains Mono",monospace;fill:#6cc3f0}
+        .smg{font:11px "JetBrains Mono",monospace;fill:#84d96c}
+        .smc{font:11px "JetBrains Mono",monospace;fill:#ef8472}
+        .frame{fill:#141e2a;stroke:#233444}
+        .life{fill:rgba(108,195,240,.16);stroke:#6cc3f0;stroke-dasharray:none}
+      </style>
+      <!-- frame boxes -->
+      <rect class="frame" x="30"  y="60" width="220" height="120"/>
+      <rect class="frame" x="270" y="60" width="220" height="120"/>
+      <rect class="frame" x="510" y="60" width="220" height="120"/>
+      <text class="lbl" x="140" y="48" text-anchor="middle">FRAME N</text>
+      <text class="lbl" x="380" y="48" text-anchor="middle">FRAME N+1</text>
+      <text class="lbl" x="620" y="48" text-anchor="middle">FRAME N+2</text>
+      <!-- First markers -->
+      <line class="ax" x1="270" y1="60" x2="270" y2="180"/>
+      <line class="ax" x1="510" y1="60" x2="510" y2="180"/>
+      <text class="sm" x="276" y="74">First: puffercsere</text>
+      <text class="smc" x="516" y="74">First: itt törlődik ✕</text>
+      <!-- write event -->
+      <circle cx="110" cy="120" r="5" fill="#6cc3f0"/>
+      <text class="smb" x="110" y="105" text-anchor="middle">writer.write(msg)</text>
+      <!-- life bar -->
+      <rect class="life" x="110" y="132" width="396" height="14"/>
+      <text class="smb" x="308" y="143" text-anchor="middle">az üzenet elérhető az olvasóknak</text>
+      <!-- readers -->
+      <text class="smg" x="180" y="170">reader (N. frame): látja ✓</text>
+      <text class="smg" x="300" y="200">reader (N+1. frame): még látja ✓</text>
+      <text class="smc" x="540" y="200">reader (N+2. frame): már nem ✕</text>
+    </svg>
+    <figcaption>Az N. frame-ben írt üzenet két puffercserét él túl: N és N+1 olvasói még látják.</figcaption>
+  </figure>
+
+  <p>A frame-enkénti menetrend tehát:</p>
+  <ol class="plain">
+    <li><strong><code class="inl">First</code> ütemező:</strong> lefut a <code class="inl">message_update_system</code> — a két puffer szerepet cserél, és ami a régebbi pufferben volt (a két frame-mel ezelőtti üzenetek), az törlődik.</li>
+    <li><strong><code class="inl">Update</code> (és a többi ütemező):</strong> az író rendszerek az aktuális „elülső” pufferbe írnak, az olvasók pedig a saját kurzoruktól olvasnak — ami akár mindkét pufferbe belelóghat.</li>
+  </ol>
+
+  <div class="warn">
+    <b>Ebből következik a klasszikus csapda:</b> ha egy olvasó rendszer <em>nem fut le minden frame-ben</em>
+    (pl. <code class="inl">run_if</code> feltétel vagy state miatt szünetel), akkor a közben írt üzenetek
+    két frame után <strong>nyom nélkül eltűnnek</strong>. Az olvasó visszakapcsoláskor csak a legutóbbi
+    1–2 frame üzeneteit kapja meg. A <a class="inline" href="#sandbox">sandboxban</a> ezt ki is próbálhatod
+    az olvasó kikapcsolásával.
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy API</div>
+    <h4>add_message::&lt;T&gt;() — mit csinál pontosan?</h4>
+    <p>
+      Két dolgot: beszúrja a <code class="inl">Messages&lt;T&gt;</code> Resource-ot a World-be, és
+      regisztrálja a típust az üzenet-karbantartásba, hogy a frame eleji puffercsere rá is lefusson.
+      Ha kihagyod, a <code class="inl">MessageWriter&lt;T&gt;</code> paraméterű rendszered panikol
+      futás közben, mert nincs meg a Resource.
+    </p>
+    <p>
+      Ha <em>kézi</em> életciklust akarsz (pl. te döntöd el, mikor ürül), a Resource-ot magad is
+      kezelheted <code class="inl">Messages&lt;T&gt;::update()</code> hívásokkal — de ez ritka, haladó eset.
+    </p>
+  </div>
+</section>
+
+<!-- ========================================================= 2. RÉSZ -->
+<section class="chapter" id="pufferek">
+  <header>
+    <div class="part-tag"><span class="sq a"></span> 2. rész — A motorháztető alatt</div>
+    <h2>A kettős puffer</h2>
+  </header>
+
+  <p>
+    A <code class="inl">Messages&lt;T&gt;</code> Resource belül feltűnően egyszerű: <strong>két vektor</strong>
+    és egy számláló. Leegyszerűsítve valahogy így néz ki:
+  </p>
+
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">bevy_ecs (egyszerűsítve)</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">pub struct Messages&lt;T: Message&gt; {
+    /// Az ELŐZŐ frame-ben írt üzenetek.
+    messages_a: Vec&lt;MessageInstance&lt;T&gt;&gt;,
+    /// Az AKTUÁLIS frame-ben írt üzenetek — ide ír a MessageWriter.
+    messages_b: Vec&lt;MessageInstance&lt;T&gt;&gt;,
+    /// Hány üzenet született összesen a program indulása óta.
+    /// Ebből számolódik minden üzenet egyedi sorszáma (MessageId).
+    message_count: usize,
+}
+
+impl&lt;T: Message&gt; Messages&lt;T&gt; {
+    /// Ezt hívja frame-enként egyszer a message_update_system (First).
+    pub fn update(&amp;mut self) {
+        // a régi "előző frame" tartalma itt vész el végleg:
+        self.messages_a = std::mem::take(&amp;mut self.messages_b);
+    }
+}</code></pre>
+  </div>
+
+  <p>
+    Minden üzenet kap egy folyamatosan növekvő <strong>sorszámot</strong> (<code class="inl">MessageId</code>:
+    „te vagy a 4127. <code class="inl">CellChanged</code> a program indulása óta”). A puffercserénél semmi
+    nem másolódik üzenetenként — a <code class="inl">mem::take</code> csak a vektorok mutatóit cseréli,
+    ezért az <code class="inl">update()</code> akkor is olcsó, ha épp ezer üzenet van bent.
+  </p>
+
+  <figure class="diagram">
+    <svg viewBox="0 0 760 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A két puffer szerepcseréje frame-váltáskor">
+      <style>
+        .bx{fill:#0a0e13;stroke:#233444}
+        .bxf{fill:#0a0e13;stroke:#6cc3f0}
+        .t1{font:600 12px "Pixelify Sans",monospace;fill:#93a6b1;letter-spacing:.06em}
+        .t1b{font:600 12px "Pixelify Sans",monospace;fill:#6cc3f0;letter-spacing:.06em}
+        .mono{font:11px "JetBrains Mono",monospace;fill:#bfe3f7}
+        .monof{font:11px "JetBrains Mono",monospace;fill:#5e7280}
+        .arr{stroke:#f0b35e;stroke-width:1.6;fill:none;marker-end:url(#ah)}
+      </style>
+      <defs>
+        <marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L6,3 L0,6 z" fill="#f0b35e"/>
+        </marker>
+      </defs>
+      <text class="t1" x="185" y="26" text-anchor="middle">FRAME N (Update közben)</text>
+      <rect class="bx"  x="40"  y="40" width="290" height="56"/>
+      <text class="t1" x="50" y="58">messages_a — előző frame</text>
+      <text class="mono" x="50" y="80">[ #4125 ] [ #4126 ]</text>
+      <rect class="bxf" x="40"  y="110" width="290" height="56"/>
+      <text class="t1b" x="50" y="128">messages_b — ide ír a writer ✎</text>
+      <text class="mono" x="50" y="150">[ #4127 ] [ #4128 ] [ #4129 ]</text>
+
+      <path class="arr" d="M345 110 C 385 80, 385 80, 425 88"/>
+      <text class="monof" x="385" y="64">First: update()</text>
+
+      <text class="t1" x="575" y="26" text-anchor="middle">FRAME N+1</text>
+      <rect class="bx"  x="430" y="40" width="290" height="56"/>
+      <text class="t1" x="440" y="58">messages_a — előző frame</text>
+      <text class="mono" x="440" y="80">[ #4127 ] [ #4128 ] [ #4129 ]</text>
+      <rect class="bxf" x="430" y="110" width="290" height="56"/>
+      <text class="t1b" x="440" y="128">messages_b — üres, ide ír a writer ✎</text>
+      <text class="monof" x="440" y="150">[ ]</text>
+
+      <text class="monof" x="40" y="200">#4125, #4126 → a cserével végleg törlődött (két frame-et élt)</text>
+    </svg>
+    <figcaption>update(): a friss puffer "előző frame"-mé öregszik, a régi tartalma elvész.</figcaption>
+  </figure>
+
+  <p>
+    Miért nem <em>egy</em> puffer, frame végi ürítéssel? Mert akkor a rendszer-sorrend élet-halál kérdés
+    lenne: ha az olvasó <em>előbb</em> futna, mint az író, soha egyetlen üzenetet sem látna. A két pufferes
+    megoldással a „lemaradt” olvasó a következő frame-ben még mindig megtalálja az üzenetet a
+    <code class="inl">messages_a</code>-ban. A sorrend így már csak késleltetési kérdés, nem helyességi —
+    erről szól a <a class="inline" href="#sorrend">Rendszer-sorrend</a> fejezet.
+  </p>
+</section>
+
+<section class="chapter" id="kurzorok">
+  <header>
+    <div class="part-tag"><span class="sq a"></span> 2. rész — A motorháztető alatt</div>
+    <h2>Olvasó-kurzorok: ki mit látott már?</h2>
+  </header>
+
+  <p>
+    Ha az olvasás nem vesz ki semmit a pufferből, honnan tudja a <code class="inl">MessageReader</code>,
+    mit adjon vissza? A válasz: minden olvasó rendszer egy <strong>saját kurzort</strong> tart, ami egyetlen
+    számot tárol — az utoljára látott üzenet sorszámát. A <code class="inl">read()</code> ennyit csinál:
+  </p>
+
+  <ol class="plain">
+    <li>Megnézi a két pufferben az üzenetek sorszámait.</li>
+    <li>Visszaadja azokat, amelyek sorszáma <strong>nagyobb</strong>, mint a kurzor állása.</li>
+    <li>A kurzort a legnagyobb látott sorszámra állítja.</li>
+  </ol>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>Hol él ez a kurzor? — Local állapot</h4>
+    <p>
+      A <code class="inl">MessageReader&lt;T&gt;</code> belül két dologból áll:
+      <code class="inl">Res&lt;Messages&lt;T&gt;&gt;</code> (megosztott, csak olvasható puffer) +
+      <code class="inl">Local&lt;MessageCursor&lt;T&gt;&gt;</code> (a rendszer <em>példányához</em> kötött
+      privát állapot). A <code class="inl">Local</code> a Bevy általános mechanizmusa arra, hogy egy
+      rendszer két lefutás között megjegyezzen valamit — itt pont egy könyvjelzőt.
+    </p>
+    <p>
+      Ebből az is következik, hogy ha ugyanazt a függvényt kétszer adod hozzá az apphoz, az
+      <strong>két külön rendszer két külön kurzorral</strong> — mindkettő minden üzenetet megkap.
+    </p>
+  </div>
+
+  <p>
+    Egy folyamat képe, három olvasóval (mind máshol tart, de mind mindent megkap pontosan egyszer):
+  </p>
+
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">fogalmi kép</span><span class="lang">txt</span></div>
+    <pre><code>puffer:        #41  #42  #43  #44  #45  #46
+                          ▲              ▲    ▲
+hang_rendszer ────────────┘ (kurzor: 43) │    │
+ui_rendszer ─────────────────────────────┘    │ (kurzor: 45)
+log_rendszer ─────────────────────────────────┘ (kurzor: 46, naprakész)</code></pre>
+  </div>
+
+  <div class="note">
+    <b>Gyakori kérdés:</b> „elfogyasztható” egyáltalán egy üzenet, hogy más már ne kapja meg?
+    Pufferelt üzenettel nem — ez szándékos tervezési döntés, a sok-olvasós eset miatt. Ha
+    „pontosan egy kezelő fusson le, és állíthassa is le a terjedést” viselkedés kell, az már az
+    observerek világa (<a class="inline" href="#observerek">3. rész vége</a>).
+  </div>
+</section>
+
+<section class="chapter" id="sorrend">
+  <header>
+    <div class="part-tag"><span class="sq a"></span> 2. rész — A motorháztető alatt</div>
+    <h2>Rendszer-sorrend: azonnal vagy egy frame késéssel?</h2>
+  </header>
+
+  <p>
+    A Bevy ütemezője alapból <strong>tetszőleges sorrendben</strong> (sőt párhuzamosan) futtatja a
+    rendszereket. Üzeneteknél ez két forgatókönyvet jelent egy adott frame-en belül:
+  </p>
+  <ul class="plain">
+    <li><strong>Író fut előbb</strong> → az olvasó még <em>ugyanabban a frame-ben</em> megkapja az üzenetet. Latencia: 0 frame.</li>
+    <li><strong>Olvasó fut előbb</strong> → az üzenet csak a <em>következő</em> frame-ben kerül feldolgozásra (a kettős puffernek hála nem vész el). Latencia: 1 frame.</li>
+  </ul>
+
+  <p>
+    Ha a 0 frame-es latencia számít — és a térkép-frissítésnél igen, különben egy frame-re „régi”
+    grafikát látnánk a módosítás után —, rögzítsd a sorrendet:
+  </p>
+
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">main.rs — sorrendrögzítés</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">// 1. lehetőség: lánc — a felsorolás sorrendjében futnak
+app.add_systems(Update, (edit_cells, refresh_display).chain());
+
+// 2. lehetőség: páronkénti megkötés
+app.add_systems(Update, (
+    edit_cells,
+    refresh_display.after(edit_cells),
+));</code></pre>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy API</div>
+    <h4>.chain(), .before(), .after()</h4>
+    <p>
+      A <code class="inl">.chain()</code> a tuple-ben felsorolt rendszerek közé sorrendi élt húz
+      (nem vonja össze őket egy rendszerré!). A <code class="inl">.before()</code>/<code class="inl">.after()</code>
+      ugyanezt két konkrét rendszer között teszi. Megkötés nélkül a sorrend futásonként más lehet —
+      üzeneteknél ez „néha azonnal, néha +1 frame” vibrálást jelent, ami nehezen reprodukálható hibákat szül.
+    </p>
+  </div>
+
+  <div class="warn">
+    <b>Két klasszikus üzenetvesztési hiba:</b><br>
+    <b>1.</b> Az olvasó rendszer <code class="inl">run_if</code>-fel csak néha fut (pl. csak egy menü-state-ben) —
+    a kihagyott frame-ek üzenetei elvesznek. Megoldás: vagy fusson mindig az olvasó, vagy state-váltáskor
+    ürítsd/kezeld le tudatosan a puffert.<br>
+    <b>2.</b> <code class="inl">FixedUpdate</code>-ben írsz, <code class="inl">Update</code>-ben olvasol (vagy fordítva):
+    a két ütemező frekvenciája eltér, így torlódás vagy kihagyás léphet fel. Erre valók a 0.17+ óta létező
+    fixed-update-tudatos olvasási minták, vagy egyszerűen tartsd egy ütemezőn belül az író–olvasó párt.
+  </div>
+</section>
+
+<!-- ========================================================= 3. RÉSZ -->
+<section class="chapter" id="pelda-kontextus">
+  <header>
+    <div class="part-tag"><span class="sq v"></span> 3. rész — A példa boncolása</div>
+    <h2>Dual-grid: miért pont 4 tile-t érint egy cella?</h2>
+  </header>
+
+  <p>
+    A boncolandó <code class="inl">refresh_display</code> rendszer egy <strong>dual-grid</strong>
+    (kettős rács) megjelenítőt frissít, ezért egy mondatban tisztázzuk, mi az — enélkül a
+    <code class="inl">flat_map</code>-os „4 tile” rész varázslatnak tűnne.
+  </p>
+  <ul class="plain">
+    <li>A <strong>világrács</strong> (<code class="inl">WorldGrid</code>) tárolja a logikát: melyik cella fű, melyik üres. Ezt módosítja a játékos/szerkesztő.</li>
+    <li>A <strong>kijelzőrács</strong> (display grid) fél tile-lal el van tolva, és a sprite-okat hordozza. Minden kijelző-tile a <em>négy sarokszomszéd</em> világcella állapotából számolja ki, melyik átmeneti (autotile) sprite-ot mutassa — ez a <code class="inl">corner_mask</code>: 4 bit, 16 lehetséges sprite-variáns.</li>
+  </ul>
+
+  <figure class="diagram">
+    <svg viewBox="0 0 760 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A világrács (x,y) cellája és a négy érintett kijelző-tile fél tile-os eltolással">
+      <style>
+        .wg{fill:none;stroke:#2d4258;stroke-width:1}
+        .wcell{fill:rgba(132,217,108,.25);stroke:#84d96c}
+        .dg{fill:none;stroke:#6cc3f0;stroke-width:1;stroke-dasharray:4 3}
+        .dt{fill:rgba(108,195,240,.14);stroke:#6cc3f0;stroke-width:1.6}
+        .lab{font:11px "JetBrains Mono",monospace;fill:#93a6b1}
+        .labg{font:11px "JetBrains Mono",monospace;fill:#84d96c}
+        .labb{font:11px "JetBrains Mono",monospace;fill:#6cc3f0}
+        .ttl{font:600 13px "Pixelify Sans",monospace;fill:#93a6b1;letter-spacing:.05em}
+      </style>
+      <text class="ttl" x="380" y="26" text-anchor="middle">egy világcella változása → 4 kijelző-tile lesz "piszkos"</text>
+      <!-- world grid 5x4, cell 56 -->
+      <g transform="translate(160,50)">
+        <!-- world cells -->
+        <g class="wg">
+          <rect x="0" y="0" width="280" height="224"/>
+          <line x1="56" y1="0" x2="56" y2="224"/><line x1="112" y1="0" x2="112" y2="224"/>
+          <line x1="168" y1="0" x2="168" y2="224"/><line x1="224" y1="0" x2="224" y2="224"/>
+          <line x1="0" y1="56" x2="280" y2="56"/><line x1="0" y1="112" x2="280" y2="112"/>
+          <line x1="0" y1="168" x2="280" y2="168"/>
+        </g>
+        <!-- changed cell (x,y) = grid pos 2,1 -->
+        <rect class="wcell" x="112" y="56" width="56" height="56"/>
+        <text class="labg" x="140" y="88" text-anchor="middle">(x,y)</text>
+        <!-- display grid offset by half tile -->
+        <g class="dg">
+          <line x1="28" y1="-14" x2="28" y2="238"/><line x1="84" y1="-14" x2="84" y2="238"/>
+          <line x1="140" y1="-14" x2="140" y2="238"/><line x1="196" y1="-14" x2="196" y2="238"/>
+          <line x1="252" y1="-14" x2="252" y2="238"/>
+          <line x1="-14" y1="28" x2="294" y2="28"/><line x1="-14" y1="84" x2="294" y2="84"/>
+          <line x1="-14" y1="140" x2="294" y2="140"/><line x1="-14" y1="196" x2="294" y2="196"/>
+        </g>
+        <!-- 4 affected display tiles: centered on the 4 corners of changed cell -->
+        <rect class="dt" x="84"  y="28" width="56" height="56"/>
+        <rect class="dt" x="140" y="28" width="56" height="56"/>
+        <rect class="dt" x="84"  y="84" width="56" height="56"/>
+        <rect class="dt" x="140" y="84" width="56" height="56"/>
+        <text class="labb" x="112" y="48">(x,y)</text>
+        <text class="labb" x="168" y="48">(x+1,y)</text>
+        <text class="labb" x="100" y="132">(x,y+1)</text>
+        <text class="labb" x="156" y="132">(x+1,y+1)</text>
+      </g>
+      <text class="lab" x="160" y="292"> </text>
+      <text class="lab" x="465" y="80">— folytonos: világrács</text>
+      <text class="labb" x="465" y="102">- - szaggatott: kijelzőrács</text>
+      <text class="lab" x="465" y="138">minden kijelző-tile a 4</text>
+      <text class="lab" x="465" y="156">sarok-világcellából számol</text>
+      <text class="lab" x="465" y="174">corner_mask-ot (0..15)</text>
+    </svg>
+    <figcaption>A kijelzőrács fél tile-lal eltolt — ezért minden világcella pontosan 4 kijelző-tile mintájába szól bele.</figcaption>
+  </figure>
+
+  <p>
+    A lényeg üzenet-szempontból: amikor a <code class="inl">(x, y)</code> világcella megváltozik,
+    <strong>nem kell az egész térképet újrarajzolni</strong> — elég pontosan azt a négy kijelző-tile-t,
+    amelynek a sarka az adott cellához ér: <code class="inl">(x,y)</code>, <code class="inl">(x+1,y)</code>,
+    <code class="inl">(x,y+1)</code>, <code class="inl">(x+1,y+1)</code>. A <code class="inl">CellChanged</code>
+    üzenet épp ennyi információt hordoz: a változott cella koordinátáit.
+  </p>
+</section>
+
+<section class="chapter" id="pelda-soronkent">
+  <header>
+    <div class="part-tag"><span class="sq v"></span> 3. rész — A példa boncolása</div>
+    <h2>refresh_display — soronként</h2>
+  </header>
+
+  <p>Itt a teljes rendszer még egyszer, majd darabonként szétszedve:</p>
+
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">display.rs</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">fn refresh_display(
+    mut changed: MessageReader&lt;CellChanged&gt;,
+    grid: Res&lt;WorldGrid&gt;,
+    mut tiles: Query&lt;(&amp;DisplayTile, &amp;mut Sprite)&gt;,
+) {
+    // a (x,y) cella változása ezt a 4 display-tile-t érinti:
+    let dirty: Vec&lt;(i32, i32)&gt; = changed
+        .read()
+        .flat_map(|m| {
+            [
+                (m.x, m.y),
+                (m.x + 1, m.y),
+                (m.x, m.y + 1),
+                (m.x + 1, m.y + 1),
+            ]
+        })
+        .collect();
+
+    if dirty.is_empty() {
+        return; // a legtöbb frame-ben itt kilépünk — olcsó!
+    }
+
+    for (tile, mut sprite) in &amp;mut tiles {
+        if dirty.contains(&amp;(tile.dx, tile.dy)) {
+            if let Some(atlas) = sprite.texture_atlas.as_mut() {
+                atlas.index = corner_mask(&amp;grid, tile.dx, tile.dy);
+            }
+        }
+    }
+}</code></pre>
+  </div>
+
+  <h3>A paraméterlista — mit kér a rendszer a világtól?</h3>
+
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">a szignatúra</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">mut changed: MessageReader&lt;CellChanged&gt;,   // 1.
+grid: Res&lt;WorldGrid&gt;,                      // 2.
+mut tiles: Query&lt;(&amp;DisplayTile, &amp;mut Sprite)&gt;, // 3.</code></pre>
+  </div>
+
+  <ol class="plain">
+    <li>
+      <strong><code class="inl">mut changed: MessageReader&lt;CellChanged&gt;</code></strong> — a bejövő
+      üzenetek. A <code class="inl">mut</code> azért kell, mert a <code class="inl">read()</code> a rendszer
+      saját kurzorát lépteti (a közös puffert nem írja!). Ezért ez a rendszer békésen futhat párhuzamosan
+      bármely más <code class="inl">CellChanged</code>-olvasóval.
+    </li>
+    <li>
+      <strong><code class="inl">grid: Res&lt;WorldGrid&gt;</code></strong> — a világrács <em>aktuális</em>
+      állapota, csak olvasásra. Figyeld meg: az üzenet csak azt mondja meg, <em>hol</em> történt változás —
+      hogy <em>mi</em> az új állapot, azt a rendszer mindig a friss <code class="inl">WorldGrid</code>-ből
+      olvassa ki. Ez a minta („az üzenet a címet hozza, az adatot a forrásból kérjük”) megspórolja az
+      elavult-adat problémákat: ha egy frame-ben ugyanaz a cella kétszer változik, akkor is a végállapot
+      alapján számolunk.
+    </li>
+    <li>
+      <strong><code class="inl">mut tiles: Query&lt;(&amp;DisplayTile, &amp;mut Sprite)&gt;</code></strong> —
+      az összes olyan entitás, amelyen van <code class="inl">DisplayTile</code> (ebben ül a tile
+      <code class="inl">dx</code>, <code class="inl">dy</code> rács-koordinátája) és
+      <code class="inl">Sprite</code> komponens is. A <code class="inl">DisplayTile</code>-t csak olvassuk,
+      a <code class="inl">Sprite</code>-ot írni fogjuk — ezért <code class="inl">&amp;</code> az egyik,
+      <code class="inl">&amp;mut</code> a másik.
+    </li>
+  </ol>
+
+  <h3>1. lépés — üzenetekből „piszkos” tile-lista</h3>
+
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">dirty lista</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">let dirty: Vec&lt;(i32, i32)&gt; = changed
+    .read()                       // iterátor a még nem látott üzenetekre
+    .flat_map(|m| {               // minden üzenetből 4 koordináta lesz...
+        [
+            (m.x, m.y),
+            (m.x + 1, m.y),
+            (m.x, m.y + 1),
+            (m.x + 1, m.y + 1),
+        ]
+    })
+    .collect();                   // ...egyetlen közös Vec-be gyűjtve</code></pre>
+  </div>
+
+  <p>
+    A <code class="inl">read()</code> ad egy iterátort az összes friss üzenetre — ha ebben a frame-ben
+    3 cella változott, 3 üzenet jön. A <code class="inl">flat_map</code> minden üzenetet egy
+    <em>4 elemű tömbbé</em> alakít (a 4 érintett kijelző-tile koordinátája), és a beágyazott tömböket
+    egyetlen lapos iterátorrá fűzi össze: 3 üzenetből így 12 koordináta lesz. A <code class="inl">collect()</code>
+    ezt materializálja egy <code class="inl">Vec</code>-be.
+  </p>
+
+  <div class="note">
+    <b>Miért flat_map és nem map?</b> A <code class="inl">map</code> 1→1 átalakítás: üzenetből
+    <em>tömböt</em> kapnánk, és a végén <code class="inl">Vec&lt;[(i32,i32); 4]&gt;</code>-ünk lenne
+    (tömbök listája). A <code class="inl">flat_map</code> 1→N: a belső tömböket „kilapítja”, így egyenesen
+    koordináta-lista születik. Apró Rust-finomság: a 4 elemű tömb azért adható vissza közvetlenül, mert a
+    tömbök implementálják az <code class="inl">IntoIterator</code>-t.
+  </div>
+
+  <h3>2. lépés — korai kilépés: ettől olcsó az egész</h3>
+
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">early return</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">if dirty.is_empty() {
+    return; // a legtöbb frame-ben itt kilépünk — olcsó!
+}</code></pre>
+  </div>
+
+  <p>
+    Ez a sor a minta szíve. A rendszer <strong>minden frame-ben lefut</strong> (60 FPS-nél másodpercenként
+    hatvanszor), de a térkép a frame-ek elsöprő többségében nem változik. Ilyenkor a <code class="inl">read()</code>
+    üres iterátort ad, a <code class="inl">dirty</code> üres, és a rendszer néhány tucat utasítás után
+    visszatér — <em>a tile-okon végig sem megyünk</em>. A költséges rész (Query-bejárás, maszk-számítás)
+    csak akkor fut, amikor tényleg van dolga. Üzenet nélkül ehhez minden frame-ben a teljes rácsot kellene
+    átvizsgálni „változott-e valami?” — pontosan ezt a pollozást váltja ki az üzenetrendszer.
+  </p>
+
+  <h3>3. lépés — az érintett sprite-ok átállítása</h3>
+
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">a frissítő ciklus</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">for (tile, mut sprite) in &amp;mut tiles {
+    if dirty.contains(&amp;(tile.dx, tile.dy)) {
+        if let Some(atlas) = sprite.texture_atlas.as_mut() {
+            atlas.index = corner_mask(&amp;grid, tile.dx, tile.dy);
+        }
+    }
+}</code></pre>
+  </div>
+
+  <ul class="plain">
+    <li>
+      <strong><code class="inl">for ... in &amp;mut tiles</code></strong> — végigmegyünk <em>minden</em>
+      kijelző-tile entitáson. A <code class="inl">&amp;mut</code> a Query-n azért kell, mert írható
+      (<code class="inl">Mut&lt;Sprite&gt;</code>) hozzáférést akarunk a elemekhez.
+    </li>
+    <li>
+      <strong><code class="inl">dirty.contains(&amp;(tile.dx, tile.dy))</code></strong> — csak az a tile
+      érdekes, amelynek koordinátája szerepel a piszkos listában. (Ugyanaz a koordináta többször is
+      szerepelhet a listában, ha két szomszédos cella változott — nem baj, a <code class="inl">contains</code>-nek
+      ez mindegy, a tile-t így is csak egyszer frissítjük, hiszen egyszer járunk nála.)
+    </li>
+    <li>
+      <strong><code class="inl">sprite.texture_atlas.as_mut()</code></strong> — a <code class="inl">Sprite</code>
+      komponensben a <code class="inl">texture_atlas</code> mező <code class="inl">Option&lt;TextureAtlas&gt;</code>:
+      csak akkor van, ha a sprite atlaszból (sprite sheet-ből) dolgozik. Az <code class="inl">if let Some(...)</code>
+      + <code class="inl">as_mut()</code> páros írható referenciát ad a belsejére, ha létezik — sima tile-oknál
+      ez mindig a <code class="inl">Some</code> ág.
+    </li>
+    <li>
+      <strong><code class="inl">atlas.index = corner_mask(&amp;grid, ...)</code></strong> — a tényleges
+      „újrarajzolás”: a <code class="inl">corner_mask</code> megnézi a tile négy sarok-világcelláját a
+      friss <code class="inl">grid</code>-ben, és visszaadja a 0–15 közötti maszkot, ami egyben az
+      atlaszbeli sprite-variáns sorszáma. Nem cserélünk textúrát, nem spawnolunk semmit — egyetlen
+      <code class="inl">usize</code> mező átírásával a renderer a következő frame-ben már az új
+      kivágatot rajzolja.
+    </li>
+  </ul>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>Change Detection — ingyen kapott ráadás</h4>
+    <p>
+      Mivel a <code class="inl">Sprite</code>-hoz <code class="inl">Mut</code>-on keresztül nyúlunk hozzá,
+      a Bevy automatikusan „megváltozott”-nak jelöli azokat a komponenseket, amikbe tényleg beleírtunk.
+      Egy későbbi, <code class="inl">Changed&lt;Sprite&gt;</code> szűrős rendszer így csak a frissített
+      tile-okkal foglalkozik. És fordítva: ha a ciklusban <em>nem</em> írunk bele egy sprite-ba (mert nem
+      dirty), az nem is jelölődik meg — ezért is jó, hogy a <code class="inl">contains</code>-ellenőrzés
+      <em>az írás előtt</em> történik.
+    </p>
+  </div>
+
+  <h3>A teljes lánc, madártávlatból</h3>
+  <ol class="plain">
+    <li>A szerkesztő rendszer átbillent egy cellát a <code class="inl">WorldGrid</code>-ben, és ír egy <code class="inl">CellChanged { x, y }</code> üzenetet.</li>
+    <li>(Ugyanebben vagy a következő frame-ben, a <a class="inline" href="#sorrend">sorrendtől</a> függően:) a <code class="inl">refresh_display</code> kiolvassa az üzenetet.</li>
+    <li>Az üzenetből kiszámolja a 4 érintett kijelző-tile koordinátáját.</li>
+    <li>A Query-ből kikeresi ezeket a tile-okat, és a friss rács alapján új <code class="inl">corner_mask</code> sprite-indexet ír beléjük.</li>
+    <li>A renderer a következő rajzolásnál már az új indexű atlasz-kivágatot mutatja.</li>
+  </ol>
+</section>
+
+<section class="chapter" id="teljesitmeny">
+  <header>
+    <div class="part-tag"><span class="sq v"></span> 3. rész — A példa boncolása</div>
+    <h2>Teljesítmény: mikor elég ez, és hogyan tovább?</h2>
+  </header>
+
+  <p>Számoljuk ki a költségét. Legyen <code class="inl">T</code> a kijelző-tile-ok száma, <code class="inl">M</code> a frame-ben érkezett üzeneteké (a dirty lista hossza <code class="inl">D = 4·M</code>):</p>
+
+  <table class="tbl">
+    <thead><tr><th>Eset</th><th>Költség</th><th>Megjegyzés</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Nincs üzenet (tipikus frame)</td>
+        <td><code>O(1)</code></td>
+        <td>üres <code>read()</code> + <code>is_empty()</code> + return</td>
+      </tr>
+      <tr>
+        <td>Van üzenet</td>
+        <td><code>O(T · D)</code></td>
+        <td>minden tile-ra lineáris <code>contains</code> a D elemű Vec-ben</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Kézi szerkesztésnél (<code class="inl">M</code> = 1–2 kattintás frame-enként) ez tökéletes:
+    egy 100×100-as kijelzőrácsnál is 10&nbsp;000 × 8 tuple-összehasonlítás, ami mikroszekundumos
+    nagyságrend. <strong>Ne optimalizáld, amíg nem fáj.</strong> Ha viszont egyszerre sok cella változik
+    (térképgenerálás, robbanás, „varázslat letarol egy területet”), két csavar kínálkozik:
+  </p>
+
+  <h3>1. csavar — HashSet a Vec helyett</h3>
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">O(T·D) → O(T)</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">use bevy::platform::collections::HashSet;
+
+let dirty: HashSet&lt;(i32, i32)&gt; = changed
+    .read()
+    .flat_map(|m| [ (m.x, m.y), (m.x + 1, m.y),
+                    (m.x, m.y + 1), (m.x + 1, m.y + 1) ])
+    .collect();
+// ... a ciklusban a dirty.contains(...) innentől átlagosan O(1)</code></pre>
+  </div>
+  <p>
+    Egyetlen típuscsere — a <code class="inl">collect()</code> ugyanúgy működik, a <code class="inl">contains</code>
+    hash-alapú lesz, ráadásul a duplikátumok maguktól kiesnek. Ez a „még mindig egysoros” optimalizáció.
+  </p>
+
+  <h3>2. csavar — fordított irány: koordinátáról entitásra</h3>
+  <p>
+    A fenti még mindig <em>minden</em> tile-on végigmegy, csak gyorsabban szűr. A nagyágyú: tarts karban
+    egy keresőtáblát koordináta → entitás irányban, és csak az érintett tile-okhoz nyúlj:
+  </p>
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">O(D) — a rács méretétől független</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">#[derive(Resource, Default)]
+struct DisplayIndex(HashMap&lt;(i32, i32), Entity&gt;); // spawn-kor töltjük fel
+
+fn refresh_display(
+    mut changed: MessageReader&lt;CellChanged&gt;,
+    grid: Res&lt;WorldGrid&gt;,
+    index: Res&lt;DisplayIndex&gt;,
+    mut tiles: Query&lt;&amp;mut Sprite, With&lt;DisplayTile&gt;&gt;,
+) {
+    for m in changed.read() {
+        for (dx, dy) in [ (m.x, m.y), (m.x + 1, m.y),
+                          (m.x, m.y + 1), (m.x + 1, m.y + 1) ] {
+            let Some(&amp;entity) = index.0.get(&amp;(dx, dy)) else { continue };
+            let Ok(mut sprite) = tiles.get_mut(entity) else { continue };
+            if let Some(atlas) = sprite.texture_atlas.as_mut() {
+                atlas.index = corner_mask(&amp;grid, dx, dy);
+            }
+        }
+    }
+}</code></pre>
+  </div>
+  <p>
+    Itt a <code class="inl">Query::get_mut(entity)</code> célzottan, bejárás nélkül éri el az adott entitás
+    komponensét. Ára: a <code class="inl">DisplayIndex</code>-et karban kell tartani (spawn/despawn-nál) —
+    plusz egy hibalehetőség. Ezért érdemes az egyszerű Vec-es változattal <em>kezdeni</em>, és csak mérés
+    után lépni: pont ezt az utat járja a kiinduló kódunk is.
+  </p>
+</section>
+
+<section class="chapter" id="observerek">
+  <header>
+    <div class="part-tag"><span class="sq v"></span> 3. rész — A példa boncolása</div>
+    <h2>Üzenet vagy Observer? — a döntési térkép</h2>
+  </header>
+
+  <p>
+    A 0.17 óta a Bevy-ben két „eseményszerű” mechanizmus él egymás mellett, és kezdőként a leggyakoribb
+    kérdés: <em>mikor melyik?</em>
+  </p>
+
+  <table class="tbl">
+    <thead><tr><th></th><th>Message (pufferelt)</th><th>Event + Observer</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Mikor fut a kezelő?</strong></td>
+        <td>amikor az olvasó rendszer sorra kerül az ütemezésben (pull)</td>
+        <td>azonnal, a <code>trigger</code> hívásakor (push)</td>
+      </tr>
+      <tr>
+        <td><strong>Kötegelés</strong></td>
+        <td>természetes: egy frame összes üzenete egyben jön — a dirty-lista minta erre épül</td>
+        <td>nincs: minden trigger külön kezelőfutás</td>
+      </tr>
+      <tr>
+        <td><strong>Hány fogadó?</strong></td>
+        <td>akárhány olvasó rendszer, mind mindent lát</td>
+        <td>akárhány observer; entitáshoz célozható (<code>On&lt;T&gt;</code>), buborékolhat</td>
+      </tr>
+      <tr>
+        <td><strong>Latencia</strong></td>
+        <td>0–1 frame (sorrendtől függően)</td>
+        <td>0 — még az ugyanazon függvényen belül lefut</td>
+      </tr>
+      <tr>
+        <td><strong>Tipikus eset</strong></td>
+        <td>folyamatos jellegű jelzések: sebzés-tickek, cellaváltozások, input-szándékok</td>
+        <td>ritka, azonnali reakciót kívánó esetek: entitás spawn/despawn-hoz kötött logika, UI-kattintás</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    A mi esetünkre a <strong>Message a jó választás</strong>, három okból is: <strong>(1)</strong> a frissítés
+    nem sürgős frame-en belül — ráér, amikor a <code class="inl">refresh_display</code> sorra kerül;
+    <strong>(2)</strong> a kötegelés kifejezetten előny — tíz cellaváltozásból egyetlen Query-bejárással
+    lesz frissítés, observerrel tíz külön futás lenne; <strong>(3)</strong> a feldolgozásnak saját
+    paraméterigénye van (<code class="inl">Res&lt;WorldGrid&gt;</code>, Query), amit rendszerként
+    kényelmes kifejezni.
+  </p>
+
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">összehasonlításul: ugyanez observerrel (nem ajánlott itt)</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">#[derive(Event)]
+struct CellChangedEvent { x: i32, y: i32 }
+
+// kiváltás (pl. a szerkesztő rendszerben):
+commands.trigger(CellChangedEvent { x, y });
+
+// kezelő — MINDEN triggerre azonnal, külön-külön lefut:
+app.add_observer(|ev: On&lt;CellChangedEvent&gt;,
+                  grid: Res&lt;WorldGrid&gt;,
+                  mut tiles: Query&lt;(&amp;DisplayTile, &amp;mut Sprite)&gt;| {
+    // nincs kötegelés: 10 cellaváltozás = 10 teljes Query-bejárás
+});</code></pre>
+  </div>
+</section>
+
+<!-- ========================================================= 4. RÉSZ -->
+<section class="chapter" id="sandbox">
+  <header>
+    <div class="part-tag"><span class="sq g"></span> 4. rész — Gyakorlat</div>
+    <h2>Sandbox: üzenetek élőben, frame-enként</h2>
+  </header>
+
+  <p>
+    Ez a kis szimulátor a tutorial teljes gépezetét egyetlen képernyőre teszi.
+    <strong>Kattints a rácsra:</strong> a kattintás az „író rendszer” — átbillenti a világcellát és
+    <code class="inl">CellChanged</code> üzenetet ír a friss pufferbe. A kijelző viszont <em>csak akkor</em>
+    frissül, amikor a <code class="inl">refresh_display</code> olvasó rendszer lefut — lépkedj a
+    <span class="kbd">Frame léptetés</span> gombbal, vagy engedd el automatikusan.
+  </p>
+  <ul class="plain">
+    <li>A rács alatt a <strong>két puffer</strong> élő tartalmát látod: friss üzenetek a jobb (elülső) oldalon születnek, a frame eleji cserével balra öregszenek, majd eltűnnek.</li>
+    <li>Az áthúzott üzenetpirulák azok, amiket a <code class="inl">refresh_display</code> kurzora már maga mögött hagyott.</li>
+    <li>Kapcsold ki az olvasó rendszert, kattintgass, lépj 2+ frame-et, majd kapcsold vissza: a kimaradt üzenetek <strong>elvesztek</strong>, a kijelző ott örökre elavult marad (★ jelöli) — amíg egy újabb változás nem érinti.</li>
+  </ul>
+
+  <div class="sandbox">
+    <div class="sandbox-head">
+      <span class="t">■ MESSAGE SANDBOX</span>
+      <span class="hint">kattints a rácsra · léptesd a frame-eket</span>
+    </div>
+    <div class="sandbox-body">
+      <div class="sandbox-canvas-wrap">
+        <canvas id="sbx" width="560" height="392" aria-label="Dual-grid szimulátor: kattintásra cellák változnak, üzenetek születnek"></canvas>
+        <div class="mq-wrap">
+          <div class="phase-strip" id="phaseStrip">
+            <div class="phase" data-ph="0">First · puffercsere</div>
+            <div class="phase" data-ph="1">Update · írók</div>
+            <div class="phase" data-ph="2">Update · refresh_display</div>
+          </div>
+          <div style="height:10px"></div>
+          <div class="mq">
+            <div class="mq-buf" id="bufA">
+              <h6>messages_a · előző frame <span class="cnt" id="bufACnt">0</span></h6>
+              <div id="bufABody"><span class="mq-empty">üres</span></div>
+            </div>
+            <div class="mq-buf front" id="bufB">
+              <h6>messages_b · ide ír a writer <span class="cnt" id="bufBCnt">0</span></h6>
+              <div id="bufBBody"><span class="mq-empty">üres</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="sandbox-side">
+        <h5>Vezérlés</h5>
+        <div class="btn-row">
+          <button class="btn primary" id="btnStep">Frame léptetés ▸</button>
+          <button class="btn" id="btnAuto" aria-pressed="false">Auto (1 fps)</button>
+        </div>
+        <div style="height:8px"></div>
+        <div class="btn-row">
+          <button class="btn" id="btnReset">Alaphelyzet</button>
+        </div>
+
+        <h5>Rendszerek</h5>
+        <label><input type="checkbox" id="cbReader" checked> <code class="inl">refresh_display</code> fut</label>
+        <label><input type="checkbox" id="cbDirty" checked> dirty tile-ok kiemelése</label>
+        <label><input type="checkbox" id="cbGrid" checked> kijelzőrács mutatása</label>
+
+        <h5>Számlálók</h5>
+        <div class="dbg" id="dbgOut">frame      <span class="v">0</span>
+írt        <span class="v">0</span>
+olvasott   <span class="g">0</span>
+elveszett  <span class="c">0</span></div>
+
+        <h5>Jelmagyarázat</h5>
+        <div class="legend">
+          <span class="lsw" style="background:#84d96c"></span><span>fű (világcella bekapcsolva)</span>
+          <span class="lsw" style="background:#1b2733"></span><span>üres világcella</span>
+          <span class="lsw" style="background:rgba(108,195,240,.55)"></span><span>dirty kijelző-tile (most frissült)</span>
+          <span class="lsw" style="background:#3a2530;border-color:#ef8472"></span><span>★ elavult tile (üzenete elveszett)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p>
+    Három kísérlet, amit érdemes elvégezni:
+  </p>
+  <ol class="plain">
+    <li><strong>Normál működés:</strong> kattints egy cellára, és lépj egy frame-et. Figyeld meg, hogy az üzenet előbb a <code class="inl">messages_b</code>-ben jelenik meg, a kijelző pedig az olvasó fázisában vált — a frissült 4 tile felvillan.</li>
+    <li><strong>Két frame-es élettartam:</strong> kapcsold ki az olvasót, kattints, és lépkedj. Az üzenet az első cserénél átkerül <code class="inl">messages_a</code>-ba, a másodiknál nyomtalanul eltűnik — az „elveszett” számláló nő, a tile ★-gal elavult marad.</li>
+    <li><strong>Kötegelés:</strong> kattints gyorsan 4–5 cellára egy frame-en belül (léptetés nélkül), majd lépj egyet. Az olvasó <em>egyetlen futással</em>, egy dirty-listával frissíti az összes érintett tile-t — pont mint a <code class="inl">flat_map</code> + <code class="inl">collect</code> a kódban.</li>
+  </ol>
+</section>
+
+<section class="chapter" id="osszefoglalas">
+  <header>
+    <div class="part-tag"><span class="sq g"></span> 4. rész — Gyakorlat</div>
+    <h2>Összefoglalás</h2>
+  </header>
+
+  <p>A teljes kép, hat mondatban:</p>
+  <ol class="plain">
+    <li>Az üzenet (<code class="inl">Message</code>) rendszerek közti laza csatolású, <strong>pufferelt</strong> kommunikáció: az író nem ismeri az olvasót, és fordítva.</li>
+    <li>Három alkatrész: <code class="inl">#[derive(Message)]</code> + <code class="inl">app.add_message::&lt;T&gt;()</code> + <code class="inl">MessageWriter</code>/<code class="inl">MessageReader</code> paraméterek. (0.16-ban ugyanez <code class="inl">Event</code> néven futott.)</li>
+    <li>A háttérben <strong>kettős puffer</strong> dolgozik: a <code class="inl">First</code> ütemezőben frame-enként egyszer cserélődik, így minden üzenet legalább 1, legfeljebb 2 frame-ig él.</li>
+    <li>Minden olvasó rendszer <strong>saját kurzorral</strong> halad — mindenki minden üzenetet pontosan egyszer lát, és az olvasók párhuzamosan futhatnak.</li>
+    <li>Az író–olvasó <strong>sorrend</strong> dönti el, hogy 0 vagy 1 frame a késleltetés — ha számít, rögzítsd <code class="inl">.chain()</code>-nel; és vigyázz a nem minden frame-ben futó olvasókkal, mert náluk üzenet veszhet.</li>
+    <li>A <code class="inl">refresh_display</code> a tankönyvi minta: üzenetekből <strong>dirty-lista</strong>, üres listánál azonnali return, különben célzott frissítés a friss állapot (<code class="inl">Res&lt;WorldGrid&gt;</code>) alapján.</li>
+  </ol>
+
+  <h3>Merre tovább?</h3>
+  <div class="outro-grid">
+    <div class="px-box">
+      <h4>Observerek mélyebben</h4>
+      <p>Entitásra célzott <code class="inl">On&lt;T&gt;</code> eseménykezelők, propagáció, lifecycle-események (<code class="inl">Add</code>, <code class="inl">Remove</code>) — a push-oldali világ.</p>
+    </div>
+    <div class="px-box">
+      <h4>Saját üzenettípus-készlet</h4>
+      <p>Tervezz a játékodhoz üzenet-szótárat: <code class="inl">DamageDealt</code>, <code class="inl">ItemPickedUp</code>, <code class="inl">TileInteracted</code> — és figyeld, mennyivel könnyebb új rendszert bekötni.</p>
+    </div>
+    <div class="px-box">
+      <h4>Üzenetek és state-ek</h4>
+      <p>Mi történjen a pufferrel state-váltáskor? Ürítés, átjátszás, vagy mindig futó olvasó — próbáld ki mindhármat egy menü/játék váltásnál.</p>
+    </div>
+    <div class="px-box">
+      <h4>Mérés</h4>
+      <p>Kösd be a <code class="inl">bevy diagnostic</code> plugint vagy a Tracy-t, és nézd meg, mennyit „költ” a refresh_display üres és terhelt frame-eken.</p>
+    </div>
+  </div>
+</section>
+
+<footer class="page-foot">
+  <div class="px">■ Üzenetek Bevy-ben — tutorial</div>
+  <div>Bevy 0.17+ · egyetlen HTML fájl · offline is működik</div>
+</footer>
+
+</div>
+</main>
+</div>
+
+<script>
+/* ============ nav toggle + scrollspy + rust highlighter + hero ============ */
+(function(){
+  // mobile nav
+  var toggle = document.getElementById('navToggle');
+  var sidebar = document.getElementById('sidebar');
+  toggle.addEventListener('click', function(){ sidebar.classList.toggle('open'); });
+  sidebar.addEventListener('click', function(e){
+    if (e.target.tagName === 'A' && window.innerWidth <= 980) sidebar.classList.remove('open');
+  });
+
+  // scrollspy
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  var sections = links.map(function(a){ return document.querySelector(a.getAttribute('href')); }).filter(Boolean);
+  function setActive(id){
+    links.forEach(function(a){ a.classList.toggle('active', a.getAttribute('href') === '#' + id); });
+  }
+  if ('IntersectionObserver' in window) {
+    var visible = {};
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){ visible[en.target.id] = en.isIntersecting; });
+      for (var i = 0; i < sections.length; i++) {
+        if (visible[sections[i].id]) { setActive(sections[i].id); return; }
+      }
+    }, { rootMargin: '-15% 0px -70% 0px' });
+    sections.forEach(function(s){ io.observe(s); });
+  }
+  window.addEventListener('scroll', function(){
+    var y = window.scrollY + window.innerHeight * 0.25;
+    var cur = sections[0] && sections[0].id;
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].offsetTop <= y) cur = sections[i].id;
+    }
+    if (cur) setActive(cur);
+  }, { passive: true });
+
+  // ---------- minimal Rust highlighter ----------
+  var KW = ['fn','let','mut','pub','use','struct','enum','impl','for','in','if','else','match','return','while','loop','continue','break','as','ref','move','where','trait','type','const','static','mod','crate','self','Self','dyn','async','await','unsafe'];
+  var kwSet = {}; KW.forEach(function(k){ kwSet[k] = 1; });
+
+  function hlRust(src){
+    var out = '';
+    var i = 0, n = src.length;
+    function isIdent(c){ return /[A-Za-z0-9_]/.test(c); }
+    while (i < n) {
+      var c = src[i];
+      // entities already escaped in source (&lt; etc) — copy through
+      if (c === '&') {
+        var semi = src.indexOf(';', i);
+        if (semi > -1 && semi - i <= 6) { out += src.slice(i, semi + 1); i = semi + 1; continue; }
+      }
+      // comments
+      if (c === '/' && src[i+1] === '/') {
+        var e = src.indexOf('\n', i); if (e === -1) e = n;
+        out += '<span class="tk-cm">' + src.slice(i, e) + '</span>'; i = e; continue;
+      }
+      // strings
+      if (c === '"') {
+        var j = i + 1;
+        while (j < n && src[j] !== '"') { if (src[j] === '\\') j++; j++; }
+        j = Math.min(j + 1, n);
+        out += '<span class="tk-st">' + src.slice(i, j) + '</span>'; i = j; continue;
+      }
+      // attributes #[...]
+      if (c === '#' && src[i+1] === '[') {
+        var k2 = src.indexOf(']', i); if (k2 === -1) k2 = n - 1;
+        out += '<span class="tk-at">' + src.slice(i, k2 + 1) + '</span>'; i = k2 + 1; continue;
+      }
+      // lifetimes
+      if (c === "'" && /[a-z_]/.test(src[i+1] || '') && src[i+2] !== "'") {
+        var j2 = i + 1; while (j2 < n && isIdent(src[j2])) j2++;
+        out += '<span class="tk-lf">' + src.slice(i, j2) + '</span>'; i = j2; continue;
+      }
+      // numbers
+      if (/[0-9]/.test(c) && !isIdent(src[i-1] || '')) {
+        var j3 = i; while (j3 < n && /[0-9_.xa-fA-F]/.test(src[j3])) j3++;
+        out += '<span class="tk-nb">' + src.slice(i, j3) + '</span>'; i = j3; continue;
+      }
+      // identifiers
+      if (/[A-Za-z_]/.test(c)) {
+        var j4 = i; while (j4 < n && isIdent(src[j4])) j4++;
+        var w = src.slice(i, j4);
+        var nxt = src[j4];
+        if (nxt === '!') { out += '<span class="tk-mc">' + w + '!</span>'; i = j4 + 1; continue; }
+        if (kwSet[w]) out += '<span class="tk-kw">' + w + '</span>';
+        else if (/^[A-Z]/.test(w)) out += '<span class="tk-ty">' + w + '</span>';
+        else if (nxt === '(') out += '<span class="tk-fn">' + w + '</span>';
+        else out += w;
+        i = j4; continue;
+      }
+      out += c; i++;
+    }
+    return out;
+  }
+  document.querySelectorAll('code.lang-rust').forEach(function(block){
+    block.innerHTML = hlRust(block.innerHTML);
+  });
+
+  // ---------- hero canvas: envelopes traveling writer -> buffer -> reader ----------
+  var cv = document.getElementById('heroCv');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function px(x, y, w, h, col){ ctx.fillStyle = col; ctx.fillRect(Math.round(x), Math.round(y), w, h); }
+  // pixel envelope: 14x10
+  function drawEnv(x, y, alpha){
+    ctx.globalAlpha = alpha;
+    px(x, y, 14, 10, '#6cc3f0');
+    px(x+1, y+1, 12, 8, '#0d1218');
+    px(x+1, y+1, 12, 1, '#6cc3f0');
+    // flap
+    for (var k = 0; k < 6; k++) px(x+1+k, y+1+k* .8, 1, 1, '#bfe3f7');
+    for (var k2 = 0; k2 < 6; k2++) px(x+12-k2, y+1+k2*.8, 1, 1, '#bfe3f7');
+    ctx.globalAlpha = 1;
+  }
+  function box(x, y, w, h, label, col){
+    ctx.strokeStyle = col; ctx.lineWidth = 1;
+    ctx.strokeRect(x + .5, y + .5, w, h);
+    ctx.fillStyle = col;
+    ctx.font = '8px "Pixelify Sans", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, x + w/2, y - 4);
+  }
+  var msgs = [];
+  var t = 0;
+  function spawnMsg(){ msgs.push({ p: 0 }); }
+  spawnMsg();
+  function frame(){
+    t++;
+    ctx.fillStyle = '#0d1218'; ctx.fillRect(0, 0, W, H);
+    // lanes
+    box(14, 30, 80, 44, 'WRITER', '#f0b35e');
+    box(140, 18, 120, 30, 'messages_b', '#6cc3f0');
+    box(140, 58, 120, 30, 'messages_a', '#33688a');
+    box(300, 30, 66, 44, 'READER', '#84d96c');
+    // writer gear blink
+    px(44, 44, 16, 16, (t % 60 < 30) ? '#f0b35e' : '#8a6a3c');
+    // reader eye
+    px(324, 44, 16, 16, '#84d96c');
+    px(328 + ((t/30|0) % 2) * 4, 50, 4, 4, '#0d1218');
+    if (!reduce && t % 110 === 0) spawnMsg();
+    msgs.forEach(function(m){ m.p += reduce ? 0 : 0.35; });
+    msgs = msgs.filter(function(m){ return m.p < 320; });
+    msgs.forEach(function(m){
+      var x, y, a = 1;
+      if (m.p < 90) { x = 60 + m.p; y = 28; }                  // writer -> buffer b
+      else if (m.p < 150) { x = 150 + (m.p - 90); y = 28; }    // inside buffer b
+      else if (m.p < 190) { x = 210; y = 28 + (m.p - 150);  }  // drop to buffer a (swap)
+      else if (m.p < 280) { x = 210 + (m.p - 190); y = 66; }   // buffer a -> reader
+      else { x = 300 + (m.p - 280); y = 66; a = 1 - (m.p - 280) / 40; }
+      drawEnv(x, y, Math.max(0, a));
+    });
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+
+<script>
+/* ===================== MESSAGE SANDBOX ===================== */
+(function(){
+  var cv = document.getElementById('sbx');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+
+  // ---- world / display grid model (mirrors the Rust example) ----
+  var GW = 9, GH = 6;            // world cells
+  var DW = GW + 1, DH = GH + 1;  // display tiles (dual grid, +1 each way)
+  var CELL = 56;                 // px per world cell on canvas
+  var OX = 28, OY = 28;          // canvas margin = half cell, so display grid starts at 0
+
+  var world, shown, stale, dirtyNow;
+  // message system state
+  var bufA, bufB, msgCount, cursor, frameNo, phase;
+  var stats;
+
+  function freshWorld(){
+    var w = [];
+    for (var y = 0; y < GH; y++) {
+      var row = [];
+      for (var x = 0; x < GW; x++) {
+        // a small starting island of grass
+        row.push((x >= 2 && x <= 5 && y >= 1 && y <= 3) ? 1 : 0);
+      }
+      w.push(row);
+    }
+    return w;
+  }
+  function cornerMask(g, dx, dy){
+    function at(x, y){
+      if (x < 0 || y < 0 || x >= GW || y >= GH) return 0;
+      return g[y][x];
+    }
+    // display tile (dx,dy) samples the 4 world cells whose corner it sits on
+    return (at(dx-1, dy-1) << 3) | (at(dx, dy-1) << 2) | (at(dx-1, dy) << 1) | at(dx, dy);
+  }
+  function computeShown(){
+    var s = [];
+    for (var dy = 0; dy < DH; dy++) {
+      var row = [];
+      for (var dx = 0; dx < DW; dx++) row.push(cornerMask(world, dx, dy));
+      s.push(row);
+    }
+    return s;
+  }
+  function reset(){
+    world = freshWorld();
+    shown = computeShown();          // display state = what the player sees
+    stale = {};                      // "★" tiles whose update message was lost
+    dirtyNow = {};                   // tiles refreshed this frame (flash)
+    bufA = []; bufB = [];
+    msgCount = 0; cursor = 0;
+    frameNo = 0; phase = -1;
+    stats = { written: 0, read: 0, lost: 0 };
+    render(); renderQueues(); renderDbg(); setPhase(-1);
+  }
+
+  // ---- "systems" ----
+  function writerClick(x, y){
+    world[y][x] = 1 - world[y][x];
+    msgCount++;
+    bufB.push({ id: msgCount, x: x, y: y });
+    stats.written++;
+    // mark the 4 affected display tiles as out-of-date until a reader refreshes them
+    affected(x, y).forEach(function(c){
+      var key = c[0] + ',' + c[1];
+      if (shown[c[1]][c[0]] !== cornerMask(world, c[0], c[1])) stale[key] = true;
+      else delete stale[key];
+    });
+    render(); renderQueues(); renderDbg();
+  }
+  function affected(x, y){
+    return [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]];
+  }
+  function messageUpdateSystem(){
+    // anything still unread in bufA is lost forever
+    bufA.forEach(function(m){ if (m.id > cursor) stats.lost++; });
+    bufA = bufB;
+    bufB = [];
+  }
+  function refreshDisplaySystem(){
+    dirtyNow = {};
+    var unread = bufA.concat(bufB).filter(function(m){ return m.id > cursor; });
+    if (unread.length) cursor = Math.max.apply(null, unread.map(function(m){ return m.id; }));
+    if (!unread.length) return; // <- the cheap early-exit
+    var dirty = [];
+    unread.forEach(function(m){ dirty = dirty.concat(affected(m.x, m.y)); });
+    dirty.forEach(function(c){
+      var dx = c[0], dy = c[1];
+      shown[dy][dx] = cornerMask(world, dx, dy);
+      dirtyNow[dx + ',' + dy] = true;
+      delete stale[dx + ',' + dy];
+    });
+    stats.read += unread.length;
+  }
+
+  // ---- frame stepping with visible phases ----
+  var stepping = false;
+  function stepFrame(done){
+    if (stepping) return;
+    stepping = true;
+    frameNo++;
+    var readerOn = document.getElementById('cbReader').checked;
+    setPhase(0);
+    messageUpdateSystem();
+    renderQueues(); renderDbg();
+    setTimeout(function(){
+      setPhase(1); // writers would run here (clicks happen between frames in this sim)
+      setTimeout(function(){
+        setPhase(2);
+        if (readerOn) refreshDisplaySystem();
+        render(); renderQueues(); renderDbg();
+        setTimeout(function(){
+          setPhase(-1);
+          dirtyNow = {}; // flash only during the frame step
+          render();
+          stepping = false;
+          if (done) done();
+        }, 260);
+      }, 180);
+    }, 180);
+  }
+  function setPhase(p){
+    phase = p;
+    document.querySelectorAll('#phaseStrip .phase').forEach(function(el){
+      el.classList.toggle('on', +el.getAttribute('data-ph') === p);
+    });
+  }
+
+  // ---- rendering ----
+  var COL = {
+    bgEmpty: '#1b2733', grass: '#84d96c', grassDark: '#5fae4b',
+    gridLine: 'rgba(108,195,240,.28)', worldLine: '#22303d',
+    dirty: 'rgba(108,195,240,.55)', staleBg: 'rgba(239,132,114,.16)', staleMark: '#ef8472'
+  };
+  function render(){
+    var showGrid = document.getElementById('cbGrid').checked;
+    var showDirty = document.getElementById('cbDirty').checked;
+    ctx.fillStyle = '#0b1016';
+    ctx.fillRect(0, 0, cv.width, cv.height);
+
+    // display tiles: draw each as 4 quadrants from its mask (TL,TR,BL,BR bits)
+    for (var dy = 0; dy < DH; dy++) {
+      for (var dx = 0; dx < DW; dx++) {
+        var m = shown[dy][dx];
+        var cxp = OX + dx * CELL - CELL / 2;
+        var cyp = OY + dy * CELL - CELL / 2;
+        var h = CELL / 2;
+        quad(cxp,     cyp,     h, (m >> 3) & 1, dx + dy); // TL
+        quad(cxp + h, cyp,     h, (m >> 2) & 1, dx + dy); // TR
+        quad(cxp,     cyp + h, h, (m >> 1) & 1, dx + dy); // BL
+        quad(cxp + h, cyp + h, h,  m       & 1, dx + dy); // BR
+        var key = dx + ',' + dy;
+        if (stale[key]) {
+          ctx.fillStyle = COL.staleBg;
+          ctx.fillRect(cxp, cyp, CELL, CELL);
+          ctx.fillStyle = COL.staleMark;
+          ctx.font = '14px "Pixelify Sans", monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('★', cxp + CELL / 2, cyp + CELL / 2 + 5);
+        }
+        if (showDirty && dirtyNow[key]) {
+          ctx.strokeStyle = COL.dirty; ctx.lineWidth = 3;
+          ctx.strokeRect(cxp + 1.5, cyp + 1.5, CELL - 3, CELL - 3);
+        }
+      }
+    }
+    // world grid lines (solid)
+    ctx.strokeStyle = COL.worldLine; ctx.lineWidth = 1;
+    for (var x = 0; x <= GW; x++) line(OX + x * CELL, OY, OX + x * CELL, OY + GH * CELL);
+    for (var y = 0; y <= GH; y++) line(OX, OY + y * CELL, OX + GW * CELL, OY + y * CELL);
+    // display grid (dashed)
+    if (showGrid) {
+      ctx.strokeStyle = COL.gridLine;
+      ctx.setLineDash([4, 4]);
+      for (var dx2 = 0; dx2 <= DW; dx2++) line(OX + dx2 * CELL - CELL / 2, 0, OX + dx2 * CELL - CELL / 2, cv.height);
+      for (var dy2 = 0; dy2 <= DH; dy2++) line(0, OY + dy2 * CELL - CELL / 2, cv.width, OY + dy2 * CELL - CELL / 2);
+      ctx.setLineDash([]);
+    }
+  }
+  function quad(x, y, s, on, seed){
+    ctx.fillStyle = on ? ((seed % 2) ? COL.grass : COL.grassDark) : COL.bgEmpty;
+    ctx.fillRect(x, y, s, s);
+  }
+  function line(x1, y1, x2, y2){
+    ctx.beginPath(); ctx.moveTo(x1 + .5, y1 + .5); ctx.lineTo(x2 + .5, y2 + .5); ctx.stroke();
+  }
+
+  function pill(m){
+    var read = m.id <= cursor;
+    return '<span class="msg-pill' + (read ? ' read' : ' fresh') + '">#' + m.id +
+           ' (' + m.x + ',' + m.y + ')</span>';
+  }
+  function renderQueues(){
+    var aBody = document.getElementById('bufABody');
+    var bBody = document.getElementById('bufBBody');
+    aBody.innerHTML = bufA.length ? bufA.map(pill).join('') : '<span class="mq-empty">üres</span>';
+    bBody.innerHTML = bufB.length ? bufB.map(pill).join('') : '<span class="mq-empty">üres</span>';
+    document.getElementById('bufACnt').textContent = bufA.length;
+    document.getElementById('bufBCnt').textContent = bufB.length;
+  }
+  function renderDbg(){
+    document.getElementById('dbgOut').innerHTML =
+      'frame      <span class="v">' + frameNo + '</span>\n' +
+      'írt        <span class="v">' + stats.written + '</span>\n' +
+      'olvasott   <span class="g">' + stats.read + '</span>\n' +
+      'elveszett  <span class="c">' + stats.lost + '</span>';
+  }
+
+  // ---- input ----
+  cv.addEventListener('click', function(e){
+    var r = cv.getBoundingClientRect();
+    var sx = cv.width / r.width, sy = cv.height / r.height;
+    var px2 = (e.clientX - r.left) * sx, py2 = (e.clientY - r.top) * sy;
+    var x = Math.floor((px2 - OX) / CELL), y = Math.floor((py2 - OY) / CELL);
+    if (x < 0 || y < 0 || x >= GW || y >= GH) return;
+    writerClick(x, y);
+  });
+
+  document.getElementById('btnStep').addEventListener('click', function(){ stepFrame(); });
+  document.getElementById('btnReset').addEventListener('click', reset);
+  document.getElementById('cbGrid').addEventListener('change', render);
+  document.getElementById('cbDirty').addEventListener('change', render);
+
+  var autoTimer = null;
+  var btnAuto = document.getElementById('btnAuto');
+  btnAuto.addEventListener('click', function(){
+    if (autoTimer) {
+      clearInterval(autoTimer); autoTimer = null;
+      btnAuto.setAttribute('aria-pressed', 'false');
+    } else {
+      autoTimer = setInterval(function(){ stepFrame(); }, 1000);
+      btnAuto.setAttribute('aria-pressed', 'true');
+    }
+  });
+
+  reset();
+})();
+</script>
+</body>
+</html>

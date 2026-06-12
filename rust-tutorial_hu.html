@@ -1,0 +1,2426 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rust programozás magyarul — nulláról haladó szintig</title>
+<style>
+:root{
+  --bg:#F6F4F0;
+  --paper:#FFFFFF;
+  --ink:#26211C;
+  --ink-soft:#5C544B;
+  --rust:#C2540A;
+  --rust-deep:#8F3D06;
+  --steel:#3B6EA5;
+  --iron:#211D19;
+  --iron-2:#2C2722;
+  --code-bg:#1C1916;
+  --code-ink:#E8E2D8;
+  --kw:#E58E51;
+  --str:#A8C97F;
+  --num:#7FB8D4;
+  --com:#867D70;
+  --fn:#E5C07B;
+  --mac:#C678DD;
+  --line:#E4DED5;
+  --ok:#4E7A3A;
+  --warn:#A35A00;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:Charter,"Iowan Old Style",Georgia,"Times New Roman",serif;
+  background:var(--bg);color:var(--ink);
+  line-height:1.65;font-size:17px;
+}
+.layout{display:flex;min-height:100vh}
+
+/* ---------- sidebar ---------- */
+nav#sidebar{
+  width:300px;flex-shrink:0;background:var(--iron);color:#CFC8BD;
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+  padding:28px 0 60px 0;
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  scrollbar-width:thin;scrollbar-color:#4a4138 var(--iron);
+}
+nav#sidebar .brand{padding:0 24px 22px 24px;border-bottom:1px solid #3a332c;margin-bottom:14px}
+nav#sidebar .brand h1{font-size:20px;font-weight:700;color:#F3EEE6;letter-spacing:.3px}
+nav#sidebar .brand h1 span{color:var(--kw)}
+nav#sidebar .brand p{font-size:12.5px;color:#968D80;margin-top:4px}
+nav#sidebar a{
+  display:flex;align-items:baseline;gap:10px;
+  padding:7px 24px;color:#B8B0A4;text-decoration:none;font-size:13.5px;
+  border-left:3px solid transparent;
+}
+nav#sidebar a .hex{
+  font-family:ui-monospace,"Cascadia Code",Consolas,monospace;
+  font-size:11.5px;color:#7A7164;min-width:38px;
+}
+nav#sidebar a:hover{background:#2B2620;color:#F0EAE0}
+nav#sidebar a.active{border-left-color:var(--rust);background:#2B2620;color:#FFD9B8}
+nav#sidebar a.active .hex{color:var(--kw)}
+nav#sidebar .part{
+  padding:16px 24px 6px 24px;font-size:10.5px;letter-spacing:1.6px;
+  text-transform:uppercase;color:#6E6557;font-weight:600;
+}
+
+/* ---------- main ---------- */
+main{flex:1;min-width:0}
+.page{max-width:860px;margin:0 auto;padding:48px 48px 120px 48px}
+
+/* hero */
+header.hero{
+  background:linear-gradient(135deg,#241F1A 0%,#3A2517 55%,#6B3408 100%);
+  color:#F3EAE0;padding:72px 48px 64px 48px;
+}
+header.hero .heroinner{max-width:860px;margin:0 auto}
+header.hero .eyebrow{
+  font-family:ui-monospace,Consolas,monospace;font-size:13px;color:#E5A06B;
+  letter-spacing:2px;margin-bottom:18px;
+}
+header.hero h1{
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  font-size:46px;line-height:1.12;font-weight:700;max-width:680px;
+}
+header.hero h1 em{font-style:normal;color:#F0A35E}
+header.hero p.lead{margin-top:20px;font-size:18.5px;color:#D8CCBF;max-width:640px}
+header.hero .meta{
+  margin-top:30px;display:flex;gap:26px;flex-wrap:wrap;
+  font-family:"Avenir Next",system-ui,sans-serif;font-size:13px;color:#B8A795;
+}
+header.hero .meta b{color:#F0DEC9;font-weight:600}
+
+/* chapters */
+section.fejezet{margin-top:64px;scroll-margin-top:24px}
+section.fejezet:first-of-type{margin-top:40px}
+.fejcim{
+  display:flex;align-items:baseline;gap:14px;
+  border-bottom:3px solid var(--rust);padding-bottom:10px;margin-bottom:26px;
+}
+.fejcim .hex{
+  font-family:ui-monospace,Consolas,monospace;font-size:15px;color:var(--rust);
+  background:#F6E3D2;padding:3px 9px;border-radius:4px;
+}
+.fejcim h2{
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  font-size:29px;font-weight:700;letter-spacing:-.2px;
+}
+h3{
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  font-size:20px;font-weight:600;margin:34px 0 12px 0;color:var(--rust-deep);
+}
+h4{
+  font-family:"Avenir Next",system-ui,sans-serif;font-size:16.5px;
+  font-weight:600;margin:24px 0 8px 0;
+}
+p{margin:0 0 14px 0}
+ul,ol{margin:0 0 16px 26px}
+li{margin-bottom:6px}
+a{color:var(--steel)}
+strong{color:#1B1611}
+code{
+  font-family:ui-monospace,"Cascadia Code",Consolas,"Liberation Mono",monospace;
+  font-size:.86em;color:#7A3D10;
+  padding:1.5px 6px;border-radius:4px;
+}
+
+/* code blocks */
+.kod{
+  position:relative;background:var(--code-bg);border-radius:10px;
+  margin:18px 0 22px 0;overflow:hidden;
+  box-shadow:0 2px 10px rgba(40,30,20,.18);
+}
+.kod .kodfej{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 14px;background:#26221D;border-bottom:1px solid #36302A;
+  font-family:"Avenir Next",system-ui,sans-serif;
+}
+.kod .kodfej .fajl{font-size:12px;color:#9C9285;font-family:ui-monospace,Consolas,monospace}
+.kod .masol{
+  font-size:11.5px;color:#B8AC9C;background:#36302A;border:none;border-radius:5px;
+  padding:4px 11px;cursor:pointer;font-family:inherit;
+}
+.kod .masol:hover{background:#473F36;color:#F0E8DC}
+.kod pre{
+  padding:16px 18px;overflow-x:auto;
+  font-family:ui-monospace,"Cascadia Code",Consolas,"Liberation Mono",monospace;
+  font-size:14px;line-height:1.58;color:var(--code-ink);
+  tab-size:4;
+}
+.kod pre::-webkit-scrollbar{height:8px}
+.kod pre::-webkit-scrollbar-thumb{background:#403A32;border-radius:4px}
+.k-kw{color:var(--kw);font-weight:600}
+.k-str{color:var(--str)}
+.k-num{color:var(--num)}
+.k-com{color:var(--com);font-style:italic}
+.k-fn{color:var(--fn)}
+.k-mac{color:var(--mac)}
+.k-type{color:#76C5B0}
+.k-life{color:#D4848C}
+
+/* terminal output */
+.kimenet{
+  background:#14110E;border-radius:8px;margin:-12px 0 22px 0;
+  padding:12px 18px;font-family:ui-monospace,Consolas,monospace;
+  font-size:13px;color:#9FB89A;border-left:3px solid #3E5A36;
+}
+.kimenet::before{
+  content:"KIMENET";display:block;font-size:9.5px;letter-spacing:1.8px;
+  color:#5E6E58;margin-bottom:6px;font-family:"Avenir Next",system-ui,sans-serif;
+}
+
+/* callouts */
+.doboz{
+  border-radius:8px;padding:15px 18px 13px 18px;margin:18px 0 22px 0;
+  font-size:15.5px;
+}
+.doboz .dcim{
+  font-family:"Avenir Next",system-ui,sans-serif;font-weight:700;font-size:12px;
+  letter-spacing:1.4px;text-transform:uppercase;display:block;margin-bottom:6px;
+}
+.doboz.tipp{background:#EDF3E6;border-left:4px solid var(--ok)}
+.doboz.tipp .dcim{color:var(--ok)}
+.doboz.figyelem{background:#FBEEDC;border-left:4px solid var(--warn)}
+.doboz.figyelem .dcim{color:var(--warn)}
+.doboz.melyseg{background:#E8EEF5;border-left:4px solid var(--steel)}
+.doboz.melyseg .dcim{color:var(--steel)}
+.doboz p:last-child{margin-bottom:0}
+
+/* tables */
+table{border-collapse:collapse;width:100%;margin:16px 0 22px 0;font-size:15px}
+th{
+  text-align:left;font-family:"Avenir Next",system-ui,sans-serif;font-size:12.5px;
+  letter-spacing:.8px;text-transform:uppercase;color:var(--rust-deep);
+  border-bottom:2px solid var(--rust);padding:8px 12px;
+}
+td{border-bottom:1px solid var(--line);padding:9px 12px;vertical-align:top}
+td code{white-space:nowrap}
+
+/* exercise blocks */
+.gyakorlat{
+  background:var(--paper);border:1px solid var(--line);border-top:4px solid var(--rust);
+  border-radius:8px;padding:18px 20px;margin:26px 0;
+}
+.gyakorlat .gcim{
+  font-family:"Avenir Next",system-ui,sans-serif;font-weight:700;font-size:14px;
+  color:var(--rust);margin-bottom:8px;letter-spacing:.4px;
+}
+details{margin-top:10px}
+details summary{
+  cursor:pointer;font-family:"Avenir Next",system-ui,sans-serif;
+  font-size:13.5px;color:var(--steel);font-weight:600;
+}
+details[open] summary{margin-bottom:8px}
+
+footer{
+  margin-top:80px;border-top:1px solid var(--line);padding-top:24px;
+  font-size:13.5px;color:var(--ink-soft);
+  font-family:"Avenir Next",system-ui,sans-serif;
+}
+
+@media (max-width:980px){
+  nav#sidebar{display:none}
+  .page{padding:32px 20px 80px 20px}
+  header.hero{padding:48px 20px}
+  header.hero h1{font-size:32px}
+}
+@media print{
+  nav#sidebar{display:none}
+  .kod .masol{display:none}
+  body{background:#fff}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav id="sidebar">
+  <div class="brand">
+    <h1>Rust<span>‑kohó</span></h1>
+    <p>Magyar nyelvű Rust tananyag<br>nulláról haladó szintig</p>
+  </div>
+  <div class="part">I. rész — Alapok</div>
+  <a href="#f00"><span class="hex">0x00</span>Miért a Rust? Telepítés</a>
+  <a href="#f01"><span class="hex">0x01</span>Az első program és a Cargo</a>
+  <a href="#f02"><span class="hex">0x02</span>Változók és típusok</a>
+  <a href="#f03"><span class="hex">0x03</span>Függvények és vezérlés</a>
+  <div class="part">II. rész — A Rust lelke</div>
+  <a href="#f04"><span class="hex">0x04</span>Tulajdonjog (ownership)</a>
+  <a href="#f05"><span class="hex">0x05</span>Referenciák és kölcsönzés</a>
+  <a href="#f06"><span class="hex">0x06</span>Struktúrák</a>
+  <a href="#f07"><span class="hex">0x07</span>Enumok és mintaillesztés</a>
+  <a href="#f08"><span class="hex">0x08</span>Gyűjtemények</a>
+  <a href="#f09"><span class="hex">0x09</span>Hibakezelés</a>
+  <div class="part">III. rész — Absztrakció</div>
+  <a href="#f0A"><span class="hex">0x0A</span>Generikusok</a>
+  <a href="#f0B"><span class="hex">0x0B</span>Trait-ek</a>
+  <a href="#f0C"><span class="hex">0x0C</span>Élettartamok</a>
+  <a href="#f0D"><span class="hex">0x0D</span>Closure-ök és iterátorok</a>
+  <a href="#f0E"><span class="hex">0x0E</span>Modulok és csomagok</a>
+  <a href="#f0F"><span class="hex">0x0F</span>Tesztelés</a>
+  <div class="part">IV. rész — Haladó</div>
+  <a href="#f10"><span class="hex">0x10</span>Okos mutatók</a>
+  <a href="#f11"><span class="hex">0x11</span>Konkurencia</a>
+  <a href="#f12"><span class="hex">0x12</span>Async programozás</a>
+  <a href="#f13"><span class="hex">0x13</span>Unsafe Rust</a>
+  <a href="#f14"><span class="hex">0x14</span>Haladó trait-technikák</a>
+  <a href="#f15"><span class="hex">0x15</span>Záróprojekt és továbblépés</a>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="heroinner">
+    <div class="eyebrow">fn main() → tananyag v1.0</div>
+    <h1>Rust programozás <em>nulláról haladó szintig</em></h1>
+    <p class="lead">22 fejezet, futtatható példakódokkal, gyakorlatokkal és megoldásokkal. A tulajdonjogi modelltől az async programozásig — magyarul, érthetően.</p>
+    <div class="meta">
+      <span><b>22</b> fejezet</span>
+      <span><b>~120</b> kódpélda</span>
+      <span><b>Szint:</b> kezdő → haladó</span>
+      <span><b>Előismeret:</b> bármilyen programozási alaptudás előny, de nem kötelező</span>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+<!-- ============ 0x00 ============ -->
+<section class="fejezet" id="f00">
+<div class="fejcim"><span class="hex">0x00</span><h2>Miért a Rust? Telepítés és eszközök</h2></div>
+
+<p>A Rust egy <strong>rendszerprogramozási nyelv</strong>, amely három dolgot ígér egyszerre, amit korábban nem lehetett együtt megkapni: <strong>C/C++ szintű sebességet</strong>, <strong>memóriabiztonságot szemétgyűjtő (garbage collector) nélkül</strong>, és <strong>adatverseny-mentes konkurenciát</strong>. A trükk a fordítóba épített <em>tulajdonjogi rendszer</em> (ownership), amellyel a 0x04-es fejezetben ismerkedünk meg — ez a nyelv lelke, és minden más erre épül.</p>
+
+<p>Mire használják a gyakorlatban? Operációs rendszerek komponensei (Linux kernel, Windows), böngészőmotorok (Firefox), parancssori eszközök (ripgrep, fd), webes backendek (Axum, Actix), blokklánc-infrastruktúra (Solana), játékmotorok (Bevy), és egyre több helyen váltja ki a C++-t teljesítménykritikus kódban.</p>
+
+<h3>Telepítés: rustup</h3>
+<p>A Rust hivatalos telepítője a <code>rustup</code>, amely a fordítót (<code>rustc</code>), a csomagkezelőt (<code>cargo</code>) és a dokumentációt is felteszi, és később a frissítéseket is kezeli.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">terminál — Linux / macOS</span><button class="masol">Másolás</button></div><pre><code class="bash">curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# telepítés után ellenőrzés:
+rustc --version
+cargo --version</code></pre></div>
+
+<p>Windowson a <a href="https://rustup.rs">rustup.rs</a> oldalról letölthető <code>rustup-init.exe</code> végzi ugyanezt (szüksége lehet a Visual Studio C++ Build Tools csomagra — a telepítő felajánlja).</p>
+
+<h3>A szerszámosláda</h3>
+<table>
+<tr><th>Eszköz</th><th>Mire való</th></tr>
+<tr><td><code>rustc</code></td><td>Maga a fordító. Ritkán hívod közvetlenül — a Cargo teszi helyetted.</td></tr>
+<tr><td><code>cargo</code></td><td>Csomagkezelő és build-rendszer: projekt létrehozás, fordítás, futtatás, tesztelés, függőségek.</td></tr>
+<tr><td><code>rustup</code></td><td>Toolchain-kezelő: Rust-verziók telepítése, frissítése (<code>rustup update</code>).</td></tr>
+<tr><td><code>rustfmt</code></td><td>Automatikus kódformázó (<code>cargo fmt</code>).</td></tr>
+<tr><td><code>clippy</code></td><td>Lint-eszköz, amely stílus- és logikai hibákra figyelmeztet (<code>cargo clippy</code>).</td></tr>
+<tr><td><code>rust-analyzer</code></td><td>Nyelvi szerver az editorhoz: kódkiegészítés, típusinfó, hibajelzés gépelés közben.</td></tr>
+</table>
+
+<div class="doboz tipp"><span class="dcim">Tipp</span>
+<p>Editorhoz a <strong>VS Code + rust-analyzer</strong> bővítmény a legnépszerűbb páros, de a RustRover (JetBrains), a Helix és a Neovim is kiváló támogatást ad. Ha csak kipróbálnád a nyelvet telepítés nélkül: <a href="https://play.rust-lang.org">play.rust-lang.org</a>.</p></div>
+</section>
+
+<!-- ============ 0x01 ============ -->
+<section class="fejezet" id="f01">
+<div class="fejcim"><span class="hex">0x01</span><h2>Az első program és a Cargo</h2></div>
+
+<p>Hozzuk létre az első projektet. A Cargo egyetlen paranccsal generál egy szabványos könyvtárszerkezetet:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">terminál</span><button class="masol">Másolás</button></div><pre><code class="bash">cargo new hello_rust
+cd hello_rust
+cargo run</code></pre></div>
+
+<div class="kimenet">   Compiling hello_rust v0.1.0
+    Finished dev [unoptimized + debuginfo] target(s)
+     Running `target/debug/hello_rust`
+Hello, world!</div>
+
+<p>A létrejött szerkezet:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">projektszerkezet</span><button class="masol">Másolás</button></div><pre><code class="bash">hello_rust/
+├── Cargo.toml      # a projekt "személyi igazolványa": név, verzió, függőségek
+├── src/
+│   └── main.rs     # a forráskód belépési pontja
+└── target/         # fordítási kimenet (git-be nem kerül)</code></pre></div>
+
+<h3>A main.rs boncolása</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    println!("Hello, world!");
+}</code></pre></div>
+
+<ul>
+<li><code>fn main()</code> — minden futtatható Rust program a <code>main</code> függvénnyel indul.</li>
+<li><code>println!</code> — a felkiáltójel azt jelzi, hogy ez nem függvény, hanem <strong>makró</strong>: a fordítás idején kóddá bővül. Egyelőre elég annyit tudni: makró = <code>!</code>.</li>
+<li>A sorokat pontosvessző zárja, a blokkokat kapcsos zárójel határolja.</li>
+</ul>
+
+<h3>Formázott kiírás</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let nev = "Zoltán";
+    let kor = 30;
+
+    println!("Szia, {}! {} éves vagy.", nev, kor);
+    println!("Szia, {nev}! Jövőre {} leszel.", kor + 1); // változó a {} -ben
+    println!("{:>10}|", "jobbra");   // jobbra igazítva 10 szélességben
+    println!("{:.3}", 3.14159);      // 3 tizedesjegy → 3.142
+    println!("{:?}", (1, "kettő"));  // debug formátum — adatszerkezetekhez
+}</code></pre></div>
+
+<h3>A legfontosabb Cargo-parancsok</h3>
+<table>
+<tr><th>Parancs</th><th>Hatás</th></tr>
+<tr><td><code>cargo run</code></td><td>Fordít (ha kell) és futtat.</td></tr>
+<tr><td><code>cargo build</code></td><td>Csak fordít (debug mód, gyors fordítás, lassabb futás).</td></tr>
+<tr><td><code>cargo build --release</code></td><td>Optimalizált fordítás — méréshez, kiadáshoz mindig ezt!</td></tr>
+<tr><td><code>cargo check</code></td><td>Csak ellenőrzi, hogy lefordul-e — a leggyorsabb visszajelzés.</td></tr>
+<tr><td><code>cargo test</code></td><td>Lefuttatja a teszteket.</td></tr>
+<tr><td><code>cargo add rand</code></td><td>Függőség hozzáadása a Cargo.toml-hoz (itt: a <code>rand</code> crate).</td></tr>
+<tr><td><code>cargo doc --open</code></td><td>A projekt és függőségei dokumentációját generálja és megnyitja.</td></tr>
+</table>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x01</div>
+<p>Írj programot, amely kiírja a neved, a kedvenc számod, és a kedvenc számod négyzetét egyetlen <code>println!</code>-tel, helyőrzőkkel.</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let nev = "Zoltán";
+    let szam = 7;
+    println!("{nev} kedvenc száma: {szam}, négyzete: {}", szam * szam);
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x02 ============ -->
+<section class="fejezet" id="f02">
+<div class="fejcim"><span class="hex">0x02</span><h2>Változók és típusok</h2></div>
+
+<h3>Alapértelmezetten változatlan</h3>
+<p>A Rust egyik első meglepetése: a <code>let</code>-tel deklarált változó <strong>nem módosítható</strong>. Ha módosítható változót akarsz, ki kell írnod: <code>let mut</code>. Ez tudatos tervezési döntés — a kód olvasója azonnal látja, mi változhat és mi nem.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let x = 5;
+    // x = 6;        // ❌ fordítási hiba: cannot assign twice to immutable variable
+
+    let mut y = 5;
+    y = 6;            // ✅ a mut megengedi
+    println!("{y}");
+
+    // Árnyékolás (shadowing): új változó ugyanazzal a névvel — akár más típussal!
+    let szoveg = "42";
+    let szoveg: i32 = szoveg.trim().parse().unwrap();
+    println!("{}", szoveg + 1); // 43
+}</code></pre></div>
+
+<h3>Skalár típusok</h3>
+<table>
+<tr><th>Csoport</th><th>Típusok</th><th>Megjegyzés</th></tr>
+<tr><td>Előjeles egész</td><td><code>i8 i16 i32 i64 i128 isize</code></td><td>Alapértelmezett: <code>i32</code></td></tr>
+<tr><td>Előjel nélküli</td><td><code>u8 u16 u32 u64 u128 usize</code></td><td><code>usize</code>: indexeléshez (mutató méretű)</td></tr>
+<tr><td>Lebegőpontos</td><td><code>f32 f64</code></td><td>Alapértelmezett: <code>f64</code></td></tr>
+<tr><td>Logikai</td><td><code>bool</code></td><td><code>true</code> / <code>false</code></td></tr>
+<tr><td>Karakter</td><td><code>char</code></td><td>4 bájtos Unicode-pont: <code>'ő'</code>, <code>'🦀'</code> is belefér</td></tr>
+</table>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let a: u8 = 255;
+    let b = 1_000_000;        // aláhúzás tagolja, típusa i32
+    let c = 0xFF;             // hexa
+    let d = 0b1010;           // bináris
+    let e = 2.5_f32;          // típus-utótag
+    let igaz = true;
+    let ferris = '🦀';
+    println!("{a} {b} {c} {d} {e} {igaz} {ferris}");
+
+    // Konverzió SOHA nem automatikus — explicit `as` vagy `from` kell:
+    let kicsi: u8 = 200;
+    let nagy: u32 = kicsi as u32;
+    println!("{nagy}");
+}</code></pre></div>
+
+<div class="doboz figyelem"><span class="dcim">Figyelem</span>
+<p>Debug módban az egész-túlcsordulás (pl. <code>255u8 + 1</code>) <strong>pánikot</strong> (azonnali programleállást) okoz, release módban pedig körbefordul. Ha szándékosan akarsz körbeforduló/telítődő aritmetikát: <code>wrapping_add</code>, <code>saturating_add</code>, <code>checked_add</code>.</p></div>
+
+<h3>Összetett típusok: tuple és tömb</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    // Tuple: rögzített számú, vegyes típusú elem
+    let pont: (f64, f64, &str) = (47.68, 17.63, "Győr");
+    let (szelesseg, hosszusag, varos) = pont;       // szétbontás
+    println!("{varos}: {szelesseg}, {hosszusag}");
+    println!("első elem: {}", pont.0);              // index ponttal
+
+    // Tömb: rögzített hosszú, azonos típusú — a STACKEN él
+    let napok = ["H", "K", "Sze", "Cs", "P"];
+    let nullak = [0; 8];                            // 8 darab nulla
+    println!("{} ... {} (összesen {})", napok[0], napok[4], nullak.len());
+
+    // Túlindexelés futási időben pánik — nincs csendes memóriahiba, mint C-ben!
+}</code></pre></div>
+
+<h3>Típuskövetkeztetés</h3>
+<p>A Rust <strong>statikusan típusos</strong>, de a típusokat legtöbbször nem kell kiírni: a fordító kikövetkezteti a használatból. Kiírni akkor kell, ha többféle is lehetne (pl. a <code>parse()</code> eredménye), vagy ha dokumentációs céllal szeretnéd.</p>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x02</div>
+<p>Hozz létre egy tuple-t, ami egy terméket ír le (név, ár, raktáron van-e), majd írd ki formázva. Az árat utána emeld 10%-kal — mire lesz szükség hozzá?</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let mut termek = ("Mechanikus billentyűzet", 34990.0, true);
+    println!("{} — {:.0} Ft (raktáron: {})", termek.0, termek.1, termek.2);
+    termek.1 *= 1.10;          // a tuple-nek mut-nak kell lennie!
+    println!("Új ár: {:.0} Ft", termek.1);
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x03 ============ -->
+<section class="fejezet" id="f03">
+<div class="fejcim"><span class="hex">0x03</span><h2>Függvények és vezérlési szerkezetek</h2></div>
+
+<h3>Függvények</h3>
+<p>A paraméterek típusát <strong>kötelező</strong> kiírni, a visszatérési típust a <code>-&gt;</code> jelöli. És itt jön a Rust egyik legfontosabb sajátossága: <strong>majdnem minden kifejezés</strong> (expression), aminek értéke van. A blokk utolsó, <em>pontosvessző nélküli</em> kifejezése a blokk értéke — ezért nem kell <code>return</code> a függvény végére.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn osszead(a: i32, b: i32) -&gt; i32 {
+    a + b                       // nincs pontosvessző → ez a visszatérési érték
+}
+
+fn elojel(n: i32) -&gt; &amp;'static str {
+    if n &gt; 0 { "pozitív" } else if n &lt; 0 { "negatív" } else { "nulla" }
+}
+
+fn main() {
+    println!("{}", osszead(3, 4));
+
+    // Az if is kifejezés — értékadásra használható (nincs külön ?: operátor)
+    let n = -7;
+    let cimke = if n % 2 == 0 { "páros" } else { "páratlan" };
+    println!("{n}: {cimke}, {}", elojel(n));
+
+    // Még egy blokk is kifejezés:
+    let y = {
+        let x = 3;
+        x * x               // a blokk értéke 9
+    };
+    println!("{y}");
+}</code></pre></div>
+
+<h3>Ciklusok</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    // for — tartományon vagy gyűjteményen iterál (ez A ciklus Rustban)
+    for i in 1..=5 {                 // 1,2,3,4,5  (..= zárt intervallum)
+        print!("{i} ");
+    }
+    println!();
+
+    let nevek = ["Anna", "Béla", "Cili"];
+    for nev in nevek.iter() {
+        println!("Szia, {nev}!");
+    }
+
+    // while — feltételes ciklus
+    let mut hatra = 3;
+    while hatra &gt; 0 {
+        println!("{hatra}...");
+        hatra -= 1;
+    }
+
+    // loop — végtelen ciklus, amely a break-kel ÉRTÉKET is visszaadhat
+    let mut szamlalo = 0;
+    let eredmeny = loop {
+        szamlalo += 1;
+        if szamlalo == 10 {
+            break szamlalo * 2;      // a loop értéke 20 lesz
+        }
+    };
+    println!("eredmény: {eredmeny}");
+}</code></pre></div>
+
+<div class="doboz melyseg"><span class="dcim">Mélyebbre</span>
+<p>Címkézett ciklusokkal beágyazott ciklusból is ki lehet törni: <code>'kulso: for ... {{ for ... {{ break 'kulso; }} }}</code>. A címke aposztróffal kezdődik — később az élettartamoknál (0x0C) találkozunk hasonló jelöléssel, de a kettőnek semmi köze egymáshoz.</p></div>
+
+<h3>Mini-projekt: számkitaláló játék</h3>
+<p>Klasszikus első program, amely már külső csomagot is használ. Add hozzá a függőséget: <code>cargo add rand</code>.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs — számkitaláló</span><button class="masol">Másolás</button></div><pre><code class="rust">use rand::Rng;
+use std::cmp::Ordering;
+use std::io;
+
+fn main() {
+    let titok = rand::thread_rng().gen_range(1..=100);
+    println!("Gondoltam egy számra 1 és 100 között!");
+
+    loop {
+        println!("Tipped:");
+        let mut tipp = String::new();
+        io::stdin().read_line(&amp;mut tipp).expect("Olvasási hiba");
+
+        let tipp: u32 = match tipp.trim().parse() {
+            Ok(szam) =&gt; szam,
+            Err(_) =&gt; {
+                println!("Ez nem szám, próbáld újra!");
+                continue;
+            }
+        };
+
+        match tipp.cmp(&amp;titok) {
+            Ordering::Less =&gt; println!("Kicsi!"),
+            Ordering::Greater =&gt; println!("Nagy!"),
+            Ordering::Equal =&gt; {
+                println!("Talált! 🎉");
+                break;
+            }
+        }
+    }
+}</code></pre></div>
+
+<p>Több itt szereplő elemet (<code>match</code>, <code>Ok</code>/<code>Err</code>, <code>&amp;mut</code>) a következő fejezetekben fejtünk ki — most az a lényeg, hogy lásd, hogyan áll össze egy valódi kis program.</p>
+</section>
+<!-- ============ 0x04 ============ -->
+<section class="fejezet" id="f04">
+<div class="fejcim"><span class="hex">0x04</span><h2>Tulajdonjog (ownership) — a Rust lelke</h2></div>
+
+<p>Megérkeztünk a legfontosabb fejezethez. A tulajdonjog az a mechanizmus, amellyel a Rust <strong>fordítási időben</strong> garantálja a memóriabiztonságot — szemétgyűjtő nélkül, futásidejű költség nélkül. Ha ezt megérted, a Rust többi része a helyére kerül.</p>
+
+<h3>A probléma, amit megold</h3>
+<p>C-ben a programozó kezeli a memóriát (<code>malloc</code>/<code>free</code>) — hibalehetőség: dupla felszabadítás, felszabadítás utáni használat, memóriaszivárgás. Java/Python/Go-ban szemétgyűjtő fut — költség: futásidejű többletmunka, kiszámíthatatlan szünetek. A Rust harmadik utat választ: <strong>a fordító követi, ki birtokol minden értéket, és a tulajdonos hatókörének végén automatikusan beszúrja a felszabadítást.</strong></p>
+
+<h3>A három szabály</h3>
+<ol>
+<li>Minden értéknek pontosan <strong>egy tulajdonosa</strong> van.</li>
+<li>Egyszerre csak egy tulajdonos lehet.</li>
+<li>Amikor a tulajdonos kikerül a hatókörből (scope), az érték <strong>felszabadul</strong> (meghívódik a <code>drop</code>).</li>
+</ol>
+
+<h3>Move: az értékadás költöztet</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let s1 = String::from("szia");
+    let s2 = s1;                  // a String ÁTKÖLTÖZIK s2-be (move)
+
+    // println!("{s1}");          // ❌ hiba: value borrowed here after move
+    println!("{s2}");             // ✅ s2 az új tulajdonos
+}</code></pre></div>
+
+<p>Mi történt? A <code>String</code> a heap-en tárolja a karaktereket; a változóban csak egy (mutató, hossz, kapacitás) hármas él. Az értékadásnál ez a hármas másolódik le — ha <code>s1</code> is érvényes maradna, a hatókör végén <strong>kétszer</strong> szabadulna fel ugyanaz a heap-terület. A Rust ezt úgy zárja ki, hogy a move után az eredeti változót <em>érvénytelennek</em> tekinti. Ez fordítási hiba, nem futásidejű — a hibás program el sem készül.</p>
+
+<div class="doboz melyseg"><span class="dcim">Stack vs. heap dióhéjban</span>
+<p>A <strong>stack</strong> gyors, de csak fordításkor ismert méretű adat fér el rajta (számok, tömbök, tuple-ök). A <strong>heap</strong> rugalmas méretű adatnak való (String, Vec), de oda mutatón keresztül érünk el. A tulajdonjogi szabályok lényegében a heap-adatok életciklusát kezelik.</p></div>
+
+<h3>Copy: az olcsó típusok kivételek</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let x = 5;
+    let y = x;            // az i32 Copy típus: bitenkénti másolat készül
+    println!("{x} {y}");  // ✅ mindkettő érvényes
+}</code></pre></div>
+
+<p><strong>Copy</strong> minden egész, lebegőpontos, <code>bool</code>, <code>char</code>, és az ilyenekből álló tuple/tömb. Ezek teljes egészében a stacken élnek, a másolásuk olcsó és veszélytelen. A <code>String</code>, <code>Vec</code> és társaik <em>nem</em> Copy-k — őket vagy mozgatod, vagy explicit <code>.clone()</code>-nal mélymásolod:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let s1 = String::from("szia");
+    let s2 = s1.clone();          // valódi, heap-szintű másolat — látható költség
+    println!("{s1} {s2}");        // ✅
+}</code></pre></div>
+
+<h3>Függvények is mozgatnak</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn elnyel(s: String) {            // a paraméter átveszi a tulajdonjogot
+    println!("megkaptam: {s}");
+}                                  // itt s felszabadul
+
+fn gyart() -&gt; String {             // a visszatérési érték KIADJA a tulajdonjogot
+    String::from("friss string")
+}
+
+fn main() {
+    let s = String::from("helló");
+    elnyel(s);
+    // println!("{s}");            // ❌ s elköltözött a függvénybe
+
+    let uj = gyart();              // a main lett a tulajdonos
+    println!("{uj}");
+}</code></pre></div>
+
+<p>Kényelmetlen lenne mindent oda-vissza adogatni, csak hogy egy függvény <em>ránézhessen</em> egy értékre. Pontosan ezért léteznek a <strong>referenciák</strong> — irány a következő fejezet.</p>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x04</div>
+<p>Az alábbi kód nem fordul le. Javítsd meg <em>kétféleképpen</em>: egyszer <code>clone</code>-nal, egyszer a tulajdonjog visszaadásával!</p>
+<div class="kod"><div class="kodfej"><span class="fajl">hibás kód</span><button class="masol">Másolás</button></div><pre><code class="rust">fn kiir(s: String) { println!("{s}"); }
+
+fn main() {
+    let uzenet = String::from("fontos adat");
+    kiir(uzenet);
+    println!("még mindig kell: {uzenet}");
+}</code></pre></div>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">// 1) clone — egyszerű, de másolási költség:
+fn main() {
+    let uzenet = String::from("fontos adat");
+    kiir(uzenet.clone());
+    println!("még mindig kell: {uzenet}");
+}
+
+// 2) tulajdonjog visszaadása — működik, de nehézkes (a 0x05 fejezet referenciái a szép megoldás):
+fn kiir2(s: String) -&gt; String { println!("{s}"); s }
+</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x05 ============ -->
+<section class="fejezet" id="f05">
+<div class="fejcim"><span class="hex">0x05</span><h2>Referenciák és kölcsönzés (borrowing)</h2></div>
+
+<p>A referencia (<code>&amp;</code>) lehetővé teszi, hogy egy értékre <strong>tulajdonjog átvétele nélkül</strong> hivatkozz — ezt hívjuk <em>kölcsönzésnek</em>. A kölcsönzés szabályait a fordító híres-hírhedt komponense, a <strong>borrow checker</strong> tartatja be.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn hossz(s: &amp;String) -&gt; usize {   // &amp;String: kölcsönkapott referencia
+    s.len()
+}                                  // s kimegy a hatókörből, de NEM szabadít fel semmit
+
+fn main() {
+    let uzenet = String::from("helló rust");
+    let n = hossz(&amp;uzenet);        // & = kölcsönadom
+    println!("'{uzenet}' hossza: {n}");   // ✅ az uzenet végig a miénk maradt
+}</code></pre></div>
+
+<h3>Módosító referencia: &amp;mut</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn hozzafuz(s: &amp;mut String) {
+    s.push_str(", világ!");
+}
+
+fn main() {
+    let mut uzenet = String::from("Helló");   // a változónak is mut kell!
+    hozzafuz(&amp;mut uzenet);
+    println!("{uzenet}");
+}</code></pre></div>
+
+<h3>Az aranyszabály</h3>
+<div class="doboz figyelem"><span class="dcim">A kölcsönzés szabálya</span>
+<p>Egy értékre egy időben létezhet <strong>akárhány csak-olvasó</strong> referencia (<code>&amp;T</code>), <strong>VAGY pontosan egy módosító</strong> referencia (<code>&amp;mut T</code>) — de a kettő egyszerre soha. Röviden: <em>sok olvasó vagy egy író.</em></p></div>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let mut s = String::from("szia");
+
+    let r1 = &amp;s;
+    let r2 = &amp;s;            // ✅ több olvasó mehet
+    println!("{r1} {r2}");  // r1 és r2 használata itt VÉGET ér
+
+    let r3 = &amp;mut s;        // ✅ mert az olvasók már nem élnek
+    r3.push('!');
+    println!("{r3}");
+
+    // De ez már hiba lenne:
+    // let a = &amp;s;
+    // let b = &amp;mut s;      // ❌ cannot borrow `s` as mutable because it is
+    // println!("{a}");     //    also borrowed as immutable
+}</code></pre></div>
+
+<p>Miért ilyen szigorú? Mert ez a szabály zárja ki az <strong>adatversenyt</strong> és az olyan klasszikus hibákat, mint hogy egy gyűjteményt iterálás közben módosítasz, és a mögötte lévő memória átrendeződik a lábad alatt. Ami C++-ban futásidejű rejtélyes összeomlás, az Rustban piros aláhúzás az editorban.</p>
+
+<h3>Nincs lógó referencia</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">// fn logo() -&gt; &amp;String {              // ❌ nem fordul le!
+//     let s = String::from("szia");
+//     &amp;s                               // s itt megsemmisül — a referencia a semmibe mutatna
+// }
+
+fn helyes() -&gt; String {                 // ✅ add ki magát az értéket
+    String::from("szia")
+}</code></pre></div>
+
+<h3>Szeletek (slices)</h3>
+<p>A szelet egy gyűjtemény <em>összefüggő részére</em> mutató referencia. A legfontosabb a <strong>string-szelet</strong>: <code>&amp;str</code>.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn elso_szo(s: &amp;str) -&gt; &amp;str {
+    match s.split_whitespace().next() {
+        Some(szo) =&gt; szo,
+        None =&gt; "",
+    }
+}
+
+fn main() {
+    let mondat = String::from("a rozsda nem alszik");
+    let resz = &amp;mondat[2..8];          // "rozsda" — bájt-indexek!
+    println!("{resz}");
+    println!("első szó: {}", elso_szo(&amp;mondat));
+
+    let szamok = [1, 2, 3, 4, 5];
+    let kozepe: &amp;[i32] = &amp;szamok[1..4];  // tömbszelet: [2, 3, 4]
+    println!("{kozepe:?}");
+}</code></pre></div>
+
+<div class="doboz tipp"><span class="dcim">String vagy &amp;str?</span>
+<p><code>String</code> = birtokolt, növelhető, heap-en élő szöveg. <code>&amp;str</code> = kölcsönkapott rátekintés egy szövegre (akár String-re, akár a programba fordított literálra). <strong>Függvényparaméternek szinte mindig <code>&amp;str</code>-t kérj</strong> — a <code>&amp;String</code> automatikusan azzá alakul, így a függvényed mindkettőt elfogadja.</p></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x05</div>
+<p>Írj <code>leghosszabb_szo(s: &amp;str) -&gt; &amp;str</code> függvényt, amely visszaadja a szöveg leghosszabb szavát!</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">fn leghosszabb_szo(s: &amp;str) -&gt; &amp;str {
+    s.split_whitespace()
+        .max_by_key(|szo| szo.len())
+        .unwrap_or("")
+}
+
+fn main() {
+    println!("{}", leghosszabb_szo("a borrow checker a barátod"));
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x06 ============ -->
+<section class="fejezet" id="f06">
+<div class="fejcim"><span class="hex">0x06</span><h2>Struktúrák (struct)</h2></div>
+
+<p>A struct összetartozó adatokat fog egybe, névvel ellátott mezőkkel. A viselkedést (metódusokat) külön <code>impl</code> blokkban adjuk hozzá — a Rustban nincs öröklődés, az adat és a viselkedés szétválik (a viselkedés-megosztás eszköze a trait lesz, 0x0B).</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">#[derive(Debug)]                     // ingyen kapunk debug-kiírást ({:?})
+struct Teglalap {
+    szelesseg: f64,
+    magassag: f64,
+}
+
+impl Teglalap {
+    // Társított függvény (nincs self) — konstruktorszerű, :: -tal hívjuk
+    fn uj(szelesseg: f64, magassag: f64) -&gt; Self {
+        Self { szelesseg, magassag }         // mező-rövidítés: név egyezik
+    }
+
+    fn negyzet(oldal: f64) -&gt; Self {
+        Self { szelesseg: oldal, magassag: oldal }
+    }
+
+    // Metódus — &amp;self: csak olvassa az objektumot
+    fn terulet(&amp;self) -&gt; f64 {
+        self.szelesseg * self.magassag
+    }
+
+    // &amp;mut self: módosítja
+    fn skalaz(&amp;mut self, szorzo: f64) {
+        self.szelesseg *= szorzo;
+        self.magassag *= szorzo;
+    }
+
+    fn belefer(&amp;self, masik: &amp;Teglalap) -&gt; bool {
+        self.szelesseg &gt;= masik.szelesseg &amp;&amp; self.magassag &gt;= masik.magassag
+    }
+}
+
+fn main() {
+    let mut lap = Teglalap::uj(210.0, 297.0);     // A4
+    let blokk = Teglalap::negyzet(100.0);
+
+    println!("{lap:?}");
+    println!("terület: {:.0} mm²", lap.terulet());
+    println!("belefér a blokk? {}", lap.belefer(&amp;blokk));
+
+    lap.skalaz(0.5);
+    println!("felezve: {lap:?}");
+}</code></pre></div>
+
+<h3>A self három alakja</h3>
+<table>
+<tr><th>Forma</th><th>Jelentés</th><th>Mikor</th></tr>
+<tr><td><code>&amp;self</code></td><td>csak-olvasó kölcsönzés</td><td>lekérdezések, számítások (a leggyakoribb)</td></tr>
+<tr><td><code>&amp;mut self</code></td><td>módosító kölcsönzés</td><td>az objektum állapotát változtató metódusok</td></tr>
+<tr><td><code>self</code></td><td>tulajdonjog átvétele</td><td>az objektumot elfogyasztó/átalakító metódusok (pl. builder)</td></tr>
+</table>
+
+<h3>Frissítő szintaxis és tuple struct</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">#[derive(Debug, Clone)]
+struct Beallitas {
+    szelesseg: u32,
+    magassag: u32,
+    teljes_kepernyo: bool,
+    vsync: bool,
+}
+
+// Tuple struct: névtelen mezők — típusbiztos "címke" értékek köré
+struct Meter(f64);
+struct Lab(f64);
+
+fn main() {
+    let alap = Beallitas { szelesseg: 1920, magassag: 1080,
+                           teljes_kepernyo: false, vsync: true };
+
+    // ..alap: a többi mező az alapból jön
+    let enyem = Beallitas { teljes_kepernyo: true, ..alap.clone() };
+    println!("{enyem:?}");
+
+    let tav = Meter(100.0);
+    let Meter(ertek) = tav;             // kibontás mintaillesztéssel
+    println!("{ertek} m");
+    // A Meter és a Lab NEM keverhető össze — pedig mindkettő csak egy f64!
+}</code></pre></div>
+
+<div class="doboz tipp"><span class="dcim">Derive-arzenál</span>
+<p>A <code>#[derive(...)]</code> attribútummal gyakori trait-implementációkat generáltathatsz: <code>Debug</code> (kiírás), <code>Clone</code> (mélymásolás), <code>Copy</code> (bitmásolás — csak ha minden mező Copy), <code>PartialEq</code> (==), <code>Hash</code> (HashMap-kulcsnak), <code>Default</code> (alapértékek). Ezekről a trait-fejezetben lesz szó bővebben.</p></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x06</div>
+<p>Írj <code>Szamla</code> structot <code>tulajdonos: String</code> és <code>egyenleg: i64</code> mezőkkel, valamint <code>befizet</code>, <code>kivesz</code> (ne engedjen mínuszba menni — adjon vissza <code>bool</code> sikert) és <code>kiir</code> metódusokkal!</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">struct Szamla { tulajdonos: String, egyenleg: i64 }
+
+impl Szamla {
+    fn uj(tulajdonos: &amp;str) -&gt; Self {
+        Self { tulajdonos: tulajdonos.to_string(), egyenleg: 0 }
+    }
+    fn befizet(&amp;mut self, osszeg: i64) { self.egyenleg += osszeg; }
+    fn kivesz(&amp;mut self, osszeg: i64) -&gt; bool {
+        if osszeg &lt;= self.egyenleg { self.egyenleg -= osszeg; true } else { false }
+    }
+    fn kiir(&amp;self) {
+        println!("{}: {} Ft", self.tulajdonos, self.egyenleg);
+    }
+}
+
+fn main() {
+    let mut sz = Szamla::uj("Zoltán");
+    sz.befizet(10_000);
+    println!("sikeres kivét? {}", sz.kivesz(12_000));
+    sz.kiir();
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x07 ============ -->
+<section class="fejezet" id="f07">
+<div class="fejcim"><span class="hex">0x07</span><h2>Enumok és mintaillesztés</h2></div>
+
+<p>A Rust enumja sokkal több, mint a legtöbb nyelv felsorolás-típusa: minden variáns <strong>saját adatokat hordozhat</strong>. Ez az úgynevezett <em>összeg-típus</em> (sum type) — az adatmodellezés egyik legerősebb eszköze: "az érték ezek közül <em>pontosan az egyik</em>".</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">#[derive(Debug)]
+enum Uzenet {
+    Kilepes,                          // adat nélkül
+    Mozgas { x: i32, y: i32 },        // struct-szerű mezőkkel
+    Szoveg(String),                   // egy értékkel
+    SzinValtas(u8, u8, u8),           // tuple-szerű
+}
+
+fn feldolgoz(uzenet: &amp;Uzenet) {
+    match uzenet {
+        Uzenet::Kilepes =&gt; println!("Viszlát!"),
+        Uzenet::Mozgas { x, y } =&gt; println!("Mozgás ide: ({x}, {y})"),
+        Uzenet::Szoveg(s) =&gt; println!("Üzenet: {s}"),
+        Uzenet::SzinValtas(r, g, b) =&gt; println!("Új szín: #{r:02X}{g:02X}{b:02X}"),
+    }
+}
+
+fn main() {
+    let uzenetek = vec![
+        Uzenet::Mozgas { x: 10, y: -3 },
+        Uzenet::Szoveg(String::from("helló")),
+        Uzenet::SzinValtas(194, 84, 10),
+        Uzenet::Kilepes,
+    ];
+    for u in &amp;uzenetek {
+        feldolgoz(u);
+    }
+}</code></pre></div>
+
+<h3>A match kimerítő</h3>
+<p>A <code>match</code> minden lehetséges esetet <strong>kötelezően</strong> lefed — ha új variánst adsz az enumhoz, a fordító minden kezeletlen <code>match</code>-nél szólni fog. Ez óriási biztonsági háló refaktoráláskor. A "minden más" eset jele az <code>_</code>.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let kocka = 4;
+    match kocka {
+        1 =&gt; println!("egy"),
+        2 | 3 =&gt; println!("kettő vagy három"),       // vagy-minta
+        4..=6 =&gt; println!("négy és hat között"),     // tartomány
+        n if n % 2 == 0 =&gt; println!("egyéb páros"),  // őrfeltétel (guard)
+        _ =&gt; println!("valami más"),
+    }
+}</code></pre></div>
+
+<h3>Option&lt;T&gt;: a null halála</h3>
+<p>A Rustban <strong>nincs null</strong>. A "lehet, hogy van érték, lehet, hogy nincs" helyzetet a standard könyvtár <code>Option</code> enumja fejezi ki — és a fordító <em>kikényszeríti</em>, hogy a "nincs" esetet is kezeld.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">// enum Option&lt;T&gt; { Some(T), None }   ← így néz ki a stdlib-ben
+
+fn oszt(szamlalo: f64, nevezo: f64) -&gt; Option&lt;f64&gt; {
+    if nevezo == 0.0 { None } else { Some(szamlalo / nevezo) }
+}
+
+fn main() {
+    match oszt(10.0, 3.0) {
+        Some(e) =&gt; println!("eredmény: {e:.3}"),
+        None =&gt; println!("nullával nem osztunk"),
+    }
+
+    // Gyakori kényelmi metódusok:
+    let x = oszt(10.0, 0.0);
+    println!("{}", x.unwrap_or(0.0));            // alapérték, ha None
+    println!("{:?}", x.map(|e| e * 2.0));        // átalakítás, ha Some
+    println!("{}", x.is_none());
+
+    // if let — ha csak EGY eset érdekel:
+    if let Some(e) = oszt(9.0, 3.0) {
+        println!("megvan: {e}");
+    }
+
+    // let-else — korai kilépés, ha nincs érték:
+    let Some(e) = oszt(8.0, 2.0) else {
+        println!("nem sikerült");
+        return;
+    };
+    println!("e = {e}");
+}</code></pre></div>
+
+<div class="doboz figyelem"><span class="dcim">Figyelem</span>
+<p>Az <code>.unwrap()</code> kicsomagolja a <code>Some</code>-ot, de <code>None</code> esetén <strong>pánikol</strong>. Prototípusban rendben van, éles kódban kerülendő — használd helyette a <code>match</code>-et, <code>if let</code>-et, <code>unwrap_or</code>-t, vagy az <code>expect("értelmes hibaüzenet")</code>-et.</p></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x07</div>
+<p>Modellezz egy közlekedési lámpát <code>Lampa</code> enummal (Piros, Sárga, Zöld), és írj <code>kovetkezo(&amp;self) -&gt; Lampa</code> metódust, amely a következő állapotot adja! (Enumnak is lehet <code>impl</code> blokkja.)</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">#[derive(Debug)]
+enum Lampa { Piros, Sarga, Zold }
+
+impl Lampa {
+    fn kovetkezo(&amp;self) -&gt; Lampa {
+        match self {
+            Lampa::Piros =&gt; Lampa::Zold,
+            Lampa::Zold =&gt; Lampa::Sarga,
+            Lampa::Sarga =&gt; Lampa::Piros,
+        }
+    }
+}
+
+fn main() {
+    let mut l = Lampa::Piros;
+    for _ in 0..4 {
+        println!("{l:?}");
+        l = l.kovetkezo();
+    }
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x08 ============ -->
+<section class="fejezet" id="f08">
+<div class="fejcim"><span class="hex">0x08</span><h2>Gyűjtemények: Vec, String, HashMap</h2></div>
+
+<h3>Vec&lt;T&gt; — a dinamikus tömb</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let mut v: Vec&lt;i32&gt; = Vec::new();
+    v.push(10);
+    v.push(20);
+
+    let mut w = vec![1, 2, 3];        // vec! makró: létrehozás elemekkel
+    w.extend([4, 5]);
+    let utolso = w.pop();             // Option&lt;i32&gt; — lehet, hogy üres volt!
+    println!("{w:?}, kivett: {utolso:?}");
+
+    // Elemelérés kétféleképpen:
+    let harmadik = w[2];              // pánik, ha túlindexelsz
+    let tizedik = w.get(9);           // Option — biztonságos
+    println!("{harmadik}, {tizedik:?}");
+
+    // Iterálás:
+    for x in &amp;w { print!("{x} "); }            // olvasva
+    println!();
+    for x in &amp;mut w { *x *= 10; }              // módosítva (* = dereferálás)
+    println!("{w:?}");
+
+    // Klasszikus borrow-checker csapda:
+    // let elso = &amp;w[0];
+    // w.push(99);              // ❌ push közben a Vec átköltözhet a memóriában,
+    // println!("{elso}");      //    az elso referencia érvénytelenné válna!
+}</code></pre></div>
+
+<h3>String — UTF-8 szöveg</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let mut s = String::from("árvíztűrő");
+    s.push_str(" tükörfúrógép");
+    s.push('!');
+
+    let a = String::from("Helló, ");
+    let b = String::from("világ!");
+    let c = a + &amp;b;                       // a elköltözik, b csak kölcsön
+    let d = format!("{c} ({} bájt)", c.len());   // format!: nem mozgat semmit
+    println!("{d}");
+
+    // A String NEM indexelhető számmal (s[0] ❌), mert UTF-8-ban
+    // egy karakter több bájt is lehet ('ő' = 2 bájt). Helyette:
+    for ch in "túró🦀".chars() { print!("[{ch}]"); }
+    println!();
+    println!("karakterek: {}, bájtok: {}", "túró".chars().count(), "túró".len());
+}</code></pre></div>
+
+<h3>HashMap&lt;K, V&gt; — kulcs-érték tár</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::collections::HashMap;
+
+fn main() {
+    let mut keszlet: HashMap&lt;String, u32&gt; = HashMap::new();
+    keszlet.insert(String::from("alma"), 50);
+    keszlet.insert(String::from("körte"), 30);
+
+    if let Some(db) = keszlet.get("alma") {
+        println!("alma: {db} db");
+    }
+
+    // entry API — a leghasznosabb minta: "ha nincs, hozd létre"
+    *keszlet.entry(String::from("szilva")).or_insert(0) += 12;
+    *keszlet.entry(String::from("alma")).or_insert(0) += 5;
+
+    for (nev, db) in &amp;keszlet {
+        println!("{nev}: {db}");
+    }
+
+    // Szógyakoriság-számláló — a klasszikus entry-példa:
+    let szoveg = "a kék ég a kék tó a part";
+    let mut gyakorisag = HashMap::new();
+    for szo in szoveg.split_whitespace() {
+        *gyakorisag.entry(szo).or_insert(0) += 1;
+    }
+    println!("{gyakorisag:?}");
+}</code></pre></div>
+
+<div class="doboz melyseg"><span class="dcim">További gyűjtemények</span>
+<p>A <code>std::collections</code>-ben találod még: <code>VecDeque</code> (kétvégű sor), <code>BTreeMap</code> (rendezett map), <code>HashSet</code>/<code>BTreeSet</code> (halmazok), <code>BinaryHeap</code> (prioritási sor). Az esetek 90%-ában a <code>Vec</code> + <code>HashMap</code> páros elég.</p></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x08</div>
+<p>Adott egy <code>Vec&lt;i32&gt;</code>. Számold ki a mediánt (rendezés után a középső érték) és a móduszt (leggyakoribb érték — HashMap segít)!</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::collections::HashMap;
+
+fn main() {
+    let mut adatok = vec![3, 7, 3, 1, 9, 3, 7, 5];
+
+    adatok.sort();
+    let median = adatok[adatok.len() / 2];
+
+    let mut darab = HashMap::new();
+    for &amp;x in &amp;adatok {
+        *darab.entry(x).or_insert(0) += 1;
+    }
+    let modusz = darab.iter().max_by_key(|(_, db)| **db).map(|(x, _)| *x);
+
+    println!("medián: {median}, módusz: {modusz:?}");
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x09 ============ -->
+<section class="fejezet" id="f09">
+<div class="fejcim"><span class="hex">0x09</span><h2>Hibakezelés: Result és a ? operátor</h2></div>
+
+<p>A Rust két kategóriába sorolja a hibákat. A <strong>helyrehozhatatlan</strong> hibák (programozói bug, pl. túlindexelés) <code>panic!</code>-ot okoznak és leállítják a programot. A <strong>helyrehozható</strong> hibák (nincs ilyen fájl, hibás bemenet, hálózati gond) viszont <em>értékként</em> jelennek meg a <code>Result</code> enumban — nincs kivételdobás, a hibalehetőség ott van a függvény szignatúrájában.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">// enum Result&lt;T, E&gt; { Ok(T), Err(E) }    ← a stdlib definíciója
+
+use std::fs::File;
+use std::io::Read;
+
+fn main() {
+    match File::open("nincs_ilyen.txt") {
+        Ok(f) =&gt; println!("megnyitva: {f:?}"),
+        Err(e) =&gt; println!("hiba: {e}"),
+    }
+}</code></pre></div>
+
+<h3>A ? operátor — hibatovábbítás egy karakterrel</h3>
+<p>A hibakezelés gerince a <code>?</code>: ha az érték <code>Ok</code>, kicsomagolja; ha <code>Err</code>, <strong>azonnal visszatér vele</strong> a hívóhoz. Így a "boldog útvonal" tisztán olvasható marad.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::fs::File;
+use std::io::{self, Read};
+
+fn fajl_beolvas(utvonal: &amp;str) -&gt; Result&lt;String, io::Error&gt; {
+    let mut f = File::open(utvonal)?;        // hiba esetén korai return Err(...)
+    let mut tartalom = String::new();
+    f.read_to_string(&amp;mut tartalom)?;
+    Ok(tartalom)
+}
+
+// A main is visszaadhat Result-ot — hibánál nem nulla kilépési kóddal áll le:
+fn main() -&gt; Result&lt;(), io::Error&gt; {
+    let tartalom = fajl_beolvas("Cargo.toml")?;
+    println!("{} bájt beolvasva", tartalom.len());
+    Ok(())
+}</code></pre></div>
+
+<h3>Saját hibatípus</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::fmt;
+
+#[derive(Debug)]
+enum KonfigHiba {
+    HianyzoMezo(String),
+    RosszErtek { mezo: String, ertek: String },
+}
+
+impl fmt::Display for KonfigHiba {
+    fn fmt(&amp;self, f: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        match self {
+            KonfigHiba::HianyzoMezo(m) =&gt; write!(f, "hiányzó mező: {m}"),
+            KonfigHiba::RosszErtek { mezo, ertek } =&gt;
+                write!(f, "érvénytelen érték a(z) {mezo} mezőben: '{ertek}'"),
+        }
+    }
+}
+
+impl std::error::Error for KonfigHiba {}
+
+fn port_kiolvas(bemenet: Option&lt;&amp;str&gt;) -&gt; Result&lt;u16, KonfigHiba&gt; {
+    let s = bemenet.ok_or(KonfigHiba::HianyzoMezo("port".into()))?;
+    s.parse().map_err(|_| KonfigHiba::RosszErtek {
+        mezo: "port".into(),
+        ertek: s.into(),
+    })
+}
+
+fn main() {
+    println!("{:?}", port_kiolvas(Some("8080")));
+    println!("{}", port_kiolvas(Some("nyolc")).unwrap_err());
+    println!("{}", port_kiolvas(None).unwrap_err());
+}</code></pre></div>
+
+<div class="doboz tipp"><span class="dcim">A gyakorlatban</span>
+<p>Élesben két crate uralja a terepet: az <strong>anyhow</strong> alkalmazásokhoz (egyetlen rugalmas <code>anyhow::Error</code> típus + kontextus: <code>.context("config betöltése")?</code>), a <strong>thiserror</strong> pedig könyvtárakhoz (a fenti kézi <code>Display</code>/<code>Error</code> implementációt derive-makróval generálja). Ökölszabály: app → anyhow, lib → thiserror.</p></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x09</div>
+<p>Írj <code>atlag(szamok: &amp;str) -&gt; Result&lt;f64, String&gt;</code> függvényt, amely egy vesszővel tagolt számlistát ("1,2,3") átlagol. Hibás elem vagy üres lista esetén értelmes hibaszöveget adjon!</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">fn atlag(szamok: &amp;str) -&gt; Result&lt;f64, String&gt; {
+    let mut osszeg = 0.0;
+    let mut db = 0;
+    for resz in szamok.split(',') {
+        let szam: f64 = resz.trim().parse()
+            .map_err(|_| format!("nem szám: '{}'", resz.trim()))?;
+        osszeg += szam;
+        db += 1;
+    }
+    if db == 0 { return Err("üres lista".to_string()); }
+    Ok(osszeg / db as f64)
+}
+
+fn main() {
+    println!("{:?}", atlag("1, 2, 3, 4"));   // Ok(2.5)
+    println!("{:?}", atlag("1, kettő"));     // Err("nem szám: 'kettő'")
+}</code></pre></div>
+</details></div>
+</section>
+<!-- ============ 0x0A ============ -->
+<section class="fejezet" id="f0A">
+<div class="fejcim"><span class="hex">0x0A</span><h2>Generikusok</h2></div>
+
+<p>A generikusokkal egyszer megírt kód többféle típussal is működik — típusbiztonsággal és <strong>futásidejű költség nélkül</strong>: a fordító minden ténylegesen használt típushoz külön, optimalizált változatot generál (ezt hívják <em>monomorfizációnak</em>).</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">// T: bármilyen típus, amely összehasonlítható (PartialOrd) — ez a trait-korlát
+fn legnagyobb&lt;T: PartialOrd&gt;(lista: &amp;[T]) -&gt; &amp;T {
+    let mut max = &amp;lista[0];
+    for elem in lista {
+        if elem &gt; max {
+            max = elem;
+        }
+    }
+    max
+}
+
+// Generikus struct
+#[derive(Debug)]
+struct Pont&lt;T&gt; {
+    x: T,
+    y: T,
+}
+
+impl&lt;T: std::ops::Add&lt;Output = T&gt; + Copy&gt; Pont&lt;T&gt; {
+    fn osszeg(&amp;self) -&gt; T {
+        self.x + self.y
+    }
+}
+
+// Csak konkrét típusra szóló metódus:
+impl Pont&lt;f64&gt; {
+    fn tavolsag_origotol(&amp;self) -&gt; f64 {
+        (self.x * self.x + self.y * self.y).sqrt()
+    }
+}
+
+fn main() {
+    println!("{}", legnagyobb(&amp;[3, 7, 2, 9, 4]));
+    println!("{}", legnagyobb(&amp;["alma", "körte", "barack"]));
+
+    let egesz = Pont { x: 3, y: 4 };
+    let tort = Pont { x: 3.0, y: 4.0 };
+    println!("{}", egesz.osszeg());
+    println!("{}", tort.tavolsag_origotol());
+    // egesz.tavolsag_origotol();   // ❌ csak Pont&lt;f64&gt;-nek van!
+}</code></pre></div>
+
+<h3>A korlátok írásmódjai</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::fmt::Display;
+
+// 1) Inline:
+fn kiir1&lt;T: Display + Clone&gt;(x: T) { println!("{x}"); }
+
+// 2) where záradék — olvashatóbb, ha sok a korlát:
+fn kiir2&lt;T&gt;(x: T)
+where
+    T: Display + Clone,
+{
+    println!("{x}");
+}
+
+// 3) impl Trait paraméterpozícióban — a legtömörebb egyszerű esetekre:
+fn kiir3(x: impl Display) { println!("{x}"); }
+
+fn main() { kiir1("a"); kiir2("b"); kiir3("c"); }</code></pre></div>
+
+<div class="doboz melyseg"><span class="dcim">Nulla költségű absztrakció</span>
+<p>Mivel a fordító minden használt típusra külön kódot generál, a generikus hívás pontosan olyan gyors, mintha kézzel írtad volna meg <code>i32</code>-re és <code>f64</code>-re külön. Az ár a fordítási idő és a bináris méret — futásidőben semmi.</p></div>
+</section>
+
+<!-- ============ 0x0B ============ -->
+<section class="fejezet" id="f0B">
+<div class="fejcim"><span class="hex">0x0B</span><h2>Trait-ek: közös viselkedés</h2></div>
+
+<p>A trait viselkedési szerződés: metódusok halmaza, amelyet egy típus implementálhat. Az interface-ekhez hasonlít, de erősebb: lehet <strong>alapértelmezett implementációja</strong>, és <strong>meglévő típusokra utólag</strong> is implementálható (ha a trait vagy a típus a tiéd — ez az ún. orphan szabály).</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">trait Osszegezheto {
+    fn cim(&amp;self) -&gt; String;
+
+    // Alapértelmezett implementáció — felülírható, de nem kötelező:
+    fn osszegzes(&amp;self) -&gt; String {
+        format!("[{}]", self.cim())
+    }
+}
+
+struct Cikk { cim: String, szerzo: String }
+struct Tweet { felhasznalo: String, szoveg: String }
+
+impl Osszegezheto for Cikk {
+    fn cim(&amp;self) -&gt; String { self.cim.clone() }
+    fn osszegzes(&amp;self) -&gt; String {
+        format!("{} — írta: {}", self.cim, self.szerzo)
+    }
+}
+
+impl Osszegezheto for Tweet {
+    fn cim(&amp;self) -&gt; String { format!("@{}", self.felhasznalo) }
+    // az osszegzes itt az alapértelmezett marad
+}
+
+// Trait-korlátos generikus függvény: bármit elfogad, ami Osszegezheto
+fn mutat(elem: &amp;impl Osszegezheto) {
+    println!("{}", elem.osszegzes());
+}
+
+fn main() {
+    let c = Cikk { cim: "A Rust felemelkedése".into(), szerzo: "K. Zoltán".into() };
+    let t = Tweet { felhasznalo: "ferris".into(), szoveg: "🦀".into() };
+    mutat(&amp;c);
+    mutat(&amp;t);
+}</code></pre></div>
+
+<h3>Statikus vs. dinamikus diszpécselés</h3>
+<p>Két módon dolgozhatsz "valami, ami Trait" értékekkel — és a különbség fontos:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">trait Alakzat { fn terulet(&amp;self) -&gt; f64; }
+
+struct Kor { r: f64 }
+struct Negyzet { a: f64 }
+impl Alakzat for Kor { fn terulet(&amp;self) -&gt; f64 { self.r * self.r * std::f64::consts::PI } }
+impl Alakzat for Negyzet { fn terulet(&amp;self) -&gt; f64 { self.a * self.a } }
+
+// STATIKUS (generikus): fordításkor dől el a típus — leggyorsabb
+fn kiir_statikus&lt;T: Alakzat&gt;(a: &amp;T) {
+    println!("{:.2}", a.terulet());
+}
+
+// DINAMIKUS (trait objektum): futásidőben, vtable-ön át — vegyes gyűjteményhez kell
+fn kiir_dinamikus(a: &amp;dyn Alakzat) {
+    println!("{:.2}", a.terulet());
+}
+
+fn main() {
+    // VEGYES típusú lista — ezt csak trait objektummal lehet:
+    let alakzatok: Vec&lt;Box&lt;dyn Alakzat&gt;&gt; = vec![
+        Box::new(Kor { r: 1.0 }),
+        Box::new(Negyzet { a: 2.0 }),
+    ];
+    for a in &amp;alakzatok {
+        kiir_dinamikus(a.as_ref());
+    }
+    kiir_statikus(&amp;Kor { r: 3.0 });
+}</code></pre></div>
+
+<table>
+<tr><th></th><th>Generikus (<code>T: Trait</code>)</th><th>Trait objektum (<code>dyn Trait</code>)</th></tr>
+<tr><td>Eldöntés</td><td>fordításkor (monomorfizáció)</td><td>futásidőben (vtable)</td></tr>
+<tr><td>Sebesség</td><td>maximális, inline-olható</td><td>egy indirekció hívásonként</td></tr>
+<tr><td>Vegyes típusú gyűjtemény</td><td>nem</td><td>igen</td></tr>
+<tr><td>Bináris méret</td><td>nagyobb (típusonként kód)</td><td>kisebb</td></tr>
+</table>
+
+<h3>A standard könyvtár fontos trait-jei</h3>
+<table>
+<tr><th>Trait</th><th>Mit ad</th></tr>
+<tr><td><code>Debug</code> / <code>Display</code></td><td><code>{:?}</code> ill. <code>{}</code> formázás</td></tr>
+<tr><td><code>Clone</code> / <code>Copy</code></td><td>explicit mélymásolás / implicit bitmásolás</td></tr>
+<tr><td><code>PartialEq</code>, <code>Eq</code>, <code>PartialOrd</code>, <code>Ord</code></td><td>egyenlőség és rendezés (==, &lt;, sort)</td></tr>
+<tr><td><code>Default</code></td><td>alapértelmezett érték (<code>T::default()</code>)</td></tr>
+<tr><td><code>From</code> / <code>Into</code></td><td>típuskonverzió — ha <code>From</code>-ot írsz, az <code>Into</code> ingyen jár</td></tr>
+<tr><td><code>Iterator</code></td><td>a teljes iterátor-gépezet (0x0D)</td></tr>
+<tr><td><code>Drop</code></td><td>egyedi takarítókód a megsemmisüléskor</td></tr>
+</table>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs — From/Into a gyakorlatban</span><button class="masol">Másolás</button></div><pre><code class="rust">struct Celsius(f64);
+struct Fahrenheit(f64);
+
+impl From&lt;Celsius&gt; for Fahrenheit {
+    fn from(c: Celsius) -&gt; Self {
+        Fahrenheit(c.0 * 9.0 / 5.0 + 32.0)
+    }
+}
+
+fn main() {
+    let nyar = Celsius(35.0);
+    let f: Fahrenheit = nyar.into();      // az Into automatikusan létezik
+    println!("{:.1} °F", f.0);
+}</code></pre></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x0B</div>
+<p>Írj <code>Terulet</code> traitet, implementáld <code>Kor</code>, <code>Teglalap</code> és <code>Haromszog</code> típusokra, majd írj függvényt, amely egy <code>&amp;[Box&lt;dyn Terulet&gt;]</code> lista <em>összterületét</em> adja vissza!</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">trait Terulet { fn terulet(&amp;self) -&gt; f64; }
+
+struct Kor { r: f64 }
+struct Teglalap { a: f64, b: f64 }
+struct Haromszog { alap: f64, magassag: f64 }
+
+impl Terulet for Kor { fn terulet(&amp;self) -&gt; f64 { self.r.powi(2) * std::f64::consts::PI } }
+impl Terulet for Teglalap { fn terulet(&amp;self) -&gt; f64 { self.a * self.b } }
+impl Terulet for Haromszog { fn terulet(&amp;self) -&gt; f64 { self.alap * self.magassag / 2.0 } }
+
+fn osszterulet(alakzatok: &amp;[Box&lt;dyn Terulet&gt;]) -&gt; f64 {
+    alakzatok.iter().map(|a| a.terulet()).sum()
+}
+
+fn main() {
+    let lista: Vec&lt;Box&lt;dyn Terulet&gt;&gt; = vec![
+        Box::new(Kor { r: 1.0 }),
+        Box::new(Teglalap { a: 2.0, b: 3.0 }),
+        Box::new(Haromszog { alap: 4.0, magassag: 1.0 }),
+    ];
+    println!("összterület: {:.2}", osszterulet(&amp;lista));
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x0C ============ -->
+<section class="fejezet" id="f0C">
+<div class="fejcim"><span class="hex">0x0C</span><h2>Élettartamok (lifetimes)</h2></div>
+
+<p>Az élettartam azt írja le, <strong>meddig érvényes egy referencia</strong>. Minden referenciának van élettartama — a fordító legtöbbször magától kikövetkezteti, és csak akkor kell kiírni, amikor <em>többértelmű lenne</em>. Az élettartam-annotáció (<code>'a</code>) <strong>nem változtat semmit a futáson</strong>: csak elmagyarázza a fordítónak a referenciák közti viszonyokat.</p>
+
+<h3>A klasszikus példa</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">// Két referenciát kapunk, egyet adunk vissza. A fordító kérdése:
+// a visszaadott referencia MEDDIG érvényes? Az 'a kimondja:
+// "addig, ameddig MINDKÉT bemenet még él".
+fn hosszabb&lt;'a&gt;(x: &amp;'a str, y: &amp;'a str) -&gt; &amp;'a str {
+    if x.len() &gt; y.len() { x } else { y }
+}
+
+fn main() {
+    let s1 = String::from("hosszú string");
+    let eredmeny;
+    {
+        let s2 = String::from("rövid");
+        eredmeny = hosszabb(s1.as_str(), s2.as_str());
+        println!("hosszabb: {eredmeny}");     // ✅ itt s2 még él
+    }
+    // println!("{eredmeny}");                // ❌ s2 már megszűnt —
+                                              //    az eredmeny rá is mutathatna!
+}</code></pre></div>
+
+<p>A fordító konzervatív: mivel az <code>eredmeny</code> <em>akár</em> az <code>s2</code>-re is mutathat, a belső blokkon kívül nem engedi használni. Pontosan ez a lógó referencia (dangling pointer) elleni védelem.</p>
+
+<h3>Elision: amikor nem kell kiírni</h3>
+<p>Három szabály alapján a fordító magától kitölti az élettartamokat — ezért nem kellett eddig <code>'a</code>-t írnunk:</p>
+<ol>
+<li>Minden referencia-paraméter saját élettartamot kap.</li>
+<li>Ha pontosan <strong>egy</strong> bemeneti élettartam van, az lesz az összes kimeneté is.</li>
+<li>Metódusoknál a <code>&amp;self</code> élettartama lesz a kimeneteké.</li>
+</ol>
+<p>Ezért nem kell annotáció ide: <code>fn elso_szo(s: &amp;str) -&gt; &amp;str</code> — a 2. szabály lefedi. A <code>hosszabb</code>-nál viszont két bemenet volt, ott egyik szabály sem dönt, kézzel kellett.</p>
+
+<h3>Referencia structban</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">// Ha egy struct referenciát tárol, ki KELL mondani:
+// a struct nem élhet tovább, mint amire mutat.
+struct Idezet&lt;'a&gt; {
+    szoveg: &amp;'a str,
+}
+
+impl&lt;'a&gt; Idezet&lt;'a&gt; {
+    fn felkialt(&amp;self) -&gt; String {
+        format!("{}!", self.szoveg)
+    }
+}
+
+fn main() {
+    let regeny = String::from("Az élet szép. Néha nehéz.");
+    let elso_mondat = regeny.split('.').next().unwrap();
+    let i = Idezet { szoveg: elso_mondat };
+    println!("{}", i.felkialt());
+}
+
+// A 'static a teljes programfutásig él — pl. string literálok:
+// let s: &amp;'static str = "ez a binárisba van fordítva";</code></pre></div>
+
+<div class="doboz tipp"><span class="dcim">Lelki segély</span>
+<p>Az élettartamokkal való küzdelem minden Rust-tanuló közös élménye. Két praktikus tanács: (1) ha elakadsz, gyakran egyszerűbb <strong>birtokolt értéket</strong> (<code>String</code>, <code>Vec</code>) tárolni referencia helyett, akár egy <code>clone</code> árán is; (2) olvasd el a fordító hibaüzenetét <em>végig</em> — a rustc hibaüzenetei a szakma legjobbjai, gyakran a kész javítást is odaírják.</p></div>
+</section>
+
+<!-- ============ 0x0D ============ -->
+<section class="fejezet" id="f0D">
+<div class="fejcim"><span class="hex">0x0D</span><h2>Closure-ök és iterátorok</h2></div>
+
+<h3>Closure: függvény, amely emlékszik</h3>
+<p>A closure névtelen függvény, amely <strong>elfoghatja a környezete változóit</strong>. Szintaxisa: <code>|paraméterek| törzs</code>.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let szorzo = 3;
+    let szoroz = |x: i32| x * szorzo;       // elfogja a szorzo-t (referenciával)
+    println!("{}", szoroz(7));
+
+    // A típusokat legtöbbször ki sem kell írni:
+    let osszead = |a, b| a + b;
+    println!("{}", osszead(2, 3));
+
+    // move: a closure átveszi a tulajdonjogot — szálaknál kötelező lesz (0x11)
+    let nev = String::from("Ferris");
+    let koszont = move || println!("Szia, {nev}!");
+    koszont();
+    // println!("{nev}");                  // ❌ a nev a closure-be költözött
+}</code></pre></div>
+
+<p>Három closure-trait létezik aszerint, hogyan nyúl a closure a környezetéhez: <code>Fn</code> (csak olvas), <code>FnMut</code> (módosít), <code>FnOnce</code> (elfogyaszt — csak egyszer hívható). Paraméterként így kérheted: <code>fn alkalmaz(f: impl Fn(i32) -&gt; i32)</code>.</p>
+
+<h3>Iterátorok: a Rust leghasználtabb absztrakciója</h3>
+<p>Az iterátor lusta értéksorozat: addig nem csinál semmit, amíg el nem "fogyasztod". Az <strong>adapterek</strong> (map, filter…) új iterátort adnak, a <strong>fogyasztók</strong> (collect, sum, count…) végigfuttatják a láncot.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let szamok = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+    // A klasszikus lánc: szűr → átalakít → összegyűjt
+    let paros_negyzetek: Vec&lt;i32&gt; = szamok
+        .iter()
+        .filter(|&amp;&amp;x| x % 2 == 0)
+        .map(|&amp;x| x * x)
+        .collect();
+    println!("{paros_negyzetek:?}");        // [4, 16, 36, 64, 100]
+
+    // Aggregátorok:
+    let osszeg: i32 = szamok.iter().sum();
+    let max = szamok.iter().max();
+    let db_nagy = szamok.iter().filter(|&amp;&amp;x| x &gt; 5).count();
+    println!("összeg: {osszeg}, max: {max:?}, 5-nél nagyobb: {db_nagy}");
+
+    // enumerate, zip, take, skip, rev, chain...
+    for (i, nev) in ["a", "b", "c"].iter().enumerate() {
+        println!("{i}: {nev}");
+    }
+    let parok: Vec&lt;_&gt; = [1, 2, 3].iter().zip(["x", "y", "z"]).collect();
+    println!("{parok:?}");
+
+    // fold — általános összegyűjtő:
+    let szorzat = (1..=5).fold(1, |acc, x| acc * x);
+    println!("5! = {szorzat}");
+
+    // collect HashMap-be is tud:
+    use std::collections::HashMap;
+    let arak: HashMap&lt;&amp;str, u32&gt; =
+        [("alma", 450), ("körte", 620)].into_iter().collect();
+    println!("{arak:?}");
+}</code></pre></div>
+
+<h3>A három iter-változat</h3>
+<table>
+<tr><th>Hívás</th><th>Elemtípus</th><th>Mi történik a gyűjteménnyel</th></tr>
+<tr><td><code>v.iter()</code></td><td><code>&amp;T</code></td><td>kölcsönveszi — utána is használható</td></tr>
+<tr><td><code>v.iter_mut()</code></td><td><code>&amp;mut T</code></td><td>módosíthatóan kölcsönveszi</td></tr>
+<tr><td><code>v.into_iter()</code></td><td><code>T</code></td><td>elfogyasztja — a v utána nem él</td></tr>
+</table>
+
+<h3>Saját iterátor</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">struct Fibonacci { a: u64, b: u64 }
+
+impl Iterator for Fibonacci {
+    type Item = u64;
+    fn next(&amp;mut self) -&gt; Option&lt;u64&gt; {
+        let kovetkezo = self.a;
+        (self.a, self.b) = (self.b, self.a + self.b);
+        Some(kovetkezo)
+    }
+}
+
+fn main() {
+    let fib = Fibonacci { a: 0, b: 1 };
+    // Egyetlen next()-et írtunk, és az EGÉSZ adapter-arzenál működik:
+    let elso_tiz: Vec&lt;u64&gt; = fib.take(10).collect();
+    println!("{elso_tiz:?}");
+}</code></pre></div>
+
+<div class="doboz melyseg"><span class="dcim">Teljesítmény</span>
+<p>Az iterátor-láncok <em>nulla költségű absztrakciók</em>: a fordító ugyanolyan (sőt néha jobb) gépi kódra fordítja őket, mint a kézzel írt for-ciklust — például mert az iterátoros indexelésnél el tudja hagyni a határellenőrzéseket. Nyugodtan írj kifejező láncokat.</p></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x0D</div>
+<p>Adott szavak listája. Egyetlen iterátor-lánccal állítsd elő a 4 betűnél hosszabb szavak NAGYBETŰS változatát, ábécérendben!</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let szavak = vec!["rozsda", "vas", "acél", "titánium", "ón", "wolfram"];
+    let mut eredmeny: Vec&lt;String&gt; = szavak
+        .iter()
+        .filter(|sz| sz.chars().count() &gt; 4)
+        .map(|sz| sz.to_uppercase())
+        .collect();
+    eredmeny.sort();
+    println!("{eredmeny:?}");
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x0E ============ -->
+<section class="fejezet" id="f0E">
+<div class="fejcim"><span class="hex">0x0E</span><h2>Modulok, crate-ek, csomagok</h2></div>
+
+<p>Ahogy nő a kód, rendszerezni kell. A hierarchia: <strong>csomag</strong> (package — amit a <code>cargo new</code> létrehoz) → <strong>crate</strong> (fordítási egység: egy bináris és/vagy egy könyvtár) → <strong>modulok</strong> (névterek a crate-en belül).</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs — modulok egy fájlban</span><button class="masol">Másolás</button></div><pre><code class="rust">mod etterem {
+    pub mod felszolgalas {                    // pub: kívülről látható
+        pub fn rendeles_felvetel() {
+            println!("Mit hozhatok?");
+            super::konyha::fozes();           // super: a szülőmodul
+        }
+    }
+
+    mod konyha {                              // privát — csak az etterem látja
+        pub fn fozes() {
+            println!("Készül az étel...");
+        }
+    }
+}
+
+use etterem::felszolgalas;                    // use: rövidítés a hívásokhoz
+
+fn main() {
+    felszolgalas::rendeles_felvetel();
+}</code></pre></div>
+
+<h3>Modulok külön fájlokban</h3>
+<p>A gyakorlatban a modulokat fájlokra bontjuk. A <code>mod neve;</code> deklaráció megmondja a fordítónak, hogy keresse a <code>neve.rs</code> fájlt (vagy a <code>neve/mod.rs</code>-t):</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">projektszerkezet</span><button class="masol">Másolás</button></div><pre><code class="bash">src/
+├── main.rs          #  mod geometria;  mod fizika;
+├── geometria.rs     #  pub fn terulet(...) {...}
+└── fizika/
+    ├── mod.rs       #  pub mod mechanika;
+    └── mechanika.rs #  pub fn sebesseg(...) {...}
+
+# Hívás a main.rs-ből:
+#   geometria::terulet(...)
+#   fizika::mechanika::sebesseg(...)</code></pre></div>
+
+<h3>Láthatóság</h3>
+<ul>
+<li>Alapértelmezetten <strong>minden privát</strong> — a szülőmodul nem lát a gyerekbe.</li>
+<li><code>pub</code> — nyilvános; <code>pub(crate)</code> — csak a saját crate-en belül nyilvános.</li>
+<li>Struct mezőit <strong>mezőnként</strong> kell <code>pub</code>-bal jelölni; enum variánsai a <code>pub</code> enummal együtt automatikusan publikusak.</li>
+</ul>
+
+<h3>Külső crate-ek és a crates.io</h3>
+<p>A Rust ökoszisztéma szíve a <a href="https://crates.io">crates.io</a>. Függőséget a <code>cargo add</code> paranccsal vagy a <code>Cargo.toml</code> szerkesztésével veszel fel:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">Cargo.toml</span><button class="masol">Másolás</button></div><pre><code class="bash">[dependencies]
+serde = { version = "1", features = ["derive"] }   # szerializáció
+serde_json = "1"                                   # JSON
+rand = "0.8"                                       # véletlenszámok</code></pre></div>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs — serde gyorstalpaló</span><button class="masol">Másolás</button></div><pre><code class="rust">use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Jatekos {
+    nev: String,
+    szint: u32,
+    aktiv: bool,
+}
+
+fn main() -&gt; Result&lt;(), serde_json::Error&gt; {
+    let j = Jatekos { nev: "Ferris".into(), szint: 42, aktiv: true };
+
+    let json = serde_json::to_string_pretty(&amp;j)?;
+    println!("{json}");
+
+    let vissza: Jatekos = serde_json::from_str(&amp;json)?;
+    println!("{vissza:?}");
+    Ok(())
+}</code></pre></div>
+
+<div class="doboz tipp"><span class="dcim">Érdemes ismerni</span>
+<p>Néhány crate, amelyet szinte minden projektben látni fogsz: <strong>serde</strong> (szerializáció), <strong>tokio</strong> (async futtatókörnyezet), <strong>clap</strong> (parancssori argumentumok), <strong>reqwest</strong> (HTTP-kliens), <strong>regex</strong>, <strong>chrono</strong> (dátumkezelés), <strong>tracing</strong> (naplózás), <strong>anyhow / thiserror</strong> (hibakezelés).</p></div>
+</section>
+
+<!-- ============ 0x0F ============ -->
+<section class="fejezet" id="f0F">
+<div class="fejcim"><span class="hex">0x0F</span><h2>Tesztelés</h2></div>
+
+<p>A tesztelés a nyelvbe és a Cargóba van építve: nincs szükség külső keretrendszerre. Egy teszt egyszerűen egy <code>#[test]</code>-tel jelölt függvény, amelyet a <code>cargo test</code> futtat.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/lib.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">pub fn osszead(a: i32, b: i32) -&gt; i32 { a + b }
+
+pub fn oszt(a: f64, b: f64) -&gt; Result&lt;f64, String&gt; {
+    if b == 0.0 { Err("nullával osztás".into()) } else { Ok(a / b) }
+}
+
+// A tesztmodul csak teszteléskor fordul le (#[cfg(test)]):
+#[cfg(test)]
+mod tests {
+    use super::*;                  // behozzuk a tesztelt függvényeket
+
+    #[test]
+    fn osszead_mukodik() {
+        assert_eq!(osszead(2, 2), 4);
+        assert_ne!(osszead(2, 2), 5);
+    }
+
+    #[test]
+    fn oszt_nullaval_hibazik() {
+        assert!(oszt(1.0, 0.0).is_err());
+    }
+
+    #[test]
+    fn oszt_eredmenye_pontos() -&gt; Result&lt;(), String&gt; {
+        let e = oszt(10.0, 4.0)?;          // a ? tesztben is működik!
+        assert!((e - 2.5).abs() &lt; 1e-9, "vártam 2.5-öt, kaptam {e}-t");
+        Ok(())
+    }
+
+    #[test]
+    #[should_panic(expected = "index out of bounds")]
+    fn tulindexeles_panikol() {
+        let v = vec![1, 2, 3];
+        let _ = v[10];
+    }
+}</code></pre></div>
+
+<div class="kimenet">running 4 tests
+test tests::osszead_mukodik ... ok
+test tests::oszt_nullaval_hibazik ... ok
+test tests::oszt_eredmenye_pontos ... ok
+test tests::tulindexeles_panikol ... ok
+
+test result: ok. 4 passed; 0 failed</div>
+
+<h3>Teszt-szintek</h3>
+<ul>
+<li><strong>Egységtesztek</strong> — a fenti minta: a modul mellett, <code>#[cfg(test)]</code> alatt. A privát függvényeket is elérik.</li>
+<li><strong>Integrációs tesztek</strong> — a projekt gyökerében lévő <code>tests/</code> mappa fájljai. Úgy használják a crate-edet, mint egy külső felhasználó: csak a publikus API-t látják.</li>
+<li><strong>Dokumentációs tesztek</strong> — a dokukommentekbe (<code>///</code>) írt kódpéldákat a <code>cargo test</code> <em>lefuttatja</em>! Így a dokumentáció sosem avul el csendben:</li>
+</ul>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/lib.rs — doc-teszt</span><button class="masol">Másolás</button></div><pre><code class="rust">/// Két szám összegét adja vissza.
+///
+/// # Példa
+/// ```
+/// assert_eq!(sajat_crate::osszead(2, 3), 5);
+/// ```
+pub fn osszead(a: i32, b: i32) -&gt; i32 { a + b }</code></pre></div>
+
+<div class="doboz tipp"><span class="dcim">Hasznos kapcsolók</span>
+<p><code>cargo test nev_resz</code> — csak az illeszkedő nevű tesztek; <code>cargo test -- --nocapture</code> — a println! kimenete is látszik; <code>cargo test -- --test-threads=1</code> — soros futtatás, ha a tesztek közös erőforrást használnak.</p></div>
+</section>
+<!-- ============ 0x10 ============ -->
+<section class="fejezet" id="f10">
+<div class="fejcim"><span class="hex">0x10</span><h2>Okos mutatók: Box, Rc, RefCell</h2></div>
+
+<p>Az okos mutató olyan struct, amely mutatóként viselkedik, de plusz képességeket ad. A <code>String</code> és a <code>Vec</code> is az — most a három legfontosabb "csupasz" változat jön.</p>
+
+<h3>Box&lt;T&gt; — érték a heap-en</h3>
+<p>A <code>Box</code> a legegyszerűbb: egy értéket a heap-re tesz. Három fő használati eset:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">// 1) Rekurzív típus — Box nélkül a fordító nem tudná a méretét:
+#[derive(Debug)]
+enum Lista {
+    Elem(i32, Box&lt;Lista&gt;),
+    Vege,
+}
+
+fn main() {
+    use Lista::{Elem, Vege};
+    let lista = Elem(1, Box::new(Elem(2, Box::new(Elem(3, Box::new(Vege))))));
+    println!("{lista:?}");
+
+    // 2) Nagy adat olcsó mozgatása (csak a mutató mozog):
+    let nagy = Box::new([0u8; 1_000_000]);
+    let masik_tulaj = nagy;                 // 8 bájt másolódik, nem 1 MB
+    println!("{}", masik_tulaj.len());
+
+    // 3) Trait objektumok tárolása: Box&lt;dyn Trait&gt; — láttuk a 0x0B-ben
+}</code></pre></div>
+
+<h3>Rc&lt;T&gt; — több tulajdonos</h3>
+<p>Néha tényleg több helyről kell ugyanarra az adatra hivatkozni, és nem dönthető el, ki a "fő" tulajdonos (pl. gráf-csomópontok). Az <code>Rc</code> (reference counting) számolja a hivatkozásokat, és az utolsó eltűnésekor szabadít fel. <strong>Csak egyszálú</strong> kódhoz — a szálbiztos párja az <code>Arc</code> (0x11).</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::rc::Rc;
+
+#[derive(Debug)]
+struct Zeneszam { cim: String }
+
+fn main() {
+    let szam = Rc::new(Zeneszam { cim: "Never Gonna Compile You Up".into() });
+
+    let lejatszasi_lista_a = Rc::clone(&amp;szam);   // csak a számláló nő, nincs mélymásolás
+    let lejatszasi_lista_b = Rc::clone(&amp;szam);
+
+    println!("hivatkozások: {}", Rc::strong_count(&amp;szam));  // 3
+    println!("{} / {}", lejatszasi_lista_a.cim, lejatszasi_lista_b.cim);
+
+    drop(lejatszasi_lista_a);
+    println!("hivatkozások: {}", Rc::strong_count(&amp;szam));  // 2
+}</code></pre></div>
+
+<h3>RefCell&lt;T&gt; — kölcsönzés-ellenőrzés futásidőben</h3>
+<p>A <code>RefCell</code> a kölcsönzési szabályok betartatását <strong>fordítási időről futásidőre</strong> tolja: megosztott referencián keresztül is módosíthatsz (<em>belső módosíthatóság</em>, interior mutability), de ha futás közben megsérted a "sok olvasó vagy egy író" szabályt, a program pánikol.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs — a klasszikus Rc&lt;RefCell&lt;T&gt;&gt; páros</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::cell::RefCell;
+use std::rc::Rc;
+
+#[derive(Debug)]
+struct KozosSzamlalo { ertek: i32 }
+
+fn main() {
+    // Több tulajdonos (Rc) + módosíthatóság (RefCell):
+    let szamlalo = Rc::new(RefCell::new(KozosSzamlalo { ertek: 0 }));
+
+    let a = Rc::clone(&amp;szamlalo);
+    let b = Rc::clone(&amp;szamlalo);
+
+    a.borrow_mut().ertek += 10;     // futásidejű "kizárólagos kölcsön"
+    b.borrow_mut().ertek += 5;
+
+    println!("végösszeg: {}", szamlalo.borrow().ertek);   // 15
+
+    // Ez viszont PÁNIK lenne (két egyidejű borrow_mut):
+    // let x = szamlalo.borrow_mut();
+    // let y = szamlalo.borrow_mut();   // 💥 already borrowed
+}</code></pre></div>
+
+<table>
+<tr><th>Típus</th><th>Tulajdonosok</th><th>Módosítás</th><th>Ellenőrzés</th></tr>
+<tr><td><code>Box&lt;T&gt;</code></td><td>1</td><td>igen (ha mut)</td><td>fordításkor</td></tr>
+<tr><td><code>Rc&lt;T&gt;</code></td><td>több</td><td>nem</td><td>fordításkor</td></tr>
+<tr><td><code>Rc&lt;RefCell&lt;T&gt;&gt;</code></td><td>több</td><td>igen</td><td><strong>futásidőben</strong></td></tr>
+</table>
+
+<div class="doboz figyelem"><span class="dcim">Referencia-körök</span>
+<p>Két <code>Rc</code>, amely egymásra mutat, sosem éri el a 0 számlálót → <strong>memóriaszivárgás</strong> (ezt a Rust nem tiltja, csak a memória-<em>hibákat</em>). Megoldás: az egyik irány legyen <code>Weak&lt;T&gt;</code> (gyenge hivatkozás, amely nem növeli a számlálót) — tipikusan a gyerek→szülő irány fa-szerkezetekben.</p></div>
+
+<h3>Deref és Drop röviden</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">struct Eroforras { nev: String }
+
+impl Drop for Eroforras {
+    fn drop(&amp;mut self) {
+        println!("'{}' felszabadítva (fájl bezárva, lock feloldva...)", self.nev);
+    }
+}
+
+fn main() {
+    let _a = Eroforras { nev: "adatbázis-kapcsolat".into() };
+    let _b = Eroforras { nev: "ideiglenes fájl".into() };
+    println!("dolgozom...");
+}   // a hatókör végén FORDÍTOTT sorrendben fut le a drop — ez a RAII minta</code></pre></div>
+</section>
+
+<!-- ============ 0x11 ============ -->
+<section class="fejezet" id="f11">
+<div class="fejcim"><span class="hex">0x11</span><h2>Konkurencia: szálak félelem nélkül</h2></div>
+
+<p>A Rust marketingszlogenje a "fearless concurrency" — és kivételesen igaz: a tulajdonjogi rendszer az <strong>adatversenyeket fordítási hibává</strong> teszi. Ugyanazok a szabályok, amelyeket eddig tanultunk, szálak között is működnek.</p>
+
+<h3>Szálak indítása</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::thread;
+use std::time::Duration;
+
+fn main() {
+    let adatok = vec![1, 2, 3];
+
+    // A move kötelező: a szál túlélheti a main hatókörét,
+    // ezért az adatoknak BE kell költözniük a closure-be.
+    let fogantyu = thread::spawn(move || {
+        println!("a szál megkapta: {adatok:?}");
+        thread::sleep(Duration::from_millis(50));
+        adatok.iter().sum::&lt;i32&gt;()          // a szál visszatérési értéke
+    });
+
+    println!("a main közben dolgozik...");
+    let osszeg = fogantyu.join().unwrap();   // megvárjuk és átvesszük az eredményt
+    println!("a szál eredménye: {osszeg}");
+}</code></pre></div>
+
+<h3>Csatornák: üzenetküldés</h3>
+<p>"Ne kommunikálj memóriamegosztással — ossz meg memóriát kommunikációval." Az <code>mpsc</code> csatorna (multi-producer, single-consumer) tulajdonjogot <em>küld át</em> a szálak között:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::sync::mpsc;
+use std::thread;
+
+fn main() {
+    let (ado, vevo) = mpsc::channel();
+
+    for id in 0..3 {
+        let ado = ado.clone();               // több termelő lehet
+        thread::spawn(move || {
+            let uzenet = format!("üzenet a(z) {id}. száltól");
+            ado.send(uzenet).unwrap();       // az uzenet tulajdonjoga ÁTMEGY
+        });
+    }
+    drop(ado);                               // az eredeti adót eldobjuk,
+                                             // különben a vevő örökké várna
+    for uzenet in vevo {                     // a vevő iterálható!
+        println!("kaptam: {uzenet}");
+    }
+}</code></pre></div>
+
+<h3>Megosztott állapot: Arc&lt;Mutex&lt;T&gt;&gt;</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    // Arc: atomikus Rc (szálbiztos több-tulajdonosság)
+    // Mutex: egyszerre csak egy szál nyúlhat bele
+    let szamlalo = Arc::new(Mutex::new(0));
+    let mut fogantyuk = vec![];
+
+    for _ in 0..8 {
+        let szamlalo = Arc::clone(&amp;szamlalo);
+        fogantyuk.push(thread::spawn(move || {
+            for _ in 0..1000 {
+                let mut ertek = szamlalo.lock().unwrap();
+                *ertek += 1;
+            }   // a lock itt automatikusan felszabadul (RAII!)
+        }));
+    }
+    for f in fogantyuk { f.join().unwrap(); }
+
+    println!("végeredmény: {}", *szamlalo.lock().unwrap());   // mindig 8000
+}</code></pre></div>
+
+<div class="doboz melyseg"><span class="dcim">Send és Sync</span>
+<p>A háttérben két jelölő-trait dolgozik: <code>Send</code> = a típus átadható másik szálnak; <code>Sync</code> = referenciája megosztható szálak között. A fordító automatikusan levezeti őket — ezért fordítási hiba, ha pl. egy <code>Rc</code>-t próbálsz szálba mozgatni (nem Send), és ezért kell helyette <code>Arc</code>. Nem te figyelsz oda: a típusrendszer teszi.</p></div>
+
+<div class="doboz tipp"><span class="dcim">Magasabb szinten</span>
+<p>Adatpárhuzamos feladatokhoz nézd meg a <strong>rayon</strong> crate-et: a <code>.iter()</code> cseréje <code>.par_iter()</code>-re sokszor önmagában többszálúsít egy számítást. CPU-igényes munkára (pl. a PnL-mátrixszerű számításokra) ez a legkisebb befektetésű gyorsítás.</p></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x11</div>
+<p>Számold ki 1-től 1 000 000-ig a számok összegét 4 szálon: minden szál a tartomány negyedét összegzi, az eredményeket csatornán küldjék vissza!</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::sync::mpsc;
+use std::thread;
+
+fn main() {
+    let (ado, vevo) = mpsc::channel();
+    let n: u64 = 1_000_000;
+    let szakasz = n / 4;
+
+    for i in 0..4 {
+        let ado = ado.clone();
+        thread::spawn(move || {
+            let elso = i * szakasz + 1;
+            let utolso = if i == 3 { n } else { (i + 1) * szakasz };
+            let reszosszeg: u64 = (elso..=utolso).sum();
+            ado.send(reszosszeg).unwrap();
+        });
+    }
+    drop(ado);
+
+    let osszeg: u64 = vevo.iter().sum();
+    println!("{osszeg}");          // 500000500000
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x12 ============ -->
+<section class="fejezet" id="f12">
+<div class="fejcim"><span class="hex">0x12</span><h2>Async programozás</h2></div>
+
+<p>A szálak CPU-munkára valók; amikor viszont ezerszámra <strong>várakozol</strong> (hálózati kérések, adatbázis, websocketek), az async a hatékony út: kevés szálon sok-sok feladat, amelyek várakozás közben átadják a vezérlést egymásnak.</p>
+
+<h3>Future-ök és a futtatókörnyezet</h3>
+<p>Az <code>async fn</code> nem fut le azonnal: egy <strong>Future</strong>-t ad vissza — egy "ígéretet", amelyet egy futtatókörnyezet (runtime) hajt végre. A standard könyvtár nem tartalmaz runtime-ot; a de facto szabvány a <strong>tokio</strong>. Telepítés: <code>cargo add tokio --features full</code>.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::time::Duration;
+use tokio::time::sleep;
+
+async fn lassu_lekeres(nev: &amp;str, ido_ms: u64) -&gt; String {
+    sleep(Duration::from_millis(ido_ms)).await;   // .await: itt adjuk át a vezérlést
+    format!("{nev} kész ({ido_ms} ms)")
+}
+
+#[tokio::main]                       // ez a makró indítja el a runtime-ot
+async fn main() {
+    // SORBAN: ~300 ms összesen
+    let a = lassu_lekeres("A", 100).await;
+    let b = lassu_lekeres("B", 200).await;
+    println!("{a} | {b}");
+
+    // PÁRHUZAMOSAN: ~200 ms összesen — ez az async értelme!
+    let (c, d) = tokio::join!(
+        lassu_lekeres("C", 100),
+        lassu_lekeres("D", 200),
+    );
+    println!("{c} | {d}");
+}</code></pre></div>
+
+<h3>Feladatok (tasks) és select</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::time::Duration;
+use tokio::time::{sleep, timeout};
+
+#[tokio::main]
+async fn main() {
+    // spawn: könnyűsúlyú feladat — milliókat is elbír egy runtime
+    let fogantyu = tokio::spawn(async {
+        sleep(Duration::from_millis(50)).await;
+        42
+    });
+    println!("eredmény: {}", fogantyu.await.unwrap());
+
+    // timeout: határidős várakozás
+    let lassu = sleep(Duration::from_secs(10));
+    match timeout(Duration::from_millis(100), lassu).await {
+        Ok(_) =&gt; println!("időben végzett"),
+        Err(_) =&gt; println!("túl lassú volt, megszakítva"),
+    }
+
+    // select!: az fut tovább, amelyik ELŐBB elkészül
+    tokio::select! {
+        _ = sleep(Duration::from_millis(30)) =&gt; println!("a gyors nyert"),
+        _ = sleep(Duration::from_millis(90)) =&gt; println!("a lassú nyert"),
+    }
+}</code></pre></div>
+
+<h3>Valódi példa: párhuzamos HTTP-lekérések</h3>
+<p>Függőségek: <code>cargo add reqwest tokio --features tokio/full</code></p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use reqwest;
+
+#[tokio::main]
+async fn main() -&gt; Result&lt;(), reqwest::Error&gt; {
+    let url_ek = [
+        "https://www.rust-lang.org",
+        "https://crates.io",
+        "https://docs.rs",
+    ];
+
+    // Minden URL-hez future-t gyártunk, majd egyszerre várjuk be őket:
+    let lekeresek = url_ek.iter().map(|url| async move {
+        let valasz = reqwest::get(*url).await?;
+        Ok::&lt;_, reqwest::Error&gt;((*url, valasz.status()))
+    });
+
+    for eredmeny in futures::future::join_all(lekeresek).await {
+        match eredmeny {
+            Ok((url, status)) =&gt; println!("{url} → {status}"),
+            Err(e) =&gt; println!("hiba: {e}"),
+        }
+    }
+    Ok(())
+}</code></pre></div>
+
+<div class="doboz figyelem"><span class="dcim">A két nagy async-csapda</span>
+<p>(1) <strong>Blokkolás async kódban:</strong> a <code>std::thread::sleep</code> vagy egy nehéz számítás megfojtja a runtime-ot — várakozásra <code>tokio::time::sleep</code>, CPU-munkára <code>tokio::task::spawn_blocking</code> való. (2) <strong>Mutex tartása .await fölött:</strong> a std <code>Mutex</code> őrét ne tartsd meg <code>.await</code> ponton át; használd a <code>tokio::sync::Mutex</code>-et, vagy szabadítsd fel előbb a lockot.</p></div>
+</section>
+
+<!-- ============ 0x13 ============ -->
+<section class="fejezet" id="f13">
+<div class="fejcim"><span class="hex">0x13</span><h2>Unsafe Rust</h2></div>
+
+<p>A borrow checker konzervatív: vannak helyes programok, amelyek helyességét nem tudja <em>bizonyítani</em>. Az <code>unsafe</code> kulcsszó erre a szűk sávra való: "fordító, itt én vállalom a felelősséget". Fontos tisztázni, mit <strong>nem</strong> kapcsol ki: a borrow checker az unsafe blokkban is fut, a típusok ott is típusok. Mindössze <strong>öt új képességet</strong> nyit meg:</p>
+
+<ol>
+<li>Nyers mutatók (<code>*const T</code>, <code>*mut T</code>) dereferálása</li>
+<li><code>unsafe</code> függvények hívása (ide tartozik a C-interop, FFI)</li>
+<li>Módosítható statikus változók elérése</li>
+<li><code>unsafe</code> trait-ek implementálása</li>
+<li><code>union</code> mezőinek elérése</li>
+</ol>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let mut szam = 5;
+
+    // Nyers mutatót LÉTREHOZNI biztonságos…
+    let r1 = &amp;szam as *const i32;
+    let r2 = &amp;mut szam as *mut i32;
+
+    // …dereferálni csak unsafe blokkban lehet:
+    unsafe {
+        println!("r1 = {}", *r1);
+        *r2 = 10;
+        println!("r2 = {}", *r2);
+    }
+}</code></pre></div>
+
+<h3>Biztonságos absztrakció unsafe fölött</h3>
+<p>Az idiomatikus minta: az unsafe-et egy <strong>kicsi, jól auditálható</strong> magba zárjuk, és biztonságos API-t teszünk köré. Így működik maga a standard könyvtár is — a <code>Vec</code>, a <code>Mutex</code> belseje tele van unsafe-fel, kívülről mégis lehetetlen rosszul használni:</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">// A stdlib split_at_mut-ja: egy szeletet KÉT diszjunkt &amp;mut szeletre vág.
+// A borrow checker ezt magától nem engedné (két &amp;mut ugyanabból),
+// pedig a két fél nem fedi át egymást — ezt MI tudjuk, ő nem.
+use std::slice;
+
+fn sajat_split_at_mut(szelet: &amp;mut [i32], kozep: usize) -&gt; (&amp;mut [i32], &amp;mut [i32]) {
+    let hossz = szelet.len();
+    let ptr = szelet.as_mut_ptr();
+    assert!(kozep &lt;= hossz);              // az invariánst MI ellenőrizzük!
+
+    unsafe {
+        (
+            slice::from_raw_parts_mut(ptr, kozep),
+            slice::from_raw_parts_mut(ptr.add(kozep), hossz - kozep),
+        )
+    }
+}
+
+fn main() {
+    let mut v = [1, 2, 3, 4, 5, 6];
+    let (bal, jobb) = sajat_split_at_mut(&amp;mut v, 2);
+    bal[0] = 100;
+    jobb[0] = 300;
+    println!("{v:?}");
+}</code></pre></div>
+
+<h3>FFI: C-függvény hívása</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">extern "C" {
+    fn abs(bemenet: i32) -&gt; i32;          // a C standard könyvtárból
+}
+
+fn main() {
+    unsafe {
+        println!("|-3| = {}", abs(-3));
+    }
+}</code></pre></div>
+
+<div class="doboz figyelem"><span class="dcim">Etikett</span>
+<p>Az unsafe nem teljesítmény-trükk és nem menekülőút a borrow checker elől tanulás közben — egy átlagos alkalmazásban jó eséllyel <strong>soha nem írsz le egyet sem</strong>. Ha mégis kell: tartsd minimálisan, kommentben dokumentáld (<code>// SAFETY: ...</code>), milyen invariánsok teszik helyessé, és futtasd a kódot a <code>miri</code> eszközzel (<code>cargo +nightly miri run</code>), amely a definiálatlan viselkedést vadássza.</p></div>
+</section>
+
+<!-- ============ 0x14 ============ -->
+<section class="fejezet" id="f14">
+<div class="fejcim"><span class="hex">0x14</span><h2>Haladó trait-technikák</h2></div>
+
+<h3>Társított típusok</h3>
+<p>Az <code>Iterator</code> definíciójában láttuk a <code>type Item</code> sort. A társított típus (associated type) a trait "kimenő típusváltozója": implementációnként pontosan egy lehet — ellentétben a generikus paraméterrel, ahol egy típus többféleképpen is implementálhatná a traitet.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">trait Tarolo {
+    type Elem;                              // társított típus
+    fn betesz(&amp;mut self, elem: Self::Elem);
+    fn kivesz(&amp;mut self) -&gt; Option&lt;Self::Elem&gt;;
+}
+
+struct Verem { adatok: Vec&lt;i32&gt; }
+
+impl Tarolo for Verem {
+    type Elem = i32;                        // itt rögzítjük
+    fn betesz(&amp;mut self, elem: i32) { self.adatok.push(elem); }
+    fn kivesz(&amp;mut self) -&gt; Option&lt;i32&gt; { self.adatok.pop() }
+}
+
+fn main() {
+    let mut v = Verem { adatok: vec![] };
+    v.betesz(1);
+    v.betesz(2);
+    println!("{:?}", v.kivesz());
+}</code></pre></div>
+
+<h3>Operátor-túlterhelés</h3>
+<p>Az operátorok trait-eken keresztül működnek (<code>std::ops</code>): a <code>+</code> az <code>Add</code>, a <code>*</code> a <code>Mul</code>, az indexelés az <code>Index</code> trait.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::ops::Add;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct V2 { x: f64, y: f64 }
+
+impl Add for V2 {
+    type Output = V2;
+    fn add(self, masik: V2) -&gt; V2 {
+        V2 { x: self.x + masik.x, y: self.y + masik.y }
+    }
+}
+
+fn main() {
+    let a = V2 { x: 1.0, y: 2.0 };
+    let b = V2 { x: 3.0, y: -1.0 };
+    println!("{:?}", a + b);                // V2 { x: 4.0, y: 1.0 }
+}</code></pre></div>
+
+<h3>Alapértelmezett generikus paraméter és szuper-trait</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::fmt;
+
+// Szuper-trait: a Cimkezett csak Display-t implementáló típusra tehető —
+// így a metódusaiban használhatja a to_string()-et:
+trait Cimkezett: fmt::Display {
+    fn cimkezve(&amp;self) -&gt; String {
+        format!("&gt;&gt;&gt; {} &lt;&lt;&lt;", self)
+    }
+}
+
+struct Figyelmeztetes(String);
+
+impl fmt::Display for Figyelmeztetes {
+    fn fmt(&amp;self, f: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        write!(f, "FIGYELEM: {}", self.0)
+    }
+}
+impl Cimkezett for Figyelmeztetes {}
+
+fn main() {
+    let f = Figyelmeztetes("alacsony memória".into());
+    println!("{}", f.cimkezve());
+}</code></pre></div>
+
+<h3>A newtype-minta</h3>
+<p>Az orphan szabály miatt idegen traitet idegen típusra nem implementálhatsz — de egy egyelemű tuple structba ("newtype") csomagolva igen. Ráadásul ingyen kapsz típusbiztonságot is (emlékszel a <code>Meter</code>/<code>Lab</code> példára?):</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::fmt;
+
+struct Lista(Vec&lt;String&gt;);                 // newtype a Vec&lt;String&gt; körül
+
+impl fmt::Display for Lista {              // Display-t Vec-re nem lehetne!
+    fn fmt(&amp;self, f: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        write!(f, "[{}]", self.0.join(", "))
+    }
+}
+
+fn main() {
+    let l = Lista(vec!["alma".into(), "körte".into()]);
+    println!("{l}");
+}</code></pre></div>
+
+<div class="doboz melyseg"><span class="dcim">Még tovább</span>
+<p>Ha ezen a szinten otthonosan mozogsz, a következő állomások: <strong>deklaratív makrók</strong> (<code>macro_rules!</code>), <strong>procedurális makrók</strong> (így működik a serde derive-ja), <strong>const generics</strong> (<code>struct Matrix&lt;const N: usize&gt;</code>), <strong>GAT-ok</strong> (generic associated types), és a <strong>typestate-minta</strong>, amellyel érvénytelen állapotok már le sem fordulnak.</p></div>
+</section>
+
+<!-- ============ 0x15 ============ -->
+<section class="fejezet" id="f15">
+<div class="fejcim"><span class="hex">0x15</span><h2>Záróprojekt és továbblépés</h2></div>
+
+<p>Záróprojektként építsünk egy <strong>parancssori teendőlistát</strong>, amely JSON-fájlba ment. Apró program, de összehozza szinte mindazt, amit tanultunk: struct + enum, Result + <code>?</code>, iterátorok, mintaillesztés, modulrendszer, serde. Függőség: <code>cargo add serde --features derive</code> és <code>cargo add serde_json</code>.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs — teendőlista (teljes program)</span><button class="masol">Másolás</button></div><pre><code class="rust">use serde::{Deserialize, Serialize};
+use std::env;
+use std::fs;
+use std::path::Path;
+
+const FAJL: &amp;str = "teendok.json";
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Teendo {
+    szoveg: String,
+    kesz: bool,
+}
+
+type Lista = Vec&lt;Teendo&gt;;
+
+fn betolt() -&gt; Result&lt;Lista, Box&lt;dyn std::error::Error&gt;&gt; {
+    if !Path::new(FAJL).exists() {
+        return Ok(Vec::new());
+    }
+    let tartalom = fs::read_to_string(FAJL)?;
+    Ok(serde_json::from_str(&amp;tartalom)?)
+}
+
+fn ment(lista: &amp;Lista) -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    fs::write(FAJL, serde_json::to_string_pretty(lista)?)?;
+    Ok(())
+}
+
+fn kiir(lista: &amp;Lista) {
+    if lista.is_empty() {
+        println!("Nincs teendő. 🎉");
+        return;
+    }
+    for (i, t) in lista.iter().enumerate() {
+        let jel = if t.kesz { "✔" } else { " " };
+        println!("{:&gt;3}. [{jel}] {}", i + 1, t.szoveg);
+    }
+}
+
+fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let argumentumok: Vec&lt;String&gt; = env::args().skip(1).collect();
+    let mut lista = betolt()?;
+
+    match argumentumok.as_slice() {
+        [] | [_] if argumentumok.first().map(String::as_str) == Some("lista") || argumentumok.is_empty() =&gt; {
+            kiir(&amp;lista);
+        }
+        [parancs, tobbi @ ..] =&gt; match parancs.as_str() {
+            "uj" =&gt; {
+                let szoveg = tobbi.join(" ");
+                if szoveg.is_empty() {
+                    eprintln!("Használat: teendo uj &lt;szöveg&gt;");
+                } else {
+                    lista.push(Teendo { szoveg, kesz: false });
+                    ment(&amp;lista)?;
+                    println!("Felvéve.");
+                }
+            }
+            "kesz" =&gt; {
+                let index: usize = tobbi.first()
+                    .ok_or("hiányzó sorszám")?
+                    .parse()?;
+                let teendo = lista.get_mut(index - 1).ok_or("nincs ilyen sorszám")?;
+                teendo.kesz = true;
+                ment(&amp;lista)?;
+                println!("Kipipálva: {}", teendo.szoveg);
+            }
+            "torol" =&gt; {
+                let index: usize = tobbi.first()
+                    .ok_or("hiányzó sorszám")?
+                    .parse()?;
+                if index == 0 || index &gt; lista.len() {
+                    return Err("nincs ilyen sorszám".into());
+                }
+                let t = lista.remove(index - 1);
+                ment(&amp;lista)?;
+                println!("Törölve: {}", t.szoveg);
+            }
+            egyeb =&gt; eprintln!("Ismeretlen parancs: {egyeb} (uj / lista / kesz / torol)"),
+        },
+        _ =&gt; unreachable!(),
+    }
+    Ok(())
+}</code></pre></div>
+
+<div class="kimenet">$ cargo run -- uj Megtanulni a Rustot
+Felvéve.
+$ cargo run -- uj Bevásárolni
+Felvéve.
+$ cargo run -- kesz 1
+Kipipálva: Megtanulni a Rustot
+$ cargo run -- lista
+  1. [✔] Megtanulni a Rustot
+  2. [ ] Bevásárolni</div>
+
+<h3>Fejlesztési ötletek (egyre nehezedő sorrendben)</h3>
+<ul>
+<li>Határidő mező (<code>chrono</code> crate) és lejárt teendők kiemelése</li>
+<li>Rendes argumentum-kezelés a <code>clap</code> crate-tel, <code>--help</code>-pel</li>
+<li>Egységtesztek a betölt/ment logikára (tempfile crate-tel)</li>
+<li>Színes kimenet (<code>colored</code> crate)</li>
+<li>Webes API ugyanerre az adatmodellre az <code>axum</code> keretrendszerrel</li>
+</ul>
+
+<h3>Merre tovább?</h3>
+<table>
+<tr><th>Irány</th><th>Eszközök, források</th></tr>
+<tr><td>Hivatalos tananyagok</td><td>The Rust Book (doc.rust-lang.org/book), Rust by Example, rustlings (interaktív feladatsor)</td></tr>
+<tr><td>Gyakorlás</td><td>Exercism Rust-pálya, Advent of Code, LeetCode Rustban</td></tr>
+<tr><td>Webfejlesztés</td><td>axum, actix-web, sqlx (adatbázis), tower (middleware)</td></tr>
+<tr><td>Játékfejlesztés</td><td>Bevy (ECS-alapú motor), macroquad (egyszerűbb 2D)</td></tr>
+<tr><td>Parancssori eszközök</td><td>clap, indicatif (folyamatjelző), ratatui (TUI)</td></tr>
+<tr><td>WebAssembly</td><td>wasm-bindgen, Trunk, Leptos/Yew (frontend keretrendszerek)</td></tr>
+<tr><td>Beágyazott rendszerek</td><td>embedded-rust könyv, embassy (async beágyazott)</td></tr>
+<tr><td>Haladó elmélet</td><td>Rustonomicon (unsafe), Rust for Rustaceans (Jon Gjengset), Async Book</td></tr>
+</table>
+
+<div class="doboz tipp"><span class="dcim">Utolsó tanács</span>
+<p>A Rust tanulási görbéje elöl meredek: az első hetekben a borrow checkerrel <em>vitatkozol</em>, aztán egyszer csak azt veszed észre, hogy a fejedben már az ő szabályai szerint tervezel — és onnantól más nyelvekben is jobb kódot írsz. A fordító nem ellenfél, hanem a legszigorúbb, de legkorrektebb code reviewer, akivel valaha dolgozni fogsz. 🦀</p></div>
+
+<footer>
+Rust-kohó — magyar nyelvű Rust tananyag · Készült 2026-ban · A kódpéldák szabadon felhasználhatók.<br>
+A hivatalos dokumentáció: <a href="https://doc.rust-lang.org">doc.rust-lang.org</a> · Játszótér: <a href="https://play.rust-lang.org">play.rust-lang.org</a>
+</footer>
+</section>
+
+</div><!-- /page -->
+</main>
+</div><!-- /layout -->
+
+<script>
+/* ---------- egyszerű Rust/Bash szintaxiskiemelő ---------- */
+(function(){
+  const KW = new Set(("fn let mut const static if else match for while loop in break continue return "+
+    "struct enum impl trait type where pub use mod crate super self Self as move ref dyn async await "+
+    "unsafe extern union true false").split(" "));
+  const TYPES = new Set(("i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64 bool char str "+
+    "String Vec Option Some None Result Ok Err Box Rc Arc RefCell Cell Mutex HashMap HashSet BTreeMap "+
+    "VecDeque Ordering Duration Iterator Display Debug Clone Copy Default From Into Drop Send Sync "+
+    "PartialEq Eq PartialOrd Ord Add Hash Path File Formatter").split(" "));
+
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+  function highlightRust(src){
+    let out = "", i = 0, n = src.length;
+    while(i < n){
+      const c = src[i];
+      // kommentek
+      if(c === "/" && src[i+1] === "/"){
+        let j = src.indexOf("\n", i); if(j < 0) j = n;
+        out += '<span class="k-com">'+esc(src.slice(i,j))+'</span>'; i = j; continue;
+      }
+      // stringek
+      if(c === '"'){
+        let j = i+1;
+        while(j < n && (src[j] !== '"' || src[j-1] === "\\")) j++;
+        out += '<span class="k-str">'+esc(src.slice(i,j+1))+'</span>'; i = j+1; continue;
+      }
+      // char literál / élettartam
+      if(c === "'"){
+        const m = /^'(\\.|[^'\\]){1}'/.exec(src.slice(i));
+        if(m){ out += '<span class="k-str">'+esc(m[0])+'</span>'; i += m[0].length; continue; }
+        const l = /^'[A-Za-z_][A-Za-z0-9_]*/.exec(src.slice(i));
+        if(l){ out += '<span class="k-life">'+esc(l[0])+'</span>'; i += l[0].length; continue; }
+        out += esc(c); i++; continue;
+      }
+      // szám
+      if(/[0-9]/.test(c)){
+        const m = /^[0-9][0-9_]*(\.[0-9_]+)?([eE][+-]?[0-9]+)?(_?[iuf](8|16|32|64|128|size)?)?|^0x[0-9A-Fa-f_]+|^0b[01_]+/.exec(src.slice(i));
+        if(m){ out += '<span class="k-num">'+esc(m[0])+'</span>'; i += m[0].length; continue; }
+      }
+      // azonosító / kulcsszó / makró / fn-hívás
+      if(/[A-Za-z_]/.test(c)){
+        const m = /^[A-Za-z_][A-Za-z0-9_]*/.exec(src.slice(i));
+        const word = m[0]; const after = src[i+word.length];
+        if(after === "!"){ out += '<span class="k-mac">'+word+'!</span>'; i += word.length+1; continue; }
+        if(KW.has(word)){ out += '<span class="k-kw">'+word+'</span>'; }
+        else if(TYPES.has(word) || /^[A-Z]/.test(word)){ out += '<span class="k-type">'+word+'</span>'; }
+        else if(after === "("){ out += '<span class="k-fn">'+word+'</span>'; }
+        else { out += word; }
+        i += word.length; continue;
+      }
+      out += esc(c); i++;
+    }
+    return out;
+  }
+
+  function highlightBash(src){
+    return src.split("\n").map(line=>{
+      const h = line.indexOf("#");
+      if(h >= 0){
+        return esc(line.slice(0,h)) + '<span class="k-com">'+esc(line.slice(h))+'</span>';
+      }
+      return esc(line);
+    }).join("\n");
+  }
+
+  document.querySelectorAll("pre code").forEach(el=>{
+    const raw = el.textContent;
+    if(el.classList.contains("rust")) el.innerHTML = highlightRust(raw);
+    else if(el.classList.contains("bash")) el.innerHTML = highlightBash(raw);
+  });
+
+  /* ---------- másolás gombok ---------- */
+  document.querySelectorAll(".kod").forEach(blokk=>{
+    const gomb = blokk.querySelector(".masol");
+    const kod = blokk.querySelector("pre code");
+    if(!gomb || !kod) return;
+    gomb.addEventListener("click", ()=>{
+      navigator.clipboard.writeText(kod.textContent).then(()=>{
+        const regi = gomb.textContent;
+        gomb.textContent = "Másolva ✓";
+        setTimeout(()=>{ gomb.textContent = regi; }, 1400);
+      });
+    });
+  });
+
+  /* ---------- aktív fejezet a sidebarban ---------- */
+  const linkek = Array.from(document.querySelectorAll("#sidebar a"));
+  const fejezetek = Array.from(document.querySelectorAll("section.fejezet"));
+  function frissit(){
+    let aktiv = fejezetek[0];
+    for(const f of fejezetek){
+      if(f.getBoundingClientRect().top <= 120) aktiv = f;
+    }
+    linkek.forEach(a=>a.classList.toggle("active", a.getAttribute("href") === "#"+aktiv.id));
+  }
+  document.addEventListener("scroll", frissit, {passive:true});
+  frissit();
+})();
+</script>
+</body>
+</html>
