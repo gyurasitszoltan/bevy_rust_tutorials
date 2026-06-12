@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Observerek mélyebben — Event, EntityEvent és propagáció Bevy 0.18-ban</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#120f18;
+  --bg2:#171323;
+  --panel:#1b1629;
+  --panel2:#211b32;
+  --line:#2f2745;
+  --line2:#3d3359;
+  --ink:#efeaf6;
+  --muted:#a79bbd;
+  --faint:#6f6489;
+  --violet:#c9a2f5;
+  --violet-dim:#6f5494;
+  --amber:#f0b35e;
+  --blue:#6cc3f0;
+  --grass:#84d96c;
+  --coral:#ef8472;
+  --code-bg:#0e0b15;
+  --code-kw:#f07ca0;
+  --code-ty:#8be3c9;
+  --code-st:#f0c674;
+  --code-cm:#665d7d;
+  --code-mc:#6cc3f0;
+  --code-nb:#d2a6f0;
+  --code-fn:#82c7f5;
+  --code-at:#f0b35e;
+  --sidebar-w:300px;
+  font-size:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.001s !important;transition-duration:.001s !important}
+}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:rgba(201,162,245,.3)}
+
+.px-box{
+  position:relative;
+  background:var(--panel);
+  border:1px solid var(--line);
+  clip-path:polygon(0 6px,6px 6px,6px 0,calc(100% - 6px) 0,calc(100% - 6px) 6px,100% 6px,100% calc(100% - 6px),calc(100% - 6px) calc(100% - 6px),calc(100% - 6px) 100%,6px 100%,6px calc(100% - 6px),0 calc(100% - 6px));
+}
+
+/* ---------- layout ---------- */
+.layout{display:flex;min-height:100vh}
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);
+  background:var(--bg2);
+  border-right:1px solid var(--line);
+  overflow-y:auto;
+  padding:26px 18px 40px 22px;
+  z-index:50;
+  scrollbar-width:thin;
+  scrollbar-color:var(--line2) transparent;
+}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line2)}
+main{margin-left:var(--sidebar-w);flex:1;min-width:0}
+.content{max-width:860px;margin:0 auto;padding:0 44px 120px}
+
+/* ---------- sidebar ---------- */
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:26px;text-decoration:none;color:var(--ink)}
+.brand-tile{
+  width:34px;height:34px;flex:0 0 34px;
+  image-rendering:pixelated;
+  background:var(--violet);
+  position:relative;border:1px solid var(--line2);
+}
+.brand-tile::after{
+  content:"";position:absolute;inset:0;
+  background-image:
+    radial-gradient(circle at 50% 50%, #120f18 0 5px, transparent 5px),
+    radial-gradient(circle at 50% 50%, #efeaf6 0 9px, transparent 9px);
+}
+.brand h1{
+  font-family:"Pixelify Sans",monospace;
+  font-size:1.02rem;font-weight:600;line-height:1.25;letter-spacing:.02em;
+}
+.brand small{display:block;color:var(--muted);font-family:"Instrument Sans",sans-serif;font-size:.72rem;font-weight:500;letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
+
+nav.toc{font-size:.875rem}
+.toc-part{margin-bottom:18px}
+.toc-part-label{
+  display:flex;align-items:center;gap:8px;
+  font-family:"Pixelify Sans",monospace;
+  font-size:.78rem;letter-spacing:.06em;
+  color:var(--muted);
+  text-transform:uppercase;
+  margin-bottom:7px;
+}
+.toc-part-label .sq{width:9px;height:9px;flex:0 0 9px}
+.toc a{
+  display:block;
+  color:var(--muted);
+  text-decoration:none;
+  padding:5px 10px 5px 14px;
+  border-left:2px solid var(--line);
+  margin-left:4px;
+  transition:color .15s,border-color .15s,background .15s;
+  line-height:1.4;
+}
+.toc a:hover{color:var(--ink);background:rgba(255,255,255,.025)}
+.toc a.active{
+  color:var(--violet);
+  border-left-color:var(--violet);
+  background:rgba(201,162,245,.07);
+}
+.toc a:focus-visible{outline:2px solid var(--amber);outline-offset:-2px}
+
+.sidebar-foot{margin-top:26px;padding-top:16px;border-top:1px dashed var(--line);color:var(--faint);font-size:.74rem;line-height:1.5}
+.sidebar-foot code{font-family:"JetBrains Mono",monospace;font-size:.7rem;color:var(--muted)}
+
+.nav-toggle{
+  display:none;
+  position:fixed;top:14px;left:14px;z-index:60;
+  background:var(--panel);border:1px solid var(--line2);color:var(--ink);
+  font-family:"Pixelify Sans",monospace;font-size:.85rem;
+  padding:8px 14px;cursor:pointer;
+}
+@media (max-width:980px){
+  .nav-toggle{display:block}
+  .sidebar{transform:translateX(-100%);transition:transform .22s ease}
+  .sidebar.open{transform:translateX(0);box-shadow:0 0 0 100vmax rgba(0,0,0,.45)}
+  main{margin-left:0}
+  .content{padding:0 20px 90px}
+}
+
+/* ---------- hero ---------- */
+.hero{padding:74px 0 30px}
+.hero .eyebrow{
+  font-family:"Pixelify Sans",monospace;
+  color:var(--amber);font-size:.85rem;letter-spacing:.1em;text-transform:uppercase;
+  display:flex;align-items:center;gap:10px;margin-bottom:14px;
+}
+.hero .eyebrow::before{content:"";width:22px;height:2px;background:var(--amber)}
+.hero h2.title{
+  font-family:"Pixelify Sans",monospace;
+  font-size:clamp(1.9rem,4.4vw,2.9rem);
+  font-weight:700;line-height:1.12;
+  margin-bottom:18px;
+}
+.hero h2.title em{font-style:normal;color:var(--violet)}
+.hero p.lede{font-size:1.06rem;color:var(--muted);max-width:62ch;margin-bottom:24px}
+.hero-canvas-wrap{margin-top:8px}
+.hero-canvas-wrap canvas{
+  width:100%;max-width:760px;display:block;
+  image-rendering:pixelated;
+  border:1px solid var(--line2);
+}
+.hero-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.chip{
+  font-family:"JetBrains Mono",monospace;font-size:.72rem;
+  color:var(--muted);background:var(--panel);
+  border:1px solid var(--line);padding:4px 10px;
+}
+.chip b{color:var(--violet);font-weight:500}
+
+/* ---------- sections ---------- */
+section.chapter{padding-top:64px}
+section.chapter > header{margin-bottom:22px}
+.part-tag{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:"Pixelify Sans",monospace;font-size:.74rem;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+  margin-bottom:8px;
+}
+.sq{display:inline-block;width:10px;height:10px;image-rendering:pixelated}
+.sq.g{background:var(--grass)} .sq.a{background:var(--amber)} .sq.b{background:var(--blue)} .sq.c{background:var(--coral)} .sq.v{background:var(--violet)}
+section.chapter h2{
+  font-family:"Pixelify Sans",monospace;
+  font-size:1.7rem;font-weight:600;line-height:1.2;
+  padding-bottom:12px;border-bottom:1px solid var(--line);
+}
+section.chapter h3{
+  font-size:1.12rem;font-weight:700;margin:34px 0 10px;
+  color:var(--ink);
+}
+section.chapter h3::before{content:"▸ ";color:var(--violet);font-size:.95em}
+p{margin-bottom:14px;color:#d8cfe6}
+p strong{color:var(--ink)}
+ul.plain,ol.plain{margin:0 0 16px 22px;color:#d8cfe6}
+ul.plain li,ol.plain li{margin-bottom:7px}
+ul.plain li::marker{color:var(--violet)}
+ol.plain li::marker{color:var(--amber);font-family:"JetBrains Mono",monospace;font-size:.85em}
+a.inline{color:var(--blue);text-decoration:none;border-bottom:1px dotted var(--blue)}
+a.inline:hover{border-bottom-style:solid}
+code.inl{
+  font-family:"JetBrains Mono",monospace;font-size:.84em;
+  background:var(--code-bg);border:1px solid var(--line);
+  padding:1px 6px;color:var(--code-ty);white-space:nowrap;
+}
+
+/* ---------- code blocks ---------- */
+.codeblock{margin:18px 0 22px;border:1px solid var(--line);background:var(--code-bg)}
+.codeblock .cb-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 14px;border-bottom:1px solid var(--line);
+  background:var(--panel);
+}
+.cb-head .fname{font-family:"JetBrains Mono",monospace;font-size:.74rem;color:var(--muted)}
+.cb-head .lang{
+  font-family:"Pixelify Sans",monospace;font-size:.7rem;letter-spacing:.08em;
+  color:var(--amber);text-transform:uppercase;
+}
+.codeblock pre{overflow-x:auto;padding:16px 18px;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+.codeblock code{font-family:"JetBrains Mono",monospace;font-size:.83rem;line-height:1.62;color:#d8d0e6}
+.tk-kw{color:var(--code-kw)} .tk-ty{color:var(--code-ty)} .tk-st{color:var(--code-st)}
+.tk-cm{color:var(--code-cm);font-style:italic} .tk-mc{color:var(--code-mc)}
+.tk-nb{color:var(--code-nb)} .tk-fn{color:var(--code-fn)} .tk-at{color:var(--code-at)}
+.tk-lf{color:var(--coral)}
+
+/* ---------- callouts ---------- */
+.bevy-box{
+  margin:20px 0 24px;padding:16px 18px 14px;
+  background:linear-gradient(180deg,rgba(201,162,245,.06),rgba(201,162,245,.02));
+  border:1px solid rgba(201,162,245,.3);
+  border-left:3px solid var(--violet);
+}
+.bevy-box .tag{
+  font-family:"Pixelify Sans",monospace;font-size:.7rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--violet);margin-bottom:6px;display:flex;align-items:center;gap:7px;
+}
+.bevy-box .tag::before{content:"";width:8px;height:8px;background:var(--violet)}
+.bevy-box h4{font-size:1rem;font-weight:700;margin-bottom:6px;font-family:"JetBrains Mono",monospace}
+.bevy-box p{font-size:.92rem;margin-bottom:8px}
+.bevy-box p:last-child{margin-bottom:2px}
+.bevy-box code.inl{font-size:.8em}
+
+.note{
+  margin:18px 0 22px;padding:13px 16px;
+  background:rgba(240,179,94,.05);
+  border:1px dashed rgba(240,179,94,.4);
+  font-size:.92rem;color:#dcc9a8;
+}
+.note b{color:var(--amber)}
+.warn{
+  margin:18px 0 22px;padding:13px 16px;
+  background:rgba(239,132,114,.05);
+  border:1px dashed rgba(239,132,114,.45);
+  font-size:.92rem;color:#e8c0b8;
+}
+.warn b{color:var(--coral)}
+
+figure.diagram{margin:22px 0 26px;text-align:center}
+figure.diagram svg{max-width:100%;height:auto;border:1px solid var(--line);background:var(--bg2)}
+figure.diagram figcaption{font-size:.8rem;color:var(--faint);margin-top:8px;font-family:"JetBrains Mono",monospace}
+
+table.tbl{width:100%;border-collapse:collapse;margin:16px 0 24px;font-size:.9rem}
+table.tbl th{
+  text-align:left;font-family:"Pixelify Sans",monospace;font-weight:600;font-size:.78rem;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+  padding:8px 12px;border-bottom:2px solid var(--line2);
+}
+table.tbl td{padding:9px 12px;border-bottom:1px solid var(--line);color:#d8cfe6;vertical-align:top}
+table.tbl code{font-family:"JetBrains Mono",monospace;font-size:.8rem;color:var(--code-ty)}
+
+/* ---------- sandbox ---------- */
+.sandbox{margin:24px 0;border:1px solid var(--line2);background:var(--bg2)}
+.sandbox-head{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+  padding:10px 14px;border-bottom:1px solid var(--line);
+  background:var(--panel);
+}
+.sandbox-head .t{font-family:"Pixelify Sans",monospace;font-size:.85rem;color:var(--violet);letter-spacing:.05em}
+.sandbox-head .hint{font-size:.76rem;color:var(--faint);font-family:"JetBrains Mono",monospace;margin-left:auto}
+.sandbox-body{display:flex;gap:0;flex-wrap:wrap}
+.sandbox-canvas-wrap{flex:1 1 440px;min-width:300px;padding:14px;display:flex;flex-direction:column;gap:12px;align-items:center;background:#0c0913}
+#sbx{
+  image-rendering:pixelated;width:100%;max-width:560px;display:block;
+  outline:none;border:1px solid var(--line);cursor:pointer;
+}
+.sandbox-side{
+  flex:1 1 250px;min-width:250px;max-width:320px;
+  border-left:1px solid var(--line);
+  padding:14px 16px;font-size:.85rem;
+}
+.sandbox-side h5{
+  font-family:"Pixelify Sans",monospace;font-size:.72rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);margin:16px 0 8px;
+}
+.sandbox-side h5:first-child{margin-top:0}
+.sandbox-side label{display:flex;align-items:center;gap:8px;margin-bottom:7px;cursor:pointer;color:#d8cfe6}
+.sandbox-side input[type=checkbox]{accent-color:var(--violet);width:14px;height:14px}
+.kbd{
+  font-family:"JetBrains Mono",monospace;font-size:.72rem;
+  background:var(--panel2);border:1px solid var(--line2);border-bottom-width:2px;
+  padding:1px 6px;color:var(--ink);
+}
+.btn{
+  font-family:"Pixelify Sans",monospace;font-size:.82rem;letter-spacing:.04em;
+  background:var(--panel2);color:var(--ink);
+  border:1px solid var(--line2);padding:7px 14px;cursor:pointer;
+  transition:background .12s,border-color .12s;
+}
+.btn:hover{background:#2a2240;border-color:var(--violet-dim)}
+.btn:focus-visible{outline:2px solid var(--violet);outline-offset:1px}
+.btn.primary{background:rgba(201,162,245,.14);border-color:var(--violet-dim);color:var(--violet)}
+.btn.primary:hover{background:rgba(201,162,245,.22)}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+
+/* observer log */
+.obslog-wrap{width:100%;max-width:560px}
+.obslog{
+  font-family:"JetBrains Mono",monospace;font-size:.72rem;line-height:1.75;
+  background:var(--code-bg);border:1px solid var(--line);
+  padding:10px 12px;height:168px;overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:var(--line2) transparent;
+}
+.obslog .lt{color:var(--faint)}
+.obslog .ev{color:var(--violet)}
+.obslog .eo{color:var(--grass)}
+.obslog .go{color:var(--blue)}
+.obslog .st{color:var(--coral)}
+.obslog .lc{color:var(--amber)}
+.obslog div{white-space:pre-wrap}
+.legend{display:grid;grid-template-columns:16px 1fr;gap:6px 9px;align-items:center;margin-bottom:4px}
+.legend .lsw{width:14px;height:14px;border:1px solid rgba(255,255,255,.15);image-rendering:pixelated}
+.legend span{color:var(--muted);font-size:.78rem}
+
+/* ---------- outro ---------- */
+.outro-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:20px 0}
+.outro-grid .px-box{padding:16px}
+.outro-grid h4{font-family:"Pixelify Sans",monospace;font-size:.95rem;margin-bottom:8px;color:var(--violet)}
+.outro-grid p{font-size:.88rem;margin-bottom:0;color:var(--muted)}
+
+footer.page-foot{
+  margin-top:80px;padding-top:24px;border-top:1px solid var(--line);
+  color:var(--faint);font-size:.8rem;
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;
+}
+footer.page-foot .px{font-family:"Pixelify Sans",monospace}
+</style>
+</head>
+<body>
+
+<button class="nav-toggle" id="navToggle" aria-label="Menü">≡ menü</button>
+
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="brand" href="#bevezetes">
+    <span class="brand-tile" aria-hidden="true"></span>
+    <h1>Observerek mélyebben
+      <small>Bevy tutorial sorozat · 3. rész</small>
+    </h1>
+  </a>
+  <nav class="toc" aria-label="Tartalomjegyzék">
+    <div class="toc-part">
+      <div class="toc-part-label"><span class="sq v"></span> 1. rész — Alapok</div>
+      <a href="#bevezetes">Mi az observer?</a>
+      <a href="#esemeny-tipusok">Event és EntityEvent</a>
+      <a href="#elso-observer">Az első observer</a>
+    </div>
+    <div class="toc-part">
+      <div class="toc-part-label"><span class="sq a"></span> 2. rész — A gépezet</div>
+      <a href="#mikor-fut">Mikor fut pontosan?</a>
+      <a href="#on-anatomy">Az On&lt;E, B&gt; anatómiája</a>
+      <a href="#entity-observerek">Entity-observerek</a>
+    </div>
+    <div class="toc-part">
+      <div class="toc-part-label"><span class="sq b"></span> 3. rész — Haladó minták</div>
+      <a href="#propagacio">Propagáció: buborékolás</a>
+      <a href="#immutabilis">0.18: immutábilis EntityEvent</a>
+      <a href="#korlatok">Korlátok és buktatók</a>
+      <a href="#osszehasonlitas">Event vagy Message?</a>
+    </div>
+    <div class="toc-part">
+      <div class="toc-part-label"><span class="sq g"></span> 4. rész — Gyakorlat</div>
+      <a href="#sandbox">Sandbox: buborékolás élőben</a>
+      <a href="#osszefoglalas">Összefoglalás</a>
+    </div>
+  </nav>
+  <div class="sidebar-foot">
+    Bevy <code>0.18</code> observer-API.<br>
+    Egyetlen HTML fájl — offline is működik.
+  </div>
+</aside>
+
+<main>
+<div class="content">
+
+<header class="hero" id="top">
+  <div class="eyebrow">Bevy · ECS · reaktív logika</div>
+  <h2 class="title">Observerek mélyebben: <em>Event</em>, <em>EntityEvent</em> és a propagáció</h2>
+  <p class="lede">
+    Az üzenetek (Message) türelmesen várnak a pufferben, amíg valaki ki nem olvassa őket.
+    Az observerek a türelmetlen testvérek: a <code class="inl">trigger</code> pillanatában azonnal
+    lefutnak — entitásra célozva, a hierarchián felfelé buborékolva, akár láncreakcióban.
+    Ez a tutorial a Bevy 0.18 observer-rendszerét veszi végig az első <code class="inl">add_observer</code>-től
+    a propagáció finomhangolásáig.
+  </p>
+  <div class="hero-canvas-wrap">
+    <canvas id="heroCv" width="380" height="96" aria-label="Pixeles animáció: egy esemény-impulzus buborékol felfelé egy entitás-hierarchián, az observer-szemek felvillannak"></canvas>
+  </div>
+  <div class="hero-meta">
+    <span class="chip">motor <b>Bevy 0.18</b></span>
+    <span class="chip">téma <b>Observers</b></span>
+    <span class="chip">előzmény <b>2. rész: Üzenetek</b></span>
+    <span class="chip">szint <b>középhaladó</b></span>
+  </div>
+</header>
+
+<!-- ========================================================= 1. RÉSZ -->
+<section class="chapter" id="bevezetes">
+  <header>
+    <div class="part-tag"><span class="sq v"></span> 1. rész — Alapok</div>
+    <h2>Mi az observer?</h2>
+  </header>
+
+  <p>
+    Az előző részben láttuk a <strong>pull</strong>-modellt: az író üzenetet tesz egy pufferbe, és az
+    olvasó rendszer <em>akkor</em> dolgozza fel, amikor az ütemezésben sorra kerül. Az observer ennek
+    a tükörképe, a <strong>push</strong>-modell: amikor valahol megtörténik egy
+    <code class="inl">trigger</code>, a Bevy <em>azonnal, helyben</em> lefuttatja az összes érintett
+    observert — még mielőtt a triggerelő kód folytatódna a következő utasítással.
+  </p>
+  <p>
+    Az observer tehát egy <strong>callback-rendszer</strong>: ugyanúgy system-paraméterekkel dolgozik
+    (<code class="inl">Query</code>, <code class="inl">Res</code>, <code class="inl">Commands</code>…),
+    mint egy normál rendszer, de nem egy ütemezőben él, hanem eseményekre van „felakasztva”.
+    Ha használtad már a picking rendszert (<code class="inl">Pointer&lt;Click&gt;</code> és társai),
+    akkor már írtál observert — most megnézzük, mi van a motorháztető alatt.
+  </p>
+
+  <ul class="plain">
+    <li><strong>Azonnaliság:</strong> nincs puffer, nincs frame-késés — és nincs „lejárt, elveszett” üzenet sem.</li>
+    <li><strong>Célozhatóság:</strong> az esemény szólhat az egész világnak, vagy <em>egyetlen konkrét entitásnak</em> — ez a Message-eknél nem létezik.</li>
+    <li><strong>Buborékolás:</strong> az entitás-események a hierarchián (pl. <code class="inl">ChildOf</code>) felfelé tovább tudnak terjedni, mint a DOM-eventek a böngészőben.</li>
+    <li><strong>Ára:</strong> nincs kötegelés — minden trigger külön observer-futás. Ezért a gyakori, tömeges jelzésekre továbbra is a Message a jó eszköz.</li>
+  </ul>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>Observer — eseményre kötött rendszer</h4>
+    <p>
+      Egy függvény, amelynek <strong>első paramétere kötelezően</strong> <code class="inl">On&lt;E&gt;</code>
+      (vagy életciklus-eseménynél <code class="inl">On&lt;E, B&gt;</code>), a többi paramétere pedig
+      bármilyen szokásos system-paraméter lehet. A <code class="inl">trigger(E)</code> hívás minden
+      illeszkedő observert szinkron lefuttat.
+    </p>
+  </div>
+
+  <p>
+    A <a class="inline" href="#sandbox">sandboxban</a> egy kis entitás-hierarchián nézheted majd élőben,
+    ahogy egy találat-esemény végigbuborékol a csontváz-boss testrészein, és útközben sorra elsülnek
+    az observerek.
+  </p>
+</section>
+
+<section class="chapter" id="esemeny-tipusok">
+  <header>
+    <div class="part-tag"><span class="sq v"></span> 1. rész — Alapok</div>
+    <h2>Event és EntityEvent — a két eseményfajta</h2>
+  </header>
+
+  <p>
+    A 0.17-es nagy átnevezés óta (lásd a 2. rész fordítótáblázatát) az <code class="inl">Event</code> szó
+    kizárólag az observer-világé. Ezen belül a 0.18-ban két derive közül választasz:
+  </p>
+
+  <table class="tbl">
+    <thead>
+      <tr><th></th><th><code>#[derive(Event)]</code></th><th><code>#[derive(EntityEvent)]</code></th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Célpont</strong></td>
+        <td>az egész világ („broadcast”)</td>
+        <td>egy konkrét entitás — az eseménystruct egy <code>Entity</code> mezőben hordozza</td>
+      </tr>
+      <tr>
+        <td><strong>Kit futtat?</strong></td>
+        <td>a globális (app-szintű) observereket</td>
+        <td>a globális observereket <em>és</em> a célentitásra akasztott entity-observereket</td>
+      </tr>
+      <tr>
+        <td><strong>Propagáció</strong></td>
+        <td>nincs (nincs minek mentén)</td>
+        <td>opcionális — pl. <code>ChildOf</code> mentén felfelé</td>
+      </tr>
+      <tr>
+        <td><strong>Tipikus példa</strong></td>
+        <td><code>WaveStarted</code>, <code>GamePaused</code></td>
+        <td><code>Hit { entity, damage }</code>, <code>Pointer&lt;Click&gt;</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">events.rs</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+/// Globális esemény: nincs címzettje, "a világnak szól".
+#[derive(Event)]
+struct WaveStarted {
+    wave: u32,
+}
+
+/// Entitás-esemény: a struct maga hordozza, KIRŐL szól.
+/// Az `entity` nevű mezőt a derive automatikusan célpontnak tekinti.
+#[derive(EntityEvent)]
+struct Hit {
+    entity: Entity,
+    damage: u32,
+}</code></pre>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>A Trigger asszociált típus</h4>
+    <p>
+      Az <code class="inl">Event</code> trait belül egy <code class="inl">Trigger</code> típust hordoz,
+      ami azt írja le, <em>hogyan</em> kell az eseményt kézbesíteni: a sima <code class="inl">Event</code>
+      globális triggert kap (csak broadcast observerek), az <code class="inl">EntityEvent</code> entitás-triggert
+      (broadcast + entity-observerek + opcionális propagáció). Ezt a derive intézi — a lényeg, hogy a
+      típusrendszer garantálja: globális eseményt nem tudsz véletlenül entitásra célozni, és fordítva.
+    </p>
+  </div>
+
+  <div class="note">
+    <b>Regisztráció?</b> Az observer-eseményeknél <strong>nincs</strong> <code class="inl">add_message</code>-szerű
+    lépés — nem kell (és nem is lehet) <code class="inl">add_event</code>-tel regisztrálni őket. A derive +
+    az első observer felakasztása minden, ami kell. Ez is jelzi: itt nincs puffer, amit karban kéne tartani.
+  </div>
+</section>
+
+<section class="chapter" id="elso-observer">
+  <header>
+    <div class="part-tag"><span class="sq v"></span> 1. rész — Alapok</div>
+    <h2>Az első observer — a minimális példa</h2>
+  </header>
+
+  <p>
+    Három lépés: <strong>(1)</strong> eseménytípus, <strong>(2)</strong> observer felakasztása,
+    <strong>(3)</strong> trigger. Itt a fordítható minimum egy globális eseménnyel:
+  </p>
+
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">main.rs</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+#[derive(Event)]
+struct WaveStarted {
+    wave: u32,
+}
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        // (2) globális observer: minden WaveStarted-re lefut
+        .add_observer(on_wave_started)
+        .add_systems(Update, start_wave_on_key)
+        .run();
+}
+
+/// Az observer: első paraméter KÖTELEZŐEN On&lt;E&gt;,
+/// utána bármilyen system-paraméter jöhet.
+fn on_wave_started(
+    wave: On&lt;WaveStarted&gt;,
+    mut commands: Commands,
+    assets: Res&lt;AssetServer&gt;,
+) {
+    info!("Indul a(z) {}. hullám!", wave.wave);
+    // pl. spawnolhatunk ellenfeleket, UI-feliratot...
+}
+
+/// (3) Trigger: bárhonnan, ahol van Commands.
+fn start_wave_on_key(
+    keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    mut commands: Commands,
+) {
+    if keys.just_pressed(KeyCode::Enter) {
+        commands.trigger(WaveStarted { wave: 1 });
+    }
+}</code></pre>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy API</div>
+    <h4>App::add_observer / commands.trigger</h4>
+    <p>
+      Az <code class="inl">add_observer(rendszer)</code> egy globális (broadcast) observert regisztrál:
+      a megadott függvény <em>minden</em> olyan triggerre lefut, amelynek eseménytípusa egyezik az
+      <code class="inl">On&lt;E&gt;</code> paraméterével. A <code class="inl">commands.trigger(esemény)</code>
+      pedig kiváltja az eseményt — globálisat és entitás-eseményt ugyanazzal a hívással (utóbbinál a
+      célpont a struct mezőjében utazik).
+    </p>
+    <p>
+      Az <code class="inl">On&lt;E&gt;</code> deref-elhető az eseményre, ezért írhattunk
+      <code class="inl">wave.wave</code>-et <code class="inl">wave.event().wave</code> helyett.
+    </p>
+  </div>
+</section>
+
+<!-- ========================================================= 2. RÉSZ -->
+<section class="chapter" id="mikor-fut">
+  <header>
+    <div class="part-tag"><span class="sq a"></span> 2. rész — A gépezet</div>
+    <h2>Mikor fut pontosan az observer?</h2>
+  </header>
+
+  <p>
+    A „azonnal lefut” kétféle azonnalt jelenthet, attól függően, honnan triggerelsz:
+  </p>
+  <ul class="plain">
+    <li>
+      <strong><code class="inl">commands.trigger(...)</code></strong> — a trigger egy <em>parancs</em>,
+      tehát a soron következő <strong>command flush</strong>-nál fut le (tipikusan a rendszered lefutása
+      után, még ugyanabban a frame-ben). Ugyanúgy halasztott, mint a <code class="inl">commands.spawn</code>.
+    </li>
+    <li>
+      <strong><code class="inl">world.trigger(...)</code></strong> — exkluzív világ-hozzáférésnél
+      (exclusive system, observer belseje <code class="inl">Commands</code> nélkül stb.) az observerek
+      <em>szó szerint a hívás helyén</em>, szinkron futnak le, és csak utánuk folytatódik a kódod.
+    </li>
+  </ul>
+
+  <figure class="diagram">
+    <svg viewBox="0 0 760 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Push és pull összevetése: a Message az ütemezett olvasóra vár, az observer a trigger pillanatában fut">
+      <style>
+        .bx2{fill:#1b1629;stroke:#2f2745}
+        .bxv{fill:#1b1629;stroke:#c9a2f5}
+        .bxb{fill:#1b1629;stroke:#6cc3f0}
+        .t2{font:600 12px "Pixelify Sans",monospace;fill:#a79bbd;letter-spacing:.06em}
+        .t2v{font:600 12px "Pixelify Sans",monospace;fill:#c9a2f5;letter-spacing:.06em}
+        .t2b{font:600 12px "Pixelify Sans",monospace;fill:#6cc3f0;letter-spacing:.06em}
+        .mono2{font:11px "JetBrains Mono",monospace;fill:#a79bbd}
+        .arr2{stroke:#f0b35e;stroke-width:1.6;fill:none;marker-end:url(#ah2)}
+        .arr3{stroke:#c9a2f5;stroke-width:1.6;fill:none;marker-end:url(#ah3)}
+      </style>
+      <defs>
+        <marker id="ah2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L6,3 L0,6 z" fill="#f0b35e"/>
+        </marker>
+        <marker id="ah3" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L6,3 L0,6 z" fill="#c9a2f5"/>
+        </marker>
+      </defs>
+      <text class="t2b" x="190" y="30" text-anchor="middle">MESSAGE (pull)</text>
+      <rect class="bx2" x="40"  y="50" width="120" height="42"/>
+      <text class="t2" x="100" y="75" text-anchor="middle">író rendszer</text>
+      <rect class="bxb" x="40" y="120" width="120" height="42"/>
+      <text class="t2b" x="100" y="145" text-anchor="middle">puffer</text>
+      <rect class="bx2" x="220" y="120" width="120" height="42"/>
+      <text class="t2" x="280" y="145" text-anchor="middle">olvasó rendszer</text>
+      <path class="arr2" d="M100 92 L100 118"/>
+      <path class="arr2" d="M162 141 L218 141"/>
+      <text class="mono2" x="190" y="190" text-anchor="middle">…várakozik, amíg az olvasó sorra kerül</text>
+
+      <text class="t2v" x="570" y="30" text-anchor="middle">EVENT + OBSERVER (push)</text>
+      <rect class="bx2" x="440" y="50" width="130" height="42"/>
+      <text class="t2" x="505" y="69" text-anchor="middle">trigger(Hit)</text>
+      <text class="mono2" x="505" y="84" text-anchor="middle">a kód itt megáll…</text>
+      <rect class="bxv" x="440" y="120" width="130" height="42"/>
+      <text class="t2v" x="505" y="145" text-anchor="middle">observer(ek)</text>
+      <rect class="bx2" x="610" y="50" width="120" height="42"/>
+      <text class="t2" x="670" y="69" text-anchor="middle">…és itt</text>
+      <text class="mono2" x="670" y="84" text-anchor="middle">folytatódik</text>
+      <path class="arr3" d="M505 92 L505 118"/>
+      <path class="arr3" d="M572 130 C 640 120, 660 110, 668 94"/>
+    </svg>
+    <figcaption>Pull: az üzenet vár az olvasóra. Push: az observer a trigger helyén, szinkron fut le.</figcaption>
+  </figure>
+
+  <h3>Láncreakciók</h3>
+  <p>
+    Mivel az observer maga is kaphat <code class="inl">Commands</code>-ot, simán triggerelhet
+    <em>újabb</em> eseményt — amire megint observerek futnak, és így tovább. Ez nagyon kifejező
+    (dominó-logika: <code class="inl">Hit</code> → <code class="inl">Died</code> →
+    <code class="inl">LootDropped</code>), de két dologra figyelj:
+  </p>
+
+  <div class="warn">
+    <b>1. Végtelen lánc:</b> ha A esemény observere B-t triggerel, B observere pedig A-t, az
+    végtelen rekurzió — a Bevy nem véd meg tőle automatikusan. <br>
+    <b>2. Sorrend az observerek közt:</b> ha ugyanarra az eseményre több observer is fel van akasztva,
+    a futási sorrendjük <strong>nem garantált</strong> — nincs <code class="inl">.before()</code>/<code class="inl">.after()</code>
+    observerekre. Ha a kezelőid sorrendje számít, az erős jel, hogy ott inkább Message + rendezett
+    rendszerek valók.
+  </div>
+</section>
+
+<section class="chapter" id="on-anatomy">
+  <header>
+    <div class="part-tag"><span class="sq a"></span> 2. rész — A gépezet</div>
+    <h2>Az On&lt;E, B&gt; anatómiája és az életciklus-események</h2>
+  </header>
+
+  <p>
+    Az observer első paramétere az <code class="inl">On</code>, aminek két generikus paramétere van —
+    és a második rendszeresen összezavarja a kezdőket:
+  </p>
+
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">bevy_ecs (egyszerűsítve)</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">pub struct On&lt;'w, E, B: Bundle = ()&gt; {
+    // belül: referencia az eseményre + metaadatok
+}</code></pre>
+  </div>
+
+  <ul class="plain">
+    <li><strong><code class="inl">E</code></strong> — az eseménytípus. A saját eseményeidnél csak ezt használod: <code class="inl">On&lt;Hit&gt;</code>.</li>
+    <li><strong><code class="inl">B</code></strong> — komponens-szűrő, ami gyakorlatilag <em>csak a beépített életciklus-eseményeknél</em> értelmes: <code class="inl">On&lt;Add, Enemy&gt;</code> = „amikor egy entitásra <code class="inl">Enemy</code> komponens kerül”.</li>
+  </ul>
+
+  <h3>A beépített életciklus-események</h3>
+  <p>
+    A Bevy minden komponens-műveletre eseményt vált ki — ezekre observerrel reagálni az egyik
+    legtisztább minta arra, hogy a „mi történjen, amikor megjelenik/eltűnik valami” logika
+    egy helyen lakjon:
+  </p>
+
+  <table class="tbl">
+    <thead><tr><th>Esemény</th><th>Mikor sül el?</th></tr></thead>
+    <tbody>
+      <tr><td><code>Add</code></td><td>amikor a komponens rákerül egy entitásra, amelyiken eddig nem volt</td></tr>
+      <tr><td><code>Insert</code></td><td>minden beszúrásnál — akkor is, ha már volt és felülíródik</td></tr>
+      <tr><td><code>Replace</code></td><td>amikor egy meglévő komponens értéke lecserélődik</td></tr>
+      <tr><td><code>Remove</code></td><td>amikor a komponens lekerül az entitásról (még elérhető az értéke)</td></tr>
+      <tr><td><code>Despawn</code></td><td>amikor az entitást despawnolják</td></tr>
+    </tbody>
+  </table>
+
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">életciklus-observer</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">#[derive(Component)]
+struct Enemy;
+
+/// Lefut, valahányszor BÁRMELY entitásra Enemy komponens kerül.
+fn on_enemy_added(
+    added: On&lt;Add, Enemy&gt;,
+    positions: Query&lt;&amp;Transform&gt;,
+) {
+    // az életciklus-esemény entitás-esemény: tudjuk, KIRŐL szól
+    if let Ok(tf) = positions.get(added.entity) {
+        info!("új ellenfél itt: {:?}", tf.translation);
+    }
+}
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_observer(on_enemy_added)
+        .run();
+}</code></pre>
+  </div>
+
+  <div class="note">
+    <b>A B szűrő VAGY-logikájú!</b> Az <code class="inl">On&lt;Add, (Enemy, Chest)&gt;</code> akkor sül el,
+    ha <code class="inl">Enemy</code> <em>vagy</em> <code class="inl">Chest</code> kerül egy entitásra —
+    nem akkor, ha mindkettő. Ez eltér a Query-szűrők megszokott ÉS-logikájától, és klasszikus
+    meglepetésforrás.
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>Életciklus-observer vs. Added/RemovedComponents</h4>
+    <p>
+      Ugyanerre az információra létezik pull-oldali eszköz is: az <code class="inl">Added&lt;T&gt;</code>
+      Query-szűrő és a <code class="inl">RemovedComponents&lt;T&gt;</code> paraméter, amelyek frame-enként,
+      kötegelve adják a változásokat. Az ökölszabály ugyanaz, mint mindig: ha azonnali, eseti reakció kell
+      (pl. felszereléskor azonnal számoljuk újra a statokat) → observer; ha frame-enként, tömegesen
+      dolgozod fel → maradj a Query-szűrőknél.
+    </p>
+  </div>
+</section>
+
+<section class="chapter" id="entity-observerek">
+  <header>
+    <div class="part-tag"><span class="sq a"></span> 2. rész — A gépezet</div>
+    <h2>Entity-observerek: esemény egyetlen entitásnak</h2>
+  </header>
+
+  <p>
+    Az igazi erő ott kezdődik, hogy observert nemcsak globálisan, hanem <strong>egy konkrét entitásra</strong>
+    is felakaszthatsz az <code class="inl">EntityCommands::observe</code>-val. Ilyenkor az observer csak
+    akkor fut le, ha az eseményt <em>pont arra</em> az entitásra triggerelték:
+  </p>
+
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">combat.rs</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">#[derive(EntityEvent)]
+struct Hit {
+    entity: Entity,   // a célpont — a derive ezt a mezőt használja
+    damage: u32,
+}
+
+#[derive(Component)]
+struct Health(u32);
+
+fn spawn_boss(mut commands: Commands) {
+    commands
+        .spawn((Name::new("Csontváz boss"), Health(100)))
+        // entity-observer: CSAK ezen az entitáson elsülő Hit-ekre fut
+        .observe(on_boss_hit);
+}
+
+fn on_boss_hit(
+    hit: On&lt;Hit&gt;,
+    mut healths: Query&lt;&amp;mut Health&gt;,
+) {
+    if let Ok(mut hp) = healths.get_mut(hit.entity) {
+        hp.0 = hp.0.saturating_sub(hit.damage);
+        info!("Boss megsérült! Maradt: {} HP", hp.0);
+    }
+}
+
+/// Trigger ugyanúgy, mint a globálisnál — a címzett a structban utazik:
+fn sword_attack(mut commands: Commands, boss: Entity) {
+    commands.trigger(Hit { entity: boss, damage: 12 });
+}</code></pre>
+  </div>
+
+  <p>
+    Egy <code class="inl">EntityEvent</code> triggerelésekor a sorrend tehát: lefutnak a célentitásra
+    akasztott entity-observerek, <em>és</em> a globális (app-szintű) observerek is — utóbbiak minden
+    ilyen eseményt látnak, entitástól függetlenül. Így építhető „helyi viselkedés + központi könyvelés”
+    páros: a boss a saját observerével kezeli a sebzést, egy globális observer pedig pl. harci naplót ír.
+  </p>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>Az observer maga is entitás!</h4>
+    <p>
+      Az <code class="inl">observe(...)</code> és az <code class="inl">add_observer(...)</code> a háttérben
+      egy <em>entitást spawnol</em>, rajta egy <code class="inl">Observer</code> komponenssel — az observer
+      tehát ugyanolyan polgára a World-nek, mint bármi más. Ebből két hasznos dolog következik:
+      a megfigyelt entitás despawnolásakor a rá akasztott observerek is automatikusan eltakarodnak,
+      és egy observer kézzel is leszedhető (despawnolható), ha már nincs rá szükség.
+    </p>
+  </div>
+
+  <div class="note">
+    <b>Honnan tudja a derive, melyik mező a célpont?</b> Alapesetben az <code class="inl">entity</code>
+    nevű mezőt keresi. Ha máshogy hívod (pl. <code class="inl">ship</code>), jelöld meg a
+    <code class="inl">#[event_target]</code> attribútummal — a következő fejezet propagációs példájában
+    pont ezt látod majd.
+  </div>
+</section>
+
+<!-- ========================================================= 3. RÉSZ -->
+<section class="chapter" id="propagacio">
+  <header>
+    <div class="part-tag"><span class="sq b"></span> 3. rész — Haladó minták</div>
+    <h2>Propagáció: buborékolás a hierarchián</h2>
+  </header>
+
+  <p>
+    Ha dolgoztál már böngészős JS-sel, ismerős lesz: egy gombra kattintva az esemény „felbuborékol”
+    a szülő elemekre is. A Bevy entitás-eseményei ugyanezt tudják — alapból a
+    <code class="inl">ChildOf</code> kapcsolat mentén, <em>felfelé</em>. Ez akkor aranyat ér, amikor az
+    esemény fizikailag egy <em>részen</em> történik (a kard pengéjén landol a kattintás, a boss kezét
+    éri a nyíl), de a logika a <em>egészhez</em> tartozik (a bossnak kell sebződnie).
+  </p>
+
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">propagáló esemény</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">/// auto_propagate: kezelés után magától megy tovább a szülőre.
+/// propagate = ...: MILYEN kapcsolat mentén — itt a beépített ChildOf.
+#[derive(EntityEvent)]
+#[entity_event(auto_propagate, propagate = &amp;'static ChildOf)]
+struct Hit {
+    #[event_target]      // nem "entity" a neve, ezért jelöljük
+    part: Entity,
+    damage: u32,
+}
+
+fn spawn_boss(mut commands: Commands) {
+    commands
+        .spawn(Name::new("Boss"))
+        .observe(on_boss_hit)            // a gyökéren ül a logika
+        .with_children(|parent| {
+            parent.spawn(Name::new("Kar"))
+                  .with_children(|kar| {
+                      kar.spawn(Name::new("Kard"));
+                  });
+        });
+}
+
+/// A Kardra triggerelt Hit felbuborékol: Kard → Kar → Boss,
+/// és a Boss observere is megkapja.
+fn on_boss_hit(hit: On&lt;Hit&gt;, names: Query&lt;&amp;Name&gt;) {
+    // hit.part            — az AKTUÁLIS célpont (ahol most jár a buborék)
+    // hit.original_target() — ahol az esemény EREDETILEG keletkezett (a Kard)
+    info!("találat ide érkezett: {:?}", names.get(hit.original_target()));
+}</code></pre>
+  </div>
+
+  <h3>A buborék megállítása</h3>
+  <p>
+    Az observer menet közben dönthet úgy, hogy elnyeli az eseményt — például egy pajzs-testrész
+    kivédi a találatot, és nem engedi tovább a boss felé:
+  </p>
+
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">propagate(false)</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">fn on_shield_hit(mut hit: On&lt;Hit&gt;) {
+    info!("A pajzs kivédte a találatot!");
+    hit.propagate(false);   // a buborék itt megáll, a szülők már nem kapják meg
+}</code></pre>
+  </div>
+
+  <p>
+    Fordítva is működik: ha <em>nem</em> kérsz <code class="inl">auto_propagate</code>-et, az esemény
+    alapból csak a célentitáson sül el, és az observer <code class="inl">propagate(true)</code>-val
+    kézzel küldheti tovább — így csak ott buborékol, ahol kifejezetten akarod.
+  </p>
+
+  <div class="bevy-box">
+    <div class="tag">Bevy fogalom</div>
+    <h4>Miért pont a picking miatt fontos ez?</h4>
+    <p>
+      A beépített picking-események (<code class="inl">Pointer&lt;Click&gt;</code>,
+      <code class="inl">Pointer&lt;Over&gt;</code>…) pontosan így működnek: a kattintás a konkrét
+      meshen/sprite-on keletkezik, majd felbuborékol a hierarchián, így a kezelő observert elég a
+      logikai gyökérre (gomb, kártya, egység) akasztani. Amikor a saját eseményeidnél propagációt
+      tervezel, ezt a mintát másolod.
+    </p>
+  </div>
+
+  <div class="note">
+    <b>Nem csak ChildOf!</b> A <code class="inl">propagate = &amp;'static ChildOf</code> tetszőleges
+    relationship-komponensre cserélhető — ha a 4. (Relationships) témából saját kapcsolatot építettél
+    (pl. <code class="inl">RészeEnnek</code>), az események amentén is tudnak utazni.
+  </div>
+</section>
+
+<section class="chapter" id="immutabilis">
+  <header>
+    <div class="part-tag"><span class="sq b"></span> 3. rész — Haladó minták</div>
+    <h2>0.18-as változás: immutábilis EntityEvent</h2>
+  </header>
+
+  <p>
+    Ez az a pont, ahol a 0.18 ténylegesen hozzányúlt az observer-világhoz. A 0.17-ben az
+    <code class="inl">EntityEvent</code> trait tartalmazott két mutáló metódust
+    (<code class="inl">from</code> és <code class="inl">event_target_mut</code>), amelyekkel az esemény
+    célpontja menet közben átírható volt. A 0.18 ezeket <strong>kiszervezte egy külön traitbe</strong>,
+    a <code class="inl">SetEntityEventTarget</code>-be — így minden <code class="inl">EntityEvent</code>
+    alapértelmezésben <strong>immutábilis</strong>.
+  </p>
+
+  <ul class="plain">
+    <li><strong>Miért jó ez?</strong> A célpont átírása a propagáció motorja — de ha bárki bárhol átírhatja, az nehezen követhető hibákat szül. A 0.18-ban a típusrendszer mondja ki: egy sima entitás-esemény célpontja a trigger után nem mozog.</li>
+    <li><strong>Ki kapja meg automatikusan?</strong> A propagáló események — pl. amin <code class="inl">#[entity_event(propagate)]</code> vagy <code class="inl">auto_propagate</code> van — automatikusan implementálják a <code class="inl">SetEntityEventTarget</code>-et, hiszen a buborékolásnak tényleg át kell írnia a célpontot lépésenként.</li>
+    <li><strong>Mikor találkozol vele?</strong> Ha generikus kódot írsz, ami eseményeket továbbít/átcéloz, a 0.18-ban <code class="inl">E: EntityEvent</code> helyett <code class="inl">E: EntityEvent + SetEntityEventTarget</code> megkötés kell. A hétköznapi observer-kódot a változás nem érinti.</li>
+  </ul>
+
+  <div class="codeblock">
+    <div class="cb-head"><span class="fname">0.17 → 0.18</span><span class="lang">rust</span></div>
+    <pre><code class="lang-rust">// 0.17 — a mutáló metódusok az EntityEvent részei voltak:
+fn retarget&lt;E: EntityEvent&gt;(ev: &amp;mut E, new_target: Entity) {
+    *ev.event_target_mut() = new_target;
+}
+
+// 0.18 — külön trait kell hozzá:
+fn retarget&lt;E: EntityEvent + SetEntityEventTarget&gt;(ev: &amp;mut E, new_target: Entity) {
+    *ev.event_target_mut() = new_target;
+}</code></pre>
+  </div>
+
+  <div class="note">
+    <b>A többi 0.18-as apróság</b> az observer-környéken: az <code class="inl">AnimationEventTrigger</code>
+    félrevezető <code class="inl">animation_player</code> mezője <code class="inl">target</code>-re lett
+    átnevezve, a picking <code class="inl">DragEnter</code> eseménye pedig már a húzás <em>indulásakor</em>
+    is elsül a már hoverelt entitáson. A core observer-API (<code class="inl">On</code>,
+    <code class="inl">add_observer</code>, <code class="inl">observe</code>, <code class="inl">trigger</code>)
+    változatlan a 0.17-hez képest.
+  </div>
+</section>
+
+<section class="chapter" id="korlatok">
+  <header>
+    <div class="part-tag"><span class="sq b"></span> 3. rész — Haladó minták</div>
+    <h2>Korlátok és buktatók</h2>
+  </header>
+
+  <h3>1. Nincs sorrend az observerek között</h3>
+  <p>
+    Ugyanarra az eseményre akasztott observerek futási sorrendje nem definiált, és nincs rá
+    rendező API. Ha azon kapod magad, hogy „előbb fusson a sebzés-observer, aztán a halál-ellenőrző”,
+    akkor vagy vond össze őket egy observerbe, vagy láncold őket eseményekkel
+    (<code class="inl">Hit</code> observere triggereli a <code class="inl">Died</code>-et), vagy
+    térj át Message-re, ahol az olvasó rendszerek szabadon rendezhetők.
+  </p>
+
+  <h3>2. Nincs kötegelés</h3>
+  <p>
+    Ezer trigger = ezer külön observer-futás, futásonként paraméter-előkészítéssel. A 2. rész
+    <code class="inl">refresh_display</code>-mintája — „gyűjtsd össze a frame összes változását,
+    és dolgozd fel egy menetben” — observerrel nem kifejezhető. Gyakori, tömeges jelzésekhez
+    (cellaváltozások, sebzés-tickek, részecske-triggerek) maradj a Message-nél.
+  </p>
+
+  <h3>3. A „mindent observerrel” csapda</h3>
+  <p>
+    Az observer csábítóan kényelmes, és könnyű mindent rá építeni — de minden trigger-lánc egy darab
+    futási folyamat, amit az ütemező nem lát: nem párhuzamosítja, nem rendezi, a profilerben is
+    nehezebben követhető. Az egészséges arány a legtöbb játékban: a folyamatos játéklogika
+    <strong>rendszerekben + Message-ekkel</strong> él, az observer pedig a <strong>ritka, pontszerű,
+    azonnali</strong> reakciók eszköze (felvettem egy tárgyat, meghalt valami, rákattintottak valamire,
+    komponens került fel/le).
+  </p>
+
+  <div class="warn">
+    <b>Apró, de fájdalmas:</b> az observer csak akkor fut le, ha a trigger pillanatában már létezik.
+    Ha egy rendszer előbb triggerel, és az observer csak utána kerül felakasztásra (akár ugyanabban a
+    frame-ben), az az esemény <em>végleg</em> kimaradt — itt nincs kettős puffer, ami megmentené.
+    Az observereket ezért tipikusan Startup-ban / spawn-kor érdemes regisztrálni.
+  </div>
+</section>
+
+<section class="chapter" id="osszehasonlitas">
+  <header>
+    <div class="part-tag"><span class="sq b"></span> 3. rész — Haladó minták</div>
+    <h2>Event vagy Message? — a teljes döntési térkép</h2>
+  </header>
+
+  <p>
+    A 2. rész táblázatának kibővített, observer-szemszögű változata — ez a két tutorial közös
+    gyorsreferenciája:
+  </p>
+
+  <table class="tbl">
+    <thead><tr><th></th><th>Event + Observer (push)</th><th>Message (pull)</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Ideális gyakoriság</strong></td>
+        <td>ritka, pontszerű</td>
+        <td>gyakori, tömeges</td>
+      </tr>
+      <tr>
+        <td><strong>Feldolgozás</strong></td>
+        <td>eseményenként, azonnal</td>
+        <td>kötegelve, az olvasó ütemezésekor</td>
+      </tr>
+      <tr>
+        <td><strong>Latencia</strong></td>
+        <td>0 (szinkron)</td>
+        <td>0–1 frame</td>
+      </tr>
+      <tr>
+        <td><strong>Célozhatóság</strong></td>
+        <td>világ VAGY konkrét entitás</td>
+        <td>csak világ</td>
+      </tr>
+      <tr>
+        <td><strong>Propagáció</strong></td>
+        <td>van (hierarchián buborékol)</td>
+        <td>nincs</td>
+      </tr>
+      <tr>
+        <td><strong>Kezelők sorrendje</strong></td>
+        <td>nem definiált</td>
+        <td>rendszer-rendezéssel pontosan szabályozható</td>
+      </tr>
+      <tr>
+        <td><strong>Elveszhet?</strong></td>
+        <td>nem (de: csak a már létező observerek kapják meg)</td>
+        <td>igen, 2 frame után, ha senki sem olvassa</td>
+      </tr>
+      <tr>
+        <td><strong>Tipikus felhasználás</strong></td>
+        <td>picking, életciklus-reakciók, tárgyfelvétel, halál, UI</td>
+        <td>cellaváltozások, sebzés-tickek, input-szándékok, naplózás</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    És a hüvelykujjszabály egy mondatban: <strong>ha a kérdésed „mi történjen, amikor EZZEL történik
+    valami?” — observer; ha „mi történt ebben a frame-ben?” — Message.</strong>
+  </p>
+</section>
+
+<!-- ========================================================= 4. RÉSZ -->
+<section class="chapter" id="sandbox">
+  <header>
+    <div class="part-tag"><span class="sq g"></span> 4. rész — Gyakorlat</div>
+    <h2>Sandbox: buborékolás élőben</h2>
+  </header>
+
+  <p>
+    A csontváz-boss három testrészből áll, <code class="inl">ChildOf</code> hierarchiában:
+    a gyökéren ül a <strong>Boss</strong> entity-observere (ő könyveli a sebzést), a
+    <strong>Pajzs</strong>-on egy védekező observer, a <strong>Kard</strong>-on semmi.
+    <strong>Kattints bármelyik testrészre:</strong> oda triggerelődik egy
+    <code class="inl">Hit&nbsp;{ damage: 12 }</code> entitás-esemény, és — ha az
+    <code class="inl">auto_propagate</code> be van kapcsolva — végigbuborékol felfelé.
+    A napló minden observer-futást mutat, sorrendben.
+  </p>
+  <ul class="plain">
+    <li>Kattints a <strong>Kardra</strong>: nincs saját observere, de a buborék a Karon át eljut a Bossig — a sebzés mégis „megérkezik”. Pont ezért szeretjük a propagációt.</li>
+    <li>Kattints a <strong>Pajzsra</strong> bekapcsolt <code class="inl">propagate(false)</code> mellett: a pajzs observere lefut, de a buborékot elnyeli — a Boss HP-ja nem csökken.</li>
+    <li>Kapcsold ki az <code class="inl">auto_propagate</code>-et, és kattints a Kardra: az esemény csak ott sül el — observere viszont nincs, így (a harci naplón kívül) semmi sem történik.</li>
+    <li>A <span class="kbd">+ Rúnakő</span> gombbal spawnolj egy új testrészt a Kard alá: az <code class="inl">On&lt;Add, Rúnakő&gt;</code> életciklus-observer azonnal jelez — despawnnál az <code class="inl">On&lt;Remove&gt;</code>.</li>
+  </ul>
+
+  <div class="sandbox">
+    <div class="sandbox-head">
+      <span class="t">■ OBSERVER SANDBOX</span>
+      <span class="hint">kattints egy testrészre · figyeld a naplót</span>
+    </div>
+    <div class="sandbox-body">
+      <div class="sandbox-canvas-wrap">
+        <canvas id="sbx" width="560" height="330" aria-label="Entitás-hierarchia: Boss, alatta Pajzs és Kar, a Kar alatt Kard — kattintásra esemény buborékol felfelé"></canvas>
+        <div class="obslog-wrap">
+          <div class="obslog" id="obslog" aria-live="polite"></div>
+        </div>
+      </div>
+      <div class="sandbox-side">
+        <h5>Esemény-beállítások</h5>
+        <label><input type="checkbox" id="cbProp" checked> <code class="inl">auto_propagate</code> (ChildOf mentén felfelé)</label>
+        <label><input type="checkbox" id="cbBlock" checked> Pajzs observere: <code class="inl">propagate(false)</code></label>
+        <label><input type="checkbox" id="cbGlobal" checked> globális observer (harci napló)</label>
+
+        <h5>Életciklus</h5>
+        <div class="btn-row">
+          <button class="btn primary" id="btnRune">+ Rúnakő spawn</button>
+        </div>
+        <div style="height:8px"></div>
+        <div class="btn-row">
+          <button class="btn" id="btnReset">Alaphelyzet</button>
+        </div>
+
+        <h5>Boss állapota</h5>
+        <div class="dbg" id="dbgHp" style="font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--muted);background:var(--code-bg);border:1px solid var(--line);padding:8px 10px;white-space:pre;line-height:1.7"></div>
+
+        <h5>Jelmagyarázat</h5>
+        <div class="legend">
+          <span class="lsw" style="background:#c9a2f5"></span><span>esemény-buborék (Hit)</span>
+          <span class="lsw" style="background:#84d96c"></span><span>entity-observer lefutott</span>
+          <span class="lsw" style="background:#6cc3f0"></span><span>globális observer</span>
+          <span class="lsw" style="background:#ef8472"></span><span>propagate(false) — a buborék megállt</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="chapter" id="osszefoglalas">
+  <header>
+    <div class="part-tag"><span class="sq g"></span> 4. rész — Gyakorlat</div>
+    <h2>Összefoglalás</h2>
+  </header>
+
+  <p>A teljes kép, hat mondatban:</p>
+  <ol class="plain">
+    <li>Az observer <strong>push-modellű</strong> eseménykezelő: a <code class="inl">trigger</code> pillanatában (command flush-kor, vagy <code class="inl">world.trigger</code>-nél szó szerint azonnal) szinkron lefut — puffer és frame-késés nélkül.</li>
+    <li>Két eseményfajta van: <code class="inl">#[derive(Event)]</code> a globális, <code class="inl">#[derive(EntityEvent)]</code> az entitásra célzott eseményekhez — utóbbi a célpontot egy <code class="inl">Entity</code> mezőben hordozza (<code class="inl">entity</code> név vagy <code class="inl">#[event_target]</code>).</li>
+    <li>Observert globálisan az <code class="inl">add_observer</code>-rel, entitásra az <code class="inl">EntityCommands::observe</code>-val akasztasz fel; az első paraméter mindig <code class="inl">On&lt;E&gt;</code>, az életciklus-eseményeknél <code class="inl">On&lt;E, B&gt;</code> (és a B szűrő VAGY-logikájú!).</li>
+    <li>A beépített életciklus-események (<code class="inl">Add</code>, <code class="inl">Insert</code>, <code class="inl">Replace</code>, <code class="inl">Remove</code>, <code class="inl">Despawn</code>) observerrel kezelve adják a legtisztább „spawn/despawn-hoz kötött logika” mintát.</li>
+    <li>Az entitás-események a <code class="inl">#[entity_event(auto_propagate, propagate = ...)]</code> attribútumokkal a hierarchián felfelé buborékolnak; az observer <code class="inl">propagate(false)</code>-szal elnyelheti, az <code class="inl">original_target()</code>-tel pedig mindig tudja, honnan indult.</li>
+    <li>A 0.18 fő újdonsága: az <code class="inl">EntityEvent</code> alapból immutábilis, a célpont-átírás külön traitbe (<code class="inl">SetEntityEventTarget</code>) került — a hétköznapi kódot ez nem érinti, a generikus event-továbbítókat igen.</li>
+  </ol>
+
+  <h3>Merre tovább?</h3>
+  <div class="outro-grid">
+    <div class="px-box">
+      <h4>Picking végig observerrel</h4>
+      <p>Építsd át a játékod kattintás-kezelését <code class="inl">Pointer&lt;Click&gt;</code> observerekre — a buborékolásnak hála elég a logikai gyökerekre akasztani őket.</p>
+    </div>
+    <div class="px-box">
+      <h4>Esemény-láncok tervezése</h4>
+      <p><code class="inl">Hit</code> → <code class="inl">Died</code> → <code class="inl">LootDropped</code>: rajzold fel a játékod dominóit, és döntsd el láncszemenként: observer vagy Message?</p>
+    </div>
+    <div class="px-box">
+      <h4>Saját relationship + propagáció</h4>
+      <p>Készíts saját kapcsolat-komponenst, és futtass rajta eseményeket a <code class="inl">propagate = ...</code> attribútummal — pl. „felszerelés → viselője” irányban.</p>
+    </div>
+    <div class="px-box">
+      <h4>Observer-takarítás</h4>
+      <p>Figyeld meg az inspectorban, hogy az observerek tényleg entitások — és hogy a megfigyelt entitás despawnjával együtt tűnnek el.</p>
+    </div>
+  </div>
+</section>
+
+<footer class="page-foot">
+  <div class="px">■ Observerek mélyebben — tutorial</div>
+  <div>Bevy 0.18 · egyetlen HTML fájl · offline is működik</div>
+</footer>
+
+</div>
+</main>
+</div>
+
+<script>
+/* ============ nav toggle + scrollspy + rust highlighter + hero ============ */
+(function(){
+  var toggle = document.getElementById('navToggle');
+  var sidebar = document.getElementById('sidebar');
+  toggle.addEventListener('click', function(){ sidebar.classList.toggle('open'); });
+  sidebar.addEventListener('click', function(e){
+    if (e.target.tagName === 'A' && window.innerWidth <= 980) sidebar.classList.remove('open');
+  });
+
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  var sections = links.map(function(a){ return document.querySelector(a.getAttribute('href')); }).filter(Boolean);
+  function setActive(id){
+    links.forEach(function(a){ a.classList.toggle('active', a.getAttribute('href') === '#' + id); });
+  }
+  if ('IntersectionObserver' in window) {
+    var visible = {};
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){ visible[en.target.id] = en.isIntersecting; });
+      for (var i = 0; i < sections.length; i++) {
+        if (visible[sections[i].id]) { setActive(sections[i].id); return; }
+      }
+    }, { rootMargin: '-15% 0px -70% 0px' });
+    sections.forEach(function(s){ io.observe(s); });
+  }
+  window.addEventListener('scroll', function(){
+    var y = window.scrollY + window.innerHeight * 0.25;
+    var cur = sections[0] && sections[0].id;
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].offsetTop <= y) cur = sections[i].id;
+    }
+    if (cur) setActive(cur);
+  }, { passive: true });
+
+  // ---------- minimal Rust highlighter ----------
+  var KW = ['fn','let','mut','pub','use','struct','enum','impl','for','in','if','else','match','return','while','loop','continue','break','as','ref','move','where','trait','type','const','static','mod','crate','self','Self','dyn','async','await','unsafe'];
+  var kwSet = {}; KW.forEach(function(k){ kwSet[k] = 1; });
+
+  function hlRust(src){
+    var out = '';
+    var i = 0, n = src.length;
+    function isIdent(c){ return /[A-Za-z0-9_]/.test(c); }
+    while (i < n) {
+      var c = src[i];
+      if (c === '&') {
+        var semi = src.indexOf(';', i);
+        if (semi > -1 && semi - i <= 6) { out += src.slice(i, semi + 1); i = semi + 1; continue; }
+      }
+      if (c === '/' && src[i+1] === '/') {
+        var e = src.indexOf('\n', i); if (e === -1) e = n;
+        out += '<span class="tk-cm">' + src.slice(i, e) + '</span>'; i = e; continue;
+      }
+      if (c === '"') {
+        var j = i + 1;
+        while (j < n && src[j] !== '"') { if (src[j] === '\\') j++; j++; }
+        j = Math.min(j + 1, n);
+        out += '<span class="tk-st">' + src.slice(i, j) + '</span>'; i = j; continue;
+      }
+      if (c === '#' && src[i+1] === '[') {
+        var k2 = src.indexOf(']', i); if (k2 === -1) k2 = n - 1;
+        out += '<span class="tk-at">' + src.slice(i, k2 + 1) + '</span>'; i = k2 + 1; continue;
+      }
+      if (c === "'" && /[a-z_]/.test(src[i+1] || '') && src[i+2] !== "'") {
+        var j2 = i + 1; while (j2 < n && isIdent(src[j2])) j2++;
+        out += '<span class="tk-lf">' + src.slice(i, j2) + '</span>'; i = j2; continue;
+      }
+      if (/[0-9]/.test(c) && !isIdent(src[i-1] || '')) {
+        var j3 = i; while (j3 < n && /[0-9_.xa-fA-F]/.test(src[j3])) j3++;
+        out += '<span class="tk-nb">' + src.slice(i, j3) + '</span>'; i = j3; continue;
+      }
+      if (/[A-Za-z_\u00C0-\u017F]/.test(c)) {
+        var j4 = i; while (j4 < n && /[A-Za-z0-9_\u00C0-\u017F]/.test(src[j4])) j4++;
+        var w = src.slice(i, j4);
+        var nxt = src[j4];
+        if (nxt === '!') { out += '<span class="tk-mc">' + w + '!</span>'; i = j4 + 1; continue; }
+        if (kwSet[w]) out += '<span class="tk-kw">' + w + '</span>';
+        else if (/^[A-Z\u00C0-\u00DD]/.test(w)) out += '<span class="tk-ty">' + w + '</span>';
+        else if (nxt === '(') out += '<span class="tk-fn">' + w + '</span>';
+        else out += w;
+        i = j4; continue;
+      }
+      out += c; i++;
+    }
+    return out;
+  }
+  document.querySelectorAll('code.lang-rust').forEach(function(block){
+    block.innerHTML = hlRust(block.innerHTML);
+  });
+
+  // ---------- hero canvas: pulse bubbling up an entity tree ----------
+  var cv = document.getElementById('heroCv');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function px(x, y, w, h, col){ ctx.fillStyle = col; ctx.fillRect(Math.round(x), Math.round(y), w, h); }
+  // three nodes: leaf (bottom-left) -> mid -> root (top-right)
+  var nodes = [
+    { x: 60,  y: 66, label: 'kard' },
+    { x: 175, y: 44, label: 'kar' },
+    { x: 290, y: 22, label: 'boss' }
+  ];
+  var t = 0, pulse = 0; // pulse: 0..2 edge progress
+  function drawNode(nd, lit){
+    px(nd.x, nd.y, 22, 16, lit ? '#c9a2f5' : '#2f2745');
+    px(nd.x + 2, nd.y + 2, 18, 12, '#120f18');
+    // observer "eye"
+    px(nd.x + 7, nd.y + 5, 8, 6, lit ? '#efeaf6' : '#6f6489');
+    px(nd.x + 10, nd.y + 7, 2, 2, '#120f18');
+    ctx.fillStyle = '#a79bbd';
+    ctx.font = '9px "Pixelify Sans", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(nd.label, nd.x + 11, nd.y + 28);
+  }
+  function frame(){
+    t++;
+    if (!reduce) pulse += 0.012;
+    if (pulse > 2.6) pulse = -0.4;
+    ctx.fillStyle = '#120f18'; ctx.fillRect(0, 0, W, H);
+    // edges
+    ctx.strokeStyle = '#3d3359'; ctx.lineWidth = 2;
+    for (var i = 0; i < nodes.length - 1; i++) {
+      ctx.beginPath();
+      ctx.moveTo(nodes[i].x + 22, nodes[i].y + 8);
+      ctx.lineTo(nodes[i+1].x, nodes[i+1].y + 8);
+      ctx.stroke();
+    }
+    // trigger label
+    ctx.fillStyle = '#f0b35e';
+    ctx.font = '10px "JetBrains Mono", monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('trigger(Hit)', 16, 30);
+    ctx.fillText('ChildOf ▲', 250, 86);
+    // nodes lit when pulse passes them
+    nodes.forEach(function(nd, i){
+      var lit = !reduce && pulse >= i - 0.12 && pulse <= i + 0.3;
+      drawNode(nd, lit || reduce);
+    });
+    // pulse dot along edges
+    if (!reduce && pulse >= 0 && pulse <= 2) {
+      var seg = Math.min(Math.floor(pulse), 1.999) | 0;
+      if (seg < nodes.length - 1) {
+        var f = pulse - seg;
+        var a = nodes[seg], b = nodes[seg + 1];
+        var pxx = (a.x + 22) + ((b.x) - (a.x + 22)) * f;
+        var pyy = (a.y + 8) + ((b.y + 8) - (a.y + 8)) * f;
+        px(pxx - 3, pyy - 3, 6, 6, '#c9a2f5');
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+
+<script>
+/* ===================== OBSERVER SANDBOX ===================== */
+(function(){
+  var cv = document.getElementById('sbx');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var log = document.getElementById('obslog');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- entity tree (mirrors the Rust example) ----
+  // boss (root) -> pajzs, kar; kar -> kard; kard -> [runako, dinamikus]
+  var nodes = {};
+  function makeTree(){
+    nodes = {
+      boss:  { id:'boss',  name:'Boss',   parent:null,  x:230, y:30,  w:110, h:54, obs:'boss'   },
+      pajzs: { id:'pajzs', name:'Pajzs',  parent:'boss', x:90,  y:130, w:100, h:50, obs:'shield' },
+      kar:   { id:'kar',   name:'Kar',    parent:'boss', x:330, y:130, w:100, h:50, obs:null     },
+      kard:  { id:'kard',  name:'Kard',   parent:'kar',  x:330, y:225, w:100, h:50, obs:null     }
+    };
+  }
+  var rune = false; // dynamically spawned child of kard
+  function runeNode(){
+    return { id:'rune', name:'Rúnakő', parent:'kard', x:180, y:255, w:100, h:46, obs:null };
+  }
+  function allNodes(){
+    var list = Object.keys(nodes).map(function(k){ return nodes[k]; });
+    if (rune) list.push(runeNode());
+    return list;
+  }
+  function getNode(id){
+    if (id === 'rune') return rune ? runeNode() : null;
+    return nodes[id] || null;
+  }
+  function parentOf(id){
+    var n = getNode(id);
+    return n && n.parent ? getNode(n.parent) : null;
+  }
+
+  var bossHp = 100;
+  var flashing = {};   // id -> color, while observer "runs"
+  var pulsePos = null; // {x,y} of the travelling event bubble
+  var animating = false;
+
+  // ---- log helpers ----
+  function addLog(html){
+    var d = document.createElement('div');
+    d.innerHTML = html;
+    log.appendChild(d);
+    while (log.children.length > 60) log.removeChild(log.firstChild);
+    log.scrollTop = log.scrollHeight;
+  }
+  function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+
+  // ---- rendering ----
+  function drawNodeBox(n){
+    var lit = flashing[n.id];
+    ctx.fillStyle = lit || '#1b1629';
+    ctx.fillRect(n.x, n.y, n.w, n.h);
+    ctx.fillStyle = '#120f18';
+    ctx.fillRect(n.x + 3, n.y + 3, n.w - 6, n.h - 6);
+    ctx.strokeStyle = lit ? lit : '#3d3359';
+    ctx.lineWidth = lit ? 2 : 1;
+    ctx.strokeRect(n.x + .5, n.y + .5, n.w, n.h);
+    ctx.fillStyle = '#efeaf6';
+    ctx.font = '600 13px "Pixelify Sans", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(n.name, n.x + n.w/2, n.y + 22);
+    ctx.font = '9px "JetBrains Mono", monospace';
+    if (n.obs === 'boss') {
+      ctx.fillStyle = '#84d96c';
+      ctx.fillText('.observe(on_boss_hit)', n.x + n.w/2, n.y + 38);
+    } else if (n.obs === 'shield') {
+      ctx.fillStyle = '#84d96c';
+      ctx.fillText('.observe(on_shield_hit)', n.x + n.w/2, n.y + 38);
+    } else {
+      ctx.fillStyle = '#6f6489';
+      ctx.fillText('nincs observer', n.x + n.w/2, n.y + 38);
+    }
+  }
+  function edgeAnchor(n){ return { x: n.x + n.w/2, y: n.y }; }
+  function edgeAnchorBottom(n){ return { x: n.x + n.w/2, y: n.y + n.h }; }
+  function render(){
+    ctx.fillStyle = '#0e0b15';
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    // edges child -> parent
+    ctx.strokeStyle = '#3d3359'; ctx.lineWidth = 1.5;
+    allNodes().forEach(function(n){
+      var p = parentOf(n.id);
+      if (!p) return;
+      var a = edgeAnchor(n), b = edgeAnchorBottom(p);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      // ChildOf label
+      ctx.fillStyle = '#6f6489';
+      ctx.font = '8px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('ChildOf ▲', (a.x + b.x)/2 + 32, (a.y + b.y)/2);
+    });
+    allNodes().forEach(drawNodeBox);
+    // event bubble
+    if (pulsePos) {
+      ctx.fillStyle = '#c9a2f5';
+      ctx.fillRect(pulsePos.x - 5, pulsePos.y - 5, 10, 10);
+      ctx.fillStyle = '#efeaf6';
+      ctx.fillRect(pulsePos.x - 2, pulsePos.y - 2, 4, 4);
+    }
+    document.getElementById('dbgHp').innerHTML =
+      'Boss HP   <span style="color:' + (bossHp > 40 ? '#84d96c' : '#ef8472') + '">' + bossHp + '</span> / 100' +
+      (rune ? '\nRúnakő    spawnolva' : '\nRúnakő    —');
+  }
+
+  // ---- the simulated observer run ----
+  function flash(id, color, ms, cb){
+    flashing[id] = color;
+    render();
+    setTimeout(function(){
+      delete flashing[id];
+      render();
+      if (cb) cb();
+    }, reduce ? 10 : ms);
+  }
+  function movePulse(from, to, dur, cb){
+    if (reduce) { pulsePos = null; render(); cb(); return; }
+    var a = edgeAnchor(from), b = edgeAnchorBottom(to);
+    var t0 = null;
+    function step(ts){
+      if (t0 === null) t0 = ts;
+      var f = Math.min((ts - t0) / dur, 1);
+      pulsePos = { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
+      render();
+      if (f < 1) requestAnimationFrame(step);
+      else { pulsePos = null; render(); cb(); }
+    }
+    requestAnimationFrame(step);
+  }
+
+  function runObserversAt(node, originalName, done){
+    var globalOn = document.getElementById('cbGlobal').checked;
+    var blockOn = document.getElementById('cbBlock').checked;
+    var stopped = false;
+
+    function afterEntityObs(){
+      if (globalOn) {
+        addLog('<span class="lt">  │</span> <span class="go">globális observer</span> — harci napló: Hit @ ' + esc(node.name) +
+               ' <span class="lt">(original_target: ' + esc(originalName) + ')</span>');
+      }
+      done(stopped);
+    }
+
+    if (node.obs === 'boss') {
+      bossHp = Math.max(0, bossHp - 12);
+      flash(node.id, '#84d96c', 420, function(){
+        addLog('<span class="lt">  │</span> <span class="eo">on_boss_hit</span> — sebzés könyvelve, HP: <b>' + bossHp + '</b>');
+        afterEntityObs();
+      });
+    } else if (node.obs === 'shield') {
+      flash(node.id, blockOn ? '#ef8472' : '#84d96c', 420, function(){
+        if (blockOn) {
+          stopped = true;
+          addLog('<span class="lt">  │</span> <span class="eo">on_shield_hit</span> — kivédve! <span class="st">hit.propagate(false)</span>');
+        } else {
+          addLog('<span class="lt">  │</span> <span class="eo">on_shield_hit</span> — lefutott (propagate marad: true)');
+        }
+        afterEntityObs();
+      });
+    } else {
+      flash(node.id, '#c9a2f5', 300, function(){
+        addLog('<span class="lt">  │</span> <span class="lt">' + esc(node.name) + ': nincs entity-observer — a buborék továbbmegy</span>');
+        afterEntityObs();
+      });
+    }
+  }
+
+  function trigger(node){
+    if (animating) return;
+    animating = true;
+    var autoProp = document.getElementById('cbProp').checked;
+    addLog('<span class="ev">▶ commands.trigger(Hit { entity: ' + esc(node.name) + ', damage: 12 })</span>' +
+           (autoProp ? '' : ' <span class="lt">[auto_propagate: KI]</span>'));
+
+    function hop(current){
+      runObserversAt(current, node.name, function(stopped){
+        var parent = parentOf(current.id);
+        if (stopped) {
+          addLog('<span class="lt">  └ a buborék itt megállt.</span>');
+          animating = false; return;
+        }
+        if (!autoProp || !parent) {
+          addLog('<span class="lt">  └ esemény lezárva' + (autoProp && !parent ? ' (elérte a gyökeret)' : '') + '.</span>');
+          animating = false; return;
+        }
+        movePulse(current, parent, 420, function(){ hop(parent); });
+      });
+    }
+    hop(node);
+  }
+
+  // ---- lifecycle demo ----
+  var btnRune = document.getElementById('btnRune');
+  btnRune.addEventListener('click', function(){
+    if (animating) return;
+    rune = !rune;
+    if (rune) {
+      addLog('<span class="lc">✚ commands.spawn((Rúnakő, ChildOf(Kard)))</span>');
+      addLog('<span class="lt">  │</span> <span class="go">On&lt;Add, Rúnakő&gt;</span> observer — azonnal lefutott a spawn flush-ánál');
+      btnRune.textContent = '– Rúnakő despawn';
+    } else {
+      addLog('<span class="lc">✖ commands.entity(rúnakő).despawn()</span>');
+      addLog('<span class="lt">  │</span> <span class="go">On&lt;Remove, Rúnakő&gt;</span> observer — a komponens értéke itt még olvasható volt');
+      btnRune.textContent = '+ Rúnakő spawn';
+    }
+    render();
+  });
+
+  document.getElementById('btnReset').addEventListener('click', function(){
+    if (animating) return;
+    bossHp = 100; rune = false; flashing = {}; pulsePos = null;
+    btnRune.textContent = '+ Rúnakő spawn';
+    log.innerHTML = '';
+    addLog('<span class="lt">— alaphelyzet. Kattints egy testrészre! —</span>');
+    render();
+  });
+  document.getElementById('cbProp').addEventListener('change', render);
+  document.getElementById('cbBlock').addEventListener('change', render);
+
+  cv.addEventListener('click', function(e){
+    if (animating) return;
+    var r = cv.getBoundingClientRect();
+    var sx = cv.width / r.width, sy = cv.height / r.height;
+    var mx = (e.clientX - r.left) * sx, my = (e.clientY - r.top) * sy;
+    var hitNode = null;
+    allNodes().forEach(function(n){
+      if (mx >= n.x && mx <= n.x + n.w && my >= n.y && my <= n.y + n.h) hitNode = n;
+    });
+    if (hitNode) trigger(hitNode);
+  });
+
+  makeTree();
+  addLog('<span class="lt">— Kattints egy testrészre a Hit esemény triggereléséhez! —</span>');
+  render();
+})();
+</script>
+</body>
+</html>
