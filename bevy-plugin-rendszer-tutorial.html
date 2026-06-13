@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plugin-rendszer Bevy-ben · Pixel art top-down játékfejlesztés (Bevy 0.18)</title>
+<style>
+  :root{
+    --bg:#0f1117;
+    --panel:#13161f;
+    --surface:#1a1e29;
+    --code-bg:#12151d;
+    --border:#262c3a;
+    --border-strong:#36405a;
+    --bone:#ece6d6;
+    --text:#c3c9d6;
+    --muted:#878fa3;
+    --faint:#5b6376;
+    --accent:#56d8c4;     /* arkán energia / teal */
+    --accent-2:#f0a35e;   /* fáklya / amber */
+    --accent-3:#c77dff;   /* nekro / lila */
+    --ok:#8fd98a;
+    --warn:#f2c14e;
+
+    --font-sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:ui-monospace,'JetBrains Mono','SF Mono','Cascadia Code',Menlo,Consolas,monospace;
+
+    --sidebar-w:300px;
+    --maxread:760px;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+  body{
+    margin:0;
+    background:
+      linear-gradient(transparent 0 0),
+      radial-gradient(circle at 18% -10%, rgba(86,216,196,.06), transparent 45%),
+      radial-gradient(circle at 100% 0%, rgba(199,125,255,.05), transparent 40%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--font-sans);
+    font-size:16.5px;
+    line-height:1.72;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* finom pixel-rács háttér */
+  body::before{
+    content:"";
+    position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:
+      linear-gradient(rgba(255,255,255,.012) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.012) 1px, transparent 1px);
+    background-size:32px 32px;
+    mask-image:linear-gradient(180deg, rgba(0,0,0,.6), rgba(0,0,0,.15) 60%, transparent);
+  }
+
+  /* olvasási progress-sáv */
+  #progress{
+    position:fixed;top:0;left:0;height:3px;width:0%;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));
+    z-index:60;transition:width .08s linear;
+    box-shadow:0 0 12px rgba(86,216,196,.5);
+  }
+
+  .layout{display:flex;align-items:flex-start;position:relative;z-index:1}
+
+  /* ---------- SIDEBAR ---------- */
+  .sidebar{
+    width:var(--sidebar-w);flex:0 0 var(--sidebar-w);
+    position:sticky;top:0;height:100vh;overflow-y:auto;
+    background:var(--panel);
+    border-right:2px solid var(--border);
+    padding:22px 16px 60px;
+    scrollbar-width:thin;scrollbar-color:var(--border-strong) transparent;
+  }
+  .sidebar::-webkit-scrollbar{width:8px}
+  .sidebar::-webkit-scrollbar-thumb{background:var(--border-strong)}
+
+  .brand{display:flex;gap:12px;align-items:center;padding:6px 8px 18px;margin-bottom:8px;border-bottom:2px solid var(--border)}
+  .brand svg{flex:0 0 auto;display:block;filter:drop-shadow(2px 2px 0 rgba(0,0,0,.5))}
+  .brand .b-title{font-family:var(--font-mono);font-weight:700;font-size:13.5px;color:var(--bone);letter-spacing:.02em;line-height:1.3}
+  .brand .b-sub{font-family:var(--font-mono);font-size:10.5px;color:var(--accent);letter-spacing:.18em;text-transform:uppercase;margin-top:3px}
+
+  nav .part{margin:14px 0 4px}
+  nav .part > .part-label{
+    display:flex;align-items:baseline;gap:8px;
+    font-family:var(--font-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--faint);padding:8px 10px 6px;
+  }
+  nav .part > .part-label .pnum{color:var(--accent-2);font-weight:700}
+  nav ul{list-style:none;margin:0;padding:0}
+  nav li a{
+    display:block;text-decoration:none;color:var(--muted);
+    font-size:14px;line-height:1.4;padding:7px 12px 7px 18px;
+    border-left:2px solid transparent;border-radius:0 4px 4px 0;
+    transition:color .12s, background .12s, border-color .12s;
+  }
+  nav li a:hover{color:var(--bone);background:rgba(255,255,255,.03)}
+  nav li a.active{
+    color:var(--bone);background:rgba(86,216,196,.08);
+    border-left-color:var(--accent);font-weight:600;
+  }
+  nav li a.active::before{content:"";}
+  nav .part.active-part > .part-label{color:var(--bone)}
+
+  /* mobil drawer kapcsoló */
+  .menu-btn{
+    display:none;position:fixed;top:14px;left:14px;z-index:55;
+    background:var(--surface);border:2px solid var(--border-strong);color:var(--bone);
+    font-family:var(--font-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;
+    padding:9px 12px;cursor:pointer;box-shadow:3px 3px 0 0 rgba(0,0,0,.5);
+  }
+  .backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:40}
+
+  /* ---------- TARTALOM ---------- */
+  main{flex:1 1 auto;min-width:0}
+  .wrap{max-width:var(--maxread);margin:0 auto;padding:64px 28px 140px}
+
+  /* hero / címkártya */
+  .hero{
+    border:2px solid var(--border-strong);background:var(--surface);
+    padding:30px 30px 26px;margin-bottom:46px;position:relative;
+    box-shadow:6px 6px 0 0 rgba(86,216,196,.14);
+  }
+  .hero .eyebrow{
+    font-family:var(--font-mono);font-size:11.5px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:14px;
+  }
+  .hero h1{
+    font-size:clamp(28px,4.6vw,42px);line-height:1.08;margin:0 0 14px;
+    color:var(--bone);font-weight:800;letter-spacing:-.01em;
+  }
+  .hero p{margin:0;color:var(--muted);font-size:16.5px;max-width:62ch}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+  .chip{
+    font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;
+    color:var(--text);background:var(--code-bg);border:1px solid var(--border-strong);
+    padding:5px 10px;
+  }
+  .chip b{color:var(--accent-2)}
+
+  section.chapter{scroll-margin-top:90px;margin-bottom:54px}
+  .part-head{scroll-margin-top:90px;margin:64px 0 8px}
+  .part-head:first-of-type{margin-top:8px}
+  .part-head .ph-eyebrow{
+    font-family:var(--font-mono);font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent-2);
+  }
+  .part-head h2.part-title{
+    font-size:13px;font-family:var(--font-mono);letter-spacing:.04em;color:var(--faint);
+    text-transform:uppercase;margin:6px 0 0;font-weight:600;
+  }
+  hr.part-rule{border:none;border-top:2px solid var(--border);margin:16px 0 30px}
+
+  h3.ch-title{
+    font-size:clamp(21px,2.6vw,27px);line-height:1.2;color:var(--bone);
+    font-weight:700;margin:0 0 16px;letter-spacing:-.01em;
+  }
+  .ch-num{font-family:var(--font-mono);color:var(--accent);font-size:.62em;margin-right:.6em;vertical-align:middle;letter-spacing:.05em}
+
+  p{margin:0 0 16px}
+  a.inline{color:var(--accent);text-decoration:none;border-bottom:1px dotted rgba(86,216,196,.5)}
+  a.inline:hover{border-bottom-style:solid}
+  strong{color:var(--bone);font-weight:650}
+  code.k-inline{
+    font-family:var(--font-mono);font-size:.86em;background:var(--code-bg);
+    border:1px solid var(--border);padding:1.5px 6px;color:var(--accent-2);
+  }
+  ul.body-list,ol.body-list{margin:0 0 18px;padding-left:22px}
+  ul.body-list li,ol.body-list li{margin:0 0 8px}
+  ul.body-list li::marker{color:var(--accent)}
+  ol.body-list li::marker{color:var(--accent);font-family:var(--font-mono);font-weight:700}
+
+  /* ---------- KÓD ---------- */
+  figure.code{margin:22px 0 24px;border:2px solid var(--border-strong);background:var(--code-bg);box-shadow:5px 5px 0 0 rgba(0,0,0,.4)}
+  figure.code figcaption{
+    display:flex;align-items:center;gap:9px;
+    font-family:var(--font-mono);font-size:12px;color:var(--muted);
+    padding:9px 14px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.018);
+  }
+  figure.code figcaption .dot{width:9px;height:9px;background:var(--accent-2);box-shadow:14px 0 0 var(--accent),28px 0 0 var(--accent-3);flex:0 0 auto;margin-right:24px}
+  figure.code figcaption .fname{color:var(--bone)}
+  figure.code figcaption .copy{
+    margin-left:auto;background:transparent;border:1px solid var(--border-strong);
+    color:var(--muted);font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;
+    text-transform:uppercase;padding:4px 9px;cursor:pointer;transition:.12s;
+  }
+  figure.code figcaption .copy:hover{color:var(--bone);border-color:var(--accent)}
+  figure.code figcaption .copy.done{color:var(--ok);border-color:var(--ok)}
+  pre{margin:0;overflow-x:auto;padding:16px 18px;scrollbar-width:thin}
+  pre code{font-family:var(--font-mono);font-size:13.5px;line-height:1.65;color:var(--text);white-space:pre}
+
+  /* highlight tokenek */
+  .c{color:#5e6a7d;font-style:italic}
+  .s{color:#b7d98a}
+  .k{color:var(--accent-3)}
+  .t{color:var(--accent)}
+  .m{color:var(--accent-2)}
+  .n{color:#e6c07b}
+  .at{color:#7aa2cf}
+
+  /* ---------- CALLOUTOK ---------- */
+  .callout{border:1px solid var(--border-strong);border-left-width:4px;background:var(--surface);padding:16px 18px;margin:22px 0}
+  .callout . co-tag{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;display:block;margin-bottom:7px}
+  .callout p:last-child{margin-bottom:0}
+  .callout.concept{border-left-color:var(--accent)}
+  .callout.concept .co-tag{color:var(--accent)}
+  .callout.tip{border-left-color:var(--accent-2)}
+  .callout.tip .co-tag{color:var(--accent-2)}
+  .callout.warn{border-left-color:var(--warn)}
+  .callout.warn .co-tag{color:var(--warn)}
+
+  .callout.concept .term{font-family:var(--font-mono);color:var(--bone);font-weight:600}
+
+  /* fa-szerkezet doboz */
+  .tree{
+    font-family:var(--font-mono);font-size:13px;line-height:1.85;color:var(--muted);
+    background:var(--code-bg);border:2px solid var(--border-strong);padding:16px 18px;margin:22px 0;
+    box-shadow:5px 5px 0 0 rgba(0,0,0,.4);white-space:pre;overflow-x:auto;
+  }
+  .tree .dir{color:var(--accent)}
+  .tree .file{color:var(--bone)}
+  .tree .note{color:var(--faint)}
+
+  footer.page-foot{border-top:2px solid var(--border);margin-top:60px;padding-top:24px;color:var(--faint);font-size:13.5px}
+  footer.page-foot code{font-family:var(--font-mono);color:var(--muted)}
+
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width:980px){
+    .menu-btn{display:block}
+    .sidebar{
+      position:fixed;top:0;left:0;z-index:50;height:100vh;width:300px;
+      transform:translateX(-104%);transition:transform .22s ease;
+      box-shadow:8px 0 24px rgba(0,0,0,.5);
+    }
+    .sidebar.open{transform:translateX(0)}
+    body.nav-open .backdrop{display:block}
+    .wrap{padding-top:74px}
+  }
+  @media (prefers-reduced-motion:reduce){.sidebar{transition:none}}
+  @media (max-width:520px){
+    .wrap{padding-left:18px;padding-right:18px}
+    .hero{padding:22px 18px}
+    pre code{font-size:12.5px}
+  }
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<button class="menu-btn" id="menuBtn" aria-label="Tartalomjegyzék megnyitása">≡ Tartalom</button>
+<div class="backdrop" id="backdrop"></div>
+
+<div class="layout">
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <svg id="skull" width="40" height="40" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"></svg>
+      <div>
+        <div class="b-title">Plugin-rendszer<br>Bevy-ben</div>
+        <div class="b-sub">Bevy 0.18 · top-down</div>
+      </div>
+    </div>
+    <nav id="toc" aria-label="Tartalomjegyzék"></nav>
+  </aside>
+
+  <!-- ===================== TARTALOM ===================== -->
+  <main>
+  <div class="wrap">
+
+    <header class="hero">
+      <div class="eyebrow">Bevy 0.18 · Pixel art · Top-down · Rust</div>
+      <h1>A plugin nem indítás, hanem szervezés</h1>
+      <p>Gyakorlati útmutató ahhoz, hogyan bontsd egy top-down pixel art játék kódját tiszta, karbantartható plugin-modulokra Bevy 0.18-ban — közben minden használt Bevy-fogalmat el is magyarázunk, mert épp most tanulod.</p>
+      <div class="chips">
+        <span class="chip"><b>main.rs</b> tiszta marad</span>
+        <span class="chip"><b>GamePlugin</b> összefog</span>
+        <span class="chip">camera · player · world · ui</span>
+        <span class="chip">offline · letölthető</span>
+      </div>
+    </header>
+
+    <!-- ===== I. RÉSZ ===== -->
+    <div class="part-head" id="part-1">
+      <div class="ph-eyebrow">I. rész</div>
+      <h2 class="part-title">Alapozás — mi is az a plugin</h2>
+    </div>
+    <hr class="part-rule">
+
+    <section class="chapter" id="ch-mi-a-plugin">
+      <h3 class="ch-title"><span class="ch-num">1.1</span>Mi az a plugin valójában?</h3>
+      <p>A leggyakoribb félreértés a Bevy tanulása közben az, hogy a plugint valamiféle „dolognak” képzeljük, amit el kell indítani — mintha az indításkor (startupkor) meg kéne hívni. Ez nem így van. A plugin <strong>nem futtatható dolog, hanem egy szervezési egység</strong>: egy doboz, amibe összecsomagolod egy adott témakör (pl. a játékos) minden logikáját.</p>
+      <p>A plugin egyetlen feladata, hogy <strong>beregisztrálja a hozzá tartozó systemeket és erőforrásokat</strong> az alkalmazásba: a startup systemeket (amik egyszer futnak), az update systemeket (amik minden képkockán), és minden mást, ami ahhoz a modulhoz tartozik. A plugint magát egyszer „beregisztrálod”, és onnantól a benne lévő systemeket a Bevy futtatja a megfelelő ütemben.</p>
+      <p>Gondolj rá úgy, mint egy költöztetős dobozra. A dobozt nem „használod” — kicsomagolod. Amikor a plugint hozzáadod az alkalmazáshoz, a Bevy kicsomagolja: kiveszi belőle a systemeket, és berakja őket a megfelelő ütemtervekbe (schedule-ökbe). Maga a doboz ezután már nem csinál semmit.</p>
+      <div class="callout concept">
+        <span class="co-tag">Bevy-fogalom</span>
+        <p><span class="term">System</span> — egy sima Rust függvény, amit a Bevy hív meg helyetted. A paraméterei alapján a Bevy „kitalálja”, milyen adatot adjon neki (pl. a világ entitásait vagy egy globális erőforrást). Te csak megírod a függvényt, és megmondod, melyik ütemtervbe (schedule) tartozzon — a meghívásról a motor gondoskodik.</p>
+      </div>
+      <p>Ez a gondolkodásmód a kulcs az egész cikkhez: a plugin szervez, a system fut. Innen minden más logikusan következik.</p>
+    </section>
+
+    <section class="chapter" id="ch-plugin-trait">
+      <h3 class="ch-title"><span class="ch-num">1.2</span>A <code class="k-inline">Plugin</code> trait és a <code class="k-inline">build()</code></h3>
+      <p>Egy saját plugin technikailag nem más, mint egy típus (általában egy üres <code class="k-inline">struct</code>), ami megvalósítja a <code class="k-inline">Plugin</code> traitet. A trait egyetlen kötelező metódusa a <code class="k-inline">build</code>, és pontosan itt történik a beregisztrálás:</p>
+
+      <figure class="code">
+        <figcaption><span class="dot"></span><span class="fname">src/player.rs</span><button class="copy">másol</button></figcaption>
+        <pre><code data-lang="rust"></code></pre>
+        <script type="text/plain" class="src">use bevy::prelude::*;
+
+// A plugin maga csak egy üres típus — nincs benne adat.
+pub struct PlayerPlugin;
+
+// A Plugin trait megvalósítása. Itt regisztráljuk be a modul minden systemét.
+impl Plugin for PlayerPlugin {
+    fn build(&self, app: &mut App) {
+        app
+            .add_systems(Startup, spawn_player)   // egyszer, induláskor
+            .add_systems(Update, move_player);    // minden képkockán
+    }
+}</script>
+      </figure>
+
+      <div class="callout concept">
+        <span class="co-tag">Bevy-fogalom</span>
+        <p><span class="term">Plugin trait + build(&amp;self, app: &amp;mut App)</span> — a <code class="k-inline">build</code> az egyetlen hely, ahol a plugin „beszél” az alkalmazással. Megkapja az <code class="k-inline">App</code>-ot kölcsön (<code class="k-inline">&amp;mut</code>), és rárakja a systemeket, erőforrásokat, eseményeket. A <code class="k-inline">build</code> egyszer fut le, amikor a plugint hozzáadod — nem képkockánként. Itt nem „csinálunk” semmit a játékkal, csak <em>regisztrálunk</em>.</p>
+      </div>
+      <p>Figyeld meg: a <code class="k-inline">spawn_player</code> és a <code class="k-inline">move_player</code> sima függvények (systemek), amiket itt csak megnevezünk. A <code class="k-inline">build</code> nem hívja meg őket — csak elhelyezi a megfelelő ütemtervbe. A meghívásukról a Bevy gondoskodik a helyes pillanatban.</p>
+    </section>
+
+    <section class="chapter" id="ch-app-add-plugins">
+      <h3 class="ch-title"><span class="ch-num">1.3</span><code class="k-inline">App</code>, <code class="k-inline">add_plugins</code>, <code class="k-inline">DefaultPlugins</code></h3>
+      <p>Az egész alkalmazás egyetlen <code class="k-inline">App</code> köré épül. Ezt építed fel láncolt hívásokkal, majd a végén elindítod a <code class="k-inline">run()</code>-nal. A plugineket az <code class="k-inline">add_plugins</code> metódussal adod hozzá — és itt jön egy nagyon hasznos részlet: az <code class="k-inline">add_plugins</code> elfogad <strong>tuple-t</strong> is, így egyszerre több plugint regisztrálhatsz.</p>
+
+      <figure class="code">
+        <figcaption><span class="dot"></span><span class="fname">fogalmi példa</span><button class="copy">másol</button></figcaption>
+        <pre><code data-lang="rust"></code></pre>
+        <script type="text/plain" class="src">App::new()
+    .add_plugins(DefaultPlugins)              // egy plugin-csoport
+    .add_plugins((CameraPlugin, PlayerPlugin)) // több plugin egy tuple-ben
+    .run();                                    // innen indul a fő ciklus</script>
+      </figure>
+
+      <div class="callout concept">
+        <span class="co-tag">Bevy-fogalom</span>
+        <p><span class="term">DefaultPlugins</span> — a motor „akkumulátorral szállított” alapcsomagja: ablakkezelés, renderelés, input, idő (<code class="k-inline">Time</code>), asset-betöltés, hang és társai. Valójában ez egy <em>PluginGroup</em> (plugin-csoport), nem egyetlen plugin — sok kis plugint regisztrál be egyszerre. Innen jön minden, amit „magától tudni” szokott egy Bevy-app.</p>
+      </div>
+      <div class="callout tip">
+        <span class="co-tag">Tipp</span>
+        <p>A régebbi Bevy-kódokban látható <code class="k-inline">add_plugin</code> (egyes szám) és <code class="k-inline">add_startup_system</code> mára eltűnt. A 0.18-ban mindig <code class="k-inline">add_plugins</code> és <code class="k-inline">add_systems(Startup, …)</code> a helyes forma. Ha régi példát másolnál, ezeket cseréld le.</p>
+      </div>
+    </section>
+
+    <!-- ===== II. RÉSZ ===== -->
+    <div class="part-head" id="part-2">
+      <div class="ph-eyebrow">II. rész</div>
+      <h2 class="part-title">A tiszta main.rs</h2>
+    </div>
+    <hr class="part-rule">
+
+    <section class="chapter" id="ch-main-rs">
+      <h3 class="ch-title"><span class="ch-num">2.1</span>Hogyan néz ki egy jó <code class="k-inline">main.rs</code></h3>
+      <p>A cél, hogy a <code class="k-inline">main.rs</code> szinte üres maradjon — ne tudja, hogy mi a játékos, mi a kamera, hány systemed van. Csak két dolgot ismerjen: a motor alap-pluginjait, és a <strong>saját fő pluginodat</strong>. Minden konkrét logika a saját moduljában lakik.</p>
+
+      <figure class="code">
+        <figcaption><span class="dot"></span><span class="fname">src/main.rs</span><button class="copy">másol</button></figcaption>
+        <pre><code data-lang="rust"></code></pre>
+        <script type="text/plain" class="src">use bevy::prelude::*;
+
+mod game;                 // a saját modulod, ami a GamePlugint adja
+use game::GamePlugin;
+
+fn main() {
+    App::new()
+        // 1) A motor alapja: ablak, render, input, idő, assetek...
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        // 2) A TELJES játékod — egyetlen plugin mögé rejtve.
+        .add_plugins(GamePlugin)
+        .run();
+}</script>
+      </figure>
+
+      <p>Ez a teljes belépési pont. Ha holnap hozzáadsz egy ellenség-rendszert, egy mentés-rendszert vagy hangokat, a <code class="k-inline">main.rs</code> <strong>nem változik</strong>: az új logika a <code class="k-inline">GamePlugin</code> alá kerül. Ez a karbantarthatóság lényege — egy hely, ami stabil marad, miközben a játék nő.</p>
+    </section>
+
+    <section class="chapter" id="ch-pixel-beallitas">
+      <h3 class="ch-title"><span class="ch-num">2.2</span>Pixel art beállítás: éles pixelek</h3>
+      <p>Pixel art játéknál egyetlen apró, de kritikus dolgot muszáj beállítani a <code class="k-inline">main.rs</code>-ben: a textúrák skálázását. Alapból a Bevy <em>lineáris</em> (elmosó) szűrést használ, amitől a pixelek homályosak lesznek. Helyette <em>nearest</em> (legközelebbi szomszéd) szűrés kell, ami élesen, négyzetesen nagyít.</p>
+
+      <figure class="code">
+        <figcaption><span class="dot"></span><span class="fname">src/main.rs — bővebb DefaultPlugins</span><button class="copy">másol</button></figcaption>
+        <pre><code data-lang="rust"></code></pre>
+        <script type="text/plain" class="src">App::new()
+    .add_plugins(
+        DefaultPlugins
+            // Éles pixelek: nearest-neighbor szűrés a textúrákra.
+            .set(ImagePlugin::default_nearest())
+            // Ablak testreszabása ugyanazon a láncon.
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Csontváz-futam".into(),
+                    resolution: (1280.0, 720.0).into(),
+                    ..default()
+                }),
+                ..default()
+            }),
+    )
+    .add_plugins(GamePlugin)
+    .run();</script>
+      </figure>
+
+      <div class="callout concept">
+        <span class="co-tag">Bevy-fogalom</span>
+        <p><span class="term">.set(…)</span> — a <code class="k-inline">DefaultPlugins</code> egy plugin-csoport, és a <code class="k-inline">.set(...)</code>-tel <em>kicserélheted</em> a csoport egy tagját egy testreszabott változatra. Itt az <code class="k-inline">ImagePlugin</code>-t és a <code class="k-inline">WindowPlugin</code>-t cseréljük le. A <code class="k-inline">ImagePlugin::default_nearest()</code> egy kész konstruktor, ami a nearest szűrést állítja be alapértelmezettként.</p>
+      </div>
+      <p>Ez a két <code class="k-inline">.set</code> az egyetlen indok, amiért egyáltalán „bonyolultabb” a <code class="k-inline">main.rs</code> — és ez is csak konfiguráció, nem játéklogika. A logika továbbra is a plugineké.</p>
+    </section>
+
+    <!-- ===== III. RÉSZ ===== -->
+    <div class="part-head" id="part-3">
+      <div class="ph-eyebrow">III. rész</div>
+      <h2 class="part-title">A GamePlugin — a pluginok összefogása</h2>
+    </div>
+    <hr class="part-rule">
+
+    <section class="chapter" id="ch-game-plugin">
+      <h3 class="ch-title"><span class="ch-num">3.1</span>A fő plugin: <code class="k-inline">GamePlugin</code></h3>
+      <p>A <code class="k-inline">GamePlugin</code> a tutorial szíve. Önmagában <strong>nem regisztrál egyetlen systemet sem</strong> — a feladata pusztán annyi, hogy összefogja a kisebb modul-pluginjaidat. Ő a „doboz, ami dobozokat tartalmaz”.</p>
+
+      <figure class="code">
+        <figcaption><span class="dot"></span><span class="fname">src/game.rs</span><button class="copy">másol</button></figcaption>
+        <pre><code data-lang="rust"></code></pre>
+        <script type="text/plain" class="src">use bevy::prelude::*;
+
+// A modulok bekapcsolása. Mindegyik egy-egy fájl a projektben.
+mod camera;
+mod player;
+mod world;
+mod ui;
+
+use camera::CameraPlugin;
+use player::PlayerPlugin;
+use world::WorldPlugin;
+use ui::UiPlugin;
+
+pub struct GamePlugin;
+
+impl Plugin for GamePlugin {
+    fn build(&self, app: &mut App) {
+        // Csak összefogjuk a modul-pluginokat — semmi mást.
+        app.add_plugins((
+            CameraPlugin,
+            WorldPlugin,
+            PlayerPlugin,
+            UiPlugin,
+        ));
+    }
+}</script>
+      </figure>
+
+      <p>Most már látszik a rendszer egésze: a <code class="k-inline">main.rs</code> a <code class="k-inline">GamePlugin</code>-t adja hozzá, a <code class="k-inline">GamePlugin</code> a négy modul-plugint, és <em>azok</em> regisztrálják a saját startup és update systemeiket. Háromszintű, de minden szint pontosan egy dolgot csinál.</p>
+
+      <div class="callout tip">
+        <span class="co-tag">Tipp</span>
+        <p>A tuple-ben a sorrend a regisztrálás sorrendje. A <code class="k-inline">CameraPlugin</code>-t teszem előre, mert sok minden feltételezi, hogy van kamera. A startup systemek konkrét futási sorrendjét viszont ne erre bízd — arra a <code class="k-inline">.chain()</code> vagy a system-setek valók (lásd később).</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-plugin-tuple">
+      <h3 class="ch-title"><span class="ch-num">3.2</span>Tuple vagy <code class="k-inline">PluginGroup</code>?</h3>
+      <p>A fenti tuple-megoldás a legtöbb közepes projektnek tökéletes. Néha viszont kézbe akarod venni a finomabb vezérlést: külön ki/be kapcsolni egy plugint, vagy szigorú sorrendet adni — pont úgy, ahogy a <code class="k-inline">DefaultPlugins</code> teszi. Erre való a <code class="k-inline">PluginGroup</code>.</p>
+
+      <figure class="code">
+        <figcaption><span class="dot"></span><span class="fname">src/game.rs — haladó változat</span><button class="copy">másol</button></figcaption>
+        <pre><code data-lang="rust"></code></pre>
+        <script type="text/plain" class="src">use bevy::app::PluginGroupBuilder;
+use bevy::prelude::*;
+
+pub struct GamePlugins;
+
+impl PluginGroup for GamePlugins {
+    fn build(self) -> PluginGroupBuilder {
+        PluginGroupBuilder::start::<Self>()
+            .add(CameraPlugin)
+            .add(WorldPlugin)
+            .add(PlayerPlugin)
+            .add(UiPlugin)
+    }
+}
+
+// Használat a main.rs-ben:
+// .add_plugins(GamePlugins)
+//      .disable::<UiPlugin>()   // pl. egy szerver-buildben kihagyható</script>
+      </figure>
+
+      <div class="callout concept">
+        <span class="co-tag">Bevy-fogalom</span>
+        <p><span class="term">PluginGroup</span> — egy másik trait (nem a sima <code class="k-inline">Plugin</code>), amivel rendezett, ki/be kapcsolható plugin-csomagot építesz. A <code class="k-inline">.add_plugins(GamePlugins).disable::&lt;UiPlugin&gt;()</code> mintával egyes tagokat ki tudsz hagyni. Ezt csak akkor vesd be, ha tényleg kell — különben a 3.1-es egyszerű tuple a barátod.</p>
+      </div>
+      <p>Ökölszabály: <strong>kezdj a sima <code class="k-inline">GamePlugin</code> + tuple felállással.</strong> Csak ha tényleges igény jön (változatok, modok, szerver/kliens build), akkor lépj a <code class="k-inline">PluginGroup</code>-ra.</p>
+    </section>
+
+    <!-- ===== IV. RÉSZ ===== -->
+    <div class="part-head" id="part-4">
+      <div class="ph-eyebrow">IV. rész</div>
+      <h2 class="part-title">Modul-pluginok a top-down játékhoz</h2>
+    </div>
+    <hr class="part-rule">
+
+    <section class="chapter" id="ch-camera-plugin">
+      <h3 class="ch-title"><span class="ch-num">4.1</span><code class="k-inline">CameraPlugin</code></h3>
+      <p>A legegyszerűbb modul: egyetlen startup system, ami létrehozza a 2D kamerát. Egy top-down játékban ez nézi felülről a pályát.</p>
+
+      <figure class="code">
+        <figcaption><span class="dot"></span><span class="fname">src/camera.rs</span><button class="copy">másol</button></figcaption>
+        <pre><code data-lang="rust"></code></pre>
+        <script type="text/plain" class="src">use bevy::prelude::*;
+
+pub struct CameraPlugin;
+
+impl Plugin for CameraPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Startup, spawn_camera);
+    }
+}
+
+fn spawn_camera(mut commands: Commands) {
+    commands.spawn((
+        Camera2d,
+        // Nagyítás a pixel art-hoz: kisebb scale = közelebbi, nagyobb pixelek.
+        Projection::Orthographic(OrthographicProjection {
+            scale: 0.25,
+            ..OrthographicProjection::default_2d()
+        }),
+    ));
+}</script>
+      </figure>
+
+      <div class="callout concept">
+        <span class="co-tag">Bevy-fogalom</span>
+        <p><span class="term">Camera2d</span> — a 2D kamera komponens. A 0.18-ban már nincs „bundle” (mint a régi <code class="k-inline">Camera2dBundle</code>): egyszerűen lespawnolod a <code class="k-inline">Camera2d</code> komponenst, és a hozzá tartozó kötelező komponensek (köztük a <code class="k-inline">Projection</code>) automatikusan rákerülnek. A <code class="k-inline">scale</code> csökkentésével közelítesz — pixel art-nál ez teszi nagyra a pixeleket.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-player-plugin">
+      <h3 class="ch-title"><span class="ch-num">4.2</span><code class="k-inline">PlayerPlugin</code> — Startup + Update</h3>
+      <p>Itt látszik igazán, miért hasznos a plugin: a játékos létrehozása (startup) és a mozgatása (update) <strong>ugyanabban a modulban</strong> él, együtt a <code class="k-inline">Player</code> komponenssel. Minden, ami a játékoshoz tartozik, egy helyen.</p>
+
+      <figure class="code">
+        <figcaption><span class="dot"></span><span class="fname">src/player.rs</span><button class="copy">másol</button></figcaption>
+        <pre><code data-lang="rust"></code></pre>
+        <script type="text/plain" class="src">use bevy::prelude::*;
+
+pub struct PlayerPlugin;
+
+// Marker-komponens: nem tárol adatot, csak megjelöli a játékos entitást.
+#[derive(Component)]
+struct Player;
+
+impl Plugin for PlayerPlugin {
+    fn build(&self, app: &mut App) {
+        app
+            .add_systems(Startup, spawn_player)
+            .add_systems(Update, move_player);
+    }
+}
+
+// STARTUP: egyszer fut, induláskor. Létrehozza a játékost.
+fn spawn_player(mut commands: Commands, assets: Res<AssetServer>) {
+    commands.spawn((
+        Player,
+        Sprite::from_image(assets.load("sprites/skeleton.png")),
+        Transform::from_xyz(0.0, 0.0, 0.0),
+    ));
+}
+
+// UPDATE: minden képkockán fut. WASD-vel mozgatja a játékost.
+fn move_player(
+    keys: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
+    mut players: Query<&mut Transform, With<Player>>,
+) {
+    let mut dir = Vec2::ZERO;
+    if keys.pressed(KeyCode::KeyW) { dir.y += 1.0; }
+    if keys.pressed(KeyCode::KeyS) { dir.y -= 1.0; }
+    if keys.pressed(KeyCode::KeyA) { dir.x -= 1.0; }
+    if keys.pressed(KeyCode::KeyD) { dir.x += 1.0; }
+
+    let speed = 90.0;
+    for mut transform in &mut players {
+        // delta_secs() = az előző képkocka óta eltelt idő, hogy a sebesség
+        // ne függjön az FPS-től.
+        let step = dir.normalize_or_zero() * speed * time.delta_secs();
+        transform.translation += step.extend(0.0);
+    }
+}</script>
+      </figure>
+
+      <div class="callout concept">
+        <span class="co-tag">Bevy-fogalom</span>
+        <p><span class="term">Marker-komponens</span> — egy üres <code class="k-inline">struct</code>, amin csak a <code class="k-inline">#[derive(Component)]</code> van. Nem tárol adatot, csak címke: „ez az entitás játékos”. A <code class="k-inline">Query&lt;&amp;mut Transform, With&lt;Player&gt;&gt;</code> ezzel szűr — csak azokat az entitásokat adja, amiken ott a <code class="k-inline">Player</code> marker.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-world-plugin">
+      <h3 class="ch-title"><span class="ch-num">4.3</span><code class="k-inline">WorldPlugin</code></h3>
+      <p>A pálya/világ betöltése is csak egy startup system a saját moduljában. Egy igazi projektben ide kerülne a csempetérkép (tilemap), itt most egy egyszerű háttér-sprite jelzi a helyét.</p>
+
+      <figure class="code">
+        <figcaption><span class="dot"></span><span class="fname">src/world.rs</span><button class="copy">másol</button></figcaption>
+        <pre><code data-lang="rust"></code></pre>
+        <script type="text/plain" class="src">use bevy::prelude::*;
+
+pub struct WorldPlugin;
+
+impl Plugin for WorldPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Startup, spawn_level);
+    }
+}
+
+fn spawn_level(mut commands: Commands, assets: Res<AssetServer>) {
+    commands.spawn((
+        Sprite::from_image(assets.load("sprites/floor.png")),
+        // Kisebb z, hogy a játékos MÖGÖTT legyen a padló.
+        Transform::from_xyz(0.0, 0.0, -10.0),
+    ));
+}</script>
+      </figure>
+      <div class="callout tip">
+        <span class="co-tag">Tipp</span>
+        <p>Top-down 2D-ben a rétegsorrendet a <code class="k-inline">Transform</code> z-koordinátája dönti el: nagyobb z = előrébb. A padló <code class="k-inline">-10.0</code>, a játékos <code class="k-inline">0.0</code>, így a csontváz a padló fölött látszik. Komolyabb projektben erre egy „y-sorting” systemet írsz a <code class="k-inline">WorldPlugin</code>-be.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-ui-plugin">
+      <h3 class="ch-title"><span class="ch-num">4.4</span><code class="k-inline">UiPlugin</code></h3>
+      <p>Az UI ugyanaz a minta: egy startup system felépíti a felületet, egy update system frissíti. Itt egy egyszerű HP-kijelzőt rakunk a bal felső sarokba.</p>
+
+      <figure class="code">
+        <figcaption><span class="dot"></span><span class="fname">src/ui.rs</span><button class="copy">másol</button></figcaption>
+        <pre><code data-lang="rust"></code></pre>
+        <script type="text/plain" class="src">use bevy::prelude::*;
+
+pub struct UiPlugin;
+
+impl Plugin for UiPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Startup, spawn_hud);
+    }
+}
+
+fn spawn_hud(mut commands: Commands) {
+    commands.spawn((
+        Text::new("HP: 100"),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(12.0),
+            left: Val::Px(12.0),
+            ..default()
+        },
+    ));
+}</script>
+      </figure>
+      <div class="callout concept">
+        <span class="co-tag">Bevy-fogalom</span>
+        <p><span class="term">Node + Text</span> — a Bevy UI komponens-alapú. A <code class="k-inline">Node</code> a méret/pozíció/elrendezés (flexbox-szerű), a <code class="k-inline">Text</code> a megjelenített szöveg. A <code class="k-inline">Val::Px</code> pixelben adott méret, a <code class="k-inline">PositionType::Absolute</code> pedig a sarokba rögzíti a HUD-ot.</p>
+      </div>
+      <p>És ezzel megvan a négy modul. Mindegyik öntartó: a saját komponensei, a saját startup és update systemei egy fájlban, egy <code class="k-inline">Plugin</code> mögött. A <code class="k-inline">GamePlugin</code> csak összefűzi őket.</p>
+    </section>
+
+    <!-- ===== V. RÉSZ ===== -->
+    <div class="part-head" id="part-5">
+      <div class="ph-eyebrow">V. rész</div>
+      <h2 class="part-title">Bevy-fogalmak közelről</h2>
+    </div>
+    <hr class="part-rule">
+
+    <section class="chapter" id="ch-schedules">
+      <h3 class="ch-title"><span class="ch-num">5.1</span>Schedule-ök: <code class="k-inline">Startup</code>, <code class="k-inline">Update</code>, <code class="k-inline">FixedUpdate</code></h3>
+      <p>A schedule (ütemterv) határozza meg, <em>mikor</em> fut egy system. Amikor az <code class="k-inline">add_systems(Startup, …)</code>-t írod, az első paraméter a schedule. A három, amit a legtöbbet használsz:</p>
+      <ul class="body-list">
+        <li><strong><code class="k-inline">Startup</code></strong> — egyszer fut, az app indulásakor. Ide kerül minden, ami „felépíti” a kezdőállapotot: kamera, játékos, pálya, UI.</li>
+        <li><strong><code class="k-inline">Update</code></strong> — minden képkockán fut. Ide a folyamatos logika: input, mozgás, animáció, HUD-frissítés.</li>
+        <li><strong><code class="k-inline">FixedUpdate</code></strong> — rögzített időközönként fut (FPS-től függetlenül). Ide való a fizika és minden, aminek determinisztikusnak kell lennie.</li>
+      </ul>
+
+      <figure class="code">
+        <figcaption><span class="dot"></span><span class="fname">példa — három schedule</span><button class="copy">másol</button></figcaption>
+        <pre><code data-lang="rust"></code></pre>
+        <script type="text/plain" class="src">app
+    .add_systems(Startup, spawn_player)        // egyszer
+    .add_systems(Update, (move_player, update_hud)) // minden képkockán
+    .add_systems(FixedUpdate, apply_physics);  // rögzített ütemben</script>
+      </figure>
+      <div class="callout tip">
+        <span class="co-tag">Tipp</span>
+        <p>Egy schedule-höz több systemet is megadhatsz tuple-ben: <code class="k-inline">(move_player, update_hud)</code>. Ha számít a sorrendjük, fűzd láncba: <code class="k-inline">.add_systems(Update, (move_player, update_hud).chain())</code> — így a <code class="k-inline">move_player</code> mindig előbb fut.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-systems">
+      <h3 class="ch-title"><span class="ch-num">5.2</span>Systemek és a paramétereik</h3>
+      <p>A system varázsa a paramétereiben van. A Bevy a függvény <em>paramétertípusai alapján</em> tudja, milyen adatot adjon neki — ezt hívják dependency injectionnek. A leggyakoribbak:</p>
+      <ul class="body-list">
+        <li><strong><code class="k-inline">Commands</code></strong> — entitások létrehozása, törlése, komponensek hozzáadása. A változások a képkocka végén alkalmazódnak (késleltetett).</li>
+        <li><strong><code class="k-inline">Query&lt;&amp;T&gt;</code> / <code class="k-inline">Query&lt;&amp;mut T, With&lt;M&gt;&gt;</code></strong> — komponensek olvasása/írása, opcionális szűréssel (pl. <code class="k-inline">With&lt;Player&gt;</code>).</li>
+        <li><strong><code class="k-inline">Res&lt;T&gt;</code> / <code class="k-inline">ResMut&lt;T&gt;</code></strong> — globális erőforrások olvasása/írása. Ilyen pl. a <code class="k-inline">Time</code>, az <code class="k-inline">AssetServer</code> vagy a <code class="k-inline">ButtonInput&lt;KeyCode&gt;</code>.</li>
+      </ul>
+
+      <div class="callout concept">
+        <span class="co-tag">Bevy-fogalom</span>
+        <p><span class="term">Commands vs Query</span> — a <code class="k-inline">Query</code> a <em>már létező</em> entitások komponenseit éri el (gyors, közvetlen). A <code class="k-inline">Commands</code> ezzel szemben szerkezeti változásokat kér (spawn/despawn), amiket a Bevy biztonságosan, a képkocka végén hajt végre. A spawnnál ezért nem kapod vissza azonnal „kész” entitásként — de a következő képkockán már lekérdezhető.</p>
+      </div>
+      <div class="callout concept">
+        <span class="co-tag">Bevy-fogalom</span>
+        <p><span class="term">Time::delta_secs()</span> — a 0.18-ban így kéred le az előző képkocka óta eltelt másodperceket (a régi <code class="k-inline">delta_seconds()</code> helyett). Mindig szorozd ezzel a sebességet a mozgásnál, különben gyorsabb gépen gyorsabban mozog minden. A billentyűzetet a <code class="k-inline">ButtonInput&lt;KeyCode&gt;</code> erőforrás adja (a régebbi <code class="k-inline">Input&lt;…&gt;</code> helyett).</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="ch-startup-system">
+      <h3 class="ch-title"><span class="ch-num">5.3</span>A kulcsgondolat: a startup is csak egy system</h3>
+      <p>Most érünk a tutorial fő tételéhez. <strong>A „startup” nem egy hívás, amit a <code class="k-inline">main</code>-ben elsütsz — hanem egy schedule.</strong> Nem „elindítasz” egy plugint; a plugin beregisztrálja a startup systemét, és a Bevy futtatja le egyszer, induláskor. A startup logika tehát ugyanúgy system, mint bármi más — csak épp a <code class="k-inline">Startup</code> ütemtervbe kerül, és azt a saját pluginje regisztrálja.</p>
+      <p>Ez magyarázza, miért rossz minta mindent a <code class="k-inline">main.rs</code>-be tömni:</p>
+
+      <figure class="code">
+        <figcaption><span class="dot"></span><span class="fname">ROSSZ minta — minden a main.rs-ben</span><button class="copy">másol</button></figcaption>
+        <pre><code data-lang="rust"></code></pre>
+        <script type="text/plain" class="src">// Antimintapélda: nő a projekt, és ez a lista egyre kezelhetetlenebb.
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .add_systems(Startup, (spawn_camera, spawn_player, spawn_level, spawn_hud))
+        .add_systems(Update, (move_player, update_hud, animate_skeletons))
+        .run();
+}</script>
+      </figure>
+
+      <figure class="code">
+        <figcaption><span class="dot"></span><span class="fname">JÓ minta — a systemeket a pluginek viszik</span><button class="copy">másol</button></figcaption>
+        <pre><code data-lang="rust"></code></pre>
+        <script type="text/plain" class="src">// A main.rs nem tud a systemekről. A startup-logikát az adott
+// modul pluginje regisztrálja (pl. spawn_player a PlayerPluginben).
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .add_plugins(GamePlugin)
+        .run();
+}</script>
+      </figure>
+
+      <p>A két verzió ugyanazt csinálja futásidőben — de a második skálázódik. A startup system nem tűnt el: csak átköltözött oda, ahová tartozik. Ez a „startup mint system, a pluginje regisztrálja” elv a teljes architektúra alapja.</p>
+    </section>
+
+    <!-- ===== VI. RÉSZ ===== -->
+    <div class="part-head" id="part-6">
+      <div class="ph-eyebrow">VI. rész</div>
+      <h2 class="part-title">Struktúra és jó gyakorlatok</h2>
+    </div>
+    <hr class="part-rule">
+
+    <section class="chapter" id="ch-projektstruktura">
+      <h3 class="ch-title"><span class="ch-num">6.1</span>Fájl- és modulszervezés</h3>
+      <p>Kis/közepes projektnél elég fájlonként egy modul-plugin. Így néz ki a top-down csontváz-játék váza:</p>
+
+      <div class="tree"><span class="dir">src/</span>
+├── <span class="file">main.rs</span>          <span class="note">// csak: DefaultPlugins + GamePlugin</span>
+├── <span class="file">game.rs</span>          <span class="note">// GamePlugin: összefogja a modulokat</span>
+├── <span class="file">camera.rs</span>        <span class="note">// CameraPlugin</span>
+├── <span class="file">player.rs</span>        <span class="note">// PlayerPlugin (+ Player komponens)</span>
+├── <span class="file">world.rs</span>         <span class="note">// WorldPlugin</span>
+└── <span class="file">ui.rs</span>            <span class="note">// UiPlugin</span></div>
+
+      <p>Ahogy nő egy modul, válts mappára: a fájlból könyvtár lesz egy <code class="k-inline">mod.rs</code>-szel, ami a plugint tartja, mellette a részfájlok.</p>
+
+      <div class="tree"><span class="dir">src/</span>
+├── <span class="file">main.rs</span>
+└── <span class="dir">game/</span>
+    ├── <span class="file">mod.rs</span>       <span class="note">// GamePlugin</span>
+    ├── <span class="file">camera.rs</span>
+    ├── <span class="dir">player/</span>
+    │   ├── <span class="file">mod.rs</span>   <span class="note">// PlayerPlugin + Player komponens</span>
+    │   ├── <span class="file">spawn.rs</span> <span class="note">// startup system</span>
+    │   └── <span class="file">movement.rs</span> <span class="note">// update system</span>
+    ├── <span class="file">world.rs</span>
+    └── <span class="file">ui.rs</span></div>
+
+      <p>A szabály egyszerű: <strong>egy modul = egy plugin = egy téma.</strong> Ha egy fájl túl nagy lesz, bontsd részfájlokra, de a kifelé látható felület továbbra is egyetlen plugin marad.</p>
+    </section>
+
+    <section class="chapter" id="ch-config">
+      <h3 class="ch-title"><span class="ch-num">6.2</span>Plugin-szintű konfiguráció és erőforrások</h3>
+      <p>A <code class="k-inline">build</code> nem csak systemeket regisztrálhat. Ugyanitt vezetheted be a modul globális állapotát vagy beállításait <code class="k-inline">Resource</code>-ként, regisztrálhatsz eseményeket, állapotokat. Így a konfiguráció is a modulnál marad.</p>
+
+      <figure class="code">
+        <figcaption><span class="dot"></span><span class="fname">src/player.rs — konfig a pluginben</span><button class="copy">másol</button></figcaption>
+        <pre><code data-lang="rust"></code></pre>
+        <script type="text/plain" class="src">use bevy::prelude::*;
+
+// A modul saját beállítása erőforrásként.
+#[derive(Resource)]
+struct PlayerConfig {
+    speed: f32,
+}
+
+pub struct PlayerPlugin;
+
+impl Plugin for PlayerPlugin {
+    fn build(&self, app: &mut App) {
+        app
+            .insert_resource(PlayerConfig { speed: 90.0 }) // kezdő konfig
+            .add_systems(Startup, spawn_player)
+            .add_systems(Update, move_player);
+    }
+}
+
+// A system most a konfigból olvassa a sebességet.
+fn move_player(
+    keys: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
+    config: Res<PlayerConfig>,
+    mut players: Query<&mut Transform, With<Player>>,
+) {
+    // ... irány kiszámítása, mint korábban ...
+    let speed = config.speed;
+    // ...
+}</script>
+      </figure>
+
+      <div class="callout concept">
+        <span class="co-tag">Bevy-fogalom</span>
+        <p><span class="term">Resource</span> — egyetlen, globálisan elérhető adat (nem entitáshoz kötött). A <code class="k-inline">insert_resource(...)</code> konkrét értékkel teszi be; ha a típusnak van <code class="k-inline">Default</code>-ja, az <code class="k-inline">init_resource::&lt;T&gt;()</code> is használható. A systemekben <code class="k-inline">Res&lt;T&gt;</code> (olvasás) vagy <code class="k-inline">ResMut&lt;T&gt;</code> (írás) paraméterrel éred el.</p>
+      </div>
+      <p>Így ha holnap a sebességet menüből akarod állítani, csak a <code class="k-inline">PlayerConfig</code>-ot kell módosítani — a system kódja nem változik, és minden a <code class="k-inline">PlayerPlugin</code>-en belül marad.</p>
+    </section>
+
+    <section class="chapter" id="ch-checklist">
+      <h3 class="ch-title"><span class="ch-num">6.3</span>Összefoglaló checklist</h3>
+      <p>A bevált, karbantartható Bevy-struktúra közepes és nagyobb projektekhez egy mondatban: <strong>a plugin szervez, a system fut, és minden téma a saját pluginje mögött lakik.</strong> Pontokba szedve:</p>
+      <ol class="body-list">
+        <li>A <code class="k-inline">main.rs</code> csak a <code class="k-inline">DefaultPlugins</code>-t (pixel art-hoz <code class="k-inline">ImagePlugin::default_nearest()</code>) és a saját <code class="k-inline">GamePlugin</code>-edet adja hozzá.</li>
+        <li>A <code class="k-inline">GamePlugin</code> nem regisztrál systemet — csak összefogja a modul-pluginokat egy tuple-ben.</li>
+        <li>Minden téma (player, camera, world, ui) saját plugint kap, a saját fájljában/mappájában.</li>
+        <li>A startup-logika nem külön hívás: a saját pluginje regisztrálja a <code class="k-inline">Startup</code> schedule-be.</li>
+        <li>Az update-logika a <code class="k-inline">Update</code>, a fizika a <code class="k-inline">FixedUpdate</code> schedule-be megy — mindegyiket a téma pluginje teszi be.</li>
+        <li>A modul saját komponensei és konfig-erőforrásai is a pluginnél maradnak (<code class="k-inline">insert_resource</code> a <code class="k-inline">build</code>-ben).</li>
+        <li>Sima tuple a kiindulás; <code class="k-inline">PluginGroup</code> csak akkor, ha tényleg kell ki/be kapcsolható, rendezett csomag.</li>
+      </ol>
+      <div class="callout tip">
+        <span class="co-tag">Tipp</span>
+        <p>Új feature = új plugin. Ha ezt tartod, a <code class="k-inline">main.rs</code> és a <code class="k-inline">GamePlugin</code> mérete jóformán sosem nő, miközben a játék bármeddig bővülhet. Pontosan ez teszi a struktúrát „nagy projektre alkalmassá”.</p>
+      </div>
+    </section>
+
+    <footer class="page-foot">
+      <p>Bevy <code>0.18</code> · top-down pixel art játékfejlesztés · plugin-architektúra. Ez az oldal teljesen offline működik — mentsd el vagy nyisd meg bármikor böngészőből.</p>
+    </footer>
+
+  </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- pixel koponya logó ---------- */
+  (function buildSkull(){
+    var rows = [
+      ".######.",
+      "########",
+      "########",
+      "##.##.##",
+      "########",
+      ".######.",
+      ".#.##.#.",
+      ".#.##.#."
+    ];
+    var svg = document.getElementById("skull");
+    if(!svg) return;
+    var ns = "http://www.w3.org/2000/svg";
+    var bone = getComputedStyle(document.documentElement).getPropertyValue("--bone").trim() || "#ece6d6";
+    var accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#56d8c4";
+    for(var y=0;y<rows.length;y++){
+      for(var x=0;x<rows[y].length;x++){
+        if(rows[y][x] === "#"){
+          var r = document.createElementNS(ns,"rect");
+          r.setAttribute("x",x); r.setAttribute("y",y);
+          r.setAttribute("width","1"); r.setAttribute("height","1");
+          // szemek (3. sor gödrei) maradnak üresek; a fog-sorok aljára kis accent
+          r.setAttribute("fill", (y>=6) ? accent : bone);
+          svg.appendChild(r);
+        }
+      }
+    }
+  })();
+
+  /* ---------- Rust syntax highlight ---------- */
+  var KEYWORDS = new Set(["fn","let","mut","struct","impl","trait","for","in","use","mod",
+    "pub","self","Self","crate","super","if","else","match","while","loop","return","as",
+    "where","type","const","static","enum","true","false","move","ref","dyn","unsafe","async","await"]);
+
+  function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  function highlightRust(code){
+    var re = /(\/\/[^\n]*)|("(?:\\.|[^"\\])*")|(#!?\[[^\]]*\])|(\b\d[\d_]*(?:\.\d[\d_]*)?(?:f32|f64|u\d+|i\d+|usize|isize)?\b)|([A-Za-z_][A-Za-z0-9_]*!)|(\b[A-Z][A-Za-z0-9_]*\b)|(\b[a-z_][A-Za-z0-9_]*\b)/g;
+    var out = "", last = 0, m;
+    while((m = re.exec(code)) !== null){
+      out += esc(code.slice(last, m.index));
+      if(m[1]) out += '<span class="c">'+esc(m[1])+'</span>';
+      else if(m[2]) out += '<span class="s">'+esc(m[2])+'</span>';
+      else if(m[3]) out += '<span class="at">'+esc(m[3])+'</span>';
+      else if(m[4]) out += '<span class="n">'+esc(m[4])+'</span>';
+      else if(m[5]) out += '<span class="m">'+esc(m[5])+'</span>';
+      else if(m[6]) out += '<span class="t">'+esc(m[6])+'</span>';
+      else if(m[7]){ out += KEYWORDS.has(m[7]) ? '<span class="k">'+esc(m[7])+'</span>' : esc(m[7]); }
+      last = re.lastIndex;
+    }
+    out += esc(code.slice(last));
+    return out;
+  }
+
+  document.querySelectorAll("figure.code").forEach(function(fig){
+    var src = fig.querySelector("script.src");
+    var codeEl = fig.querySelector("code[data-lang]");
+    if(!src || !codeEl) return;
+    var raw = src.textContent.replace(/^\n+/,"").replace(/\s+$/,"");
+    codeEl.innerHTML = highlightRust(raw);
+    var btn = fig.querySelector(".copy");
+    if(btn){
+      btn.addEventListener("click", function(){
+        var done = function(){ btn.textContent="másolva"; btn.classList.add("done");
+          setTimeout(function(){ btn.textContent="másol"; btn.classList.remove("done"); }, 1400); };
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(raw).then(done, function(){ fallback(); });
+        } else { fallback(); }
+        function fallback(){
+          var ta=document.createElement("textarea"); ta.value=raw; ta.style.position="fixed"; ta.style.opacity="0";
+          document.body.appendChild(ta); ta.select();
+          try{ document.execCommand("copy"); }catch(e){}
+          document.body.removeChild(ta); done();
+        }
+      });
+    }
+  });
+
+  /* ---------- tartalomjegyzék felépítése a DOM-ból ---------- */
+  var nav = document.getElementById("toc");
+  var nodes = document.querySelectorAll(".part-head, section.chapter");
+  var parts = [], current = null;
+  nodes.forEach(function(node){
+    if(node.classList.contains("part-head")){
+      var eb = node.querySelector(".ph-eyebrow");
+      var ti = node.querySelector(".part-title");
+      current = { id:node.id,
+                  num: eb ? eb.textContent.trim() : "",
+                  title: ti ? ti.textContent.trim() : "",
+                  items: [] };
+      parts.push(current);
+    } else if(current){
+      var t = node.querySelector(".ch-title");
+      current.items.push({ id:node.id, title: t ? t.textContent.trim().replace(/\s+/g," ") : node.id });
+    }
+  });
+
+  var html = "";
+  parts.forEach(function(p){
+    html += '<div class="part" data-part="'+p.id+'">';
+    html += '<div class="part-label"><span class="pnum">'+p.num+'</span><span>'+p.title+'</span></div>';
+    html += '<ul>';
+    p.items.forEach(function(it){
+      html += '<li><a href="#'+it.id+'" data-id="'+it.id+'">'+it.title+'</a></li>';
+    });
+    html += '</ul></div>';
+  });
+  nav.innerHTML = html;
+
+  /* ---------- scroll-spy ---------- */
+  var chapters = Array.prototype.slice.call(document.querySelectorAll("section.chapter"));
+  var links = {};
+  nav.querySelectorAll("a[data-id]").forEach(function(a){ links[a.getAttribute("data-id")] = a; });
+  var partBlocks = {};
+  nav.querySelectorAll(".part").forEach(function(d){ partBlocks[d.getAttribute("data-part")] = d; });
+
+  // melyik chapter melyik részhez tartozik
+  var chapToPart = {};
+  parts.forEach(function(p){ p.items.forEach(function(it){ chapToPart[it.id] = p.id; }); });
+
+  var activeId = null;
+  function spy(){
+    var pos = 130, found = chapters.length ? chapters[0].id : null;
+    for(var i=0;i<chapters.length;i++){
+      if(chapters[i].getBoundingClientRect().top - pos <= 0) found = chapters[i].id;
+    }
+    if(found !== activeId){
+      activeId = found;
+      for(var id in links){ links[id].classList.toggle("active", id === found); }
+      var pid = chapToPart[found];
+      for(var p in partBlocks){ partBlocks[p].classList.toggle("active-part", p === pid); }
+      if(found && links[found]) links[found].scrollIntoView({block:"nearest"});
+    }
+  }
+
+  /* ---------- progress sáv ---------- */
+  var bar = document.getElementById("progress");
+  function progress(){
+    var h = document.documentElement.scrollHeight - window.innerHeight;
+    var pct = h > 0 ? (window.scrollY / h) * 100 : 0;
+    bar.style.width = Math.max(0, Math.min(100, pct)) + "%";
+  }
+
+  var ticking = false;
+  function onScroll(){
+    if(!ticking){
+      window.requestAnimationFrame(function(){ spy(); progress(); ticking=false; });
+      ticking = true;
+    }
+  }
+  window.addEventListener("scroll", onScroll, {passive:true});
+  window.addEventListener("resize", function(){ spy(); progress(); });
+  spy(); progress();
+
+  /* ---------- mobil drawer ---------- */
+  var sidebar = document.getElementById("sidebar");
+  var menuBtn = document.getElementById("menuBtn");
+  var backdrop = document.getElementById("backdrop");
+  function openNav(){ sidebar.classList.add("open"); document.body.classList.add("nav-open"); }
+  function closeNav(){ sidebar.classList.remove("open"); document.body.classList.remove("nav-open"); }
+  if(menuBtn) menuBtn.addEventListener("click", function(){
+    sidebar.classList.contains("open") ? closeNav() : openNav();
+  });
+  if(backdrop) backdrop.addEventListener("click", closeNav);
+  nav.addEventListener("click", function(e){
+    if(e.target.closest("a")) closeNav();
+  });
+  window.addEventListener("keydown", function(e){ if(e.key === "Escape") closeNav(); });
+})();
+</script>
+</body>
+</html>

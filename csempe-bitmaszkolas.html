@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Csempe-bitmaszkolás — automatikus terepcsempézés</title>
+<style>
+  :root{
+    --bg:#12151b;
+    --bg-grad:#171b23;
+    --surface:#1b212c;
+    --surface-2:#212936;
+    --line:#2b3442;
+    --line-soft:#232b37;
+    --ink:#e7ebf2;
+    --ink-dim:#9aa4b4;
+    --ink-faint:#697283;
+    --grass:#74d68a;        /* terep / tömör */
+    --grass-deep:#3f8f55;
+    --gold:#e9b85c;         /* bitmaszk-érték */
+    --sky:#6db8e6;          /* másodlagos kiemelés */
+    --empty:#161a21;        /* üres mező */
+    --shadow:0 1px 0 rgba(255,255,255,.03), 0 12px 30px -18px rgba(0,0,0,.8);
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --sidebar-w:288px;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+  body{
+    margin:0;
+    font-family:var(--sans);
+    color:var(--ink);
+    background:
+      radial-gradient(1200px 600px at 80% -10%, #1d2530 0%, transparent 60%),
+      linear-gradient(180deg,var(--bg-grad),var(--bg) 40%);
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- elrendezés ---------- */
+  .shell{display:grid;grid-template-columns:var(--sidebar-w) 1fr;min-height:100vh}
+
+  /* ---------- oldalsáv ---------- */
+  .sidebar{
+    position:sticky;top:0;align-self:start;height:100vh;
+    border-right:1px solid var(--line-soft);
+    background:linear-gradient(180deg,#161b24,#13171e);
+    padding:30px 20px 40px;overflow-y:auto;
+  }
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+  .brand .glyph{
+    width:34px;height:34px;flex:0 0 auto;border-radius:7px;
+    background:
+      linear-gradient(135deg,var(--grass),var(--grass-deep));
+    position:relative;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);
+  }
+  .brand .glyph::before,.brand .glyph::after{
+    content:"";position:absolute;background:rgba(18,21,27,.55);
+  }
+  .brand .glyph::before{left:0;right:0;top:50%;height:1.5px;transform:translateY(-50%)}
+  .brand .glyph::after{top:0;bottom:0;left:50%;width:1.5px;transform:translateX(-50%)}
+  .brand h1{font-family:var(--mono);font-size:.92rem;letter-spacing:.04em;margin:0;line-height:1.25}
+  .brand h1 span{display:block;color:var(--ink-faint);font-size:.66rem;letter-spacing:.22em;text-transform:uppercase;margin-top:3px}
+
+  .toc-label{
+    font-family:var(--mono);font-size:.62rem;letter-spacing:.26em;
+    text-transform:uppercase;color:var(--ink-faint);
+    margin:26px 6px 10px;
+  }
+  nav.toc{display:flex;flex-direction:column;gap:1px}
+  nav.toc a{
+    display:flex;gap:11px;align-items:baseline;
+    text-decoration:none;color:var(--ink-dim);
+    font-size:.875rem;padding:8px 10px;border-radius:7px;
+    border-left:2px solid transparent;transition:background .15s,color .15s,border-color .15s;
+  }
+  nav.toc a .num{
+    font-family:var(--mono);font-size:.72rem;color:var(--ink-faint);
+    flex:0 0 auto;width:1.4em;text-align:right;font-variant-numeric:tabular-nums;
+  }
+  nav.toc a:hover{background:var(--surface);color:var(--ink)}
+  nav.toc a.active{
+    background:linear-gradient(90deg,rgba(116,214,138,.14),transparent);
+    color:var(--ink);border-left-color:var(--grass);
+  }
+  nav.toc a.active .num{color:var(--grass)}
+
+  /* ---------- fő tartalom ---------- */
+  main{padding:0;max-width:none}
+  .content{max-width:760px;margin:0 auto;padding:64px 40px 120px}
+
+  .eyebrow{
+    font-family:var(--mono);font-size:.66rem;letter-spacing:.28em;
+    text-transform:uppercase;color:var(--grass);margin:0 0 18px;
+  }
+  .hero h2{
+    font-size:clamp(2rem,4.4vw,3rem);line-height:1.08;margin:0 0 18px;
+    letter-spacing:-.015em;font-weight:760;
+  }
+  .hero .lede{font-size:1.12rem;color:var(--ink-dim);margin:0 0 14px}
+
+  section{scroll-margin-top:32px;padding-top:54px}
+  section > h3{
+    font-size:1.5rem;margin:0 0 6px;letter-spacing:-.01em;font-weight:720;
+    display:flex;align-items:baseline;gap:14px;
+  }
+  section > h3 .h-num{
+    font-family:var(--mono);font-size:.8rem;color:var(--grass);
+    border:1px solid var(--line);border-radius:6px;padding:2px 8px;
+    transform:translateY(-3px);flex:0 0 auto;
+  }
+  h4{font-size:1.06rem;margin:30px 0 8px;letter-spacing:-.005em}
+  p{margin:0 0 16px}
+  a.inline{color:var(--sky);text-decoration:none;border-bottom:1px solid rgba(109,184,230,.35)}
+  a.inline:hover{border-bottom-color:var(--sky)}
+  strong{color:#fff;font-weight:650}
+  ul,ol{margin:0 0 16px;padding-left:1.3em}
+  li{margin:5px 0}
+  code{font-family:var(--mono);font-size:.86em;background:var(--surface-2);
+    padding:.12em .4em;border-radius:5px;border:1px solid var(--line-soft);color:#dfe6f0}
+  .hr{height:1px;background:var(--line-soft);border:0;margin:46px 0}
+
+  /* kódblokk */
+  pre{
+    background:#0e1117;border:1px solid var(--line);border-radius:11px;
+    padding:18px 20px;overflow-x:auto;margin:0 0 18px;box-shadow:var(--shadow);
+    font-size:.83rem;line-height:1.6;
+  }
+  pre code{background:none;border:0;padding:0;color:#cdd6e3}
+  .cmt{color:#6b7689;font-style:italic}
+  .kw{color:#c792ea}
+  .fn{color:#82aaff}
+  .num2{color:var(--gold)}
+  .str{color:#a9dc9b}
+  .ty{color:#7fd1c4}
+
+  /* jegyzet / kiemelt doboz */
+  .note{
+    border:1px solid var(--line);border-left:3px solid var(--sky);
+    background:linear-gradient(90deg,rgba(109,184,230,.07),transparent);
+    border-radius:0 10px 10px 0;padding:14px 18px;margin:0 0 18px;
+  }
+  .note .tag{font-family:var(--mono);font-size:.62rem;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--sky);display:block;margin-bottom:4px}
+  .note.warn{border-left-color:var(--gold)}
+  .note.warn .tag{color:var(--gold)}
+
+  /* ---------- interaktív bitmaszk-kalkulátor ---------- */
+  .calc{
+    border:1px solid var(--line);border-radius:14px;background:var(--surface);
+    padding:22px;margin:8px 0 22px;box-shadow:var(--shadow);
+    display:grid;grid-template-columns:auto 1fr;gap:26px;align-items:center;
+  }
+  .calc .grid3{
+    display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(3,56px);
+    gap:5px;flex:0 0 auto;
+  }
+  .cell{
+    border-radius:7px;border:1px solid var(--line);background:var(--empty);
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:.7rem;color:var(--ink-faint);
+    transition:transform .08s,background .12s,border-color .12s;user-select:none;
+    position:relative;
+  }
+  .cell:hover{border-color:var(--grass);transform:translateY(-1px)}
+  .cell.on{
+    background:linear-gradient(135deg,var(--grass),var(--grass-deep));
+    color:#0e1117;border-color:rgba(255,255,255,.25);font-weight:700;
+  }
+  .cell.center{
+    cursor:default;background:linear-gradient(135deg,#3f5970,#2c4156);
+    color:#cfe2f2;border-color:var(--sky);font-weight:700;
+  }
+  .cell.center:hover{transform:none}
+  .cell.disabled{opacity:.28;cursor:not-allowed;pointer-events:none}
+  .cell .bitval{position:absolute;top:3px;right:5px;font-size:.56rem;color:rgba(255,255,255,.55)}
+  .cell.on .bitval{color:rgba(0,0,0,.45)}
+
+  .calc .readout{min-width:0}
+  .calc .readout h5{margin:0 0 10px;font-family:var(--mono);font-size:.7rem;
+    letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint)}
+  .bin{font-family:var(--mono);font-size:1.5rem;letter-spacing:.14em;color:var(--ink);margin-bottom:6px}
+  .bin b{color:var(--grass)}
+  .bin i{color:var(--ink-faint);font-style:normal}
+  .sum{font-family:var(--mono);font-size:.82rem;color:var(--ink-dim);margin-bottom:14px;word-break:break-word}
+  .sum em{color:var(--gold);font-style:normal}
+  .result{display:flex;gap:10px;flex-wrap:wrap}
+  .chip{
+    border:1px solid var(--line);border-radius:9px;padding:8px 14px;background:var(--surface-2);
+    font-family:var(--mono);
+  }
+  .chip .k{display:block;font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint)}
+  .chip .v{font-size:1.35rem;color:var(--gold);font-variant-numeric:tabular-nums}
+  .chip.tile .v{color:var(--grass)}
+
+  /* érték→csempe tábla */
+  .lut{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:6px;
+    margin:6px 0 18px;
+  }
+  .lut .pair{
+    border:1px solid var(--line-soft);border-radius:7px;background:var(--surface);
+    padding:7px 9px;font-family:var(--mono);font-size:.74rem;
+    display:flex;justify-content:space-between;gap:8px;
+  }
+  .lut .pair .a{color:var(--gold)}
+  .lut .pair .b{color:var(--grass)}
+
+  /* lábléc / forrás */
+  footer{border-top:1px solid var(--line-soft);margin-top:60px;padding-top:26px;
+    color:var(--ink-faint);font-size:.82rem}
+  footer a{color:var(--ink-dim)}
+
+  /* mobil */
+  .menu-btn{display:none}
+  @media (max-width:880px){
+    .shell{grid-template-columns:1fr}
+    .sidebar{
+      position:fixed;z-index:40;inset:0 auto 0 0;width:84%;max-width:320px;
+      transform:translateX(-102%);transition:transform .22s ease;
+    }
+    .sidebar.open{transform:none}
+    .scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:30}
+    .scrim.show{display:block}
+    .menu-btn{
+      display:inline-flex;align-items:center;gap:8px;position:fixed;top:14px;left:14px;z-index:20;
+      background:var(--surface);border:1px solid var(--line);color:var(--ink);
+      font-family:var(--mono);font-size:.74rem;padding:9px 13px;border-radius:9px;cursor:pointer;
+    }
+    .content{padding:74px 22px 100px}
+    .calc{grid-template-columns:1fr;justify-items:center;text-align:left}
+    .calc .readout{width:100%}
+  }
+  @media (max-width:420px){
+    .calc .grid3{grid-template-columns:repeat(3,48px);grid-template-rows:repeat(3,48px)}
+  }
+</style>
+</head>
+<body>
+
+<button class="menu-btn" id="menuBtn" aria-label="Tartalomjegyzék">☰ Fejezetek</button>
+<div class="scrim" id="scrim"></div>
+
+<div class="shell">
+
+  <!-- OLDALSÁV -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="glyph" aria-hidden="true"></div>
+      <h1>Csempe-bitmaszkolás<span>Auto-tiling jegyzet</span></h1>
+    </div>
+    <div class="toc-label">Fejezetek</div>
+    <nav class="toc" id="toc">
+      <a href="#bevezeto"><span class="num">00</span><span>Bevezető</span></a>
+      <a href="#mukodes"><span class="num">01</span><span>Hogyan működik</span></a>
+      <a href="#negybit"><span class="num">02</span><span>4-bites érték kiszámítása</span></a>
+      <a href="#hozzarendeles"><span class="num">03</span><span>Csempék hozzárendelése</span></a>
+      <a href="#nyolcbit"><span class="num">04</span><span>8-bit, sarokcsempékkel</span></a>
+      <a href="#tabla"><span class="num">05</span><span>Érték → csempe tábla</span></a>
+      <a href="#terep"><span class="num">06</span><span>Több tereptípus</span></a>
+      <a href="#dinamikus"><span class="num">07</span><span>Dinamikus implementáció</span></a>
+      <a href="#bevy"><span class="num">08</span><span>Megvalósítás Rustban / Bevyben</span></a>
+      <a href="#osszegzes"><span class="num">09</span><span>Összegzés</span></a>
+      <a href="#forras"><span class="num">10</span><span>Forrás</span></a>
+    </nav>
+  </aside>
+
+  <!-- TARTALOM -->
+  <main>
+    <div class="content">
+
+      <header class="hero" id="bevezeto">
+        <p class="eyebrow">Pálya-elrendezés · automatizálás</p>
+        <h2>Csempe-bitmaszkolás: a kód rakja le a csempéket helyetted</h2>
+        <p class="lede">Egy szép, sokféle átmenettel rendelkező csempekészlet (tileset) elkészítése sok munka — de miután kész a grafika, még össze is kell rakni a pályán. Csempénként, kézzel? Vagy hagyod, hogy a program az egyes mezők szomszédait megvizsgálva automatikusan kiválassza a megfelelő sprite-ot.</p>
+        <p>Ez utóbbi a <strong>bitmaszkolás</strong>: elég egyetlen „helykitöltő” csempét lerakni mindenhová, ahol terepet szeretnél, és a kód futásidőben kiszámolja, melyik konkrét sprite illik oda a szomszédság alapján. Az alábbi jegyzet végigveszi az alapokat a 4-bites esettől a sarokcsempés 8-bites megoldáson át a több tereptípusig, és a végén egy Rust/Bevy-barát implementáció is szerepel.</p>
+      </header>
+
+      <section id="mukodes">
+        <h3><span class="h-num">01</span>Hogyan működik</h3>
+        <p>A lényeg egyetlen szám kiszámítása. Minden csempe megnézi a szomszédait, és ebből kap egy értéket; ez az érték címzi meg, hányadik sprite-ot kell magára vennie a készletből.</p>
+        <p>A csempekészlet minden eleme sorszámot kap. A bitmaszkolás egy számot ad vissza, ami egy-az-egyben megfelel egy adott pozíciójú sprite-nak a készletben. Futásidőben végigfut az eljárás minden mezőn, és mindegyik megkapja a helyes sprite-ot.</p>
+        <p>Az érték úgy áll össze, hogy minden irányba megnézzük: van-e ott szomszédos terepcsempe? A válasz logikai: <code>0</code>, ha üres a mező, <code>1</code>, ha terep van ott. Ezt a 0/1-et megszorozzuk az adott irány <em>kettő-hatvány</em> súlyával, és összeadjuk. Mivel minden irány külön bitet kap, az eredmény gyakorlatilag egy bináris szám.</p>
+        <div class="note">
+          <span class="tag">Intuíció</span>
+          Gondolj rá úgy, mint egy kapcsolósorra: minden szomszéd egy be/ki kapcsoló, és a kapcsolók állása egyetlen egész számba van kódolva. Ugyanaz a szomszédság mindig ugyanazt a számot — és így ugyanazt a csempét — adja.
+        </div>
+      </section>
+
+      <section id="negybit">
+        <h3><span class="h-num">02</span>A 4-bites érték kiszámítása</h3>
+        <p>A legegyszerűbb eset: egyetlen tereptípus, sarokcsempék nélkül. Csak a négy fő irányt nézzük — Észak, Nyugat, Kelet, Dél —, mindegyik egy bit:</p>
+        <ul>
+          <li>Észak (N) = 2<sup>0</sup> = <code>1</code></li>
+          <li>Nyugat (W) = 2<sup>1</sup> = <code>2</code></li>
+          <li>Kelet (E) = 2<sup>2</sup> = <code>4</code></li>
+          <li>Dél (S) = 2<sup>3</sup> = <code>8</code></li>
+        </ul>
+        <p>Négy bit összesen 2<sup>4</sup> = <strong>16</strong> kombinációt ad (0-tól 15-ig), tehát 16 különböző csempére van szükség. Példák: ha a mezőt minden oldalról üres tér veszi körül, mind a négy ellenőrzés <code>0</code>, az érték <code>0000</code> = 0 → az első csempe. Ha csak Északon van szomszéd: <code>0001</code> = 1. Ha Észak + Kelet: <code>1·1 + 4·1 = 5</code>. Ha Kelet + Nyugat: <code>2 + 4 = 6</code>.</p>
+        <p>Kattintgasd be a szomszédokat, és nézd, hogyan jön ki az érték:</p>
+
+        <div class="calc" id="calc4" data-mode="4">
+          <div class="grid3"></div>
+          <div class="readout">
+            <h5>Bitmaszk-érték</h5>
+            <div class="bin"></div>
+            <div class="sum"></div>
+            <div class="result">
+              <div class="chip"><span class="k">Érték</span><span class="v val"></span></div>
+              <div class="chip tile"><span class="k">Csempe #</span><span class="v tile"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="note">
+          <span class="tag">Megjegyzés</span>
+          A „csempe #” itt egyszerűen <code>érték + 1</code>, mert a 16 érték sorfolytonosan felel meg a készlet 16 sprite-jának. A 8-bites esetnél már nem lesz ennyire egyszerű — ott lesz szükség kikeresőtáblára.
+        </div>
+      </section>
+
+      <section id="hozzarendeles">
+        <h3><span class="h-num">03</span>Csempék hozzárendelése</h3>
+        <p>Miután megvan egy mező bitmaszk-értéke, hozzárendeljük a megfelelő sprite-ot. Ezt megteheted valós időben, ahogy a pálya betöltődik, vagy elmentheted az eredményt, és visszatöltheted egy csempeszerkesztőbe további kézi finomításra.</p>
+        <p>Vegyél egy konkrét mezőt, amelynek Nyugatra és Délre van szomszédja. A logikai ellenőrzés <code>1010</code>-et ad, vagyis <code>1·0 + 2·1 + 4·0 + 8·1 = 10</code>. Ez a 11. sprite-ra mutat a készletben. A módszer szépsége, hogy a terep <em>alakjából</em> automatikusan következik a helyes vizuális csempe — élek, sarkok, peremek mind a helyükre kerülnek.</p>
+      </section>
+
+      <section id="nyolcbit">
+        <h3><span class="h-num">04</span>8-bites bitmaszkolás, sarokcsempékkel</h3>
+        <p>A 4-bites megoldás működik, de a terep „szögletes” marad, mert nincsenek belső/külső sarkok. Ha szebb átmeneteket akarsz (pl. fűves part egy óceán fölötti rétegen), kellenek a sarokcsempék is. Ekkor mind a nyolc irányt megnézzük:</p>
+        <ul>
+          <li>ÉNy (NW) = <code>1</code>, É (N) = <code>2</code>, ÉK (NE) = <code>4</code></li>
+          <li>Ny (W) = <code>8</code>, K (E) = <code>16</code></li>
+          <li>DNy (SW) = <code>32</code>, D (S) = <code>64</code>, DK (SE) = <code>128</code></li>
+        </ul>
+        <p>Nyolc bit elvileg 2<sup>8</sup> = 256 kombináció. A gyakorlatban viszont <strong>nem</strong> kell 256 különböző csempe — a klasszikus „blob” készlet mindössze <strong>47</strong> csempéből megoldja. Miért? Mert sok kombináció vizuálisan azonos.</p>
+        <p>A trükk a <strong>sarokszabály</strong>: egy sarok (pl. ÉK) csak akkor számít bele az értékbe, ha a hozzá tartozó két fő irány (É <em>és</em> K) is tömör. Egy „lebegő” átló, amelynek egyik szomszédos éle hiányzik, a megjelenítés szempontjából érdektelen, ezért kihagyjuk. Így a felesleges, egymástól megkülönböztethetetlen kombinációk összeolvadnak.</p>
+        <p>Próbáld ki — a sarkok automatikusan kikapcsolnak, ha nincs meg mindkét szomszédos élük, és a kalkulátor a kikeresőtáblából adja a végső csempeindexet:</p>
+
+        <div class="calc" id="calc8" data-mode="8">
+          <div class="grid3"></div>
+          <div class="readout">
+            <h5>Bitmaszk-érték (8-bit)</h5>
+            <div class="bin"></div>
+            <div class="sum"></div>
+            <div class="result">
+              <div class="chip"><span class="k">Effektív érték</span><span class="v val"></span></div>
+              <div class="chip tile"><span class="k">Csempe #</span><span class="v tile"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="note warn">
+          <span class="tag">Sarokszabály</span>
+          Ha az É és ÉK is be van kapcsolva, de a K nincs, az ÉK sarok <em>nem</em> számít. A kalkulátorban a kikapcsolt sarkok halványak — a „nyers” és az „effektív” érték ezért térhet el.
+        </div>
+      </section>
+
+      <section id="tabla">
+        <h3><span class="h-num">05</span>Érték → csempe kikeresőtábla</h3>
+        <p>A 8-bites értékek (0–255) már nem felelnek meg sorfolytonosan a 47 csempének, ezért kell egy adatszerkezet, ami az effektív bitmaszk-értéket a csempe sorszámához rendeli. Fontos: <strong>az ellenőrzés sorrendje meghatározza a csempék sorrendjét</strong> a sprite-lapon. Itt a sorrend: ÉNy, É, ÉK, Ny, K, DNy, D, DK.</p>
+        <p>Az alábbi a bevett 47-elemű leképezés (<code>bitmaszk = csempe#</code>). Nyugodtan használd a saját projektedben:</p>
+        <div class="lut" id="lutBox"></div>
+        <div class="note">
+          <span class="tag">Tipp</span>
+          Ha a sprite-lapodon más sorrendben rakod a csempéket, csak ezt a táblát kell hozzáigazítanod — a számítási logika változatlan marad.
+        </div>
+      </section>
+
+      <section id="terep">
+        <h3><span class="h-num">06</span>Több tereptípus</h3>
+        <p>Eddig egyetlen terepből indultunk ki. Mi van, ha kettő ütközik (pl. fű és kő)? Ekkor egy <strong>5-bites</strong> megoldás kell, és definiálni kell a két típust. Itt már nincs „üres tér” — minden mezőt körülvesz valamilyen csempe —, ezért a <em>középső</em> mezőnek is adunk egy értéket, ami csak bizonyos feltétellel számít bele.</p>
+        <p>A konvenció: az 1-es típus mindig <code>0</code>-t ad az irányellenőrzéskor; a középső mező értékét csak akkor adjuk hozzá, ha a középső maga 2-es típusú.</p>
+        <ul>
+          <li><strong>Példa A.</strong> A közép körül É/Ny/K-on 2-es típus, D-en 1-es típus van, a közép maga 1-es → nem számít. Az érték <code>00111</code> = <code>1 + 2 + 4 = 7</code>.</li>
+          <li><strong>Példa B.</strong> A közép 2-es típusú (tehát beleszámít). Körülötte É és Ny felől 2-es, K és D felől 1-es típus → <code>10011</code> = <code>1 + 2 + 16 = 19</code>.</li>
+        </ul>
+        <p>Innen a logika ugyanaz: az értékhez egy csempe tartozik, csak most típuspáronként külön készleted lesz az átmenetekre.</p>
+      </section>
+
+      <section id="dinamikus">
+        <h3><span class="h-num">07</span>Dinamikus implementáció</h3>
+        <p>A számítás nemcsak betöltéskor, hanem játék közben is futtatható — ez kell a rombolható terephez, vagy az építős/craftolós mechanikákhoz. A kezdeti, minden mezőre lefutó bitmaszkolás kötelező, de a további újraszámítást csak akkor érdemes elvégezni, amikor tényleg szükséges.</p>
+        <p>Például egy lerombolt csempénél elég a <strong>közvetlen szomszédokat</strong> újraszámolni, nem az egész pályát. Így a dinamikus eset is olcsó marad: lokális frissítés a megváltozott mező körül.</p>
+      </section>
+
+      <section id="bevy">
+        <h3><span class="h-num">08</span>Megvalósítás Rustban / Bevyben</h3>
+        <p>Az alábbi egy motorfüggetlen mag, utána egy rövid jegyzet a <code>bevy_ecs_tilemap</code>-be kötésről. A grafikai indexet a <code>TileTextureIndex</code>-en keresztül állítod.</p>
+
+        <h4>Irányérték-konstansok és a maszk számítása</h4>
+        <pre><code><span class="cmt">// 8-bites irányok (sarkokkal). A súlyok kettő-hatványok.</span>
+<span class="kw">const</span> NW: <span class="ty">u8</span> = <span class="num2">1</span>;   <span class="kw">const</span> N:  <span class="ty">u8</span> = <span class="num2">2</span>;    <span class="kw">const</span> NE: <span class="ty">u8</span> = <span class="num2">4</span>;
+<span class="kw">const</span> W:  <span class="ty">u8</span> = <span class="num2">8</span>;   <span class="kw">const</span> E:  <span class="ty">u8</span> = <span class="num2">16</span>;
+<span class="kw">const</span> SW: <span class="ty">u8</span> = <span class="num2">32</span>;  <span class="kw">const</span> S:  <span class="ty">u8</span> = <span class="num2">64</span>;   <span class="kw">const</span> SE: <span class="ty">u8</span> = <span class="num2">128</span>;
+
+<span class="cmt">/// `solid(dx, dy)` -> true, ha az adott eltolásnál tömör terep van.</span>
+<span class="kw">fn</span> <span class="fn">bitmask_8bit</span>(solid: <span class="kw">impl</span> <span class="ty">Fn</span>(<span class="ty">i32</span>, <span class="ty">i32</span>) -&gt; <span class="ty">bool</span>) -&gt; <span class="ty">u8</span> {
+    <span class="kw">let</span> n = solid(<span class="num2">0</span>, -<span class="num2">1</span>);
+    <span class="kw">let</span> e = solid(<span class="num2">1</span>,  <span class="num2">0</span>);
+    <span class="kw">let</span> s = solid(<span class="num2">0</span>,  <span class="num2">1</span>);
+    <span class="kw">let</span> w = solid(-<span class="num2">1</span>, <span class="num2">0</span>);
+
+    <span class="kw">let mut</span> mask: <span class="ty">u8</span> = <span class="num2">0</span>;
+    <span class="kw">if</span> n { mask |= N; }
+    <span class="kw">if</span> e { mask |= E; }
+    <span class="kw">if</span> s { mask |= S; }
+    <span class="kw">if</span> w { mask |= W; }
+
+    <span class="cmt">// Sarok csak akkor számít, ha MINDKÉT szomszédos él is tömör.</span>
+    <span class="kw">if</span> n &amp;&amp; w &amp;&amp; solid(-<span class="num2">1</span>, -<span class="num2">1</span>) { mask |= NW; }
+    <span class="kw">if</span> n &amp;&amp; e &amp;&amp; solid( <span class="num2">1</span>, -<span class="num2">1</span>) { mask |= NE; }
+    <span class="kw">if</span> s &amp;&amp; w &amp;&amp; solid(-<span class="num2">1</span>,  <span class="num2">1</span>) { mask |= SW; }
+    <span class="kw">if</span> s &amp;&amp; e &amp;&amp; solid( <span class="num2">1</span>,  <span class="num2">1</span>) { mask |= SE; }
+
+    mask
+}</code></pre>
+
+        <h4>Bitmaszk → atlasz-index (a 47-elemű tábla)</h4>
+        <pre><code><span class="kw">use</span> std::collections::HashMap;
+<span class="kw">use</span> std::sync::LazyLock;
+
+<span class="kw">static</span> LUT: <span class="ty">LazyLock</span>&lt;<span class="ty">HashMap</span>&lt;<span class="ty">u8</span>, <span class="ty">usize</span>&gt;&gt; = <span class="ty">LazyLock</span>::new(|| {
+    <span class="cmt">// (bitmaszk, 0-alapú atlasz-index)</span>
+    [
+        (<span class="num2">2</span>,<span class="num2">0</span>),(<span class="num2">8</span>,<span class="num2">1</span>),(<span class="num2">10</span>,<span class="num2">2</span>),(<span class="num2">11</span>,<span class="num2">3</span>),(<span class="num2">16</span>,<span class="num2">4</span>),(<span class="num2">18</span>,<span class="num2">5</span>),(<span class="num2">22</span>,<span class="num2">6</span>),
+        (<span class="num2">24</span>,<span class="num2">7</span>),(<span class="num2">26</span>,<span class="num2">8</span>),(<span class="num2">27</span>,<span class="num2">9</span>),(<span class="num2">30</span>,<span class="num2">10</span>),(<span class="num2">31</span>,<span class="num2">11</span>),(<span class="num2">64</span>,<span class="num2">12</span>),(<span class="num2">66</span>,<span class="num2">13</span>),
+        (<span class="num2">72</span>,<span class="num2">14</span>),(<span class="num2">74</span>,<span class="num2">15</span>),(<span class="num2">75</span>,<span class="num2">16</span>),(<span class="num2">80</span>,<span class="num2">17</span>),(<span class="num2">82</span>,<span class="num2">18</span>),(<span class="num2">86</span>,<span class="num2">19</span>),(<span class="num2">88</span>,<span class="num2">20</span>),
+        (<span class="num2">90</span>,<span class="num2">21</span>),(<span class="num2">91</span>,<span class="num2">22</span>),(<span class="num2">94</span>,<span class="num2">23</span>),(<span class="num2">95</span>,<span class="num2">24</span>),(<span class="num2">104</span>,<span class="num2">25</span>),(<span class="num2">106</span>,<span class="num2">26</span>),(<span class="num2">107</span>,<span class="num2">27</span>),
+        (<span class="num2">120</span>,<span class="num2">28</span>),(<span class="num2">122</span>,<span class="num2">29</span>),(<span class="num2">123</span>,<span class="num2">30</span>),(<span class="num2">126</span>,<span class="num2">31</span>),(<span class="num2">127</span>,<span class="num2">32</span>),(<span class="num2">208</span>,<span class="num2">33</span>),(<span class="num2">210</span>,<span class="num2">34</span>),
+        (<span class="num2">214</span>,<span class="num2">35</span>),(<span class="num2">216</span>,<span class="num2">36</span>),(<span class="num2">218</span>,<span class="num2">37</span>),(<span class="num2">219</span>,<span class="num2">38</span>),(<span class="num2">222</span>,<span class="num2">39</span>),(<span class="num2">223</span>,<span class="num2">40</span>),(<span class="num2">248</span>,<span class="num2">41</span>),
+        (<span class="num2">250</span>,<span class="num2">42</span>),(<span class="num2">251</span>,<span class="num2">43</span>),(<span class="num2">254</span>,<span class="num2">44</span>),(<span class="num2">255</span>,<span class="num2">45</span>),(<span class="num2">0</span>,<span class="num2">46</span>),
+    ].into_iter().collect()
+});
+
+<span class="kw">fn</span> <span class="fn">tile_index</span>(mask: <span class="ty">u8</span>) -&gt; <span class="ty">usize</span> {
+    *LUT.get(&amp;mask).unwrap_or(&amp;<span class="num2">46</span>) <span class="cmt">// 46 = teljesen körülvett alapcsempe</span>
+}</code></pre>
+
+        <h4>Bekötés bevy_ecs_tilemap-be</h4>
+        <pre><code><span class="cmt">// Egy rendszer, ami a logikai rácsból frissíti a megjelenített indexet.</span>
+<span class="kw">fn</span> <span class="fn">apply_autotiling</span>(
+    terrain: <span class="ty">Res</span>&lt;<span class="ty">TerrainGrid</span>&gt;,                 <span class="cmt">// saját logikai réteged</span>
+    <span class="kw">mut</span> q: <span class="ty">Query</span>&lt;(&amp;<span class="ty">TilePos</span>, &amp;<span class="kw">mut</span> <span class="ty">TileTextureIndex</span>)&gt;,
+) {
+    <span class="kw">for</span> (pos, <span class="kw">mut</span> idx) <span class="kw">in</span> &amp;<span class="kw">mut</span> q {
+        <span class="kw">let</span> (x, y) = (pos.x <span class="kw">as</span> <span class="ty">i32</span>, pos.y <span class="kw">as</span> <span class="ty">i32</span>);
+        <span class="kw">let</span> mask = <span class="fn">bitmask_8bit</span>(|dx, dy| terrain.is_solid(x + dx, y + dy));
+        idx.<span class="num2">0</span> = <span class="fn">tile_index</span>(mask) <span class="kw">as</span> <span class="ty">u32</span>;
+    }
+}</code></pre>
+        <div class="note">
+          <span class="tag">Megjegyzés</span>
+          A koordináta-irányok (mi az „Észak”) attól függnek, hogy a Bevy felfelé vagy lefelé növekvő Y-tengelyt használsz-e a tilemapnél. Ha a perem fordítva jön ki, cseréld az <code>n</code> és <code>s</code> eltolás előjelét. Dinamikus esetben elég a megváltozott mező 8 szomszédjára újrafuttatni ezt a logikát.
+        </div>
+      </section>
+
+      <section id="osszegzes">
+        <h3><span class="h-num">09</span>Összegzés</h3>
+        <p>A csempe-bitmaszkolás iskolapéldája annak, amikor egy kis segédrendszert építesz a fejlesztés gyorsítására. A játékos sosem látja közvetlenül — viszont neked rengeteg unalmas, kézi munkát spórol meg. Egyetlen helykitöltő csempét rajzolsz a pályára, és a kód magától „bevarrja” az éleket, sarkokat, peremeket. Röviden: hagyd, hogy a játék végezze a piszkos munkát, te meg foglalkozz a fontosabb dolgokkal.</p>
+      </section>
+
+      <section id="forras">
+        <h3><span class="h-num">10</span>Forrás</h3>
+        <p>Ez a jegyzet a csempe-bitmaszkolás technikájának saját, magyar nyelvű feldolgozása, kizárólag személyes tanulási célra. A módszer (a bitértékek, a sarokszabály és a 47-elemű leképezés) Sonny Bone „How to Use Tile Bitmasking to Auto-Tile Your Level Layouts” című írásán alapul, amely az Envato Tuts+ oldalon jelent meg. Az eredeti cikk, demók és forrásfájlok:</p>
+        <ul>
+          <li>Eredeti cikk: <a class="inline" href="https://code.tutsplus.com/how-to-use-tile-bitmasking-to-auto-tile-your-level-layouts--cms-25673t">code.tutsplus.com</a></li>
+          <li>Demók és forráskód (GitHub): <a class="inline" href="https://github.com/tutsplus/Tile-Bitmasking">github.com/tutsplus/Tile-Bitmasking</a></li>
+        </ul>
+        <footer>
+          A szövegezés, a kódpéldák, az interaktív kalkulátorok és az elrendezés eredeti munka. A védjegyek és tartalmak a megfelelő tulajdonosaikéi. Saját, személyes használatra készült.
+        </footer>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- 8-bites kikeresőtábla (maszk -> 0-alapú index) ---------- */
+  var LUT = {2:0,8:1,10:2,11:3,16:4,18:5,22:6,24:7,26:8,27:9,30:10,31:11,64:12,
+    66:13,72:14,74:15,75:16,80:17,82:18,86:19,88:20,90:21,91:22,94:23,95:24,
+    104:25,106:26,107:27,120:28,122:29,123:30,126:31,127:32,208:33,210:34,214:35,
+    216:36,218:37,219:38,222:39,223:40,248:41,250:42,251:43,254:44,255:45,0:46};
+
+  /* ---------- a 9 cella sablonja: [címke, dx, dy, bit, fő-irány?] ---------- */
+  /* pozíciók a 3x3 rácsban (index 0..8), középen az 5. (idx 4) */
+  var CELLS = [
+    {pos:0, label:"ÉNy", bit4:null, bit8:1,   type:"corner", deps:["N","W"]},
+    {pos:1, label:"É",   bit4:1,    bit8:2,   type:"edge",   dir:"N"},
+    {pos:2, label:"ÉK", bit4:null, bit8:4,   type:"corner", deps:["N","E"]},
+    {pos:3, label:"Ny",  bit4:2,    bit8:8,   type:"edge",   dir:"W"},
+    {pos:4, label:"●",   center:true},
+    {pos:5, label:"K",   bit4:4,    bit8:16,  type:"edge",   dir:"E"},
+    {pos:6, label:"DNy", bit4:null, bit8:32,  type:"corner", deps:["S","W"]},
+    {pos:7, label:"D",   bit4:8,    bit8:64,  type:"edge",   dir:"S"},
+    {pos:8, label:"DK", bit4:null, bit8:128, type:"corner", deps:["S","E"]}
+  ];
+
+  function dirState(state){
+    // melyik fő irány aktív (cellaindex alapján)
+    return {
+      N: !!state[1], W: !!state[3], E: !!state[5], S: !!state[7]
+    };
+  }
+
+  function build(calcEl){
+    var mode = calcEl.getAttribute("data-mode"); // "4" vagy "8"
+    var grid = calcEl.querySelector(".grid3");
+    var binEl = calcEl.querySelector(".bin");
+    var sumEl = calcEl.querySelector(".sum");
+    var valEl = calcEl.querySelector(".chip .v.val");
+    var tileEl = calcEl.querySelector(".chip .v.tile");
+
+    var state = [0,0,0,0,1,0,0,0,0]; // idx4 = közép, mindig 1
+    var nodes = [];
+
+    CELLS.forEach(function(c){
+      var d = document.createElement("div");
+      d.className = "cell";
+      if(c.center){
+        d.classList.add("center");
+        d.textContent = c.label;
+      } else {
+        var active = (mode === "8") || (c.type === "edge");
+        if(!active){
+          d.classList.add("disabled");
+        }
+        var bit = (mode === "8") ? c.bit8 : c.bit4;
+        d.innerHTML = '<span class="bitval">'+(bit!=null?bit:"")+'</span>'+c.label;
+        if(active){
+          d.addEventListener("click", function(){
+            state[c.pos] = state[c.pos] ? 0 : 1;
+            render();
+          });
+        }
+      }
+      grid.appendChild(d);
+      nodes[c.pos] = d;
+    });
+
+    function render(){
+      var dirs = dirState(state);
+      var terms = [];
+      var raw = 0, eff = 0;
+
+      CELLS.forEach(function(c){
+        if(c.center) return;
+        var on = !!state[c.pos];
+        var node = nodes[c.pos];
+        // megjelenítés
+        node.classList.toggle("on", on);
+
+        if(mode === "4"){
+          if(c.type !== "edge") return;
+          if(on){ eff += c.bit4; terms.push(c.bit4); }
+        } else {
+          // 8-bit
+          if(c.type === "edge"){
+            if(on){ eff += c.bit8; raw += c.bit8; terms.push(c.bit8); node.classList.remove("disabled"); }
+          } else {
+            // sarok: csak akkor számít, ha mindkét fő szomszédja aktív
+            var depsOk = c.deps.every(function(k){ return dirs[k]; });
+            node.classList.toggle("disabled", !depsOk);
+            if(on){
+              raw += c.bit8;
+              if(depsOk){ eff += c.bit8; terms.push(c.bit8); }
+            }
+          }
+        }
+      });
+
+      // bináris kiírás
+      if(mode === "4"){
+        var b = (eff & 8?1:0).toString()+(eff&4?1:0)+(eff&2?1:0)+(eff&1?1:0);
+        binEl.innerHTML = '<b>'+b+'</b>';
+      } else {
+        var bs = "";
+        for(var i=7;i>=0;i--){ bs += ((eff>>i)&1); if(i===4) bs+=" "; }
+        binEl.innerHTML = '<b>'+bs.replace(" ",'</b> <i>·</i> <b>')+'</b>';
+      }
+
+      // összeg
+      terms.sort(function(a,b){return a-b});
+      sumEl.innerHTML = terms.length
+        ? terms.join(" + ") + " = <em>" + eff + "</em>"
+        : "0 (üres szomszédság) = <em>0</em>";
+
+      valEl.textContent = eff;
+
+      if(mode === "4"){
+        tileEl.textContent = "#" + (eff + 1);
+      } else {
+        var idx = LUT.hasOwnProperty(eff) ? (LUT[eff] + 1) : null;
+        tileEl.textContent = idx ? ("#" + idx) : "—";
+      }
+    }
+
+    render();
+  }
+
+  /* ---------- kikeresőtábla doboz feltöltése ---------- */
+  function fillLut(){
+    var box = document.getElementById("lutBox");
+    if(!box) return;
+    // megjelenítés 1-alapú csempeszámmal, maszk szerint rendezve
+    var entries = Object.keys(LUT).map(function(k){ return [parseInt(k,10), LUT[k]+1]; });
+    entries.sort(function(a,b){ return a[0]-b[0]; });
+    entries.forEach(function(e){
+      var d = document.createElement("div");
+      d.className = "pair";
+      d.innerHTML = '<span class="a">'+e[0]+'</span><span class="b">#'+e[1]+'</span>';
+      box.appendChild(d);
+    });
+  }
+
+  /* ---------- scrollspy ---------- */
+  function scrollspy(){
+    var links = Array.prototype.slice.call(document.querySelectorAll("#toc a"));
+    var map = {};
+    links.forEach(function(a){ map[a.getAttribute("href").slice(1)] = a; });
+    var sections = links
+      .map(function(a){ return document.getElementById(a.getAttribute("href").slice(1)); })
+      .filter(Boolean);
+
+    var current = null;
+    function setActive(id){
+      if(id === current) return;
+      current = id;
+      links.forEach(function(a){ a.classList.remove("active"); });
+      if(map[id]) map[id].classList.add("active");
+    }
+
+    var io = new IntersectionObserver(function(entries){
+      // a legfelső, épp látható szakaszt választjuk aktívnak
+      var visible = entries.filter(function(e){ return e.isIntersecting; });
+      if(visible.length){
+        visible.sort(function(a,b){ return a.boundingClientRect.top - b.boundingClientRect.top; });
+        setActive(visible[0].target.id);
+      }
+    }, { rootMargin: "-20% 0px -70% 0px", threshold: 0 });
+
+    sections.forEach(function(s){ io.observe(s); });
+
+    // kattintásra a sáv azonnal kövesse a kijelölést + mobil bezárás
+    links.forEach(function(a){
+      a.addEventListener("click", function(){
+        setActive(a.getAttribute("href").slice(1));
+        closeMenu();
+      });
+    });
+
+    // induló állapot
+    setActive(sections.length ? sections[0].id : null);
+  }
+
+  /* ---------- mobil menü ---------- */
+  var sidebar = document.getElementById("sidebar");
+  var scrim = document.getElementById("scrim");
+  function openMenu(){ sidebar.classList.add("open"); scrim.classList.add("show"); }
+  function closeMenu(){ sidebar.classList.remove("open"); scrim.classList.remove("show"); }
+  document.getElementById("menuBtn").addEventListener("click", openMenu);
+  scrim.addEventListener("click", closeMenu);
+
+  /* ---------- indítás ---------- */
+  document.querySelectorAll(".calc").forEach(build);
+  fillLut();
+  scrollspy();
+})();
+</script>
+</body>
+</html>
