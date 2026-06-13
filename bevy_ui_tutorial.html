@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel-art top-down UI Bevy 0.18-ban — gyakorlati tutorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Press+Start+2P&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/black-metal-bathory.min.css">
+<style>
+:root{
+  --bg:#13141B; --bg2:#1A1C26; --bg3:#222533; --bg-code:#171922;
+  --line:#2C3042; --line-soft:#22253200;
+  --bone:#ECE6D6; --muted:#969CB2; --muted2:#6E7388;
+  --gold:#F2B544; --gold-soft:#7a5c1f;
+  --cyan:#5BCBD2; --necro:#86E0A6; --ember:#E5573E; --violet:#A493FF;
+  --maxw:820px; --sb:300px;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  --disp:"Space Grotesk","IBM Plex Sans",system-ui,sans-serif;
+  --pix:"Press Start 2P","IBM Plex Mono",monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{
+  margin:0;background:var(--bg);color:var(--bone);
+  font-family:var(--sans);font-size:17px;line-height:1.72;
+  -webkit-font-smoothing:antialiased;
+}
+/* subtle dungeon-floor texture */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+  background:
+    radial-gradient(900px 500px at 78% -8%, rgba(242,181,68,.07), transparent 60%),
+    radial-gradient(700px 600px at 0% 100%, rgba(91,203,210,.05), transparent 55%);
+}
+
+/* ---------- reading progress (XP bar) ---------- */
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:60;
+  background:linear-gradient(90deg,var(--gold),#ffd87a);
+  box-shadow:0 0 10px rgba(242,181,68,.6);transition:width .1s linear}
+
+/* ---------- layout ---------- */
+.wrap{position:relative;z-index:1;display:flex;min-height:100vh}
+
+/* ---------- sidebar ---------- */
+#sidebar{
+  position:sticky;top:0;align-self:flex-start;
+  width:var(--sb);height:100vh;flex:0 0 var(--sb);
+  border-right:1px solid var(--line);
+  background:linear-gradient(180deg,var(--bg2),#15161f);
+  overflow-y:auto;overflow-x:hidden;
+}
+#sidebar::-webkit-scrollbar{width:9px}
+#sidebar::-webkit-scrollbar-thumb{background:var(--line);border-radius:0}
+.brand{padding:22px 22px 16px;border-bottom:1px solid var(--line)}
+.brand .logo{
+  font-family:var(--pix);font-size:11px;line-height:1.7;color:var(--gold);
+  letter-spacing:.5px;text-shadow:2px 2px 0 #000;
+}
+.brand .logo b{color:var(--bone)}
+.brand .sub{font-family:var(--mono);font-size:11.5px;color:var(--muted2);margin-top:10px;letter-spacing:.4px}
+.brand .ver{display:inline-block;margin-top:11px;font-family:var(--pix);font-size:8px;
+  color:#0c0d12;background:var(--cyan);padding:5px 7px;letter-spacing:.5px}
+
+nav.toc{padding:14px 10px 60px}
+.toc .part{margin:2px 0}
+.toc .part>button{
+  all:unset;display:flex;width:100%;align-items:center;gap:9px;cursor:pointer;
+  padding:9px 11px;font-family:var(--disp);font-weight:600;font-size:13.5px;
+  color:var(--bone);border-radius:3px;
+}
+.toc .part>button:hover{background:var(--bg3)}
+.toc .part>button .num{
+  font-family:var(--pix);font-size:8.5px;color:var(--gold);
+  border:1px solid var(--gold-soft);padding:5px 5px;min-width:24px;text-align:center;
+  background:#0d0e14;
+}
+.toc .part>button .tw{flex:1}
+.toc .part>button .car{color:var(--muted2);font-size:11px;transition:transform .18s}
+.toc .part.collapsed .car{transform:rotate(-90deg)}
+.toc .chapters{display:flex;flex-direction:column;overflow:hidden;
+  max-height:600px;transition:max-height .26s ease}
+.toc .part.collapsed .chapters{max-height:0}
+.toc .chapters a{
+  display:block;text-decoration:none;color:var(--muted);
+  font-size:13px;line-height:1.45;padding:6px 12px 6px 46px;
+  border-left:2px solid transparent;margin-left:18px;
+}
+.toc .chapters a:hover{color:var(--bone)}
+.toc .chapters a.active{
+  color:var(--gold);border-left-color:var(--gold);background:rgba(242,181,68,.06);
+}
+.toc .chapters a.active::before{content:"\25BA  ";color:var(--gold);font-size:9px}
+
+/* ---------- main ---------- */
+main{flex:1;min-width:0;padding:0 clamp(20px,5vw,72px)}
+.inner{max-width:var(--maxw);margin:0 auto;padding:72px 0 140px}
+
+/* hero */
+.hero{margin-bottom:64px}
+.eyebrow{font-family:var(--pix);font-size:9px;color:var(--cyan);letter-spacing:1px;
+  text-shadow:2px 2px 0 #000;margin-bottom:22px}
+h1.title{
+  font-family:var(--disp);font-weight:700;font-size:clamp(34px,5.4vw,54px);
+  line-height:1.05;letter-spacing:-.5px;margin:0 0 20px;color:var(--bone);
+}
+h1.title em{font-style:normal;color:var(--gold)}
+.lead{font-size:19px;color:var(--muted);max-width:64ch;line-height:1.65}
+.lead b{color:var(--bone);font-weight:600}
+.hero-art{margin:42px 0 8px;border:1px solid var(--line);background:var(--bg-code);
+  padding:0;overflow:hidden;border-radius:4px}
+.hero-art .bar{display:flex;gap:6px;align-items:center;padding:9px 13px;border-bottom:1px solid var(--line);background:var(--bg3)}
+.hero-art .bar i{width:10px;height:10px;display:block;border-radius:50%}
+.hero-art .bar span{margin-left:8px;font-family:var(--mono);font-size:11px;color:var(--muted2)}
+.hero-art svg{display:block;width:100%;height:auto;image-rendering:pixelated}
+.meta-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+.chip{font-family:var(--mono);font-size:12px;color:var(--muted);
+  border:1px solid var(--line);padding:6px 11px;border-radius:3px;background:var(--bg2)}
+.chip b{color:var(--cyan);font-weight:500}
+
+/* sections */
+.part-head{margin:80px 0 8px;padding-top:20px;border-top:1px solid var(--line)}
+.part-head .pe{font-family:var(--pix);font-size:9px;color:var(--gold);letter-spacing:1px}
+.part-head h2{font-family:var(--disp);font-weight:700;font-size:30px;margin:14px 0 0;letter-spacing:-.3px}
+.part-head p{color:var(--muted);margin:12px 0 0;max-width:62ch}
+
+section.chapter{padding-top:46px;margin-top:-10px}
+section.chapter>h3{
+  font-family:var(--disp);font-weight:600;font-size:22.5px;margin:0 0 4px;
+  scroll-margin-top:24px;letter-spacing:-.2px;color:var(--bone);
+}
+section.chapter>h3 .ch{font-family:var(--mono);font-size:13px;color:var(--gold);margin-right:10px}
+h4{font-family:var(--disp);font-weight:600;font-size:17px;color:var(--cyan);margin:30px 0 6px}
+p{margin:14px 0}
+a{color:var(--cyan);text-decoration:none;border-bottom:1px solid rgba(91,203,210,.3)}
+a:hover{border-bottom-color:var(--cyan)}
+strong{color:var(--bone);font-weight:600}
+em{color:var(--gold);font-style:normal}
+ul,ol{margin:14px 0;padding-left:24px}
+li{margin:7px 0}
+li::marker{color:var(--gold)}
+code:not(pre code){
+  font-family:var(--mono);font-size:14px;background:var(--bg3);
+  padding:2px 6px;border-radius:3px;color:var(--necro);border:1px solid var(--line);
+}
+
+/* code block */
+.code{margin:22px 0;border:1px solid var(--line);border-radius:5px;overflow:hidden;background:var(--bg-code)}
+.code .ch-bar{display:flex;align-items:center;gap:7px;padding:8px 13px;
+  background:var(--bg3);border-bottom:1px solid var(--line)}
+.code .ch-bar i{width:9px;height:9px;border-radius:50%;display:block}
+.code .ch-bar .fn{margin-left:6px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.code .ch-bar .copy{margin-left:auto;all:unset;cursor:pointer;font-family:var(--mono);
+  font-size:11px;color:var(--muted2);padding:3px 9px;border:1px solid var(--line);border-radius:3px}
+.code .ch-bar .copy:hover{color:var(--gold);border-color:var(--gold-soft)}
+.code pre{margin:0;padding:16px 17px;overflow-x:auto;font-family:var(--mono);
+  font-size:13.6px;line-height:1.62}
+.code pre code{font-family:var(--mono);background:none;border:none;padding:0;color:#cdd3e1}
+.code pre::-webkit-scrollbar{height:9px}
+.code pre::-webkit-scrollbar-thumb{background:var(--line)}
+
+/* callouts */
+.note{margin:24px 0;border:1px solid var(--line);border-left:3px solid var(--violet);
+  background:linear-gradient(90deg,rgba(164,147,255,.07),transparent 70%);
+  padding:16px 18px;border-radius:0 5px 5px 0}
+.note .nt{font-family:var(--pix);font-size:8.5px;color:var(--violet);letter-spacing:.6px;margin-bottom:9px}
+.note p{margin:6px 0}
+.note.tip{border-left-color:var(--necro);background:linear-gradient(90deg,rgba(134,224,166,.07),transparent 70%)}
+.note.tip .nt{color:var(--necro)}
+.note.warn{border-left-color:var(--ember);background:linear-gradient(90deg,rgba(229,87,62,.08),transparent 70%)}
+.note.warn .nt{color:var(--ember)}
+.note.api{border-left-color:var(--cyan);background:linear-gradient(90deg,rgba(91,203,210,.07),transparent 70%)}
+.note.api .nt{color:var(--cyan)}
+.note code:not(pre code){background:#0d0e14}
+
+/* small table */
+table{width:100%;border-collapse:collapse;margin:22px 0;font-size:14.5px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--disp);color:var(--gold);font-weight:600;font-size:13px}
+td code{font-size:13px}
+
+/* footer */
+footer{border-top:1px solid var(--line);padding:40px 0 0;margin-top:70px;color:var(--muted2);font-size:14px}
+footer a{color:var(--muted)}
+footer .pix{font-family:var(--pix);font-size:8px;color:var(--gold-soft);margin-top:18px;line-height:1.9}
+.hljs-comment{color:#9c7b5b}
+
+/* mobile header */
+#mhead{display:none;position:sticky;top:0;z-index:50;align-items:center;gap:12px;
+  padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--line)}
+#mhead .logo{font-family:var(--pix);font-size:9px;color:var(--gold)}
+#burger{all:unset;cursor:pointer;font-size:22px;color:var(--bone);line-height:1;padding:2px 6px}
+#scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:40}
+
+@media (max-width:980px){
+  #mhead{display:flex}
+  #sidebar{position:fixed;top:0;left:0;z-index:45;transform:translateX(-100%);
+    transition:transform .25s ease;box-shadow:6px 0 30px rgba(0,0,0,.5)}
+  body.nav-open #sidebar{transform:translateX(0)}
+  body.nav-open #scrim{display:block}
+  main{padding:0 20px}
+  .inner{padding:34px 0 100px}
+}
+</style>
+</head>
+<body>
+<div id="xp"></div>
+
+<header id="mhead">
+  <button id="burger" aria-label="Menü">&#9776;</button>
+  <span class="logo">BEVY&nbsp;UI</span>
+</header>
+<div id="scrim"></div>
+
+<div class="wrap">
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="logo">PIXEL&nbsp;HUD<br><b>&amp; TOP-DOWN UI</b></div>
+      <div class="sub">// gyakorlati tutorial Rustban</div>
+      <div class="ver">BEVY 0.18</div>
+    </div>
+    <nav class="toc" id="toc"><!-- generated by JS --></nav>
+  </aside>
+
+  <main>
+  <div class="inner">
+
+    <!-- ===================== HERO ===================== -->
+    <div class="hero">
+      <div class="eyebrow">RUST &middot; BEVY 0.18 &middot; ECS UI</div>
+      <h1 class="title">Felhasználói felület<br><em>pixel-art top-down</em> játékokhoz</h1>
+      <p class="lead">Ez a tutorial végigvezet azon, hogyan építsd fel egy felülnézetes,
+      pixel-art játék teljes UI-rétegét <b>Bevy 0.18</b>-ban: a tervezési elvektől a
+      pixel-pontos rendereléen, eseménykezelésen, inventoryn, menükön és popupokon át.
+      Minden használt Bevy-funkciót elmagyarázok, hogy közben a motort is megtanuld &mdash;
+      nem csak a recepteket másolod.</p>
+
+      <div class="hero-art">
+        <div class="bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span>game_window &mdash; top_down_skeletons.exe</span></div>
+        <svg viewBox="0 0 640 260" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+          <rect width="640" height="260" fill="#0e1a16"/>
+          <!-- floor tiles -->
+          <g opacity="0.5">
+            <rect x="0" y="0" width="640" height="260" fill="#12231d"/>
+          </g>
+          <g fill="none" stroke="#1b3329" stroke-width="2">
+            <path d="M0 40 H640 M0 80 H640 M0 120 H640 M0 160 H640 M0 200 H640 M0 240 H640"/>
+            <path d="M40 0 V260 M80 0 V260 M120 0 V260 M160 0 V260 M200 0 V260 M240 0 V260 M280 0 V260 M320 0 V260 M360 0 V260 M400 0 V260 M440 0 V260 M480 0 V260 M520 0 V260 M560 0 V260 M600 0 V260"/>
+          </g>
+          <!-- skeleton (chunky pixels) -->
+          <g transform="translate(286,96)">
+            <rect x="0" y="0" width="68" height="56" fill="#000" opacity="0"/>
+            <!-- skull -->
+            <rect x="12" y="0"  width="44" height="8"  fill="#ECE6D6"/>
+            <rect x="4"  y="8"  width="60" height="20" fill="#ECE6D6"/>
+            <rect x="14" y="14" width="10" height="10" fill="#0e1a16"/>
+            <rect x="44" y="14" width="10" height="10" fill="#0e1a16"/>
+            <rect x="18" y="14" width="6"  height="6"  fill="#5BCBD2"/>
+            <rect x="44" y="14" width="6"  height="6"  fill="#5BCBD2"/>
+            <rect x="28" y="22" width="12" height="6"  fill="#cbc4b0"/>
+            <!-- jaw -->
+            <rect x="14" y="28" width="40" height="6" fill="#ECE6D6"/>
+            <!-- ribs/body -->
+            <rect x="20" y="36" width="28" height="6" fill="#d8d2c2"/>
+            <rect x="16" y="42" width="36" height="6" fill="#ECE6D6"/>
+            <rect x="20" y="48" width="28" height="6" fill="#d8d2c2"/>
+          </g>
+          <!-- HUD: hearts -->
+          <g transform="translate(16,16)">
+            <g fill="#E5573E">
+              <rect x="0"  y="4" width="6" height="6"/><rect x="10" y="4" width="6" height="6"/><rect x="4" y="10" width="8" height="6"/><rect x="2" y="16" width="12" height="4"/>
+              <rect x="22" y="4" width="6" height="6"/><rect x="32" y="4" width="6" height="6"/><rect x="26" y="10" width="8" height="6"/><rect x="24" y="16" width="12" height="4"/>
+            </g>
+            <g fill="#5a2a23">
+              <rect x="44" y="4" width="6" height="6"/><rect x="54" y="4" width="6" height="6"/><rect x="48" y="10" width="8" height="6"/><rect x="46" y="16" width="12" height="4"/>
+            </g>
+          </g>
+          <!-- HUD: coins -->
+          <g transform="translate(560,16)" fill="#F2B544">
+            <rect x="0" y="0" width="20" height="20"/><rect x="-4" y="4" width="28" height="12"/>
+            <rect x="6" y="6" width="8" height="8" fill="#0e1a16"/>
+          </g>
+          <!-- bottom inventory bar -->
+          <g transform="translate(0,218)">
+            <rect x="0" y="0" width="640" height="42" fill="#0c0d12" opacity="0.85"/>
+            <g>
+              <rect x="232" y="6" width="30" height="30" fill="#1A1C26" stroke="#F2B544" stroke-width="2"/>
+              <rect x="270" y="6" width="30" height="30" fill="#1A1C26" stroke="#2C3042" stroke-width="2"/>
+              <rect x="308" y="6" width="30" height="30" fill="#1A1C26" stroke="#2C3042" stroke-width="2"/>
+              <rect x="346" y="6" width="30" height="30" fill="#1A1C26" stroke="#2C3042" stroke-width="2"/>
+              <rect x="384" y="6" width="30" height="30" fill="#1A1C26" stroke="#2C3042" stroke-width="2"/>
+              <!-- sword icon in slot 1 -->
+              <rect x="244" y="10" width="4" height="18" fill="#cdd3e1"/>
+              <rect x="240" y="26" width="12" height="4" fill="#8a6b2b"/>
+              <rect x="242" y="12" width="8" height="4" fill="#5BCBD2"/>
+            </g>
+          </g>
+        </svg>
+      </div>
+
+      <div class="meta-row">
+        <span class="chip">cél: <b>felülnézetes RPG / dungeon</b></span>
+        <span class="chip">UI rendszer: <b>bevy_ui + bevy_picking</b></span>
+        <span class="chip">7 rész &middot; <b>28 fejezet</b></span>
+        <span class="chip">stílus: <b>ECS-natív</b></span>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- PART 0 -->
+    <div class="part-head" id="p0">
+      <div class="pe">RESZ 00</div>
+      <h2>Bevezető &amp; projekt-setup</h2>
+      <p>Mielőtt egyetlen gombot kirajzolnánk, érdemes tisztázni, hogyan gondolkodik a Bevy
+      a UI-ról, és hogyan állítunk be egy pixel-art-barát projektet.</p>
+    </div>
+
+    <section class="chapter" id="c0-1">
+      <h3><span class="ch">0.1</span>Mit építünk és kinek szól</h3>
+      <p>A tutorial egy felülnézetes (top-down), pixel-art dungeon-játék UI-jára van kihegyezve &mdash;
+      kis felbontású sprite-ok, csontváz-ellenségek, egészség-szívek, érmék, inventory-rács. A példák
+      önállóan is érthetők, de egymásra épülnek: az elején lefektetett mentális modellt (UI = entitások
+      egy fában) végig használjuk.</p>
+      <p>Feltételezem, hogy van alap Rust-tudásod, és láttál már Bevy <code>App</code>-ot futni.
+      A Bevy-specifikus dolgokat (ECS-fogalmak, komponensek, observerek, állapotok) menet közben
+      elmagyarázom &mdash; ezeket kék <em>&laquo;Bevy-fogalom&raquo;</em> dobozokban emelem ki.</p>
+
+      <div class="note api">
+        <div class="nt">BEVY-FOGALOM &middot; ECS</div>
+        <p>A Bevy egy <strong>ECS</strong> (Entity-Component-System) motor. <strong>Entity</strong> = egy id
+        (mint egy sorszám). <strong>Component</strong> = adat, amit egy entityhez ragasztasz (pl.
+        <code>Transform</code>, <code>Health</code>). <strong>System</strong> = függvény, ami komponenseken
+        dolgozik. A UI nem kivétel: egy gomb is csak egy entity néhány komponenssel
+        (<code>Node</code>, <code>Button</code>, <code>BackgroundColor</code>&hellip;).</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="c0-2">
+      <h3><span class="ch">0.2</span>Cargo, feature-ök és a <code>DefaultPlugins</code></h3>
+      <p>A <code>Cargo.toml</code>-ban hozzáadjuk a Bevyt. A 0.18 egyik újdonsága a
+      <em>cargo feature-kollekciók</em>: magas szintű kapcsolók (<code>2d</code>, <code>ui</code>,
+      <code>3d</code>), amikkel csak azt fordítod be, amire szükséged van &mdash; ez egy 2D-s
+      pixel-játéknál érezhetően gyorsít a fordításon.</p>
+
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">Cargo.toml</span><button class="copy">másolás</button></div>
+        <pre><code class="language-toml">[dependencies]
+# A "default-features = false" + szűkített lista gyorsabb fordítást ad.
+bevy = { version = "0.18", default-features = false, features = [
+    "2d",            # 2D renderer: Sprite, Mesh2d, Camera2d
+    "ui",            # bevy_ui: Node, Text, Button, layout
+    "bevy_ui_picking_backend", # UI elemek kattinthatóvá tétele
+    "png",           # textúra-formátum a pixel-art atlaszokhoz
+    "x11", "wayland",# Linux ablakkezelők (válaszd ki, ami kell)
+] }</code></pre>
+      </div>
+
+      <p>A program belépési pontja egy <code>App</code>. Erre rárakjuk a <code>DefaultPlugins</code>
+      csomagot (ablak, renderer, input, asset-rendszer&hellip;), majd a saját rendszereinket.</p>
+
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">src/main.rs</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">use bevy::prelude::*;
+
+fn main() {
+    App::new()
+        // Pixel-artnál FONTOS: nearest (point) szűrés, hogy a textúrák
+        // ne legyenek elmosva nagyításkor. Lásd 2.1 fejezet.
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .add_systems(Startup, setup)   // egyszer fut, induláskor
+        .run();
+}
+
+fn setup(mut commands: Commands) {
+    // Minden 2D jelenethez kell egy kamera. A UI is ezen keresztül rajzolódik.
+    commands.spawn(Camera2d);
+}</code></pre>
+      </div>
+
+      <div class="note api">
+        <div class="nt">BEVY-FOGALOM &middot; PLUGIN &amp; SYSTEM SCHEDULE</div>
+        <p>A <code>Plugin</code> egy újrahasznosítható csomag rendszerekből és erőforrásokból.
+        A <code>add_systems(Startup, &hellip;)</code> egy rendszert az <strong>ütemezés</strong>
+        (schedule) adott pontjához köt. A leggyakoribbak: <code>Startup</code> (egyszer),
+        <code>Update</code> (minden képkockán), és az állapotokhoz kötött
+        <code>OnEnter</code>/<code>OnExit</code> (lásd 5. rész).</p>
+      </div>
+
+      <div class="note tip">
+        <div class="nt">TIPP</div>
+        <p>A <code>Commands</code> egy &bdquo;parancssor&rdquo;: vele hozol létre/törölsz entitásokat és
+        rakhatsz rájuk komponenseket. A parancsok nem azonnal futnak le, hanem a rendszer végén
+        alkalmazódnak &mdash; ezért biztonságos ugyanabban a rendszerben spawn-olni és lekérdezni.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- PART 1 -->
+    <div class="part-head" id="p1">
+      <div class="pe">RESZ 01</div>
+      <h2>Tervezési szempontok</h2>
+      <p>A jó játék-UI nem &bdquo;ablakos szoftver&rdquo;. Mielőtt kódot írunk, döntsük el,
+      milyen felbontásban gondolkodunk, mi diegetikus, és hogyan rétegezünk.</p>
+    </div>
+
+    <section class="chapter" id="c1-1">
+      <h3><span class="ch">1.1</span>Pixel-art UI alapelvek</h3>
+      <p>Pixel-artnál a legnagyobb hiba az <strong>inkonzisztens pixelméret</strong>: ha a sprite-ok
+      3&times;-os nagyításban élesek, de a UI 2,5&times;-ösben homályos, az azonnal &bdquo;olcsónak&rdquo; néz ki.
+      Három alapelv vezessen:</p>
+      <ul>
+        <li><strong>Egész számú skálázás (integer scaling).</strong> A virtuális felbontást
+        (pl. 320&times;180) mindig egész szorzóval nagyítsd a képernyőre (2&times;, 3&times;, 4&times;), különben
+        a pixelek &bdquo;táncolnak&rdquo;.</li>
+        <li><strong>Egységes pixelrács.</strong> Döntsd el, hány képernyő-pixel egy &bdquo;art-pixel&rdquo;,
+        és minden UI-méret (padding, border, ikon) ennek a többszöröse legyen.</li>
+        <li><strong>Olvashatóság mindenek felett.</strong> A retró bitmap-font hangulatos, de kis méretben
+        nehéz olvasni. Tartsd a fontméretet az art-pixel egész többszörösén, és hagyj bőven kontrasztot.</li>
+      </ul>
+      <div class="note tip">
+        <div class="nt">TIPP &middot; KÉT RÉTEG, KÉT FILOZÓFIA</div>
+        <p>A <strong>játékvilág</strong> (sprite-ok) jellemzően alacsony virtuális felbontáson, integer
+        scalinggel rajzolódik. A <strong>UI</strong>-t viszont gyakran a teljes natív felbontáson érdemes
+        rajzolni, és a pixel-hatást a fontok/ikonok eleve-pixeles voltával elérni &mdash; így a szöveg
+        éles marad 1440p-n is. Mindkettő legitim; csak legyél benne következetes.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="c1-2">
+      <h3><span class="ch">1.2</span>Diegetikus vs. nem-diegetikus UI</h3>
+      <p>A felülnézetes játékoknál különösen érdemes átgondolni, mi tartozik a <em>világhoz</em> és mi
+      a <em>HUD-hoz</em>:</p>
+      <table>
+        <tr><th>Típus</th><th>Hol él</th><th>Bevyben</th><th>Példa</th></tr>
+        <tr><td>Nem-diegetikus HUD</td><td>képernyő-térben, mindig fent</td><td><code>Node</code> (bevy_ui)</td><td>szív-sáv, érme-számláló, minimap keret</td></tr>
+        <tr><td>World-space UI</td><td>a világban, kamerával együtt mozog</td><td><code>Text2d</code> / <code>Sprite</code></td><td>fej feletti névtábla, sebződés-szám</td></tr>
+        <tr><td>Diegetikus felület</td><td>a fikció része</td><td><code>Sprite</code> + világ-entity</td><td>láda kinyitása, falra festett tábla</td></tr>
+      </table>
+      <p>A különbség azért fontos, mert <strong>más rendszerrel rajzolódnak</strong>: a HUD a
+      <code>bevy_ui</code> layout-motorján fut (flexbox-szerű), a world-space dolgok pedig a
+      <code>Transform</code>-jukkal a kamerához viszonyítva. Ne keverd: ne próbálj fej-feletti életcsíkot
+      <code>bevy_ui</code> node-ként pozicionálni &mdash; arra a <code>Text2d</code> + világkoordináta való.</p>
+    </section>
+
+    <section class="chapter" id="c1-3">
+      <h3><span class="ch">1.3</span>A UI-rétegek felépítése</h3>
+      <p>Egy tipikus dungeon-játéknak több, egymásra rakott UI-rétege van. Érdemes ezeket már a tervezésnél
+      nevesíteni, mert ebből lesz a kódstruktúra (és az állapotgép) is:</p>
+      <ol>
+        <li><strong>HUD</strong> &ndash; mindig látszik játék közben (élet, erőforrás, gyorssáv).</li>
+        <li><strong>Inventory / karakterlap</strong> &ndash; egy gombra előjön, megállítja vagy lelassítja a játékot.</li>
+        <li><strong>Menük</strong> &ndash; főmenü, pause, beállítások (állapotvezérelt).</li>
+        <li><strong>Modálok / popupok</strong> &ndash; megerősítés, párbeszéd, &bdquo;biztos kilépsz?&rdquo;.</li>
+        <li><strong>Tranziens elemek</strong> &ndash; tooltipek, toast-értesítések, damage-számok.</li>
+      </ol>
+      <p>Ezeknek a <strong>rétegsorrendje</strong> (mi van mi fölött) explicit döntés. Bevyben ezt a
+      <code>ZIndex</code>/<code>GlobalZIndex</code> komponenssel és/vagy az entity-fa sorrendjével szabályozod
+      (lásd 2.5).</p>
+    </section>
+
+    <section class="chapter" id="c1-4">
+      <h3><span class="ch">1.4</span>Mentális modell: a UI egy entity-fa</h3>
+      <p>A legfontosabb gondolat az egész tutorialhoz: a Bevyben a UI <strong>nem</strong> egy külön
+      retained-mode widget-fa, amit te kézzel szinkronban tartasz az adattal. A UI ugyanaz az ECS-világ,
+      mint a játéklogika. Egy panel = egy szülő-entity <code>Node</code>-dal; a benne lévő elemek =
+      gyerek-entitások. A megjelenést komponensek írják le, a viselkedést rendszerek és observerek.</p>
+      <div class="note api">
+        <div class="nt">BEVY-FOGALOM &middot; A HIERARCHIA</div>
+        <p>A szülő-gyerek kapcsolatot a <code>ChildOf</code> / <code>Children</code> relációk adják.
+        Spawnoláskor a <code>children![&hellip;]</code> makróval vagy a <code>with_children(|p| &hellip;)</code> /
+        <code>with_child(&hellip;)</code> hívásokkal építed a fát. A layout (méret, igazítás) <em>lefelé</em>
+        terjed a fán, mint a CSS flexboxnál.</p>
+      </div>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">a fa-építés két stílusa</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">// 1) Deklaratív, a children! makróval (Bevy 0.16+):
+commands.spawn((
+    Node { /* a panel layoutja */ ..default() },
+    BackgroundColor(Color::srgb(0.10, 0.11, 0.15)),
+    children![
+        (Text::new("Inventory"), TextColor(Color::WHITE)),
+        (Node { /* egy slot */ ..default() }, BackgroundColor(Color::BLACK)),
+    ],
+));
+
+// 2) Imperatív, closure-rel (ha logika is kell közben):
+commands
+    .spawn((Node::default(), BackgroundColor(Color::BLACK)))
+    .with_children(|parent| {
+        for i in 0..5 {
+            parent.spawn((SlotIndex(i), Node::default()));
+        }
+    });</code></pre>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- PART 2 -->
+    <div class="part-head" id="p2">
+      <div class="pe">RESZ 02</div>
+      <h2>Renderelés</h2>
+      <p>Hogyan lesz élesen pixeles a kép, és hogyan rak ki a Bevy UI motorja egy node-ot a képernyőre.</p>
+    </div>
+
+    <section class="chapter" id="c2-1">
+      <h3><span class="ch">2.1</span>Pixel-pontos renderelés</h3>
+      <p>Két dolog kell az éles pixelekhez. Az <strong>első</strong> a textúra-szűrés: alapból a Bevy
+      lineárisan (simítva) mintavételez, ami elmossa a pixel-artot. A
+      <code>ImagePlugin::default_nearest()</code> globálisan &bdquo;nearest&rdquo; (legközelebbi szomszéd)
+      szűrésre vált &mdash; ezt láttuk a setupban.</p>
+      <p>A <strong>második</strong> az integer scaling: a játékvilágot egy alacsony, fix virtuális
+      felbontáson rajzolod, majd egész szorzóval nagyítod. Erre a tiszta megoldás egy
+      ortografikus kamera, ami fix világ-magasságot tart.</p>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">kamera fix virtuális magassággal</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">use bevy::render::camera::ScalingMode;
+
+fn setup_camera(mut commands: Commands) {
+    commands.spawn((
+        Camera2d,
+        // A Projection egy komponens-enum. 2D-hez ortografikus vetítés kell.
+        Projection::from(OrthographicProjection {
+            // Mindig pontosan 180 art-pixel magas a látható terület,
+            // a szélesség az ablak arányából jön -> a HUD igazodni tud.
+            scaling_mode: ScalingMode::FixedVertical { viewport_height: 180.0 },
+            ..OrthographicProjection::default_2d()
+        }),
+    ));
+}</code></pre>
+      </div>
+      <div class="note warn">
+        <div class="nt">FIGYELEM</div>
+        <p>A pontosan egész szorzós megjelenítéshez az ablak méretét is illik egész többszörösre állítani,
+        különben fél-pixeles &bdquo;úszás&rdquo; jelentkezhet kamera-mozgásnál. Gyakori megoldás, hogy a világot
+        egy köztes <code>RenderTarget::Image</code>-re rajzolod (pl. 320&times;180), majd azt a textúrát
+        nagyítod fel egész szorzóval a képernyőre. A HUD-ot pedig külön, a natív felbontáson teszed rá.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="c2-2">
+      <h3><span class="ch">2.2</span>UI node-ok és a layout</h3>
+      <p>A UI minden építőeleme egy entity, amin van egy <code>Node</code> komponens. A <code>Node</code> a
+      layoutot írja le egy flexbox-szerű modellel: méret, igazítás, irány, padding, margó, szegély.</p>
+      <div class="note api">
+        <div class="nt">BEVY-FOGALOM &middot; NODE &amp; VAL</div>
+        <p>A <code>Node</code> a régebbi Bevy <code>Style</code> komponens utódja. A méreteket a
+        <code>Val</code> enum adja: <code>Val::Px(48.0)</code> (abszolút), <code>Val::Percent(100.0)</code>
+        (a szülő arányában), <code>Val::Auto</code>, illetve <code>Val::Vw</code>/<code>Val::Vh</code>
+        (viewport-arány). A 0.18-ban vannak rövidítő segédfüggvények is, pl. <code>px(48)</code>,
+        <code>percent(100)</code> &mdash; ugyanazt adják.</p>
+      </div>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">teljes képernyős, középre igazító konténer</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">commands.spawn(Node {
+    width: Val::Percent(100.0),
+    height: Val::Percent(100.0),
+    // flex-irány: a gyerekek oszlopban (egymás alatt) sorakoznak
+    flex_direction: FlexDirection::Column,
+    // a fő tengely (függőleges) mentén középre
+    justify_content: JustifyContent::Center,
+    // a kereszt-tengely (vízszintes) mentén középre
+    align_items: AlignItems::Center,
+    row_gap: Val::Px(12.0),               // térköz a gyerekek között
+    padding: UiRect::all(Val::Px(16.0)),  // belső térköz minden oldalon
+    ..default()
+});</code></pre>
+      </div>
+      <p>A flexbox-mentális modell egy az egyben átültethető a CSS-ből: <code>flex_direction</code> az irány,
+      <code>justify_content</code> a fő tengely menti igazítás, <code>align_items</code> a kereszt-tengelyé.
+      Abszolút pozicionáláshoz pedig <code>position_type: PositionType::Absolute</code> +
+      <code>left</code>/<code>top</code>/&hellip; &mdash; ez kell pl. egy sarokban ülő HUD-elemhez.</p>
+    </section>
+
+    <section class="chapter" id="c2-3">
+      <h3><span class="ch">2.3</span>Színek, szegélyek, képek</h3>
+      <p>A <code>Node</code> csak a layout. A <em>megjelenést</em> külön komponensek adják, amiket ugyanarra
+      az entityre rakunk. Ez az ECS-szerűség lényege: a kinézet komponensek kompozíciója.</p>
+      <table>
+        <tr><th>Komponens</th><th>Mit ad</th></tr>
+        <tr><td><code>BackgroundColor</code></td><td>kitöltő szín a node mögött</td></tr>
+        <tr><td><code>BorderColor</code></td><td>szegélyszín (a <code>Node.border</code> vastagsággal együtt)</td></tr>
+        <tr><td><code>BorderRadius</code></td><td>lekerekített sarok</td></tr>
+        <tr><td><code>Outline</code></td><td>külső körvonal, ami nem foglal helyet a layoutban</td></tr>
+        <tr><td><code>ImageNode</code></td><td>kép/sprite egy UI-node-ban (ikonok, panel-textúrák)</td></tr>
+      </table>
+      <div class="note warn">
+        <div class="nt">0.18 / 0.17 VÁLTOZÁS &middot; BorderColor</div>
+        <p>A <code>BorderColor</code> már <strong>oldalanként</strong> tárolja a színt (top/bottom/left/right).
+        Egységes szegélyhez a <code>BorderColor::all(szín)</code> konstruktort használd &mdash; a régi
+        <code>BorderColor(szín)</code> forma már nem fordul.</p>
+      </div>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">egy &bdquo;panel&rdquo; kinézet összerakása</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">commands.spawn((
+    Node {
+        width: Val::Px(220.0),
+        height: Val::Px(140.0),
+        border: UiRect::all(Val::Px(2.0)),   // a szegély VASTAGSÁGA itt van
+        ..default()
+    },
+    BackgroundColor(Color::srgb(0.10, 0.11, 0.16)),
+    BorderColor::all(Color::srgb(0.95, 0.71, 0.27)),  // arany keret
+    BorderRadius::all(Val::Px(4.0)),
+));</code></pre>
+      </div>
+      <p>Ikonokhoz és pixel-art panelekhez a <code>ImageNode</code> kell. Ez tud egész képet vagy
+      <em>texture atlasz</em> egy celláját megjeleníteni &mdash; utóbbi a tipikus, mert a pixel-art ikonok
+      általában egy spritesheet-en élnek.</p>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">ikon egy atlaszból</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">fn spawn_icon(
+    mut commands: Commands,
+    assets: Res&lt;AssetServer&gt;,
+    mut atlases: ResMut&lt;Assets&lt;TextureAtlasLayout&gt;&gt;,
+) {
+    let texture = assets.load("ui/icons.png");
+    // 16x16-os cellák, 8 oszlop, 4 sor egy atlaszban:
+    let layout = atlases.add(TextureAtlasLayout::from_grid(
+        UVec2::splat(16), 8, 4, None, None,
+    ));
+
+    commands.spawn((
+        Node { width: Val::Px(32.0), height: Val::Px(32.0), ..default() },
+        ImageNode::from_atlas_image(texture, TextureAtlas { layout, index: 3 }),
+    ));
+}</code></pre>
+      </div>
+      <div class="note tip">
+        <div class="nt">TIPP &middot; 9-SLICE PANELEK</div>
+        <p>A &bdquo;dobozos&rdquo; UI-keretekhez ne nyújts egy képet (eltorzul a pixel). Használj
+        <strong>9-slice</strong>-ot: az <code>ImageNode</code>-on beállítható egy <code>ImageNodeSlicer</code>
+        (slice/tiling), ami a saroktextúrákat fixen tartja, és csak az éleket/közepet ismétli. Így a panel
+        bármekkora lehet pixel-torzulás nélkül.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="c2-4">
+      <h3><span class="ch">2.4</span>Szöveg</h3>
+      <p>A szöveg is komponensek kompozíciója. Egy UI-felirat: egy <code>Text</code> + a stílust adó
+      <code>TextFont</code> és <code>TextColor</code>. A világban lebegő szöveghez (fej feletti név,
+      sebződés-szám) a <code>Text2d</code> a megfelelő, mert az a kamerához igazodik.</p>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">UI-felirat saját fonttal</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">fn spawn_label(mut commands: Commands, assets: Res&lt;AssetServer&gt;) {
+    commands.spawn((
+        Text::new("Csontmező &mdash; 1. szint"),
+        TextFont {
+            font: assets.load("fonts/pixel.ttf"),
+            font_size: 16.0,           // tartsd az art-pixel egész többszörösén!
+            ..default()
+        },
+        TextColor(Color::srgb(0.93, 0.90, 0.84)),
+        // több sornál a sorigazítás:
+        TextLayout::new_with_justify(Justify::Center),
+    ));
+}</code></pre>
+      </div>
+      <div class="note api">
+        <div class="nt">BEVY-FOGALOM &middot; SZÖVEG-SZAKASZOK (TextSpan)</div>
+        <p>Egy feliraton belül több, eltérő stílusú szakaszt a <code>Text</code> entity
+        <code>TextSpan</code> gyerekeivel adsz (pl. &bdquo;Élet: &rdquo; fehéren, az érték pirosan). Így egy
+        rendszer csak a számot frissíti, a többit békén hagyja &mdash; lásd a HUD-frissítést a 4.4-ben.</p>
+      </div>
+      <div class="note tip">
+        <div class="nt">0.18 ÚJDONSÁG &middot; FONT-VARIÁCIÓK</div>
+        <p>A 0.18 támogatja a <strong>variable font</strong>-okat (folytonos vastagság), valamint az
+        <strong>aláhúzást és áthúzást</strong>, illetve OpenType feature-öket. Egy HUD-ban ez jól jön pl.
+        áthúzott &bdquo;régi ár&rdquo; megjelenítéséhez vagy egy aktív menüpont kiemeléséhez vastagítással.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="c2-5">
+      <h3><span class="ch">2.5</span>Z-rendezés és UI-rétegek</h3>
+      <p>Az 1.3-ban felsorolt rétegek sorrendjét két dolog dönti el. Alapból a <strong>fa-sorrend</strong>:
+      a később spawnolt testvér-node a korábbi <em>fölé</em> rajzolódik. Finomabb vezérléshez:</p>
+      <ul>
+        <li><code>ZIndex(i32)</code> &ndash; lokális rendezés a testvérek között.</li>
+        <li><code>GlobalZIndex(i32)</code> &ndash; az egész UI-fában érvényes, globális réteg. Ezt használd
+        a modálokhoz/popupokhoz, hogy biztosan minden HUD fölé kerüljenek.</li>
+      </ul>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">egy modál garantáltan legfelül</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">commands.spawn((
+    Node { /* sötétítő, teljes képernyős overlay */ ..default() },
+    BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.6)),
+    GlobalZIndex(100),   // minden HUD (pl. GlobalZIndex(10)) fölé
+));</code></pre>
+      </div>
+      <div class="note tip">
+        <div class="nt">TIPP &middot; TÖBB UI-KAMERA</div>
+        <p>Ha külön rétegként akarod kezelni a világot és a HUD-ot (pl. a HUD éles natív felbontáson, a
+        világ skálázva), megteheted több kamerával és <code>UiTargetCamera</code>-val, ami egy UI-fát egy
+        konkrét kamerához rendel. Kezdetben viszont maradj egy kameránál &mdash; a <code>GlobalZIndex</code>
+        a legtöbb rétegzési igényt megoldja.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- PART 3 -->
+    <div class="part-head" id="p3">
+      <div class="pe">RESZ 03</div>
+      <h2>Eseménykezelés</h2>
+      <p>A kép kész &mdash; most hogyan reagáljon kattintásra, hover-re, billentyűre, gamepadre.</p>
+    </div>
+
+    <section class="chapter" id="c3-1">
+      <h3><span class="ch">3.1</span>Observerek és a picking rendszer</h3>
+      <p>A modern Bevyben a UI-interakció gerince a <strong>picking</strong> rendszer és az
+      <strong>observerek</strong>. A picking kiszámolja, melyik entity fölött van az egér, és
+      <code>Pointer&lt;E&gt;</code> eseményeket küld (kattintás, hover, drag&hellip;). Az observer pedig egy
+      függvény, amit egy konkrét entityhez (vagy globálisan) kötsz, és lefut, amikor az adott esemény
+      bekövetkezik.</p>
+      <div class="note api">
+        <div class="nt">BEVY-FOGALOM &middot; OBSERVER &amp; On&lt;E&gt;</div>
+        <p>Az observer paramétere <code>On&lt;E&gt;</code> (a korábbi <code>Trigger&lt;E&gt;</code> 0.17-ben
+        erre lett átnevezve). A <code>.observe(&hellip;)</code> egy entityre köti, így az <em>csak</em> arra
+        az entityre fut. Az eseményből kiolvasható a célzott entity (<code>ev.entity</code>), és a
+        bugyborékolást a <code>ev.propagate(false)</code> állítja le. A UI-elemek alapból &bdquo;pickable&rdquo;-ek,
+        nem kell rájuk külön <code>Pickable</code> &mdash; sprite-okra viszont igen.</p>
+      </div>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">observer egy konkrét entityre</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">commands
+    .spawn((Button, Node { ..default() }, BackgroundColor(Color::BLACK)))
+    .observe(|click: On&lt;Pointer&lt;Click&gt;&gt;, mut commands: Commands| {
+        // click.entity = a kattintott entity
+        info!("Kattintás: {}", click.entity);
+    });</code></pre>
+      </div>
+      <p>A <code>Pointer&lt;E&gt;</code> esemény-családból a leggyakoribbak: <code>Click</code>,
+      <code>Over</code> (rámegy az egér), <code>Out</code> (lemegy), <code>Pressed</code>/<code>Released</code>
+      (lenyom/felenged), és a drag-család (<code>DragStart</code>, <code>Drag</code>, <code>DragEnd</code>,
+      <code>Drop</code>) &mdash; ez utóbbiakra a 4.3-ban (drag &amp; drop) építünk.</p>
+    </section>
+
+    <section class="chapter" id="c3-2">
+      <h3><span class="ch">3.2</span>Gomb-interakció és vizuális állapotok</h3>
+      <p>Egy &bdquo;rendes&rdquo; gomb háromféleképp néz ki: alap, hover, lenyomva. Két út van: observerek
+      (eseményalapú), vagy egy lekérdező rendszer az <code>Interaction</code> komponensre. Nézzük a
+      lekérdezős utat, mert ez illusztrálja a klasszikus ECS-rendszert.</p>
+      <div class="note api">
+        <div class="nt">BEVY-FOGALOM &middot; Interaction &amp; Changed</div>
+        <p>Egy <code>Button</code> entityn a picking automatikusan karbantart egy <code>Interaction</code>
+        komponenst: <code>None</code>, <code>Hovered</code> vagy <code>Pressed</code>. A
+        <code>Changed&lt;Interaction&gt;</code> lekérdezés-szűrő gondoskodik róla, hogy a rendszer
+        <em>csak akkor</em> fusson le egy gombra, amikor annak az állapota valóban megváltozott &mdash; nem
+        minden képkockán feleslegesen.</p>
+      </div>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">gomb-stílus az Interaction alapján</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">fn style_buttons(
+    mut q: Query&lt;
+        (&amp;Interaction, &amp;mut BackgroundColor, &amp;mut BorderColor),
+        (Changed&lt;Interaction&gt;, With&lt;Button&gt;),
+    &gt;,
+) {
+    for (interaction, mut bg, mut border) in &amp;mut q {
+        match *interaction {
+            Interaction::Pressed =&gt; {
+                *bg = BackgroundColor(Color::srgb(0.18, 0.14, 0.06));
+                *border = BorderColor::all(Color::srgb(1.0, 0.85, 0.4));
+            }
+            Interaction::Hovered =&gt; {
+                *bg = BackgroundColor(Color::srgb(0.15, 0.16, 0.22));
+                *border = BorderColor::all(Color::srgb(0.95, 0.71, 0.27));
+            }
+            Interaction::None =&gt; {
+                *bg = BackgroundColor(Color::srgb(0.10, 0.11, 0.16));
+                *border = BorderColor::all(Color::srgb(0.35, 0.37, 0.45));
+            }
+        }
+    }
+}
+// majd: .add_systems(Update, style_buttons)</code></pre>
+      </div>
+      <div class="note tip">
+        <div class="nt">TIPP &middot; MELYIKET HASZNÁLD?</div>
+        <p>Vizuális visszajelzéshez (hover-szín) a lekérdező rendszer kényelmes, mert egyszerre kezeli az
+        összes gombot. Egyedi <em>akcióhoz</em> (&bdquo;ez a gomb új játékot indít&rdquo;) az observer tisztább,
+        mert az adott entityhez tapad &mdash; nem kell marker-komponenssel szétválogatni, melyik gomb mit csinál.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="c3-3">
+      <h3><span class="ch">3.3</span>Standard widgetek (<code>bevy_ui_widgets</code>)</h3>
+      <p>A 0.17 óta a Bevy szállít egy beépített, <em>logikai</em> widget-készletet a
+      <code>bevy::ui_widgets</code> modulban: <code>Button</code>, <code>Checkbox</code>,
+      <code>Slider</code>, <code>RadioButton</code>/<code>RadioGroup</code>, és a 0.18-ban új
+      <code>Popover</code> és <code>MenuPopup</code>. Ezek a viselkedést adják (fókusz, billentyű-aktiválás,
+      érték-változás esemény), a <strong>kinézetet neked kell</strong> rájuk tenni &mdash; ezért hívják őket
+      &bdquo;unthemed&rdquo; (téma nélküli) widgeteknek.</p>
+      <div class="note api">
+        <div class="nt">BEVY-FOGALOM &middot; ValueChange &amp; UiWidgetsPlugins</div>
+        <p>A widgetek <code>ValueChange&lt;T&gt;</code> eseményt adnak ki, amikor az értékük változik (pl. a
+        slider új értéke). A működésükhöz add hozzá a <code>UiWidgetsPlugins</code>-t, a fókusz-alapú
+        billentyűkezeléshez pedig az <code>InputDispatchPlugin</code>-t.</p>
+      </div>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">slider érték-változás kezelése</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">use bevy::ui_widgets::{Slider, SliderValue, ValueChange};
+
+// Spawnolás (a kinézetet külön komponensekkel adod hozzá):
+commands
+    .spawn((Slider, SliderValue(50.0), Node { ..default() }))
+    .observe(|change: On&lt;ValueChange&lt;f32&gt;&gt;, mut volume: ResMut&lt;MasterVolume&gt;| {
+        volume.0 = change.value;   // a slider új értéke
+    });</code></pre>
+      </div>
+      <div class="note tip">
+        <div class="nt">TIPP &middot; FEATHERS, HA NEM AKARSZ STÍLUST ÍRNI</div>
+        <p>Ha kész, csinos (de még kísérleti) widgetek kellenek &mdash; pl. egy belső szerkesztő-eszközhöz &mdash;,
+        a <code>bevy::feathers</code> egy <em>témázott</em> készlet ugyanezekre a logikai widgetekre építve
+        (a 0.18 új <code>ColorPlane</code>-jével együtt). Játék-UI-hoz viszont általában a saját, art-illesztett
+        stílus a nyerő.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="c3-4">
+      <h3><span class="ch">3.4</span>Fókusz, Tab- és irány-navigáció</h3>
+      <p>Egy felülnézetes játékot sokan kontrollerrel vagy billentyűzettel játszanak &mdash; a menüknek
+      egér nélkül is bejárhatónak kell lenniük. Ezt a <code>bevy::input_focus</code> rendszer adja.</p>
+      <ul>
+        <li><strong>Tab-navigáció:</strong> a <code>TabGroup</code> egy navigálható csoportot jelöl,
+        a gyerekeken a <code>TabIndex</code> adja a sorrendet. A <code>TabNavigationPlugin</code> kezeli a
+        Tab/Shift+Tab léptetést.</li>
+        <li><strong>Aktiválás:</strong> a fókuszált elemen Enter/Space egy <code>Activate</code> eseményt
+        vált ki &mdash; ugyanazt az observert futtathatod rá, mint kattintásra.</li>
+      </ul>
+      <div class="note tip">
+        <div class="nt">0.18 ÚJDONSÁG &middot; AUTOMATIKUS IRÁNY-NAVIGÁCIÓ</div>
+        <p>A 0.18-ban a UI-elemek <strong>beléphetnek az automatikus irány-navigációba</strong>: a motor a
+        node-ok képernyő-pozíciójából kitalálja, hogy &bdquo;balra/jobbra/fel/le&rdquo; melyik elemre kell
+        ugrani &mdash; nem kell kézzel láncolnod a szomszédokat. Ez teszi fájdalommentessé a gamepad- és
+        billentyű-navigációt egy rácsos menüben.</p>
+      </div>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">navigálható menü-csoport</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">use bevy::input_focus::{InputDispatchPlugin, tab_navigation::{
+    TabNavigationPlugin, TabGroup, TabIndex,
+}};
+
+// pluginok: .add_plugins((InputDispatchPlugin, TabNavigationPlugin))
+
+commands.spawn((Node { ..default() }, TabGroup::new(0)))
+    .with_children(|p| {
+        p.spawn((Button, TabIndex(0), Node { ..default() }));
+        p.spawn((Button, TabIndex(1), Node { ..default() }));
+        p.spawn((Button, TabIndex(2), Node { ..default() }));
+    });</code></pre>
+      </div>
+    </section>
+
+    <section class="chapter" id="c3-5">
+      <h3><span class="ch">3.5</span>Nyers billentyű- és gamepad-input</h3>
+      <p>Nem minden input megy widgeten keresztül. Az inventory megnyitása (&bdquo;I&rdquo; gomb), a pause
+      (Esc), a gyorssáv (1&ndash;9) &mdash; ezek globális gyorsbillentyűk. Ezeket egy sima
+      <code>Update</code> rendszerben olvasod a <code>ButtonInput</code> erőforrásból.</p>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">gyorsbillentyűk olvasása</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">fn hotkeys(
+    keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    state: Res&lt;State&lt;GameState&gt;&gt;,
+    mut next: ResMut&lt;NextState&lt;GameState&gt;&gt;,
+) {
+    // just_pressed = csak abban a képkockában igaz, amikor LENYOMTÁK
+    if keys.just_pressed(KeyCode::KeyI) {
+        next.set(GameState::Inventory);   // állapotváltás, lásd 5. rész
+    }
+    if keys.just_pressed(KeyCode::Escape) &amp;&amp; *state.get() == GameState::Playing {
+        next.set(GameState::Paused);
+    }
+}</code></pre>
+      </div>
+      <div class="note tip">
+        <div class="nt">TIPP &middot; ÁTKÖTHETŐ IRÁNYÍTÁS</div>
+        <p>Ha a játékos át akarja majd kötni a billentyűket (és előbb-utóbb akarja), ne dolgozz nyers
+        <code>KeyCode</code>-okkal a logikában. Vezess be saját &bdquo;akció&rdquo;-fogalmat (pl.
+        <code>Action::OpenInventory</code>), és külön rétegben képezd rá a fizikai gombokat. A közösségi
+        <code>leafwing-input-manager</code> crate pont ezt adja kész formában.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- PART 4 -->
+    <div class="part-head" id="p4">
+      <div class="pe">RESZ 04</div>
+      <h2>Inventory</h2>
+      <p>Egy rácsos tárgylista: adatmodell, a rács kirajzolása, drag &amp; drop, és a reaktív frissítés.</p>
+    </div>
+
+    <section class="chapter" id="c4-1">
+      <h3><span class="ch">4.1</span>Az adatmodell</h3>
+      <p>Először az <em>adat</em>, csak utána a megjelenítés. Tartsd szét a kettőt: az inventory tartalma
+      egy adatszerkezet, a UI pedig ennek a <em>nézete</em>. Így a logika tesztelhető és független a
+      kirajzolástól.</p>
+      <div class="note api">
+        <div class="nt">BEVY-FOGALOM &middot; RESOURCE vs. COMPONENT</div>
+        <p>A <strong>Resource</strong> egy globális, egyetlen példányú adat (pl. a játékos inventoryja,
+        ha egy játékos van). A <strong>Component</strong> entitásokhoz kötött. Ha több &bdquo;táskás&rdquo; entitásod
+        lehet (játékos, ládák, NPC-k), tedd az inventoryt komponensbe; ha csak egy van, lehet Resource.</p>
+      </div>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">adat-réteg</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">#[derive(Clone, Copy, PartialEq)]
+struct ItemStack { item: ItemKind, count: u16 }
+
+#[derive(Clone, Copy, PartialEq)]
+enum ItemKind { Sword, Potion, Coin, Bone }
+
+#[derive(Resource, Default)]
+struct Inventory {
+    slots: [Option&lt;ItemStack&gt;; 20],   // 20 fix slot
+}</code></pre>
+      </div>
+    </section>
+
+    <section class="chapter" id="c4-2">
+      <h3><span class="ch">4.2</span>A slot-rács kirajzolása</h3>
+      <p>A rácshoz a CSS Grid-mintát használjuk: a konténer <code>Display::Grid</code>, és megadjuk az
+      oszlopokat. Minden slot egy gyerek-node, amit megjelölünk a saját indexével, hogy később tudjuk,
+      melyik melyik.</p>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">5 oszlopos slot-rács</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">#[derive(Component)]
+struct SlotUi(usize);   // melyik inventory-indexet jeleníti meg
+
+fn spawn_inventory_ui(mut commands: Commands) {
+    commands
+        .spawn((
+            Node {
+                display: Display::Grid,
+                grid_template_columns: RepeatedGridTrack::px(5, 36.0), // 5 db 36px
+                column_gap: Val::Px(4.0),
+                row_gap: Val::Px(4.0),
+                padding: UiRect::all(Val::Px(8.0)),
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.08, 0.09, 0.13)),
+        ))
+        .with_children(|grid| {
+            for i in 0..20 {
+                grid.spawn((
+                    SlotUi(i),
+                    Button,                       // hogy kattintható/drag-elhető legyen
+                    Node {
+                        width: Val::Px(36.0),
+                        height: Val::Px(36.0),
+                        border: UiRect::all(Val::Px(2.0)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgb(0.12, 0.13, 0.18)),
+                    BorderColor::all(Color::srgb(0.30, 0.32, 0.40)),
+                ));
+            }
+        });
+}</code></pre>
+      </div>
+      <p>Vedd észre: a slotok <em>üresek</em> &mdash; nem rajzoltunk beléjük ikont. A tartalmat egy külön,
+      reaktív rendszer tölti fel az adatból (4.4), így a UI mindig az adatot tükrözi.</p>
+    </section>
+
+    <section class="chapter" id="c4-3">
+      <h3><span class="ch">4.3</span>Drag &amp; drop</h3>
+      <p>A tárgyak áthúzása a picking drag-eseményeire épül. A minta: a <code>DragStart</code>-nál
+      megjegyezzük, honnan indultunk és létrehozunk egy &bdquo;szellem&rdquo; ikont, ami az egeret követi
+      (<code>Drag</code> alatt mozgatjuk), végül a célon a <code>Drop</code> eseményben végrehajtjuk a
+      cserét az <em>adatban</em>.</p>
+      <div class="note api">
+        <div class="nt">BEVY-FOGALOM &middot; A DRAG ESEMÉNY-CSALÁD</div>
+        <p>A húzott elemen: <code>Pointer&lt;DragStart&gt;</code> &rarr; több <code>Pointer&lt;Drag&gt;</code>
+        (a <code>.delta</code> mutatja az elmozdulást) &rarr; <code>Pointer&lt;DragEnd&gt;</code>. A
+        <em>céltáblán</em> pedig a <code>Pointer&lt;Drop&gt;</code> tüzel, és onnan elérhető, mit ejtettek rá.
+        Mivel a UI-node-ok alapból pickable-ek, nem kell külön bekapcsolni.</p>
+      </div>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">drop a céltábla-sloton</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">// Ezt az observert minden slotra rákötjük (a spawnolásnál .observe(on_drop)).
+fn on_drop(
+    drop: On&lt;Pointer&lt;Drop&gt;&gt;,
+    slots: Query&lt;&amp;SlotUi&gt;,
+    mut inv: ResMut&lt;Inventory&gt;,
+) {
+    // drop.entity = a céltábla (ahová ejtettünk)
+    // drop.dropped = az elejtett entity (amit húztunk)
+    let Ok(&amp;SlotUi(to)) = slots.get(drop.entity) else { return; };
+    let Ok(&amp;SlotUi(from)) = slots.get(drop.dropped) else { return; };
+
+    // A csere az ADATON történik; a UI-t a frissítő rendszer rajzolja újra.
+    inv.slots.swap(from, to);
+}</code></pre>
+      </div>
+      <div class="note tip">
+        <div class="nt">TIPP &middot; A &bdquo;SZELLEM&rdquo; KÖVESSE AZ EGERET</div>
+        <p>A húzott ikont legkönnyebb egy abszolút pozícionált, <code>GlobalZIndex</code>-szel mindenek fölé
+        emelt node-ként megvalósítani, amit a <code>Pointer&lt;Drag&gt;</code> observerben az aktuális kurzor-
+        pozícióra mozgatsz. A <code>Pickable::IGNORE</code>-t tedd rá, hogy ne fogja el a saját kattintásaidat.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="c4-4">
+      <h3><span class="ch">4.4</span>Reaktív frissítés &mdash; az adat az igazság</h3>
+      <p>A kulcsdöntés: a UI ne tárolja az állapotot, hanem <em>tükrözze</em> az adatot. Egy frissítő
+      rendszer minden képkockán (vagy csak változáskor) szinkronizálja a slot-node-okat az
+      <code>Inventory</code> tartalmával. Így a drag &amp; drop, a felvétel, az elhasználás &mdash; mind csak az
+      adatot bántja, a megjelenés magától követi.</p>
+      <div class="note api">
+        <div class="nt">BEVY-FOGALOM &middot; CHANGE DETECTION</div>
+        <p>A <code>Res&lt;T&gt;</code> automatikusan jelzi, ha módosult: a <code>inv.is_changed()</code>
+        igaz abban a képkockában, amikor az erőforrást írták. Ezzel elkerülöd, hogy minden képkockán
+        feleslegesen újrarajzolj &mdash; csak akkor dolgozol, ha tényleg változott valami.</p>
+      </div>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">adat &rarr; UI szinkron</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">fn sync_inventory_ui(
+    inv: Res&lt;Inventory&gt;,
+    slots: Query&lt;(&amp;SlotUi, &amp;Children)&gt;,
+    mut commands: Commands,
+) {
+    if !inv.is_changed() { return; }   // csak változáskor dolgozunk
+
+    for (slot, children) in &amp;slots {
+        // a slot előző ikonját töröljük
+        for &amp;child in children.iter() {
+            commands.entity(child).despawn();
+        }
+        // ha van benne tárgy, új ikont teszünk bele
+        if let Some(stack) = inv.slots[slot.0] {
+            commands.entity(/* a slot entity-je */).with_child((
+                Node { width: Val::Px(28.0), height: Val::Px(28.0), ..default() },
+                // ImageNode az atlaszból az item_kind alapján (lásd 2.3)
+            ));
+        }
+    }
+}</code></pre>
+      </div>
+      <div class="note tip">
+        <div class="nt">TIPP &middot; SZÁMLÁLÓ-SZÖVEG FRISSÍTÉSE</div>
+        <p>A darabszám-feliratot (pl. &bdquo;x12&rdquo;) ne töröld-újraépítsd, hanem tartsd meg a
+        <code>Text</code> entityt, és csak az értékét írd át: a lekérdezésben kérj <code>&amp;mut Text</code>-et,
+        és <code>**text = format!("x{}", n)</code>. Ez olcsóbb, mint újraspawnolni.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- PART 5 -->
+    <div class="part-head" id="p5">
+      <div class="pe">RESZ 05</div>
+      <h2>Menük</h2>
+      <p>Az állapotgép a menürendszer gerince: ez dönti el, melyik UI látszik és melyik logika fut.</p>
+    </div>
+
+    <section class="chapter" id="c5-1">
+      <h3><span class="ch">5.1</span>Az állapotgép</h3>
+      <p>Egy menürendszer természetes módon egy <strong>véges állapotgép</strong>: a játék vagy a
+      főmenüben, vagy játszik, vagy szünetel, vagy az inventoryban van. A Bevy <code>States</code> rendszere
+      pont erre való, és összeköti az állapotokat az ütemezéssel.</p>
+      <div class="note api">
+        <div class="nt">BEVY-FOGALOM &middot; STATES, OnEnter/OnExit, in_state</div>
+        <p>Egy <code>States</code>-t megvalósító enumot az <code>init_state</code>-tel regisztrálsz. Az
+        <code>OnEnter(X)</code>/<code>OnExit(X)</code> ütemezésekbe rakott rendszerek pontosan az
+        állapotba lépéskor/onnan kilépéskor futnak (ide tesszük a menü fel-/leépítését). Az
+        <code>in_state(X)</code> futásfeltétel pedig egy <code>Update</code>-rendszert csak az adott
+        állapotban enged futni. Állapotot a <code>NextState&lt;X&gt;</code> erőforrással váltasz.</p>
+      </div>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">állapotok definíciója és bekötése</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">#[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
+enum GameState {
+    #[default]
+    MainMenu,
+    Playing,
+    Paused,
+    Inventory,
+}
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .init_state::&lt;GameState&gt;()
+        // a főmenü csak belépéskor épül fel, kilépéskor lebomlik:
+        .add_systems(OnEnter(GameState::MainMenu), spawn_main_menu)
+        // a hotkey-rendszer csak játék közben fusson:
+        .add_systems(Update, hotkeys.run_if(in_state(GameState::Playing)))
+        .run();
+}</code></pre>
+      </div>
+    </section>
+
+    <section class="chapter" id="c5-2">
+      <h3><span class="ch">5.2</span>Főmenü &mdash; felépítés és automatikus lebontás</h3>
+      <p>A főmenüt az <code>OnEnter(MainMenu)</code>-ben spawnoljuk. A trükk: nem kell kézzel kitakarítani
+      kilépéskor &mdash; megjelöljük a menü gyökerét egy állapot-élettartamú komponenssel, ami automatikusan
+      despawnolja az egész fát, amikor elhagyjuk az állapotot.</p>
+      <div class="note warn">
+        <div class="nt">0.18 ELNEVEZÉS &middot; DespawnOnExit</div>
+        <p>A korábbi <code>StateScoped</code> komponens neve több körön át változott; a 0.18-ban
+        <code>DespawnOnExit&lt;S&gt;</code> a neve (és van fordított párja, a <code>DespawnOnEnter&lt;S&gt;</code>).
+        Ha régebbi tutorialban <code>StateScoped</code>-ot látsz, ez az utódja.</p>
+      </div>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">főmenü, ami magától eltakarít</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">fn spawn_main_menu(mut commands: Commands) {
+    commands
+        .spawn((
+            // amint elhagyjuk a MainMenu állapotot, ez a fa egészben despawnol:
+            DespawnOnExit(GameState::MainMenu),
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                row_gap: Val::Px(14.0),
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.06, 0.07, 0.10)),
+        ))
+        .with_children(|p| {
+            p.spawn((Text::new("CSONTMEZŐ"), TextFont { font_size: 48.0, ..default() }));
+            // "Új játék" gomb, ami állapotot vált:
+            p.spawn((Button, Node { width: Val::Px(200.0), height: Val::Px(52.0),
+                     justify_content: JustifyContent::Center,
+                     align_items: AlignItems::Center, ..default() },
+                     BackgroundColor(Color::srgb(0.12, 0.13, 0.18))))
+                .with_child((Text::new("Új játék"), TextColor(Color::WHITE)))
+                .observe(|_: On&lt;Pointer&lt;Click&gt;&gt;, mut next: ResMut&lt;NextState&lt;GameState&gt;&gt;| {
+                    next.set(GameState::Playing);
+                });
+        });
+}</code></pre>
+      </div>
+    </section>
+
+    <section class="chapter" id="c5-3">
+      <h3><span class="ch">5.3</span>Pause-menü &mdash; átfedő réteg</h3>
+      <p>A pause más, mint a főmenü: nem helyettesíti a játékot, hanem <em>rákerül</em>. A világ a háttérben
+      marad (csak megáll), és fölé egy sötétítő overlay + menü kerül. Két dolgot kell tehát megoldani:
+      a megjelenítést (<code>OnEnter(Paused)</code>-ben overlay <code>GlobalZIndex</code>-szel) és a
+      logika-megállítást (a játéklogika <code>run_if(in_state(Playing))</code> miatt magától áll).</p>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">pause overlay + Esc-vel kilépés</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">fn spawn_pause(mut commands: Commands) {
+    commands.spawn((
+        DespawnOnExit(GameState::Paused),
+        Node { width: Val::Percent(100.0), height: Val::Percent(100.0),
+               justify_content: JustifyContent::Center,
+               align_items: AlignItems::Center, ..default() },
+        BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.6)),
+        GlobalZIndex(50),   // a HUD fölé
+    ));
+}
+
+fn pause_input(keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;, mut next: ResMut&lt;NextState&lt;GameState&gt;&gt;) {
+    if keys.just_pressed(KeyCode::Escape) {
+        next.set(GameState::Playing);   // vissza a játékba
+    }
+}
+// .add_systems(OnEnter(GameState::Paused), spawn_pause)
+// .add_systems(Update, pause_input.run_if(in_state(GameState::Paused)))</code></pre>
+      </div>
+      <div class="note tip">
+        <div class="nt">TIPP &middot; ALÁRENDELT (SUB) ÁLLAPOTOK</div>
+        <p>Ha a pause/inventory szigorúan csak játék közben létezhet, érdemes lehet ezeket egy
+        <code>SubStates</code>-ként modellezni, ami csak a <code>Playing</code> &bdquo;szülő&rdquo;-állapotban
+        aktív. Így nem fordulhat elő olyan illegális kombináció, hogy &bdquo;főmenü + szünet&rdquo;.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="c5-4">
+      <h3><span class="ch">5.4</span>Beállítások &mdash; widgetek munkában</h3>
+      <p>A beállítás-menü hozza össze a korábbiakat: sliderek (hangerő), checkboxok (teljes képernyő),
+      radio-gomb csoport (felbontás vagy nehézség). A 3.3-ban látott <code>Slider</code>/<code>Checkbox</code>
+      widgeteket spawnolod, az értékváltozást egy <code>Settings</code> erőforrásba kötöd, amit aztán
+      menteni is tudsz. Mivel a widgetek fókuszálhatók, a 3.4-es navigációval kontrollerről is működnek.</p>
+      <div class="note tip">
+        <div class="nt">TIPP &middot; AZONNALI VISSZAJELZÉS</div>
+        <p>A &bdquo;hangerő&rdquo; csúszkánál a játékos hallani akarja a változást azonnal, ne csak &bdquo;OK&rdquo;
+        után. Kösd a <code>ValueChange</code>-et közvetlenül a <code>Settings</code>-re, és egy másik rendszer
+        (change detectionnel) alkalmazza azt élőben. Külön &bdquo;Mentés&rdquo; gomb csak a lemezre íráshoz kell.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- PART 6 -->
+    <div class="part-head" id="p6">
+      <div class="pe">RESZ 06</div>
+      <h2>Popupok &amp; dialógusok</h2>
+      <p>Modális megerősítés, párbeszéd-ablak, tooltip és tűnő értesítés &mdash; a UI &bdquo;ideiglenes&rdquo; rétege.</p>
+    </div>
+
+    <section class="chapter" id="c6-1">
+      <h3><span class="ch">6.1</span>Modális popup &mdash; ami blokkol mögötte</h3>
+      <p>A modál lényege, hogy amíg nyitva van, a mögötte lévő UI ne legyen kattintható. A megbízható
+      minta: egy teljes képernyős, félig átlátszó overlay-node <em>maga is fogja</em> a kattintást (mivel
+      pickable), így a HUD-gombok mögötte nem kapnak eventet. Erre a popup-panelt tesszük, magas
+      <code>GlobalZIndex</code>-szel.</p>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">modál váz: overlay + panel</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">fn spawn_modal(commands: &amp;mut Commands) {
+    commands
+        .spawn((
+            ModalRoot,                          // saját marker, hogy később törölhessük
+            Node { width: Val::Percent(100.0), height: Val::Percent(100.0),
+                   justify_content: JustifyContent::Center,
+                   align_items: AlignItems::Center, ..default() },
+            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.65)),
+            GlobalZIndex(200),
+        ))
+        // az overlay elnyeli a kattintást -> a mögötte lévő UI inaktív:
+        .observe(|mut ev: On&lt;Pointer&lt;Click&gt;&gt;| { ev.propagate(false); })
+        .with_children(|p| {
+            p.spawn((
+                Node { width: Val::Px(320.0), padding: UiRect::all(Val::Px(16.0)),
+                       flex_direction: FlexDirection::Column, row_gap: Val::Px(12.0),
+                       ..default() },
+                BackgroundColor(Color::srgb(0.10, 0.11, 0.16)),
+                BorderColor::all(Color::srgb(0.95, 0.71, 0.27)),
+            ));
+        });
+}</code></pre>
+      </div>
+    </section>
+
+    <section class="chapter" id="c6-2">
+      <h3><span class="ch">6.2</span>Megerősítő dialógus</h3>
+      <p>A leggyakoribb modál: &bdquo;Biztosan kilépsz? &mdash; Igen / Mégse&rdquo;. A trükk, hogy a dialógus
+      ne kötődjön egy konkrét akcióhoz: küldjön egy <em>általános</em> eredmény-eseményt, amire a hívó
+      reagál. Így ugyanaz a dialógus-komponens újrahasználható minden &bdquo;biztos?&rdquo; helyzethez.</p>
+      <div class="note api">
+        <div class="nt">BEVY-FOGALOM &middot; SAJÁT ESEMÉNYEK</div>
+        <p>Saját üzenetet egy <code>#[derive(Event)]</code> (ill. cél-entityhez kötött
+        <code>#[derive(EntityEvent)]</code>) típussal definiálsz. Globális eseményt
+        <code>MessageWriter</code>/<code>MessageReader</code>-rel írsz/olvasol; entity-eseményt observerrel
+        kapsz el. A megerősítő gombok ezt küldik, a hívó logika feliratkozik rá.</p>
+      </div>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">újrahasználható megerősítés</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">#[derive(Message)]
+struct ConfirmResult { accepted: bool }
+
+// az "Igen" gomb observere:
+.observe(|_: On&lt;Pointer&lt;Click&gt;&gt;,
+          mut writer: MessageWriter&lt;ConfirmResult&gt;,
+          modal: Single&lt;Entity, With&lt;ModalRoot&gt;&gt;,
+          mut commands: Commands| {
+    writer.write(ConfirmResult { accepted: true });
+    commands.entity(*modal).despawn();   // a modál bezárul
+});
+
+// a hívó oldalon valahol:
+fn on_confirm(mut reader: MessageReader&lt;ConfirmResult&gt;,
+              mut exit: MessageWriter&lt;AppExit&gt;) {
+    for r in reader.read() {
+        if r.accepted { exit.write(AppExit::Success); }
+    }
+}</code></pre>
+      </div>
+    </section>
+
+    <section class="chapter" id="c6-3">
+      <h3><span class="ch">6.3</span>Tooltip és <code>Popover</code></h3>
+      <p>A tooltip a hover-eseményekre épül: <code>Pointer&lt;Over&gt;</code>-re megjelenítesz egy kis
+      panelt a kurzor mellett, <code>Pointer&lt;Out&gt;</code>-ra eltünteted. A nehéz rész a
+      <em>pozicionálás</em>: a tooltip ne lógjon le a képernyőről. Ezt a 0.18-ban már nem kell kézzel
+      számolnod.</p>
+      <div class="note tip">
+        <div class="nt">0.18 ÚJDONSÁG &middot; Popover &amp; MenuPopup</div>
+        <p>A <code>Popover</code> komponens egy abszolút pozícionált node-ra téve <strong>automatikus</strong>
+        popup-elhelyezést ad (a népszerű <code>floating-ui</code> mintájára): megadsz preferált irányokat
+        (fent/lent/balra/jobbra), és ha az ablak széle levágná, magától &bdquo;átfordul&rdquo; a legjobban látható
+        oldalra. Ugyanez működik görgetett konténerben és ablak-átméretezéskor is. Dropdown menühöz az erre
+        épülő <code>MenuPopup</code> ad kész nyitás/zárás eseményeket és billentyű-navigációt.</p>
+      </div>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">hover-tooltip (egyszerű, kézi)</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">// A tárgy-slotra kötve: megmutatja a tárgy nevét hoverre.
+.observe(|over: On&lt;Pointer&lt;Over&gt;&gt;, mut commands: Commands| {
+    commands.spawn((
+        TooltipTag,
+        Node { position_type: PositionType::Absolute, ..default() },
+        BackgroundColor(Color::srgb(0.06, 0.07, 0.10)),
+        GlobalZIndex(300),
+        // 0.18: Popover-rel az elhelyezés automatikus lenne az anchorhez képest
+    ));
+})
+.observe(|_: On&lt;Pointer&lt;Out&gt;&gt;, tips: Query&lt;Entity, With&lt;TooltipTag&gt;&gt;, mut commands: Commands| {
+    for e in &amp;tips { commands.entity(e).despawn(); }
+});</code></pre>
+      </div>
+    </section>
+
+    <section class="chapter" id="c6-4">
+      <h3><span class="ch">6.4</span>Toast-értesítés &mdash; ami magától eltűnik</h3>
+      <p>A &bdquo;+5 érme&rdquo; vagy &bdquo;Mentve&rdquo; típusú értesítés időzítve tűnik el. A minta: spawnolsz
+      egy node-ot egy <code>Timer</code>-komponenssel, és egy rendszer a <code>Time</code> erőforrással
+      lépteti az időzítőt, lejáratkor pedig despawnolja.</p>
+      <div class="note api">
+        <div class="nt">BEVY-FOGALOM &middot; Time &amp; Timer</div>
+        <p>A <code>Res&lt;Time&gt;</code> adja a két képkocka közt eltelt időt (<code>time.delta()</code>),
+        keretsebességtől függetlenül. A <code>Timer</code> ezt gyűjti, és a <code>tick(delta)</code> után a
+        <code>just_finished()</code> jelzi a lejáratot. Ez a helyes mód időzített dolgokra &mdash; soha ne
+        számolj képkockákat, mert az gépfüggő.</p>
+      </div>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">eltűnő toast</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">#[derive(Component)]
+struct Toast(Timer);
+
+fn spawn_toast(commands: &amp;mut Commands, msg: &amp;str) {
+    commands.spawn((
+        Toast(Timer::from_seconds(2.0, TimerMode::Once)),
+        Node { position_type: PositionType::Absolute, top: Val::Px(16.0),
+               right: Val::Px(16.0), padding: UiRect::all(Val::Px(8.0)), ..default() },
+        BackgroundColor(Color::srgb(0.10, 0.16, 0.12)),
+        GlobalZIndex(400),
+        children![ Text::new(msg.to_string()) ],
+    ));
+}
+
+fn tick_toasts(time: Res&lt;Time&gt;, mut q: Query&lt;(Entity, &amp;mut Toast)&gt;, mut commands: Commands) {
+    for (e, mut toast) in &amp;mut q {
+        if toast.0.tick(time.delta()).just_finished() {
+            commands.entity(e).despawn();
+        }
+    }
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- PART 7 -->
+    <div class="part-head" id="p7">
+      <div class="pe">RESZ 07</div>
+      <h2>Összerakás &amp; jó gyakorlatok</h2>
+      <p>Hogyan tartsd kézben az egészet, mire figyelj a teljesítménynél, és hová tovább.</p>
+    </div>
+
+    <section class="chapter" id="c7-1">
+      <h3><span class="ch">7.1</span>Plugin-struktúra</h3>
+      <p>Ahogy nő a UI, ne zsúfold egy <code>main.rs</code>-be. A Bevy-idiomatikus mód: minden nagyobb
+      funkció egy <code>Plugin</code>, ami magában foglalja a saját rendszereit, erőforrásait, observereit.
+      A <code>main</code> így csak összerakja a darabokat.</p>
+      <div class="code">
+        <div class="ch-bar"><i style="background:#E5573E"></i><i style="background:#F2B544"></i><i style="background:#86E0A6"></i><span class="fn">UI-funkciók pluginokként</span><button class="copy">másolás</button></div>
+        <pre><code class="language-rust">struct HudPlugin;
+impl Plugin for HudPlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app.add_systems(OnEnter(GameState::Playing), spawn_hud)
+           .add_systems(Update, update_hud.run_if(in_state(GameState::Playing)));
+    }
+}
+
+struct InventoryPlugin;   // ... ugyanígy
+struct MenuPlugin;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .init_state::&lt;GameState&gt;()
+        .add_plugins((HudPlugin, InventoryPlugin, MenuPlugin))
+        .run();
+}</code></pre>
+      </div>
+    </section>
+
+    <section class="chapter" id="c7-2">
+      <h3><span class="ch">7.2</span>Teljesítmény: mikor frissíts?</h3>
+      <p>A leggyakoribb kezdő-hiba, hogy minden képkockán újraépítjük a UI-t. A Bevy eszközei pont ez ellen
+      vannak:</p>
+      <ul>
+        <li><strong>Observer esemény helyett polling helyett.</strong> Egyedi akcióra (kattintás) observer,
+        ne képkockánként figyelő rendszer.</li>
+        <li><strong>Change detection.</strong> <code>Changed&lt;T&gt;</code> szűrő és <code>is_changed()</code>
+        &mdash; csak akkor dolgozz, ha tényleg változott az adat.</li>
+        <li><strong>Frissíts, ne újraépíts.</strong> Egy számláló-szöveget módosíts a helyén, ne despawnold
+        és spawnold újra az egész panelt.</li>
+        <li><strong>Futásfeltételek.</strong> A <code>run_if(in_state(&hellip;))</code> egész rendszereket
+        kapcsol ki, amikor nem relevánsak.</li>
+      </ul>
+    </section>
+
+    <section class="chapter" id="c7-3">
+      <h3><span class="ch">7.3</span>Hasznos crate-ek a UI körül</h3>
+      <table>
+        <tr><th>Crate</th><th>Mire jó</th></tr>
+        <tr><td><code>bevy_asset_loader</code></td><td>asset-betöltés állapothoz kötve (a menü csak kész textúrákkal induljon)</td></tr>
+        <tr><td><code>bevy-inspector-egui</code></td><td>futás közbeni debug-panel: lásd és állítsd a komponenseket élőben</td></tr>
+        <tr><td><code>leafwing-input-manager</code></td><td>átköthető akció-alapú irányítás (lásd 3.5)</td></tr>
+        <tr><td><code>bevy_aseprite_ultra</code></td><td>Aseprite-fájlok és animációk betöltése (pixel-art ikonok)</td></tr>
+      </table>
+      <div class="note tip">
+        <div class="nt">TIPP &middot; ELŐSZÖR A BEÉPÍTETTET</div>
+        <p>A <code>bevy_ui</code> + observerek + standard widgetek ma már nagyon sokat lefednek &mdash; tartsd
+        minimálisan a függőségeket, amíg az alap UI nem áll. Külső UI-réteget (pl. retained-mode keretrendszert)
+        csak akkor hozz be, ha konkrét, beépítettel meg nem oldható igényed van.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="c7-4">
+      <h3><span class="ch">7.4</span>Hová tovább</h3>
+      <p>A legjobb forrás mindig a hivatalos: a <a href="https://bevy.org/examples/" target="_blank" rel="noopener">Bevy példatár</a>
+      UI-szekciója (köztük a &bdquo;standard widgets w/observers&rdquo; példa), a verzióhoz tartozó
+      <a href="https://docs.rs/bevy/0.18.0/bevy/" target="_blank" rel="noopener">API-dokumentáció</a>, és a
+      <a href="https://bevy.org/learn/migration-guides/0-17-to-0-18/" target="_blank" rel="noopener">0.17&rarr;0.18 migrációs útmutató</a>,
+      ha valami máshogy hívódik, mint régi anyagokban.</p>
+      <div class="note warn">
+        <div class="nt">FONTOS &middot; A BEVY UI GYORSAN VÁLTOZIK</div>
+        <p>A Bevy UI-ja aktívan fejlődik (a 0.17/0.18 hozta a standard widgeteket és a fókusz/navigáció
+        rendszert), így <strong>mindig ellenőrizd a tényleges 0.18-as API-t a <code>docs.rs</code>-en</strong>,
+        mielőtt egy kódrészletre építesz. A fenti minták a 0.18 publikus állapotát tükrözik, de egy-egy mező-
+        vagy konstruktornév finomodhatott &mdash; a fordító és a dokumentáció a végső igazság.</p>
+      </div>
+    </section>
+
+    <footer>
+      <p>Pixel HUD &amp; top-down UI &mdash; gyakorlati tutorial Bevy 0.18-hoz. A kódminták a 0.18 publikus
+      API-ját tükrözik (<code>On&lt;Pointer&lt;_&gt;&gt;</code> observerek, <code>bevy_ui_widgets</code>,
+      <code>Popover</code>/<code>MenuPopup</code>, <code>DespawnOnExit</code>, automatikus irány-navigáció).</p>
+      <p class="pix">&#9670; JÓ KÓDOLÁST &#9670;<br>&#9474;&#9474;&#9474; CSONTMEZŐ DEVLOG &#9474;&#9474;&#9474;</p>
+    </footer>
+
+  </div>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/rust.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/toml.min.js"></script>
+<script>
+/* ---------- TOC data (parts + chapters) ---------- */
+const TOC = [
+  ["00","Bevezető & setup","p0",[["0.1","Mit építünk","c0-1"],["0.2","Cargo & DefaultPlugins","c0-2"]]],
+  ["01","Tervezési szempontok","p1",[["1.1","Pixel-art alapelvek","c1-1"],["1.2","Diegetikus vs. nem","c1-2"],["1.3","UI-rétegek","c1-3"],["1.4","Mentális modell","c1-4"]]],
+  ["02","Renderelés","p2",[["2.1","Pixel-pontos render","c2-1"],["2.2","Node & layout","c2-2"],["2.3","Színek, képek","c2-3"],["2.4","Szöveg","c2-4"],["2.5","Z-rendezés","c2-5"]]],
+  ["03","Eseménykezelés","p3",[["3.1","Observerek & picking","c3-1"],["3.2","Gomb-interakció","c3-2"],["3.3","Standard widgetek","c3-3"],["3.4","Fókusz & navigáció","c3-4"],["3.5","Billentyű & gamepad","c3-5"]]],
+  ["04","Inventory","p4",[["4.1","Adatmodell","c4-1"],["4.2","Slot-rács","c4-2"],["4.3","Drag & drop","c4-3"],["4.4","Reaktív frissítés","c4-4"]]],
+  ["05","Menük","p5",[["5.1","Állapotgép","c5-1"],["5.2","Főmenü","c5-2"],["5.3","Pause-menü","c5-3"],["5.4","Beállítások","c5-4"]]],
+  ["06","Popupok & dialógusok","p6",[["6.1","Modális popup","c6-1"],["6.2","Megerősítés","c6-2"],["6.3","Tooltip & Popover","c6-3"],["6.4","Toast","c6-4"]]],
+  ["07","Összerakás","p7",[["7.1","Plugin-struktúra","c7-1"],["7.2","Teljesítmény","c7-2"],["7.3","Hasznos crate-ek","c7-3"],["7.4","Hová tovább","c7-4"]]],
+];
+
+/* build sidebar */
+const toc = document.getElementById('toc');
+TOC.forEach(([num,title,pid,chs])=>{
+  const part = document.createElement('div'); part.className='part';
+  const btn = document.createElement('button');
+  btn.innerHTML = `<span class="num">${num}</span><span class="tw">${title}</span><span class="car">&#9660;</span>`;
+  btn.addEventListener('click',(e)=>{
+    // clicking the row toggles collapse, but clicking text also jumps
+    part.classList.toggle('collapsed');
+  });
+  const wrap = document.createElement('div'); wrap.className='chapters';
+  chs.forEach(([cn,ct,cid])=>{
+    const a=document.createElement('a'); a.href='#'+cid; a.dataset.target=cid;
+    a.innerHTML = `<span style="color:var(--muted2);font-family:var(--mono);font-size:11px">${cn}</span> ${ct}`;
+    a.addEventListener('click',(e)=>{ closeNav(); });
+    wrap.appendChild(a);
+  });
+  part.appendChild(btn); part.appendChild(wrap); toc.appendChild(part);
+});
+
+/* ---------- syntax highlight ---------- */
+document.querySelectorAll('pre code').forEach(b=>{ try{hljs.highlightElement(b);}catch(e){} });
+
+/* ---------- copy buttons ---------- */
+document.querySelectorAll('.copy').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const code = btn.closest('.code').querySelector('pre code').innerText;
+    navigator.clipboard.writeText(code).then(()=>{
+      const old=btn.textContent; btn.textContent='kész ✓';
+      setTimeout(()=>btn.textContent=old,1200);
+    }).catch(()=>{});
+  });
+});
+
+/* ---------- reading progress (XP bar) ---------- */
+const xp=document.getElementById('xp');
+function onScroll(){
+  const h=document.documentElement;
+  const max=h.scrollHeight-h.clientHeight;
+  xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';
+}
+window.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+
+/* ---------- scroll-spy ---------- */
+const links=[...document.querySelectorAll('.toc .chapters a')];
+const linkFor={}; links.forEach(a=>linkFor[a.dataset.target]=a);
+const targets=[...document.querySelectorAll('section.chapter')];
+let current=null;
+const io=new IntersectionObserver((entries)=>{
+  entries.forEach(en=>{ en.target._vis = en.isIntersecting ? en.intersectionRatio : 0; });
+  // pick the topmost visible chapter
+  let best=null, bestTop=Infinity;
+  targets.forEach(t=>{
+    const r=t.getBoundingClientRect();
+    if(r.bottom>80 && r.top<window.innerHeight*0.5){
+      if(r.top<bestTop){bestTop=r.top;best=t;}
+    }
+  });
+  if(best && best.id!==current){
+    current=best.id;
+    links.forEach(a=>a.classList.remove('active'));
+    const a=linkFor[best.id];
+    if(a){ a.classList.add('active');
+      // expand its part
+      const part=a.closest('.part'); if(part) part.classList.remove('collapsed');
+    }
+  }
+},{rootMargin:'-70px 0px -55% 0px',threshold:[0,.25,.5,1]});
+targets.forEach(t=>io.observe(t));
+
+/* ---------- mobile nav ---------- */
+const burger=document.getElementById('burger');
+const scrim=document.getElementById('scrim');
+function closeNav(){document.body.classList.remove('nav-open');}
+burger&&burger.addEventListener('click',()=>document.body.classList.toggle('nav-open'));
+scrim&&scrim.addEventListener('click',closeNav);
+</script>
+</body>
+</html>
