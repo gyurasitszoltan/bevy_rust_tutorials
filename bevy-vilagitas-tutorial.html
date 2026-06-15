@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2D világítás: sötétedés, szentjánosbogár & zseblámpa — Bevy 0.18 tutorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13;
+  --bg-deep:#0b110c;
+  --panel:#1a241b;
+  --panel-2:#162017;
+  --ink:#e9e3cd;
+  --muted:#9caa90;
+  --grass:#7ecb52;
+  --grass-hi:#a5e87d;
+  --grass-dk:#4e8f33;
+  --dirt:#c99c66;
+  --dirt-dk:#9a6e43;
+  --water:#6cc8d9;
+  --stone:#9aa0aa;
+  --concrete:#cacac3;
+  --lava:#ff7a3c;
+  --ice:#bfe0f0;
+  --line:#2d3b2c;
+  --line-hi:#41543e;
+  --code-bg:#0c120d;
+  --shadow:rgba(0,0,0,.45);
+  --kw:#ff9d5c;      /* rust kulcsszó */
+  --ty:#8fd8e8;      /* típus */
+  --fnc:#a5e87d;     /* függvény */
+  --str:#e8c878;     /* string */
+  --cmt:#6d7c64;     /* komment */
+  --mac:#d8a0e8;     /* makró */
+  --num:#f0b8a0;     /* szám */
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  font-size:16.5px;
+  line-height:1.7;
+}
+/* finom scanline-textúra a háttérben */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px);
+}
+::selection{background:var(--grass-dk);color:#fff}
+
+/* ---------- SIDEBAR ---------- */
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);
+  background:var(--bg-deep);
+  border-right:3px solid var(--line);
+  overflow-y:auto;z-index:30;
+  padding:22px 0 40px;
+}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{
+  padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px;
+}
+.logo .title{
+  font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;
+  color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15;
+}
+.logo .sub{
+  font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em;
+}
+.logo .badge{
+  display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;
+  color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;
+  box-shadow:2px 2px 0 var(--shadow);
+}
+.logo .badge.pro{background:var(--lava);color:#1a0d06;margin-left:6px}
+.nav-part{
+  font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);
+  padding:16px 20px 6px;text-transform:uppercase;
+}
+.nav a{
+  display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;
+  font-size:14px;position:relative;border-left:4px solid transparent;
+  transition:color .12s,background .12s;
+}
+.nav a::before{
+  content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);
+  transition:opacity .12s,left .12s;
+}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{
+  color:var(--grass-hi);background:rgba(126,203,82,.10);
+  border-left-color:var(--grass);font-weight:600;
+}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{
+  display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;
+  background:var(--grass);color:#10180f;border:none;padding:8px 14px;
+  box-shadow:3px 3px 0 var(--shadow);text-decoration:none;
+  transition:transform .08s,box-shadow .08s;
+}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+.btn.lava{background:var(--lava);color:#1a0d06}
+
+/* hamburger mobilra */
+.menu-toggle{
+  display:none;position:fixed;top:14px;left:14px;z-index:40;
+  font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;
+  background:var(--panel);color:var(--ink);border:3px solid var(--line);
+  box-shadow:3px 3px 0 var(--shadow);
+}
+
+/* ---------- FŐ TARTALOM ---------- */
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+
+/* HERO */
+.hero{
+  padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px;
+}
+.hero .eyebrow{
+  font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;
+  text-transform:uppercase;margin-bottom:14px;
+}
+.hero h1{
+  font-family:"Pixelify Sans";font-weight:700;font-size:clamp(34px,5.2vw,54px);
+  line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);
+  margin-bottom:18px;
+}
+.hero h1 .g{color:var(--grass-hi)}
+.hero h1 .d{color:var(--dirt)}
+.hero h1 .l{color:var(--lava)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{
+  border:3px solid var(--line);background:var(--bg-deep);padding:14px;
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  box-shadow:4px 4px 0 var(--shadow);
+}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6}
+.hero-strip .cap b{color:var(--grass)}
+
+/* SZEKCIÓK */
+section{padding-top:56px}
+.part-divider{
+  margin-top:72px;padding:14px 0 0;
+  border-top:3px dashed var(--line-hi);
+}
+.part-divider .pd-label{
+  font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);
+  text-transform:uppercase;
+}
+.ch-eyebrow{
+  font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);
+  text-transform:uppercase;margin-bottom:8px;
+}
+h2{
+  font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;
+  color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px;
+}
+h3{
+  font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);
+  margin:34px 0 12px;
+}
+p{margin-bottom:14px}
+p+p{margin-top:2px}
+strong{color:#fff}
+em{color:var(--dirt)}
+a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}
+li{margin-bottom:7px}
+code:not(pre code){
+  font-family:"IBM Plex Mono";font-size:.86em;background:var(--code-bg);
+  color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap;
+}
+
+/* KÓD DOBOZ */
+.code{
+  margin:22px 0;border:3px solid var(--line);background:var(--code-bg);
+  box-shadow:4px 4px 0 var(--shadow);
+}
+.code-head{
+  display:flex;justify-content:space-between;align-items:center;
+  background:var(--panel);border-bottom:3px solid var(--line);
+  padding:7px 12px;
+}
+.code-head .fname{
+  font-family:"IBM Plex Mono";font-size:12.5px;color:var(--dirt);letter-spacing:.05em;
+}
+.copy-btn{
+  font-family:"Pixelify Sans";font-size:12.5px;cursor:pointer;
+  background:transparent;color:var(--muted);border:2px solid var(--line-hi);
+  padding:2px 9px;transition:all .1s;
+}
+.copy-btn:hover{color:var(--grass-hi);border-color:var(--grass)}
+.code pre{
+  overflow-x:auto;padding:16px 18px;
+  font-family:"IBM Plex Mono";font-size:13.5px;line-height:1.62;
+}
+.code pre::-webkit-scrollbar{height:8px}
+.code pre::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.k{color:var(--kw)}.t{color:var(--ty)}.f{color:var(--fnc)}.s{color:var(--str)}
+.c{color:var(--cmt);font-style:italic}.m{color:var(--mac)}.n{color:var(--num)}
+
+/* ASCII ÁBRA */
+.diagram{
+  margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);
+  box-shadow:4px 4px 0 var(--shadow);
+}
+.diagram .d-head{
+  font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;
+  padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase;
+}
+.diagram pre{
+  overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";
+  font-size:13px;line-height:1.5;color:var(--ink);
+}
+.diagram pre .gr{color:var(--grass)}
+.diagram pre .di{color:var(--dirt)}
+.diagram pre .wa{color:var(--water)}
+.diagram pre .st{color:var(--stone)}
+.diagram pre .co{color:var(--concrete)}
+.diagram pre .lv{color:var(--lava)}
+.diagram pre .mu{color:var(--muted)}
+.diagram pre .yl{color:#e8d24a}
+.diagram .d-cap{
+  font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55;
+}
+
+/* BEVY FOGALOM doboz */
+.bevy-box{
+  margin:24px 0;border:3px solid #2a4a52;background:#0d181b;
+  box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px;
+}
+.bevy-box .tag{
+  font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;
+  margin-bottom:8px;text-transform:uppercase;
+}
+.bevy-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.bevy-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.bevy-box ul{font-size:15px;color:#cfdbd5}
+
+/* TIPP / FIGYELEM doboz */
+.note{
+  margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);
+  background:var(--panel);padding:12px 16px;font-size:15px;
+}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{
+  font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--grass);margin-bottom:4px;
+}
+.note.warn .n-tag{color:var(--dirt)}
+
+/* TÁBLÁZAT */
+table{
+  width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;
+  border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow);
+}
+th{
+  background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;
+  color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);
+  letter-spacing:.04em;
+}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+
+/* JÁTSZÓTÉR */
+.playground{
+  margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);
+  box-shadow:5px 5px 0 var(--shadow);
+}
+.playground .pg-head{
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
+  background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);
+  border-bottom:3px solid var(--grass-dk);padding:10px 14px;
+}
+.playground .pg-title{
+  font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em;
+}
+.playground .pg-body{padding:16px;display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{
+  image-rendering:pixelated;border:3px solid var(--line);background:#000;
+  cursor:crosshair;touch-action:none;max-width:100%;
+}
+.playground .pg-side{flex:1;min-width:240px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:2}
+.pg-chip{
+  display:inline-block;width:14px;height:14px;vertical-align:-2px;margin-right:7px;
+  border:2px solid var(--line);
+}
+.pg-controls{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.kbd{
+  font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);
+  border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink);
+}
+
+/* csúszka + kapcsoló-gombok */
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--dirt);letter-spacing:.06em;margin:12px 0 2px;text-transform:uppercase}
+.slider-row{display:flex;align-items:center;gap:10px;margin:6px 0;font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted)}
+.slider-row input[type=range]{flex:1;accent-color:var(--grass)}
+.slider-row .val{color:var(--grass-hi);min-width:48px;text-align:right}
+.wbtn{
+  font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);
+  color:var(--muted);border:2px solid var(--line-hi);padding:4px 12px;transition:all .1s;
+}
+.wbtn:hover{color:var(--ink)}
+.wbtn.active{background:var(--water);color:var(--bg-deep);border-color:var(--water)}
+.wbtn.warm.active{background:var(--lava);color:#1a0d06;border-color:var(--lava)}
+
+footer{
+  margin-top:90px;border-top:3px solid var(--line);padding-top:24px;
+  font-size:13.5px;color:var(--muted);
+}
+footer .pix{font-family:"Pixelify Sans";color:var(--grass);font-size:15px}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}
+  .menu-toggle{display:block}
+  .main{margin-left:0}
+  .wrap{padding:0 20px 100px}
+  .hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">FÉNY &amp;<br>SÖTÉTSÉG</div>
+    <div class="sub">sötétedés · pontfény · kúp · top-down · Rust</div>
+    <span class="badge">BEVY 0.18</span><span class="badge pro">2D FÉNY</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I. rész — Elmélet</div>
+    <a href="#ch1">1 · Miért nehéz a 2D fény?</a>
+    <a href="#ch2">2 · Sötétedés: a fény mint szorzás</a>
+    <a href="#ch3">3 · Pontfény: a szentjánosbogár</a>
+    <a href="#ch4">4 · Ívfény: a zseblámpa</a>
+    <a href="#ch5">5 · Két út: tile-tint vs light map</a>
+    <div class="nav-part">II. rész — Bevy alapok</div>
+    <a href="#ch6">6 · Projekt + a sötét alap</a>
+    <a href="#ch7">7 · Komponensek: fény &amp; tile</a>
+    <div class="nav-part">III. rész — Implementáció</div>
+    <a href="#ch8">8 · A sötétedés-rendszer</a>
+    <a href="#ch9">9 · A megvilágító rendszer</a>
+    <a href="#ch10">10 · Szentjánosbogár: mozgás + villódzás</a>
+    <a href="#ch11">11 · Zseblámpa: célzás + árnyékok</a>
+    <a href="#ch12">12 · Simább fény: light map &amp; crate-ek</a>
+    <a href="#ch13">13 · A teljes main.rs</a>
+    <a href="#ch14">14 · Merre tovább?</a>
+  </nav>
+  <div class="dl-box">
+    <p>Ez a tutorial a <span class="mono">dual-grid PRO</span> tilemapre épít: ott legyártottad a terepet, itt <strong>sötétbe borítjuk</strong> és visszavilágítjuk.</p>
+    <a class="btn secondary" href="#ch13">A teljes main.rs ▸</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// folytatás-tutorial · fényhatások tile-mapen · magyar nyelven</div>
+  <h1><span class="l">Sötétség</span> és <span class="g">fény</span> —<br>2D <span class="d">világítás</span> top-downban</h1>
+  <p class="lead">Borítsd <strong>éjszakába</strong> a pályát, majd világítsd vissza: egy <span class="g">szentjánosbogár</span> körfénye, ami a körülötte lévő tile-okat megvilágítja akár vaksötétben — és egy <span class="d">zseblámpa</span>, ami nem körben, hanem <em>ívben</em> világít, egy horror top-down játékhoz. Mindezt shader nélkül, tiszta Bevy 0.18 ECS-szel.</p>
+  <div class="hero-strip">
+    <canvas id="lightHero" width="384" height="128" style="width:576px;height:192px"></canvas>
+    <div class="cap">↑ Élő minta: éjszakai mező, egyetlen <b>szentjánosbogár</b> sodródik át rajta.<br>Csak a közelében lévő tile-ok látszanak — a többit elnyeli a sötét.</div>
+  </div>
+</header>
+
+<!-- ================= I. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Elmélet</span></div>
+
+<!-- ================= 1. FEJEZET ================= -->
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>Miért nehéz a 2D fény?</h2>
+
+  <p>3D-ben a fény „magától” működik: van geometria, vannak normálvektorok, a motor kiszámolja, melyik felület mennyi fényt kap. 2D-ben viszont a világod <strong>lapos képek (sprite-ok)</strong> halmaza — nincs felület, nincs normál, nincs mihez viszonyítani. A „világítás” itt nem fizika, hanem <strong>vizuális trükk</strong>: úgy színezzük a képet, hogy az agy fényt és árnyékot lásson.</p>
+
+  <p>A jó hír: ez a trükk meglepően egyszerű, és egyetlen gondolatra épül.</p>
+
+  <div class="bevy-box">
+    <div class="tag">⚙ A kulcs-gondolat — a fény az SZORZÁS</div>
+    <p>Vegyük a kész, megvilágítatlan képet, és <strong>szorozzuk meg</strong> egy „fény-értékkel” pixelenként (vagy tile-onként):</p>
+    <ul>
+      <li><strong>fény = 1.0</strong> → a pixel változatlan (teljesen megvilágított),</li>
+      <li><strong>fény = 0.0</strong> → a pixel fekete (vaksötét),</li>
+      <li><strong>fény = 0.3, kékes</strong> → tompa, hideg holdfény.</li>
+    </ul>
+    <p>A sötétedés tehát nem más, mint hogy mindent megszorzunk egy kis számmal. Egy fényforrás pedig <em>visszaad</em> a fényből ott, ahol világít. A kettő összege adja a végső szorzót.</p>
+  </div>
+
+  <p>Bevyben ehhez nem kell shadert írnod: a <code>Sprite</code> komponensnek van egy <code>color</code> mezője, ami pontosan ilyen <strong>szorzó-tint</strong> a textúra fölött. Ha minden tile-od egy sprite, akkor a világítás = „állítsd be minden tile <code>color</code>-ját a ráeső fény szerint”. Ezt fogjuk megírni.</p>
+
+  <h3>Mit építünk pontosan?</h3>
+  <ul>
+    <li>egy globális <strong>sötétedést</strong> (ambiens fény + nappal-éjszaka), ami az egész pályát elsötétíti;</li>
+    <li>egy <strong>pontfényt</strong> (szentjánosbogár), ami körben, lágyan világítja a környező tile-okat — vaksötétben is;</li>
+    <li>egy <strong>kúp/ív-fényt</strong> (zseblámpa), ami csak egy irányba, adott szögben világít, és a falak <strong>árnyékot</strong> vetnek benne — horror-hangulathoz.</li>
+  </ul>
+  <p>Mindhárom ugyanannak a szorzó-modellnek a variációja. Lássuk sorban.</p>
+</section>
+
+<!-- ================= 2. FEJEZET ================= -->
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>Sötétedés: a fény mint szorzás</h2>
+
+  <p>Kezdjük a legegyszerűbbel: az egész pálya elsötétítése. Bevezetünk egy globális <strong>ambiens fényt</strong> — egy szám (<code>level</code>) 0 és 1 között, és egy szín (<code>color</code>). Minden tile alap-szorzója ez lesz:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Az ambiens szorzó hatása</div>
+    <pre>
+  level = <span class="yl">1.0</span>  nappal     ▒ tile × <span class="yl">1.0</span> meleg fehér  = eredeti szín
+  level = <span class="di">0.5</span>  alkonyat   ▒ tile × <span class="di">0.5</span> narancs      = tompa, meleg
+  level = <span class="wa">0.08</span> éjszaka    ▒ tile × <span class="wa">0.08</span> hideg kék   = szinte fekete, kékes
+  level = <span class="mu">0.0</span>  vaksötét   ▒ tile × <span class="mu">0.0</span>              = teljesen fekete</pre>
+    <div class="d-cap">A <em>szín</em> is számít: éjjel a maradék kevés fény hideg-kék, ettől lesz „holdfényes”. Hajnalban told meleg felé.</div>
+  </div>
+
+  <p>Húzd a csúszkát: ez állítja az ambiens szintet. A <em>napszak</em> gomb pedig egy lassú nappal-éjszaka ciklust indít, ami a szintet <strong>és</strong> a színt is animálja.</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — sötétedés</span></div>
+    <div class="pg-body">
+      <canvas id="darkCanvas" width="416" height="288" style="width:560px"></canvas>
+      <div class="pg-side">
+        <p>Még nincs egyetlen fényforrás sem — csak az ambiens szorzó dolgozik az egész pályán.</p>
+        <div class="slider-row"><span>Ambiens</span><input type="range" id="ambRange" min="0" max="100" value="100"><span class="val" id="ambVal">1.00</span></div>
+        <div class="pg-controls">
+          <button class="wbtn warm" id="ambAuto">☀ napszak-ciklus</button>
+        </div>
+        <p style="margin-top:10px" id="ambPhase">Napszak: <b style="color:var(--grass-hi)">dél</b></p>
+        <p style="margin-top:6px">Figyeld: éjszaka a kép nemcsak sötétebb, hanem <em>kékesebb</em> is — ez adja a holdfény-érzetet.</p>
+      </div>
+    </div>
+  </div>
+
+  <p>Ez már önmagában hangulatos, de van egy gond: éjjel <strong>semmit</strong> nem látsz. Egy játéknak fényforrások kellenek, amik a sötétből kiemelik a környezetet. Jön a pontfény.</p>
+</section>
+
+<!-- ================= 3. FEJEZET ================= -->
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>Pontfény: a szentjánosbogár</h2>
+
+  <p>Egy <strong>pontfény</strong> egy adott pontból körben világít, és a fényereje a <strong>távolsággal csökken</strong> — ezt hívjuk <em>esésnek</em> (falloff). A szentjánosbogár tökéletes példa: kicsi a hatótávja, meleg zöldes-sárga fénye van, és <em>villódzik</em>.</p>
+
+  <h3>Az esésfüggvény</h3>
+  <p>A legegyszerűbb esés lineáris: a fényerő 1 a forrásnál, és 0-ra esik a <code>radius</code> sugárnál. De a lineáris esés „kemény” peremet ad; a négyzetre emelt (<code>f²</code>) változat sokkal lágyabb, természetesebb fénykört rajzol:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Esésfüggvény: f = (1 − d / radius)²</div>
+    <pre>
+  fényerő
+   <span class="yl">1</span> │<span class="yl">█▓</span><span class="di">▒</span>
+     │ <span class="yl">█▓</span><span class="di">▒░</span>
+     │   <span class="di">▒░</span>
+     │     <span class="di">░░</span>
+     │        <span class="mu">░░</span>
+   <span class="mu">0</span> │___________<span class="mu">░____</span>  távolság →
+     0                radius
+
+  d = távolság a fénytől     f = (1 − d/radius)²  →  0, ha d ≥ radius</pre>
+    <div class="d-cap">A forrásnál 1, a <code>radius</code>-on túl 0. A négyzetre emelés a közepet fényesebben, a szélét puhábban tartja.</div>
+  </div>
+
+  <p>Mozgasd az egeret a vásznon (vagy hagyd magára — magától sodródik). Kapcsold be a <strong>teljes sötétet</strong>: ekkor látszik igazán, hogy a bogár <em>kiemeli</em> a környező tile-okat a feketéből. A <strong>pixeles</strong> kapcsoló a tile-felbontású változatot mutatja — pontosan azt, amit a Rust kód csinál.</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — szentjánosbogár</span></div>
+    <div class="pg-body">
+      <canvas id="fireflyCanvas" width="416" height="288" style="width:560px"></canvas>
+      <div class="pg-side">
+        <div class="legend">
+          <span class="pg-chip" style="background:#d7ff96"></span>A bogár melegen, zöldes-sárgán világít<br>
+          <span class="pg-chip" style="background:transparent;border-color:#6cc8d9"></span>Mozgasd az <strong>egeret</strong> = te irányítod
+        </div>
+        <div class="slider-row"><span>Sugár</span><input type="range" id="ffRadius" min="40" max="160" value="95"><span class="val" id="ffRadiusV">95</span></div>
+        <div class="slider-row"><span>Erő</span><input type="range" id="ffInt" min="60" max="220" value="150"><span class="val" id="ffIntV">1.5</span></div>
+        <div class="pg-controls">
+          <button class="wbtn active" id="ffDark">⬛ teljes sötét</button>
+          <button class="wbtn" id="ffSmooth">▦ pixeles</button>
+        </div>
+        <p style="margin-top:10px">A villódzást egy gyors, apró ingadozás adja az erőn — ettől „él” a bogár.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 4. FEJEZET ================= -->
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>Ívfény: a zseblámpa</h2>
+
+  <p>A zseblámpa nem körben világít, hanem egy <strong>kúpban (ívben)</strong>: van egy <em>iránya</em>, és csak egy adott <strong>fél-nyílásszögön</strong> belül ad fényt. A trükk az előző esésfüggvényhez képest egyetlen új tényező: a <strong>szög-esés</strong>.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A kúp: irány + fél-nyílásszög</div>
+    <pre>
+                      <span class="yl">█</span>  ← közép: teljes fény
+                    <span class="yl">█▓</span><span class="di">▒</span>
+        zseblámpa  <span class="yl">█▓</span><span class="di">▒░</span>
+            <span class="st">●</span><span class="yl">━━━━━▶</span>   „előre" irány (a Transform +X tengelye)
+                    <span class="yl">█▓</span><span class="di">▒░</span>
+                    ╲ <span class="yl">█▓</span><span class="di">▒</span>
+                     ╲<span class="di">__</span>  half_angle = a kúp fél-nyílásszöge
+                  a szélén elhalványul, a kúpon kívül: sötét</pre>
+    <div class="d-cap">A tile akkor kap fényt, ha (1) a hatótávon belül van, ÉS (2) a fény irányától mért szögeltérése kisebb, mint a fél-nyílásszög. A szélén a szög-esés lágyan kioltja.</div>
+  </div>
+
+  <p>A teljes fényerő tehát két esés szorzata: <code>fény = távolság-esés × szög-esés</code>. Mozgasd az egeret — a kúp követi a kurzort. Kapcsold be az <strong>árnyékokat</strong>: ekkor a sziklák <em>kitakarják</em> a fényt, igazi horror-hatást adva.</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — zseblámpa (horror)</span></div>
+    <div class="pg-body">
+      <canvas id="flashCanvas" width="416" height="288" style="width:560px"></canvas>
+      <div class="pg-side">
+        <div class="legend">
+          <span class="pg-chip" style="background:#fff4d6"></span>A zseblámpa meleg-fehér kúpja<br>
+          <span class="pg-chip" style="background:#3a3f46"></span>A sziklák árnyékot vetnek<br>
+          <span class="pg-chip" style="background:#d7ff96"></span>Két szentjánosbogár is sodródik a sötétben
+        </div>
+        <div class="slider-row"><span>Kúpszög</span><input type="range" id="flAngle" min="10" max="70" value="26"><span class="val" id="flAngleV">26°</span></div>
+        <div class="slider-row"><span>Hatótáv</span><input type="range" id="flRange" min="120" max="340" value="240"><span class="val" id="flRangeV">240</span></div>
+        <div class="pg-controls">
+          <button class="wbtn active" id="flOcc">▦ árnyékok</button>
+          <button class="wbtn" id="flSmooth">▦ pixeles</button>
+        </div>
+        <p style="margin-top:10px">Vidd a kurzort egy szikla mögé — a fény nem ér át rajta, sötét folt marad mögötte.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 5. FEJEZET ================= -->
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Két út: tile-tint vs light map</h2>
+
+  <p>A fenti demókban két megjelenítést kapcsolgattál: a <em>sima</em> (folytonos, lágy) és a <em>pixeles</em> (tile-felbontású). Ez nem véletlen — két különböző technika létezik, és érdemes tudni, melyik mit ad:</p>
+
+  <table>
+    <tr><th>Megközelítés</th><th>Hogyan</th><th>Előny</th><th>Hátrány</th></tr>
+    <tr>
+      <td><strong>Tile-tint</strong><br>(per-tile)</td>
+      <td>Minden tile-sprite <code>color</code> mezőjét a ráeső fény szerint állítod</td>
+      <td>Shader nélkül megy, tiszta ECS, olcsó, retró pixel-look</td>
+      <td>A fény „tile-felbontású” — szögletes a fénykör pereme</td>
+    </tr>
+    <tr>
+      <td><strong>Light map</strong><br>(fénytérkép)</td>
+      <td>A fényeket egy külön textúrába rajzolod (additívan), majd a jelenetre szorzod (multiply blend)</td>
+      <td>Folytonos, lágy fény, pixel-alatti felbontás, szép kúp-szélek</td>
+      <td>Render target + blend mode (vagy shader / crate) kell hozzá</td>
+    </tr>
+  </table>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A light map-pipeline</div>
+    <pre>
+   1) jelenet  ────────────┐
+                           │
+   2) fénytérkép:          │   ┌─────────────┐
+      fekete háttér        ├──▶│  SZORZÁS    │──▶ végső kép
+      + <span class="yl">additív fény-foltok</span>  │   │ (multiply)  │
+      (kör, kúp)  ─────────┘   └─────────────┘
+
+   sötét a fénytérképen → sötét a képen
+   világos folt        → ott látszik a jelenet</pre>
+    <div class="d-cap">A tile-tint ennek a „durva felbontású” rokona: a fénytérkép cellánként egy szín, amit a tile-ra szorzol. A modell ugyanaz — csak a felbontás más.</div>
+  </div>
+
+  <p>Ebben a tutorialban a <strong>tile-tint</strong> utat írjuk meg végig Rustban: nem kell hozzá shader, tökéletesen illik a dual-grid tile-mapünkre, és pont azt a pixeles, retró fényt adja, ami egy pixel-art játékhoz illik. A 12. fejezetben megmutatjuk, hogyan lépj tovább a light map / crate-es irányba, ha lágyabb fényt szeretnél.</p>
+
+  <div class="note">
+    <div class="n-tag">▲ A demó és a kód viszonya</div>
+    A vásznas demók a fényt mindig <em>cellánként</em> számolják (ez a modell), és csak a <strong>kirajzolásnál</strong> döntik el: élsimítva nyújtják fel (sima) vagy élesen (pixeles). A „pixeles” mód az, ami 1:1-ben megfelel a most következő Rust kódnak.
+  </div>
+</section>
+
+<!-- ================= II. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ II. rész — Bevy alapok</span></div>
+
+<!-- ================= 6. FEJEZET ================= -->
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Projekt + a sötét alap</h2>
+
+  <p>A pixel-art fényhez két dolog kell az indulásnál: <em>nearest</em> textúraszűrés (éles pixelek) és egy <strong>fekete</strong> háttér — hiszen a sötétből fogunk visszavilágítani.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">terminál</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-sh">cargo new night_lights
+cd night_lights
+cargo add bevy@0.18</code></pre>
+  </div>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — váz</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        // teljes sötét háttér — innen "világítunk vissza"
+        .insert_resource(ClearColor(Color::BLACK))
+        .init_resource::&lt;Ambient&gt;()
+        .add_systems(Startup, setup)
+        .add_systems(Update, (
+            day_night,        // a sötétedés (ambiens szint + szín)
+            move_firefly,     // a szentjánosbogár mozgása + villódzása
+            aim_flashlight,   // a zseblámpa célzása az egérrel
+            light_tiles,      // <- EZ FUSSON UTOLJÁRA: kiszínezi a tile-okat
+        ).chain())
+        .run();
+}</code></pre>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — rendszer-sorrend, .chain()</div>
+    <p>A <code>light_tiles</code> a fények <em>pillanatnyi</em> állásából színez. Ha a fények mozgatása (<code>move_firefly</code>, <code>aim_flashlight</code>) <em>utána</em> futna, egy frame-nyi késést látnál. A <code>.chain()</code> garantálja, hogy a felsorolt rendszerek <strong>ebben a sorrendben</strong> fussanak — így a színezés mindig a friss pozíciókat látja.</p>
+  </div>
+</section>
+
+<!-- ================= 7. FEJEZET ================= -->
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>Komponensek: fény &amp; tile</h2>
+
+  <p>Három fény-fogalmat modellezünk, plusz egy markert a megvilágítandó tile-okra. Minden fény „csak adat” — a logika a rendszerekben lesz.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — erőforrás + komponensek</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">// Globális sötétedés: mennyi a "vakvilágítás" és milyen színű.
+#[derive(Resource)]
+struct Ambient {
+    level: f32,    // 0.0 = vaksötét, 1.0 = teljes nappal
+    color: Color,
+}
+impl Default for Ambient {
+    fn default() -&gt; Self {
+        // induláskor hűvös, halvány éjszaka
+        Self { level: 0.06, color: Color::srgb(0.45, 0.55, 1.0) }
+    }
+}
+
+// Pontszerű fény (szentjánosbogár): körben világít.
+#[derive(Component)]
+struct RadialLight {
+    radius: f32,
+    intensity: f32,
+    color: Color,
+}
+
+// Kúp/ív fény (zseblámpa): csak egy irányba, adott szögben világít.
+#[derive(Component)]
+struct ConeLight {
+    range: f32,
+    half_angle: f32,   // radián: a kúp fél-nyílásszöge
+    intensity: f32,
+    color: Color,
+}
+
+// Marker: ezt a sprite-ot megvilágítja a fényrendszer.
+#[derive(Component)]
+struct Lit;
+
+#[derive(Component)] struct Firefly;     // a mozgó szentjánosbogár
+#[derive(Component)] struct Flashlight;  // a játékos zseblámpája</code></pre>
+  </div>
+
+  <p>A <code>setup</code> spawnolja a kamerát, a tile-okat (mindegyik <code>Lit</code>), és a két fényt:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — setup</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">const TILE: f32 = 16.0;
+
+fn setup(mut commands: Commands, asset_server: Res&lt;AssetServer&gt;) {
+    commands.spawn(Camera2d);
+
+    // a pálya tile-jai — a dual-grid tutorial tileset-je kerülne ide.
+    // a lényeg: minden tile egy textúrázott sprite + `Lit` marker.
+    let grass = asset_server.load("tiles/grass.png");
+    for y in -8..8 {
+        for x in -12..12 {
+            commands.spawn((
+                Sprite::from_image(grass.clone()),
+                Transform::from_xyz(x as f32 * TILE, y as f32 * TILE, 0.0),
+                Lit,
+            ));
+        }
+    }
+
+    // szentjánosbogár: kis hatótáv, meleg zöldes-sárga fény
+    commands.spawn((
+        Firefly,
+        RadialLight { radius: 95.0, intensity: 1.5, color: Color::srgb(0.85, 1.0, 0.45) },
+        Transform::default(),
+    ));
+
+    // zseblámpa: a játékosnál, szűk meleg-fehér kúp
+    commands.spawn((
+        Flashlight,
+        ConeLight {
+            range: 240.0,
+            half_angle: 0.45,                       // ~26° fél-szög
+            intensity: 1.8,
+            color: Color::srgb(1.0, 0.96, 0.82),
+        },
+        Transform::from_xyz(0.0, -60.0, 0.0),
+    ));
+}</code></pre>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">⚠ A Sprite.color SZORZÓ, nem felülírás</div>
+    A <code>Sprite::from_image</code> tile textúrája adja a terep színét; a <code>Sprite.color</code> ezt <strong>megszorozza</strong>. Ezért tudjuk a fénnyel „sötétíteni/színezni” anélkül, hogy elvesztenénk a terep rajzát. Ha tömör színű (textúra nélküli) sprite-ot használnál, a <code>color</code> beállítása elnyomná a terepet — akkor a fényt egy külön <code>BaseColor</code> komponenssel kéne szoroznod.
+  </div>
+</section>
+
+<!-- ================= III. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Implementáció</span></div>
+
+<!-- ================= 8. FEJEZET ================= -->
+<section id="ch8">
+  <div class="ch-eyebrow">8. fejezet</div>
+  <h2>A sötétedés-rendszer</h2>
+
+  <p>A <code>day_night</code> egy lassú szinuszgörbével mozgatja az ambiens szintet 0 (éjjel) és ~0.9 (dél) között, és közben a színt is váltja: hideg-kék éjjel, meleg fehér nappal.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — day_night</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn day_night(time: Res&lt;Time&gt;, mut ambient: ResMut&lt;Ambient&gt;) {
+    // lassú nappal-éjszaka görbe: 0 (éjjel) .. 1 (dél)
+    let day = (time.elapsed_secs() * 0.1).sin() * 0.5 + 0.5;
+
+    // éjjel sosem teljesen 0 — egy hajszálnyi holdfény marad
+    ambient.level = 0.04 + day * 0.85;
+
+    // meleg nappal, hideg kék éjjel — a két szín között keverünk
+    let warm = Color::srgb(1.0, 0.96, 0.84).to_linear();
+    let cool = Color::srgb(0.45, 0.55, 1.0).to_linear();
+    ambient.color = warm.mix(&amp;cool, 1.0 - day).into();
+}</code></pre>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — Time, lineáris szín-keverés</div>
+    <p>A <code>Time</code> erőforrásból az <code>elapsed_secs()</code> az indulás óta eltelt másodperc. A <code>Color::to_linear()</code> lineáris térbe visz (itt kell keverni, hogy a színátmenet helyes legyen), a <code>Mix</code> trait <code>mix(&amp;másik, t)</code> metódusa pedig <code>t</code> arányban kever a kettő között. Az <code>.into()</code> visszaalakít <code>Color</code>-rá.</p>
+  </div>
+
+  <p>Ha kézi vezérlést akarsz (pl. egy fáklya-tárgy gyújtásakor sötétedjen be a barlang), egyszerűen állítsd az <code>ambient.level</code>-t máshonnan — a <code>day_night</code>-ot ki is hagyhatod.</p>
+</section>
+
+<!-- ================= 9. FEJEZET ================= -->
+<section id="ch9">
+  <div class="ch-eyebrow">9. fejezet</div>
+  <h2>A megvilágító rendszer</h2>
+
+  <p>Ez a tutorial szíve. A <code>light_tiles</code> végigmegy minden <code>Lit</code> tile-on, és kiszámolja a ráeső összes fényt: az ambiens alapból indul, majd hozzáadja minden pontfény és minden kúpfény hozzájárulását. A végén az eredmény lesz a tile <code>color</code>-ja (a szorzó-tint).</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — light_tiles</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn light_tiles(
+    ambient: Res&lt;Ambient&gt;,
+    radials: Query&lt;(&amp;GlobalTransform, &amp;RadialLight)&gt;,
+    cones: Query&lt;(&amp;GlobalTransform, &amp;ConeLight)&gt;,
+    mut tiles: Query&lt;(&amp;GlobalTransform, &amp;mut Sprite), With&lt;Lit&gt;&gt;,
+) {
+    // az ambiens "alapfény" — ezt kapja minden tile, fénytől függetlenül
+    let amb = rgb(ambient.color) * ambient.level;
+
+    for (tile_tf, mut sprite) in &amp;mut tiles {
+        let p = tile_tf.translation().truncate();
+        let mut light = amb;
+
+        // (1) PONTFÉNYEK: lágy, négyzetes esés a távolsággal
+        for (lt, rl) in &amp;radials {
+            let d = lt.translation().truncate().distance(p);
+            let f = (1.0 - d / rl.radius).clamp(0.0, 1.0);
+            light += rgb(rl.color) * (rl.intensity * f * f);
+        }
+
+        // (2) KÚPFÉNYEK: távolság-esés × szög-esés
+        for (lt, cl) in &amp;cones {
+            let to = p - lt.translation().truncate();
+            let dist = to.length();
+            if dist &gt; cl.range { continue; }
+
+            // a zseblámpa "előre" iránya = a Transform +X tengelye
+            let forward = lt.right().truncate();
+            let angle = forward.angle_to(to).abs();      // szögeltérés a tengelytől
+            if angle &gt; cl.half_angle { continue; }       // a kúpon kívül: nincs fény
+
+            let radial = (1.0 - dist / cl.range).clamp(0.0, 1.0);
+            let angular = (1.0 - angle / cl.half_angle).clamp(0.0, 1.0);
+            light += rgb(cl.color) * (cl.intensity * radial * angular);
+        }
+
+        // a Sprite.color SZORZÓ-tint: a fényt "belerajzoljuk" a textúrába
+        let c = light.min(Vec3::ONE);
+        sprite.color = Color::linear_rgb(c.x, c.y, c.z);
+    }
+}
+
+// kis segéd: Color -&gt; lineáris RGB Vec3 (a fény-matek vektorokon megy)
+fn rgb(color: Color) -&gt; Vec3 {
+    let l = color.to_linear();
+    Vec3::new(l.red, l.green, l.blue)
+}</code></pre>
+  </div>
+
+  <p>Vedd észre, milyen tiszta a szerkezet: egy fény nem más, mint egy <strong>függvény</strong>, ami a tile pozíciójából egy fényerőt ad. A pontfény és a kúpfény csak az esésfüggvényben különbözik — a többi (összeadás, ambiens, clamp, tint) közös. Új fénytípust (pl. téglalap-fény, pulzáló fény) is így adsz hozzá: egy új query + egy új esésképlet.</p>
+
+  <div class="note">
+    <div class="n-tag">▲ Teljesítmény</div>
+    Ez a naiv változat minden tile-t összevet minden fénnyel (<code>tile × fény</code>). Kis pályán tökéletes. Nagy pályán: csak a fény <code>radius</code>/<code>range</code> körüli tile-okat frissítsd (térbeli rács / negyed-fa), vagy a <code>Changed&lt;Transform&gt;</code> szűrővel csak a mozgó fényekre számolj újra. Erről a 14. fejezetben.
+  </div>
+</section>
+
+<!-- ================= 10. FEJEZET ================= -->
+<section id="ch10">
+  <div class="ch-eyebrow">10. fejezet</div>
+  <h2>Szentjánosbogár: mozgás + villódzás</h2>
+
+  <p>A bogár két dolgot csinál: <strong>sodródik</strong> egy lágy, organikus pályán, és <strong>villódzik</strong> (apró, gyors ingadozás a fényerőben). Mindkettőt egyetlen rendszerben intézzük, mivel mindkettő a <code>Firefly</code>-t érinti.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — move_firefly</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn move_firefly(
+    time: Res&lt;Time&gt;,
+    mut q: Query&lt;(&amp;mut Transform, &amp;mut RadialLight), With&lt;Firefly&gt;&gt;,
+) {
+    let t = time.elapsed_secs();
+    for (mut tf, mut light) in &amp;mut q {
+        // lágy, organikus út: két különböző frekvenciájú szinusz (Lissajous)
+        tf.translation.x = (t * 0.7).sin() * 150.0;
+        tf.translation.y = (t * 1.1 + 1.3).sin() * 90.0;
+
+        // villódzás: két gyors szinusz összege apró ingadozást ad az erőn
+        light.intensity = 1.5 + (t * 12.0).sin() * 0.18 + (t * 27.0).sin() * 0.10;
+    }
+}</code></pre>
+  </div>
+
+  <p>A <em>Lissajous-görbe</em> (két, eltérő frekvenciájú szinusz az X és Y tengelyen) azért jó, mert nem ismétlődik egyhamar, és sosem áll meg élesen — pont úgy „bóklászik”, mint egy igazi rovar. A frekvenciák (0.7 és 1.1) és az amplitúdók (150, 90) ízlés szerint hangolhatók a pálya méretéhez.</p>
+
+  <div class="note">
+    <div class="n-tag">▲ Több bogár, raj</div>
+    Egy raj egyszerűen több <code>Firefly</code> entitás, mindegyik kicsit más fázissal/frekvenciával. Tedd a fázist egy komponensbe (<code>struct Drift { seed: f32 }</code>), és add hozzá a <code>t</code>-hez — így nem mozognak szinkronban. A <code>light_tiles</code> változatlanul kezeli mindet, mert az összeadás tetszőleges számú fényre működik.
+  </div>
+</section>
+
+<!-- ================= 11. FEJEZET ================= -->
+<section id="ch11">
+  <div class="ch-eyebrow">11. fejezet</div>
+  <h2>Zseblámpa: célzás + árnyékok</h2>
+
+  <p>A zseblámpa irányát egy <code>Transform</code>-forgatás adja: a <code>light_tiles</code> a <code>+X</code> tengelyt használja „előre” iránynak, így elég a kúpfény entitást a célpont felé forgatni. Itt az egér kurzorára célzunk — egy horror játékban tipikusan a játékos nézési iránya.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — aim_flashlight</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn aim_flashlight(
+    windows: Query&lt;&amp;Window&gt;,
+    camera: Query&lt;(&amp;Camera, &amp;GlobalTransform)&gt;,
+    mut light: Query&lt;&amp;mut Transform, With&lt;Flashlight&gt;&gt;,
+) {
+    let Ok(window) = windows.single() else { return };
+    let Some(cursor) = window.cursor_position() else { return };
+    let Ok((cam, cam_tf)) = camera.single() else { return };
+    // képernyő-koordináta -&gt; világ-koordináta (2D)
+    let Ok(target) = cam.viewport_to_world_2d(cam_tf, cursor) else { return };
+
+    for mut tf in &amp;mut light {
+        let dir = (target - tf.translation.truncate()).normalize_or_zero();
+        if dir != Vec2::ZERO {
+            // a +X tengelyt fordítjuk a kurzor felé
+            tf.rotation = Quat::from_rotation_z(dir.to_angle());
+        }
+    }
+}</code></pre>
+  </div>
+
+  <h3>Árnyékok: a falak kitakarják a fényt</h3>
+  <p>Egy igazi zseblámpa nem világít át a falon. Ehhez minden megvilágítandó tile-nál meg kell néznünk: a fénytől a tile-ig vezető <strong>egyenes belefut-e egy falba</strong>? Ha igen, a tile árnyékban van. A dual-grid tutorialból már van egy <code>walls</code> halmazod (a szirt-élek/akadályok cellái) — pont ezt használjuk:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — takarás-vizsgálat (raycast)</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use std::collections::HashSet;
+
+// Eljut-e a fény a `light` pontból a `tile` pontba, vagy fal takarja?
+fn is_lit(light: Vec2, tile: Vec2, walls: &amp;HashSet&lt;(i32, i32)&gt;) -&gt; bool {
+    let steps = (light.distance(tile) / (TILE * 0.5)).ceil() as i32;
+    // a 0. és az utolsó lépést kihagyjuk (a fény és a cél saját cellája)
+    for i in 1..steps {
+        let p = light.lerp(tile, i as f32 / steps as f32);
+        let cell = ((p.x / TILE).round() as i32, (p.y / TILE).round() as i32);
+        if walls.contains(&amp;cell) {
+            return false; // falba ütköztünk -&gt; árnyék
+        }
+    }
+    true
+}</code></pre>
+  </div>
+
+  <p>A <code>light_tiles</code>-ban a kúpfény (és igény szerint a pontfény) ágánál ezt beillesztve: ha <code>!is_lit(fény_pozíció, p, &amp;walls)</code>, akkor <code>continue</code> — a tile sötét marad. A <code>walls</code> halmazt egy erőforrásban tárolod, és csak akkor frissíted, amikor a pálya változik.</p>
+
+  <div class="note warn">
+    <div class="n-tag">⚠ A raycast a tile-tint árnyékhoz elég, de durva</div>
+    Ez a lépkedős takarás-teszt tile-felbontású, kemény szélű árnyékot ad (tökéletes pixel-art horrorhoz). Lágy, pixel-pontos árnyékokhoz (penumbra) már a light map + shadow-casting shader / crate kell — lásd a 12. fejezetet. Egy mozgó zseblámpánál figyelj a költségre: csak a kúpon belüli tile-okra futtasd a raycastot.
+  </div>
+</section>
+
+<!-- ================= 12. FEJEZET ================= -->
+<section id="ch12">
+  <div class="ch-eyebrow">12. fejezet</div>
+  <h2>Simább fény: light map &amp; crate-ek</h2>
+
+  <p>A tile-tint olcsó és retró, de a fény pereme szögletes. Ha <strong>folytonos, lágy</strong> fényt szeretnél (pixel-alatti felbontás, puha kúp-szélek), a light map a következő lépés. A koncepció (5. fejezet) ugyanaz; csak a kivitelezés más:</p>
+
+  <ul>
+    <li><strong>Külön kamera render targetre.</strong> Egy második kamera egy <code>Image</code>-be rendereli a fény-foltokat (kör- és kúp-textúrák) <em>additívan</em> egy fekete háttérre. Ez a fénytérkép.</li>
+    <li><strong>Multiply blend.</strong> A fénytérképet a jelenetre szorzod egy teljes képernyős réteggel (egyedi anyaggal / blend mode-dal), vagy egy poszt-processz lépésben.</li>
+    <li><strong>Egyedi anyag (Material2d).</strong> Egy <code>Material2d</code> + kis WGSL shader, ami a tile-textúrát megszorozza a fénytérkép adott pontjával — így a fény pixel-pontos.</li>
+  </ul>
+
+  <p>Mivel ez már render-pipeline-szintű munka, a gyakorlatban legtöbbször <strong>kész crate-et</strong> érdemes használni:</p>
+
+  <table>
+    <tr><th>Crate</th><th>Mit ad</th></tr>
+    <tr><td><code>bevy_light_2d</code></td><td>Pont- és reflektor- (spot) fények 2D-ben, lágy esés, ambiens — komponens-alapú, Bevy-barát API</td></tr>
+    <tr><td><code>bevy_magic_light_2d</code></td><td>2D fény <strong>árnyékvetéssel</strong> (occlusion), GI-szerű hatás — látványos horror/atmoszféra</td></tr>
+    <tr><td><code>bevy_incandescent</code></td><td>2D árnyékvető fények, normal-map támogatás</td></tr>
+    <tr><td><code>bevy_hanabi</code></td><td>Részecske-rendszer (GPU) — a szentjánosbogár <em>raját</em> és a szikrákat erre bízhatod</td></tr>
+  </table>
+
+  <div class="note">
+    <div class="n-tag">▲ Mikor melyik?</div>
+    Pixel-art játékhoz a <strong>tile-tint</strong> (ez a tutorial) gyakran <em>jobb</em> is: a szögletes fény illik a stílushoz, és nulla a renderelési bonyolultság. A light map / crate akkor éri meg, ha a fény a fő látványelem (atmoszferikus horror, fény-puzzle), és lágy, nagy felbontású fény kell.
+  </div>
+</section>
+
+<!-- ================= 13. FEJEZET ================= -->
+<section id="ch13">
+  <div class="ch-eyebrow">13. fejezet</div>
+  <h2>A teljes, futtatható main.rs</h2>
+
+  <p>Itt az egész egyben (Bevy 0.18). Tedd be egy <code>tiles/grass.png</code> tile-t az <code>assets/</code> mappába (vagy cseréld a dual-grid tutorial tileset-jére), és <code>cargo run</code>. A bogár magától sodródik, a zseblámpa az egeret követi.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — teljes</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+const TILE: f32 = 16.0;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .insert_resource(ClearColor(Color::BLACK))
+        .init_resource::&lt;Ambient&gt;()
+        .add_systems(Startup, setup)
+        .add_systems(Update, (day_night, move_firefly, aim_flashlight, light_tiles).chain())
+        .run();
+}
+
+// ---------- erőforrás + komponensek ----------
+#[derive(Resource)]
+struct Ambient { level: f32, color: Color }
+impl Default for Ambient {
+    fn default() -&gt; Self { Self { level: 0.06, color: Color::srgb(0.45, 0.55, 1.0) } }
+}
+
+#[derive(Component)]
+struct RadialLight { radius: f32, intensity: f32, color: Color }
+#[derive(Component)]
+struct ConeLight { range: f32, half_angle: f32, intensity: f32, color: Color }
+#[derive(Component)] struct Lit;
+#[derive(Component)] struct Firefly;
+#[derive(Component)] struct Flashlight;
+
+// ---------- setup ----------
+fn setup(mut commands: Commands, asset_server: Res&lt;AssetServer&gt;) {
+    commands.spawn(Camera2d);
+
+    let grass = asset_server.load("tiles/grass.png");
+    for y in -8..8 {
+        for x in -12..12 {
+            commands.spawn((
+                Sprite::from_image(grass.clone()),
+                Transform::from_xyz(x as f32 * TILE, y as f32 * TILE, 0.0),
+                Lit,
+            ));
+        }
+    }
+
+    commands.spawn((
+        Firefly,
+        RadialLight { radius: 95.0, intensity: 1.5, color: Color::srgb(0.85, 1.0, 0.45) },
+        Transform::default(),
+    ));
+
+    commands.spawn((
+        Flashlight,
+        ConeLight { range: 240.0, half_angle: 0.45, intensity: 1.8,
+                    color: Color::srgb(1.0, 0.96, 0.82) },
+        Transform::from_xyz(0.0, -60.0, 0.0),
+    ));
+}
+
+// ---------- sötétedés ----------
+fn day_night(time: Res&lt;Time&gt;, mut ambient: ResMut&lt;Ambient&gt;) {
+    let day = (time.elapsed_secs() * 0.1).sin() * 0.5 + 0.5;
+    ambient.level = 0.04 + day * 0.85;
+    let warm = Color::srgb(1.0, 0.96, 0.84).to_linear();
+    let cool = Color::srgb(0.45, 0.55, 1.0).to_linear();
+    ambient.color = warm.mix(&amp;cool, 1.0 - day).into();
+}
+
+// ---------- szentjánosbogár ----------
+fn move_firefly(time: Res&lt;Time&gt;, mut q: Query&lt;(&amp;mut Transform, &amp;mut RadialLight), With&lt;Firefly&gt;&gt;) {
+    let t = time.elapsed_secs();
+    for (mut tf, mut light) in &amp;mut q {
+        tf.translation.x = (t * 0.7).sin() * 150.0;
+        tf.translation.y = (t * 1.1 + 1.3).sin() * 90.0;
+        light.intensity = 1.5 + (t * 12.0).sin() * 0.18 + (t * 27.0).sin() * 0.10;
+    }
+}
+
+// ---------- zseblámpa célzása ----------
+fn aim_flashlight(
+    windows: Query&lt;&amp;Window&gt;,
+    camera: Query&lt;(&amp;Camera, &amp;GlobalTransform)&gt;,
+    mut light: Query&lt;&amp;mut Transform, With&lt;Flashlight&gt;&gt;,
+) {
+    let Ok(window) = windows.single() else { return };
+    let Some(cursor) = window.cursor_position() else { return };
+    let Ok((cam, cam_tf)) = camera.single() else { return };
+    let Ok(target) = cam.viewport_to_world_2d(cam_tf, cursor) else { return };
+    for mut tf in &amp;mut light {
+        let dir = (target - tf.translation.truncate()).normalize_or_zero();
+        if dir != Vec2::ZERO { tf.rotation = Quat::from_rotation_z(dir.to_angle()); }
+    }
+}
+
+// ---------- a megvilágító rendszer ----------
+fn light_tiles(
+    ambient: Res&lt;Ambient&gt;,
+    radials: Query&lt;(&amp;GlobalTransform, &amp;RadialLight)&gt;,
+    cones: Query&lt;(&amp;GlobalTransform, &amp;ConeLight)&gt;,
+    mut tiles: Query&lt;(&amp;GlobalTransform, &amp;mut Sprite), With&lt;Lit&gt;&gt;,
+) {
+    let amb = rgb(ambient.color) * ambient.level;
+    for (tile_tf, mut sprite) in &amp;mut tiles {
+        let p = tile_tf.translation().truncate();
+        let mut light = amb;
+
+        for (lt, rl) in &amp;radials {
+            let d = lt.translation().truncate().distance(p);
+            let f = (1.0 - d / rl.radius).clamp(0.0, 1.0);
+            light += rgb(rl.color) * (rl.intensity * f * f);
+        }
+
+        for (lt, cl) in &amp;cones {
+            let to = p - lt.translation().truncate();
+            let dist = to.length();
+            if dist &gt; cl.range { continue; }
+            let forward = lt.right().truncate();
+            let angle = forward.angle_to(to).abs();
+            if angle &gt; cl.half_angle { continue; }
+            let radial = (1.0 - dist / cl.range).clamp(0.0, 1.0);
+            let angular = (1.0 - angle / cl.half_angle).clamp(0.0, 1.0);
+            light += rgb(cl.color) * (cl.intensity * radial * angular);
+        }
+
+        let c = light.min(Vec3::ONE);
+        sprite.color = Color::linear_rgb(c.x, c.y, c.z);
+    }
+}
+
+fn rgb(color: Color) -&gt; Vec3 {
+    let l = color.to_linear();
+    Vec3::new(l.red, l.green, l.blue)
+}</code></pre>
+  </div>
+</section>
+
+<!-- ================= 14. FEJEZET ================= -->
+<section id="ch14">
+  <div class="ch-eyebrow">14. fejezet</div>
+  <h2>Merre tovább?</h2>
+
+  <p>A szorzó-modellből rengeteg effekt épül. Pár irány, ha tovább mennél:</p>
+  <ul>
+    <li><strong>Árnyékok mindenhová.</strong> A 11. fejezet raycastját kösd be a pontfényekbe is — egy fáklya mögött is maradjon sötét folt. Optimalizáld: csak a fény hatótávján belüli tile-okra.</li>
+    <li><strong>Lágy fény.</strong> Válts light map-re (12. fejezet) vagy a <code>bevy_light_2d</code> / <code>bevy_magic_light_2d</code> crate-re, ha a szögletes perem zavar.</li>
+    <li><strong>Színes hangulat.</strong> A fény színe storytelling: vörös vészfény, zöld méreg-köd, hideg-kék hold. Mindössze a fény <code>color</code>-ját állítod.</li>
+    <li><strong>Pulzálás, animáció.</strong> A fáklya „lobogjon” (zaj az erőn), a vészfény „villogjon” (szögletes szinusz). Mind egy-egy sor a fény-rendszerben.</li>
+    <li><strong>Teljesítmény nagy pályán.</strong> Térbeli rács / negyed-fa a fény körüli tile-ok gyors megtalálására; <code>Changed</code>-szűrők; vagy ugorj light map-re, ahol a fény száma alig számít.</li>
+    <li><strong>Normal map (2.5D).</strong> Ha a sprite-jaidhoz normál-textúrát is rajzolsz, a fény iránya szerint „domborodhatnak” — ez már a <code>bevy_incandescent</code>-féle irány.</li>
+  </ul>
+
+  <div class="bevy-box">
+    <div class="tag">⚙ Az igazi tanulság</div>
+    <p>A 2D fény nem fizika, hanem <strong>egyetlen szorzás</strong>, amit ügyesen töltünk fel értékkel. A sötétedés egy globális szorzó; egy fényforrás egy <em>esésfüggvény</em>, ami a sötétből visszaad. A kör és a kúp csak az esésfüggvényben különbözik. Ha ezt érted, bármilyen fényhatást meg tudsz csinálni — a szentjánosbogártól a horror-zseblámpáig. Jó kódolást! ▸▸</p>
+  </div>
+</section>
+
+<footer>
+  <p class="pix">FÉNY &amp; SÖTÉTSÉG — 2D világítás Bevy 0.18-ban</p>
+  <p>Folytatás-tutorial a <em>dual-grid PRO</em> tilemaphez. A demók procedurálisan, valós időben rajzolódnak (HTML canvas); a fényt minden demó cellánként számolja — pontosan azzal a szorzó-modellel, amit a Rust kód is használ. A kódrészletek a 0.18-as API-ra épülnek: <code>Sprite.color</code> tint, <code>GlobalTransform</code>, <code>viewport_to_world_2d</code>, <code>Color::to_linear/mix</code>.</p>
+</footer>
+
+</div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+var TAU = Math.PI*2;
+
+/* =====================================================================
+   1) TILE-MOTOR  (a dual-grid tutorialból átvéve)
+   ===================================================================== */
+var T = 16, R = 8;
+var CORNERS = [[0,0],[T,0],[0,T],[T,T]]; // TL,TR,BL,BR = bit 3,2,1,0
+
+function bits(mask){ return [(mask>>3)&1,(mask>>2)&1,(mask>>1)&1,mask&1]; }
+function d2(x,y,c){ var dx=x-c[0], dy=y-c[1]; return dx*dx+dy*dy; }
+function inside(mask,x,y){
+  var b=bits(mask), n=b[0]+b[1]+b[2]+b[3];
+  if(n===0) return false;
+  if(n===4) return true;
+  var i, R2=R*R;
+  if(n===1){ for(i=0;i<4;i++) if(b[i]) return d2(x,y,CORNERS[i])<R2; }
+  if(n===3){ for(i=0;i<4;i++) if(!b[i]) return d2(x,y,CORNERS[i])>R2; }
+  if(b[0]&&b[1]) return y<R;
+  if(b[2]&&b[3]) return y>R;
+  if(b[0]&&b[2]) return x<R;
+  if(b[1]&&b[3]) return x>R;
+  for(i=0;i<4;i++) if(b[i]&&d2(x,y,CORNERS[i])<R2) return true;
+  return false;
+}
+function hash(x,y){
+  var h=(x*374761393 + y*668265263)|0;
+  h=(h^(h>>13))*1274126177|0;
+  return ((h^(h>>16))>>>0)%100;
+}
+
+var TERRAINS = ["water","lava","dirt","grass","stone","concrete"];
+var TERRAIN_COUNT = TERRAINS.length;
+var DEFAULT_TERR = 2; // föld
+var PAL = {
+  water:    {main:[87,182,207], lt:[127,210,227], dk:[63,155,184], sp:[150,222,236], rim:[47,126,152]},
+  lava:     {main:[224,83,31],  lt:[255,157,76],  dk:[181,56,15],  sp:[255,206,120], rim:[122,34,7]},
+  dirt:     {main:[176,124,76], lt:[192,138,88],  dk:[154,106,64], sp:[138,92,54],   rim:[122,79,46]},
+  grass:    {main:[111,191,72], lt:[142,219,99],  dk:[78,143,51],  sp:[99,176,63],   rim:[63,122,46]},
+  stone:    {main:[138,144,154],lt:[170,176,186], dk:[107,112,121],sp:[120,126,136], rim:[86,91,99]},
+  concrete: {main:[189,189,182],lt:[214,214,207], dk:[154,154,147],sp:[172,172,165], rim:[126,126,120]}
+};
+function clamp(v){ return v<0?0:v>255?255:v|0; }
+function r2h(c){ return "#"+((1<<24)+(clamp(c[0])<<16)+(clamp(c[1])<<8)+clamp(c[2])).toString(16).slice(1); }
+function pickShade(pal, v, rim){
+  if(rim) return pal.rim;
+  if(v<8)  return pal.lt;
+  if(v<15) return pal.dk;
+  if(v>90) return pal.sp;
+  return pal.main;
+}
+function drawTerrainTile(ctx, terr, mask, ox, oy){
+  var pal = PAL[TERRAINS[terr]];
+  var seed = terr*9173;
+  for(var py=0;py<T;py++)for(var px=0;px<T;px++){
+    var cx=px+0.5, cy=py+0.5;
+    if(!inside(mask,cx,cy)) continue;
+    var v=hash(ox+px+seed, oy+py);
+    var rim = !inside(mask,cx+1,cy)||!inside(mask,cx-1,cy)||
+              !inside(mask,cx,cy+1)||!inside(mask,cx,cy-1);
+    ctx.fillStyle = r2h(pickShade(pal, v, rim));
+    ctx.fillRect(ox+px, oy+py, 1, 1);
+  }
+}
+var atlasCache=null;
+function getAtlasSet(){
+  if(!atlasCache){
+    atlasCache=[];
+    for(var t=0;t<TERRAIN_COUNT;t++){
+      var cv=document.createElement("canvas"); cv.width=64; cv.height=64;
+      var c=cv.getContext("2d");
+      for(var m=0;m<16;m++) drawTerrainTile(c,t,m,(m%4)*T,((m/4)|0)*T);
+      atlasCache.push(cv);
+    }
+  }
+  return atlasCache;
+}
+function getTerr(world, x, y){
+  if(x<0||y<0||x>=world.W||y>=world.H) return DEFAULT_TERR;
+  return world.cells[y*world.W+x];
+}
+function layerMask(world, layer, dx, dy){
+  var tl=(getTerr(world,dx-1,dy-1)>=layer)?1:0;
+  var tr=(getTerr(world,dx,dy-1)>=layer)?1:0;
+  var bl=(getTerr(world,dx-1,dy)>=layer)?1:0;
+  var br=(getTerr(world,dx,dy)>=layer)?1:0;
+  return (tl<<3)|(tr<<2)|(bl<<1)|br;
+}
+function renderWorld(ctx, world, atlasSet){
+  var cv=ctx.canvas;
+  ctx.imageSmoothingEnabled=false;
+  ctx.fillStyle="#0b110c"; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.save(); ctx.translate(8,8);
+  for(var layer=0; layer<TERRAIN_COUNT; layer++){
+    var atlas=atlasSet[layer];
+    for(var dy=0; dy<=world.H; dy++) for(var dx=0; dx<=world.W; dx++){
+      var m=layerMask(world,layer,dx,dy);
+      if(m===0) continue;
+      ctx.drawImage(atlas,(m%4)*T,((m/4)|0)*T,T,T, dx*T-8, dy*T-8, T,T);
+    }
+  }
+  ctx.restore();
+}
+function makeWorld(W,H){ return { W:W, H:H, cells:new Uint8Array(W*H).fill(DEFAULT_TERR) }; }
+function setT(w,x,y,t){ if(x>=0&&y>=0&&x<w.W&&y<w.H) w.cells[y*w.W+x]=t; }
+
+// éjszakai mező: fű sziget, kis tó, kő-foltok
+function lightWorld(W,H){
+  var w=makeWorld(W,H);
+  var cxw=W*0.5, cyw=H*0.52;
+  for(var y=0;y<H;y++)for(var x=0;x<W;x++){
+    var ex=(x-cxw)/(W*0.46), ey=(y-cyw)/(H*0.46);
+    if(ex*ex+ey*ey<1) setT(w,x,y,3); // fű
+  }
+  for(var wy=2;wy<5;wy++)for(var wx=2;wx<6;wx++) setT(w,wx,wy,0);          // tó
+  for(var sx=W-6;sx<W-2;sx++){ setT(w,sx,3,4); setT(w,sx,4,4); }          // kő
+  for(var cx2=Math.floor(W*0.42);cx2<Math.floor(W*0.42)+5;cx2++) setT(w,cx2,H-3,5); // beton ösvény
+  return w;
+}
+
+/* =====================================================================
+   2) VILÁGÍTÁS-MOTOR
+   ---------------------------------------------------------------------
+   A fényt CELLÁNKÉNT számoljuk (ez a Rust-modell), majd a kirajzolásnál
+   döntjük el: élsimítva nyújtjuk (sima) vagy élesen (pixeles).
+   ===================================================================== */
+function angDiff(a,b){ var d=a-b; while(d>Math.PI)d-=TAU; while(d<-Math.PI)d+=TAU; return d; }
+function smooth01(t){ return t*t*(3-2*t); }
+
+// belefut-e a fénytől a (sx,sy) pontig vezető egyenes egy fal-téglalapba?
+function occluded(lx,ly,sx,sy,walls){
+  var dx=sx-lx, dy=sy-ly, dist=Math.sqrt(dx*dx+dy*dy);
+  var steps=Math.ceil(dist/(T*0.6));
+  for(var i=1;i<steps;i++){
+    var t=i/steps, px=lx+dx*t, py=ly+dy*t;
+    for(var w=0;w<walls.length;w++){
+      var r=walls[w];
+      if(px>=r.x&&px<r.x+r.w&&py>=r.y&&py<r.y+r.h) return true;
+    }
+  }
+  return false;
+}
+
+var _lb=null,_lbw=0,_lbh=0;
+function renderLit(dctx, baseC, lights, ambient, walls, smooth){
+  var cw=baseC.width, ch=baseC.height;
+  // 1) az alap (megvilágítatlan) jelenet
+  dctx.globalCompositeOperation="source-over";
+  dctx.imageSmoothingEnabled=false;
+  dctx.drawImage(baseC,0,0);
+
+  // 2) fénytérkép cellánként (T méretű blokkok, 1 blokknyi margóval körben)
+  var LW=Math.ceil(cw/T)+2, LH=Math.ceil(ch/T)+2;
+  if(!_lb||_lbw!==LW||_lbh!==LH){ _lb=document.createElement("canvas"); _lb.width=LW; _lb.height=LH; _lbw=LW; _lbh=LH; }
+  var lc=_lb.getContext("2d");
+  var amb=ambient.rgb, al=ambient.level;
+  for(var by=0;by<LH;by++)for(var bx=0;bx<LW;bx++){
+    var scx=(bx-0.5)*T, scy=(by-0.5)*T;   // a blokk középpontja képernyő-px-ben
+    var r=amb[0]*al, g=amb[1]*al, b=amb[2]*al;
+    for(var i=0;i<lights.length;i++){
+      var L=lights[i], ldx=scx-L.x, ldy=scy-L.y, d=Math.sqrt(ldx*ldx+ldy*ldy), f=0;
+      if(L.kind==="radial"){
+        f=1-d/L.radius; if(f<0)f=0; f*=f;
+      }else{ // cone
+        if(d<=L.range){
+          var ang=Math.abs(angDiff(Math.atan2(ldy,ldx), L.angle));
+          if(ang<=L.half){
+            var rf=1-d/L.range; if(rf<0)rf=0;
+            var af=1-ang/L.half; if(af<0)af=0;
+            f=rf*smooth01(af);
+          }
+        }
+      }
+      if(f>0 && walls && walls.length && occluded(L.x,L.y,scx,scy,walls)) f=0;
+      if(f>0){ r+=L.color[0]*L.intensity*f; g+=L.color[1]*L.intensity*f; b+=L.color[2]*L.intensity*f; }
+    }
+    if(r>1)r=1; if(g>1)g=1; if(b>1)b=1;
+    lc.fillStyle=r2h([r*255,g*255,b*255]); lc.fillRect(bx,by,1,1);
+  }
+
+  // 3) a fénytérképet RÁSZOROZZUK a jelenetre (multiply)
+  dctx.imageSmoothingEnabled=!!smooth;
+  dctx.globalCompositeOperation="multiply";
+  dctx.drawImage(_lb, 0,0,LW,LH, -T,-T, LW*T, LH*T);
+
+  // 4) maguk a fény-források apró ragyogása (additív) a tetejére
+  dctx.globalCompositeOperation="lighter";
+  dctx.imageSmoothingEnabled=true;
+  for(var k=0;k<lights.length;k++){
+    var Lk=lights[k];
+    if(Lk.kind!=="radial"||!Lk.glow) continue;
+    var gr=dctx.createRadialGradient(Lk.x,Lk.y,0,Lk.x,Lk.y,9);
+    var col="rgba("+(Lk.color[0]*255|0)+","+(Lk.color[1]*255|0)+","+(Lk.color[2]*255|0)+",";
+    gr.addColorStop(0,col+"0.95)"); gr.addColorStop(1,col+"0)");
+    dctx.fillStyle=gr; dctx.beginPath(); dctx.arc(Lk.x,Lk.y,9,0,TAU); dctx.fill();
+  }
+  dctx.globalCompositeOperation="source-over";
+  dctx.imageSmoothingEnabled=false;
+}
+
+function baseCanvas(world){
+  var c=document.createElement("canvas");
+  c.width = (world.W+1)*T;  c.height=(world.H+1)*T;
+  renderWorld(c.getContext("2d"), world, getAtlasSet());
+  return c;
+}
+
+var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* =====================================================================
+   3) HERO — szentjánosbogár-loop
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("lightHero"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var world=lightWorld(Math.ceil(cv.width/T)-1, Math.ceil(cv.height/T)-1);
+  var base=baseCanvas(world);
+  var amb={rgb:[0.42,0.5,0.95], level:0.07};
+  var light={kind:"radial", x:cv.width*0.5, y:cv.height*0.5, radius:78, intensity:1.6, color:[0.85,1.0,0.45], glow:true};
+  function frame(t){
+    light.x = cv.width*0.5 + Math.sin(t*0.7)*cv.width*0.34;
+    light.y = cv.height*0.5 + Math.sin(t*1.1+1.3)*cv.height*0.30;
+    light.intensity = 1.55 + Math.sin(t*12)*0.18 + Math.sin(t*27)*0.10;
+    renderLit(ctx, base, [light], amb, null, true);
+  }
+  if(reduceMotion){ frame(1.2); return; }
+  var t0=null;
+  function loop(now){ if(t0===null)t0=now; frame((now-t0)/1000); requestAnimationFrame(loop); }
+  requestAnimationFrame(loop);
+})();
+
+/* =====================================================================
+   4) SÖTÉTEDÉS demó
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("darkCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var world=lightWorld(25,17);
+  var base=baseCanvas(world);
+  var range=document.getElementById("ambRange"), val=document.getElementById("ambVal");
+  var autoBtn=document.getElementById("ambAuto"), phase=document.getElementById("ambPhase");
+  var auto=false, level=1.0;
+
+  var WARM=[1.0,0.96,0.84], COOL=[0.45,0.55,1.0];
+  function colorFor(lv){ // sötétebb -> kékebb
+    var t=1-lv; // 0 nappal, 1 éjjel
+    return [WARM[0]+(COOL[0]-WARM[0])*t, WARM[1]+(COOL[1]-WARM[1])*t, WARM[2]+(COOL[2]-WARM[2])*t];
+  }
+  function phaseName(lv){
+    if(lv>0.78) return "dél"; if(lv>0.5) return "délután";
+    if(lv>0.28) return "alkonyat"; if(lv>0.1) return "szürkület"; return "éjszaka";
+  }
+  function draw(){
+    var amb={rgb:colorFor(level), level:0.02+level*0.98};
+    renderLit(ctx, base, [], amb, null, true);
+    val.textContent=(0.02+level*0.98).toFixed(2);
+    phase.innerHTML='Napszak: <b style="color:var(--grass-hi)">'+phaseName(level)+'</b>';
+  }
+  range.addEventListener("input", function(){ auto=false; autoBtn.classList.remove("active"); level=+range.value/100; draw(); });
+  autoBtn.addEventListener("click", function(){ auto=!auto; autoBtn.classList.toggle("active",auto); });
+
+  var t0=null;
+  function loop(now){
+    if(auto){ if(t0===null)t0=now; var t=(now-t0)/1000;
+      level=Math.sin(t*0.25)*0.5+0.5; range.value=level*100; draw(); }
+    requestAnimationFrame(loop);
+  }
+  draw();
+  if(!reduceMotion) requestAnimationFrame(loop);
+})();
+
+/* =====================================================================
+   5) SZENTJÁNOSBOGÁR demó
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("fireflyCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var world=lightWorld(25,17);
+  var base=baseCanvas(world);
+  var rRad=document.getElementById("ffRadius"), vRad=document.getElementById("ffRadiusV");
+  var rInt=document.getElementById("ffInt"), vInt=document.getElementById("ffIntV");
+  var bDark=document.getElementById("ffDark"), bSmooth=document.getElementById("ffSmooth");
+  var dark=true, pixel=false, follow=false, mx=cv.width*0.5, my=cv.height*0.5;
+  var light={kind:"radial", x:mx, y:my, radius:95, intensity:1.5, color:[0.85,1.0,0.45], glow:true};
+
+  function amb(){ return dark ? {rgb:[0.4,0.5,1.0], level:0.015} : {rgb:[0.5,0.58,1.0], level:0.2}; }
+  function draw(t){
+    if(follow){ light.x=mx; light.y=my; }
+    else { light.x=cv.width*0.5+Math.sin(t*0.7)*cv.width*0.34;
+           light.y=cv.height*0.5+Math.sin(t*1.1+1.3)*cv.height*0.30; }
+    light.radius=+rRad.value;
+    light.intensity=(+rInt.value/100) + Math.sin(t*12)*0.16 + Math.sin(t*27)*0.09;
+    renderLit(ctx, base, [light], amb(), null, !pixel);
+    vRad.textContent=rRad.value; vInt.textContent=(+rInt.value/100).toFixed(2);
+  }
+  rRad.addEventListener("input", function(){ if(reduceMotion) draw(0); });
+  rInt.addEventListener("input", function(){ if(reduceMotion) draw(0); });
+  bDark.addEventListener("click", function(){ dark=!dark; bDark.classList.toggle("active",dark); bDark.textContent=dark?"⬛ teljes sötét":"◧ halvány éj"; if(reduceMotion) draw(0); });
+  bSmooth.addEventListener("click", function(){ pixel=!pixel; bSmooth.classList.toggle("active",pixel); bSmooth.textContent=pixel?"▦ pixeles":"◠ sima"; if(reduceMotion) draw(0); });
+  function setMouse(e){ var r=cv.getBoundingClientRect(); mx=(e.clientX-r.left)*(cv.width/r.width); my=(e.clientY-r.top)*(cv.height/r.height); follow=true; }
+  cv.addEventListener("pointermove", setMouse);
+  cv.addEventListener("pointerleave", function(){ follow=false; });
+
+  var t0=null;
+  function loop(now){ if(t0===null)t0=now; draw((now-t0)/1000); requestAnimationFrame(loop); }
+  if(reduceMotion){ draw(0.5); } else { requestAnimationFrame(loop); }
+})();
+
+/* =====================================================================
+   6) ZSEBLÁMPA demó (kúp + árnyékok + 2 bogár)
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("flashCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var world=lightWorld(25,17);
+  var base=baseCanvas(world);
+
+  // sziklák (occluderek): rajzoljuk őket a base tetejére + fal-téglalapok
+  var pillars=[ {x:150,y:70,w:34,h:34}, {x:255,y:150,w:40,h:30},
+                {x:95,y:185,w:30,h:40}, {x:300,y:60,w:28,h:46} ];
+  (function(){
+    var b=base.getContext("2d");
+    for(var i=0;i<pillars.length;i++){ var p=pillars[i];
+      b.fillStyle="#3a3f46"; b.fillRect(p.x,p.y,p.w,p.h);
+      b.fillStyle="#52596180"; b.fillRect(p.x,p.y,p.w,3);
+      b.fillStyle="#23262b"; b.fillRect(p.x,p.y+p.h-4,p.w,4);
+    }
+  })();
+
+  var rAng=document.getElementById("flAngle"), vAng=document.getElementById("flAngleV");
+  var rRng=document.getElementById("flRange"), vRng=document.getElementById("flRangeV");
+  var bOcc=document.getElementById("flOcc"), bSmooth=document.getElementById("flSmooth");
+  var occ=true, pixel=false;
+  var player={x:cv.width*0.5, y:cv.height-26};
+  var mx=cv.width*0.5, my=40;
+
+  var cone={kind:"cone", x:player.x, y:player.y, range:240, half:0.45, angle:-Math.PI/2,
+            intensity:1.9, color:[1.0,0.96,0.82]};
+  var bugs=[
+    {kind:"radial", x:120, y:120, radius:60, intensity:1.2, color:[0.85,1.0,0.45], glow:true},
+    {kind:"radial", x:300, y:200, radius:55, intensity:1.1, color:[0.7,1.0,0.6], glow:true}
+  ];
+  var amb={rgb:[0.32,0.4,0.85], level:0.02};
+
+  function draw(t){
+    cone.angle=Math.atan2(my-player.y, mx-player.x);
+    cone.half=(+rAng.value)*Math.PI/180;
+    cone.range=+rRng.value;
+    bugs[0].x=160+Math.sin(t*0.8)*90; bugs[0].y=120+Math.sin(t*1.3)*60;
+    bugs[1].x=290+Math.sin(t*0.6+2)*70; bugs[1].y=190+Math.sin(t*1.1+1)*55;
+    var lights=[cone, bugs[0], bugs[1]];
+    renderLit(ctx, base, lights, amb, occ?pillars:null, !pixel);
+    // a játékos pici jele
+    ctx.fillStyle="#0c0f0c"; ctx.fillRect(player.x-3,player.y-3,6,7);
+    ctx.fillStyle="#cdd6c0"; ctx.fillRect(player.x-3,player.y-3,6,2);
+    vAng.textContent=rAng.value+"°"; vRng.textContent=rRng.value;
+  }
+  function setMouse(e){ var r=cv.getBoundingClientRect(); mx=(e.clientX-r.left)*(cv.width/r.width); my=(e.clientY-r.top)*(cv.height/r.height); }
+  cv.addEventListener("pointermove", setMouse);
+  rAng.addEventListener("input", function(){ if(reduceMotion) draw(0); });
+  rRng.addEventListener("input", function(){ if(reduceMotion) draw(0); });
+  bOcc.addEventListener("click", function(){ occ=!occ; bOcc.classList.toggle("active",occ); bOcc.textContent=occ?"▦ árnyékok":"◯ árnyék nélkül"; if(reduceMotion) draw(0); });
+  bSmooth.addEventListener("click", function(){ pixel=!pixel; bSmooth.classList.toggle("active",pixel); bSmooth.textContent=pixel?"▦ pixeles":"◠ sima"; if(reduceMotion) draw(0); });
+
+  var t0=null;
+  function loop(now){ if(t0===null)t0=now; draw((now-t0)/1000); requestAnimationFrame(loop); }
+  if(reduceMotion){ draw(0.5); } else { requestAnimationFrame(loop); }
+})();
+
+/* =====================================================================
+   7) Rust szintaxis-kiemelő
+   ===================================================================== */
+var KW=/\b(?:fn|let|mut|use|struct|enum|impl|const|pub|return|if|else|for|in|while|loop|match|as|mod|crate|self|Self|true|false|move|ref|static|dyn|where|name|version|edition)\b/;
+var TOKEN=new RegExp(
+  "(\\/\\/[^\\n]*)"+
+  "|(#!?\\[[^\\]]*\\])"+
+  "|(\"(?:[^\"\\\\]|\\\\.)*\")"+
+  "|([A-Za-z_][A-Za-z0-9_]*!)"+
+  "|("+KW.source.slice(2,-2)+")"+
+  "|(\\b[A-Z][A-Za-z0-9_]*\\b)"+
+  "|(\\b\\d[\\d_]*(?:\\.\\d+)?\\b)","g");
+var CLS=[null,"c","m","s","m","k","t","n"];
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+document.querySelectorAll("pre code").forEach(function(code){
+  var src=code.textContent, out="", last=0, m;
+  TOKEN.lastIndex=0;
+  while((m=TOKEN.exec(src))){
+    out+=esc(src.slice(last,m.index));
+    for(var gi=1;gi<=7;gi++) if(m[gi]!==undefined){
+      out+='<span class="'+CLS[gi]+'">'+esc(m[gi])+"</span>"; break;
+    }
+    last=m.index+m[0].length;
+  }
+  out+=esc(src.slice(last));
+  code.innerHTML=out;
+});
+
+/* =====================================================================
+   8) Másolás gombok
+   ===================================================================== */
+document.querySelectorAll(".copy-btn").forEach(function(btn){
+  btn.addEventListener("click", function(){
+    var code=btn.closest(".code").querySelector("pre");
+    var txt=code.textContent;
+    function done(){ btn.textContent="✓ másolva"; setTimeout(function(){btn.textContent="másolás";},1500); }
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(done);
+    }else{
+      var ta=document.createElement("textarea");
+      ta.value=txt; document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); ta.remove(); done();
+    }
+  });
+});
+
+/* =====================================================================
+   9) Scrollspy + mobil menü
+   ===================================================================== */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){
+  var pos=window.scrollY+140, active=0;
+  for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i;
+  links.forEach(function(a,i){a.classList.toggle("active",i===active);});
+}
+window.addEventListener("scroll",spy,{passive:true});
+spy();
+
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel art parallax intro top-down játékhoz — Bevy 0.18 tutorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#15142b;
+  --bg-2:#1c1a38;
+  --surface:#23214a;
+  --surface-2:#2c2a59;
+  --line:#39366b;
+  --line-soft:#2c2a55;
+  --ink:#ECEAFB;
+  --ink-dim:#B4AFDC;
+  --ink-faint:#7a75ad;
+  --coral:#FF6F5E;
+  --coral-soft:#ff8a7a;
+  --gold:#FFC861;
+  --teal:#46D6B4;
+  --violet:#A98BFF;
+
+  /* code tokens */
+  --c-com:#6f6aa0;
+  --c-str:#FFC861;
+  --c-kw:#FF6F5E;
+  --c-type:#46D6B4;
+  --c-macro:#C79BFF;
+  --c-fn:#84B7FF;
+  --c-num:#C79BFF;
+  --c-attr:#86829c;
+  --c-life:#46D6B4;
+
+  --maxw:840px;
+  --sb:288px;
+  --radius:14px;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --pix:"Press Start 2P",var(--mono);
+  --disp:"Space Grotesk","Segoe UI",system-ui,sans-serif;
+  --body:"Inter","Segoe UI",system-ui,sans-serif;
+}
+
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  background:
+    radial-gradient(1200px 700px at 80% -10%, #221f44 0%, rgba(34,31,68,0) 60%),
+    radial-gradient(900px 600px at -10% 10%, #1d1b3c 0%, rgba(29,27,60,0) 55%),
+    var(--bg);
+  color:var(--ink-dim);
+  font-family:var(--body);
+  font-size:16.5px;
+  line-height:1.72;
+  -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:"";
+  position:fixed; inset:0;
+  pointer-events:none; z-index:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size:24px 24px;
+  mask-image:radial-gradient(80% 60% at 50% 0%, #000 0%, transparent 75%);
+}
+
+a{color:var(--violet);text-decoration:none;}
+a:hover{text-decoration:underline;text-underline-offset:3px;}
+
+/* ---------- topbar ---------- */
+.topbar{
+  position:sticky; top:0; z-index:40;
+  display:flex; align-items:center; gap:14px;
+  padding:13px 20px;
+  background:rgba(21,20,43,.82);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line-soft);
+}
+.brand{display:flex;align-items:center;gap:11px;}
+.brand .glyph{
+  width:26px;height:26px;display:grid;place-items:center;
+  background:var(--coral); color:#1a1226;
+  box-shadow:3px 3px 0 #b53f33;
+  image-rendering:pixelated;
+}
+.brand .glyph svg{display:block}
+.brand b{font-family:var(--pix);font-size:11px;color:var(--ink);letter-spacing:.5px;}
+.brand span{color:var(--coral);}
+.topbar .ver{
+  margin-left:auto; font-family:var(--mono); font-size:12px;
+  color:var(--ink-faint); border:1px solid var(--line);
+  padding:4px 9px; border-radius:999px; white-space:nowrap;
+}
+.menu-btn{
+  display:none; background:var(--surface); border:1px solid var(--line);
+  color:var(--ink); border-radius:9px; padding:7px 10px; cursor:pointer;
+  font-family:var(--mono); font-size:13px;
+}
+
+/* ---------- layout ---------- */
+.layout{display:flex; align-items:flex-start; position:relative; z-index:1;}
+.sidebar{
+  width:var(--sb); flex:none;
+  position:sticky; top:53px;
+  height:calc(100vh - 53px);
+  overflow-y:auto;
+  padding:26px 18px 60px 24px;
+  border-right:1px solid var(--line-soft);
+}
+.sidebar::-webkit-scrollbar{width:9px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px;}
+.sidebar .intro{
+  font-family:var(--mono); font-size:11px; color:var(--ink-faint);
+  letter-spacing:1.5px; text-transform:uppercase; margin:0 0 18px 4px;
+}
+.nav-part{margin-bottom:20px;}
+.nav-part > .part-label{
+  display:flex; align-items:center; gap:8px;
+  font-family:var(--pix); font-size:9px; line-height:1.6;
+  color:var(--gold); letter-spacing:.5px; margin:0 0 9px 0;
+}
+.nav-part > .part-label .pid{color:var(--coral);}
+.nav-list{list-style:none; margin:0; padding:0;}
+.nav-list a{
+  display:block; color:var(--ink-faint); font-size:13.5px;
+  padding:5px 10px 5px 14px; border-left:2px solid transparent;
+  border-radius:0 7px 7px 0; transition:.13s; line-height:1.45;
+}
+.nav-list a:hover{color:var(--ink-dim); background:rgba(255,255,255,.03); text-decoration:none;}
+.nav-list a.active{
+  color:var(--coral); border-left-color:var(--coral);
+  background:linear-gradient(90deg, rgba(255,111,94,.12), transparent);
+  font-weight:500;
+}
+.nav-list a.active::after{
+  content:"▮"; margin-left:6px; color:var(--coral);
+  animation:blink 1.05s steps(1) infinite;
+}
+@keyframes blink{50%{opacity:0}}
+
+/* ---------- main ---------- */
+main{
+  flex:1 1 auto; min-width:0;
+  padding:0 clamp(20px,5vw,64px) 120px;
+}
+.wrap{max-width:var(--maxw); margin:0 auto;}
+
+/* hero */
+.hero{padding:54px 0 30px;}
+.eyebrow{
+  font-family:var(--pix); font-size:10px; color:var(--coral);
+  letter-spacing:1px; margin:0 0 20px;
+}
+.hero h1{
+  font-family:var(--disp); font-weight:700;
+  font-size:clamp(34px,5.4vw,56px); line-height:1.04;
+  color:var(--ink); margin:0 0 18px; letter-spacing:-.02em;
+}
+.hero h1 em{font-style:normal; color:var(--coral);}
+.hero .lead{font-size:18.5px; max-width:640px; color:var(--ink-dim);}
+.hero-stage{
+  margin:32px 0 8px; padding:18px;
+  background:linear-gradient(180deg,#1b1939,#191734);
+  border:1px solid var(--line); border-radius:var(--radius);
+  display:flex; align-items:center; gap:22px; flex-wrap:wrap;
+  box-shadow:0 24px 60px -30px rgba(0,0,0,.8);
+}
+.hero-stage canvas{
+  image-rendering:pixelated; border-radius:8px;
+  background:#0f1226; box-shadow:0 0 0 1px var(--line) inset;
+}
+.hero-stage .cap{font-family:var(--mono); font-size:12.5px; color:var(--ink-faint); max-width:300px;}
+.hero-stage .cap b{color:var(--teal);font-weight:500;}
+
+/* sections */
+.part-head{
+  margin:78px 0 8px; padding-top:18px;
+  display:flex; align-items:baseline; gap:14px;
+  border-top:1px solid var(--line-soft);
+}
+.part-head .num{font-family:var(--pix); font-size:13px; color:var(--coral);}
+.part-head h2{
+  font-family:var(--disp); font-weight:700; font-size:13px;
+  letter-spacing:3px; text-transform:uppercase; color:var(--gold); margin:0;
+}
+.chapter{padding-top:30px; scroll-margin-top:72px;}
+.chapter h3{
+  font-family:var(--disp); font-weight:600;
+  font-size:clamp(23px,3.2vw,30px); color:var(--ink);
+  margin:0 0 6px; letter-spacing:-.01em;
+}
+.chapter h4{
+  font-family:var(--disp); font-weight:600; font-size:18px;
+  color:var(--teal); margin:30px 0 4px;
+}
+.chapter p{margin:14px 0;}
+.chapter ul,.chapter ol{margin:14px 0; padding-left:22px;}
+.chapter li{margin:7px 0;}
+.chapter li::marker{color:var(--coral);}
+strong{color:var(--ink); font-weight:600;}
+hr.soft{border:none;border-top:1px solid var(--line-soft);margin:26px 0;}
+
+/* inline code */
+code.k{
+  font-family:var(--mono); font-size:.86em;
+  background:var(--surface); color:var(--teal);
+  padding:1px 6px; border-radius:6px; border:1px solid var(--line-soft);
+}
+
+/* code blocks */
+pre.code{
+  margin:18px 0; padding:0;
+  background:#13122a; border:1px solid var(--line);
+  border-radius:12px; overflow:hidden;
+  box-shadow:0 16px 40px -28px rgba(0,0,0,.9);
+}
+pre.code .bar{
+  display:flex; align-items:center; gap:7px;
+  padding:9px 14px; border-bottom:1px solid var(--line-soft);
+  background:rgba(255,255,255,.02);
+}
+pre.code .bar i{width:10px;height:10px;border-radius:50%;display:inline-block;}
+pre.code .bar .fn{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);margin-left:6px;}
+pre.code code{
+  display:block; padding:16px 18px; overflow-x:auto;
+  font-family:var(--mono); font-size:13.3px; line-height:1.62;
+  color:#cfcbe8; white-space:pre;
+}
+pre.code code::-webkit-scrollbar{height:9px;}
+pre.code code::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px;}
+.c-com{color:var(--c-com);font-style:italic;}
+.c-str{color:var(--c-str);}
+.c-kw{color:var(--c-kw);}
+.c-type{color:var(--c-type);}
+.c-macro{color:var(--c-macro);}
+.c-fn{color:var(--c-fn);}
+.c-num{color:var(--c-num);}
+.c-attr{color:var(--c-attr);}
+.c-life{color:var(--c-life);}
+
+/* callouts */
+.note{
+  margin:20px 0; padding:15px 17px 15px 18px;
+  border-radius:11px; border:1px solid var(--line);
+  background:var(--bg-2); position:relative;
+}
+.note .tag{
+  font-family:var(--pix); font-size:8px; letter-spacing:.5px;
+  display:inline-block; margin-bottom:9px; padding:4px 7px; border-radius:6px;
+}
+.note p{margin:6px 0;}
+.note.bevy{border-left:3px solid var(--teal);}
+.note.bevy .tag{color:#0f2b25;background:var(--teal);}
+.note.tip{border-left:3px solid var(--gold);}
+.note.tip .tag{color:#2c2008;background:var(--gold);}
+.note.warn{border-left:3px solid var(--coral);}
+.note.warn .tag{color:#2a0f0a;background:var(--coral);}
+
+/* demo card */
+.demo{
+  margin:24px 0; padding:18px;
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius);
+}
+.demo .dh{
+  font-family:var(--mono); font-size:11px; letter-spacing:1.5px;
+  text-transform:uppercase; color:var(--ink-faint); margin:0 0 14px;
+  display:flex;align-items:center;gap:8px;
+}
+.demo .dh::before{content:"●"; color:var(--teal); font-size:9px;}
+.demo .row{display:flex; gap:22px; align-items:flex-start; flex-wrap:wrap;}
+.demo canvas{image-rendering:pixelated; background:#0f1226; border-radius:8px; box-shadow:0 0 0 1px var(--line) inset; max-width:100%;}
+.demo .lbl{font-family:var(--mono); font-size:12px; color:var(--ink-faint); margin-top:7px; text-align:center;}
+.demo .lbl b{color:var(--teal); font-weight:500;}
+.demo .controls{display:flex; gap:9px; align-items:center; flex-wrap:wrap; margin-top:14px;}
+.btn{
+  font-family:var(--mono); font-size:12.5px; cursor:pointer;
+  background:var(--surface-2); color:var(--ink-dim);
+  border:1px solid var(--line); border-radius:8px; padding:7px 13px;
+  transition:.12s;
+}
+.btn:hover{border-color:var(--coral); color:var(--coral);}
+.btn.on{background:var(--coral); color:#1a0f0c; border-color:var(--coral);}
+input[type=range]{accent-color:var(--coral);}
+
+/* parallax legend */
+.legend{display:flex; flex-direction:column; gap:6px; font-family:var(--mono); font-size:12px;}
+.legend .row2{display:flex; align-items:center; gap:9px;}
+.legend .sw{width:14px;height:14px;border-radius:4px;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.3) inset;}
+.legend .nm{color:var(--ink-dim); min-width:96px;}
+.legend .sp{color:var(--teal);}
+
+/* cinematic timeline */
+.tl{margin-top:16px;}
+.tl-bar{position:relative; display:flex; height:34px; border-radius:8px; overflow:hidden; border:1px solid var(--line);}
+.tl-seg{display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:10px; color:#0c0b1d; white-space:nowrap; overflow:hidden; border-right:1px solid rgba(0,0,0,.25);}
+.tl-seg:last-child{border-right:none;}
+.tl-head{position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--ink); box-shadow:0 0 0 1px rgba(0,0,0,.5); pointer-events:none;}
+.tl-head::before{content:""; position:absolute; top:-5px; left:-4px; border:5px solid transparent; border-top-color:var(--ink);}
+.tl-phase{font-family:var(--mono); font-size:12px; color:var(--gold); margin-top:10px;}
+
+/* tables */
+.tbl{width:100%; border-collapse:collapse; margin:20px 0; font-size:14.5px;}
+.tbl th,.tbl td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--line-soft);}
+.tbl th{font-family:var(--disp); font-weight:600; color:var(--gold); font-size:13px; letter-spacing:.4px;}
+.tbl td{color:var(--ink-dim);}
+.tbl tr:hover td{background:rgba(255,255,255,.02);}
+.tbl code{font-family:var(--mono); font-size:12.5px; color:var(--teal);}
+
+.footer{
+  max-width:var(--maxw); margin:90px auto 0; padding-top:24px;
+  border-top:1px solid var(--line-soft);
+  font-family:var(--mono); font-size:12.5px; color:var(--ink-faint);
+}
+.footer b{color:var(--ink-dim);font-weight:500;}
+
+.scrim{display:none;}
+
+@media (max-width:980px){
+  .menu-btn{display:block;}
+  .sidebar{
+    position:fixed; top:0; left:0; bottom:0; height:100vh; z-index:60;
+    width:300px; background:var(--bg-2); transform:translateX(-105%);
+    transition:transform .22s ease; box-shadow:30px 0 70px -30px #000;
+    padding-top:20px;
+  }
+  body.nav-open .sidebar{transform:none;}
+  body.nav-open .scrim{display:block; position:fixed; inset:0; z-index:55; background:rgba(8,7,18,.6);}
+  main{padding-left:clamp(18px,6vw,28px); padding-right:clamp(18px,6vw,28px);}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto;}
+  .nav-list a.active::after{animation:none;}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <button class="menu-btn" id="menuBtn" aria-label="Tartalom megnyitása">☰ Tartalom</button>
+  <div class="brand">
+    <span class="glyph" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 8 8"><rect width="8" height="8" fill="#1a1226"/><rect x="5" y="1" width="2" height="2" fill="#FFC861"/><rect y="3" width="8" height="2" fill="#A98BFF"/><rect y="5" width="8" height="1" fill="#46D6B4"/><rect y="6" width="8" height="2" fill="#FF6F5E"/></svg>
+    </span>
+    <b>INTRO<span>·</span>STAGE</b>
+  </div>
+  <span class="ver">Bevy 0.18 · pixel art parallax intro</span>
+</header>
+
+<div class="layout">
+  <div class="scrim" id="scrim"></div>
+  <aside class="sidebar" id="sidebar">
+    <p class="intro">Tartalom</p>
+    <nav id="nav"></nav>
+  </aside>
+
+  <main>
+    <div class="wrap">
+
+      <!-- HERO -->
+      <section class="hero">
+        <p class="eyebrow">PIXEL ART · PARALLAX · INTRO „MOZI”</p>
+        <h1>Egy top-down játék <em>filmes</em> introja</h1>
+        <p class="lead">A játék felülnézetes lesz &mdash; de a nyitójelenet egy oldalnézeti, <strong>parallax</strong> pixel art vista, ami beúszik, pásztáz, felmutatja a címet, majd átad a játéknak. Réteges mélység, végtelenített görgetés, atmoszférikus perspektíva és egy &bdquo;rendező&rdquo; idővonal &mdash; végig konkrét <strong>Bevy 0.18</strong> kóddal.</p>
+        <div class="hero-stage">
+          <canvas id="heroCanvas" width="540" height="188"></canvas>
+          <div class="cap">Öt réteg, mind más sebességgel csúszik &mdash; ettől lesz <b>mélysége</b> a 2D-s képnek. A fekete fátyol beúszik, a <b>cím</b> megjelenik, majd minden átadja a helyét a top-down játéknak. Pontosan ezt építjük fel Bevyben.</div>
+        </div>
+      </section>
+
+      <!-- ===================== PART 01 ===================== -->
+      <div class="part-head" data-part><span class="num">01</span><h2>A mozi-intro</h2></div>
+
+      <section class="chapter" id="mi-az-intro">
+        <h3>Mi az az intro, és miért „mozi”?</h3>
+        <p>Az <strong>intro</strong> a játék első néhány másodperce, mielőtt az irányítás a játékos kezébe kerül. Nem pálya, nem menü &mdash; egy <strong>scriptelt jelenet</strong>: hangulatot ad, bemutatja a világot, felépíti a feszültséget, és kiírja a címet. Olyan, mint egy film nyitója.</p>
+        <p>A kulcsgondolat ebben a tutorialban: a <strong>játék felülnézetes (top-down)</strong>, de az <strong>intro oldalnézeti, parallaxos</strong>. Ez szándékos &mdash; és teljesen bevett trükk. A felülnézet a játszhatóságról szól (látod a pályát, a kijáratokat, az ellenfeleket), míg egy oldalnézeti, rétegelt panoráma sokkal <em>filmesebb</em>: van eleje és háttere, horizontja, mélysége. Egy bird&rsquo;s-eye nyitókép lapos és funkcionális; egy parallax vista azonnal &bdquo;mozi&rdquo;.</p>
+
+        <div class="demo">
+          <p class="dh">Beépített demó &middot; ugyanaz a világ, két kamera</p>
+          <div class="row" style="align-items:flex-start">
+            <div>
+              <canvas id="tdCanvas" width="200" height="160"></canvas>
+              <p class="lbl"><b>Játék</b> &mdash; top-down (felülnézet)</p>
+            </div>
+            <div>
+              <canvas id="pxCanvas" width="300" height="160"></canvas>
+              <p class="lbl"><b>Intro</b> &mdash; oldalnézeti parallax</p>
+            </div>
+          </div>
+          <p class="lbl" style="text-align:left;margin-top:12px">Ugyanaz a fantázia-világ (fű, fák, dombok) &mdash; de a nyitány nézőpontja egészen más, mint a játéké.</p>
+        </div>
+
+        <div class="note tip">
+          <span class="tag">TIPP</span>
+          <p>Nem kell minden eszközt újrarajzolnod az introhoz. Elég néhány nagy, hangulatos <em>réteg-kép</em> (sziluett-háttér), amit a top-down játékhoz amúgy sosem használnál. Az intro eszközigénye kicsi, a hatása nagy.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="miert-parallax">
+        <h3>Miért épp parallax?</h3>
+        <p>A <strong>parallax</strong> (mozgási parallaxis) az a jelenség, hogy ha oldalra mozogsz, a <strong>közeli dolgok gyorsabban</strong> húznak el a látómeződ előtt, mint a <strong>távoliak</strong>. Autóból nézve a korlát süvít, a távoli hegyek szinte állnak. Az agyad ebből a sebességkülönbségből olvassa ki a <strong>távolságot</strong>.</p>
+        <p>2D-ben pont ezt utánozzuk: a jelenetet <strong>rétegekre</strong> bontjuk (ég, távoli hegyek, dombok, közeli fák, előtér), és pásztázáskor mindegyiket <strong>más sebességgel</strong> mozgatjuk. A néző agya beugratja a mélységet &mdash; egyetlen lapos képből térbeli vista lesz. Ez a leghálásabb, legolcsóbb &bdquo;3D-hatás&rdquo;, amit 2D-ben elérhetsz.</p>
+        <ul>
+          <li><strong>Mélység.</strong> A rétegek sebességkülönbsége tér-érzetet ad.</li>
+          <li><strong>Mozgás állókép helyett.</strong> Egy lassan pásztázó panoráma máris él, „kameramozgásnak” érződik.</li>
+          <li><strong>Hangulat.</strong> Az ég, a fény, a sziluettek néhány másodperc alatt megadják a játék hangnemét.</li>
+        </ul>
+        <div class="note bevy">
+          <span class="tag">BEVY</span>
+          <p>Bevyben minden réteg egy-egy <code class="k">Sprite</code> entitás lesz, eltérő <code class="k">Transform</code> Z-koordinátával (mélységi sorrend) és egy saját <em>parallax-sebességgel</em>. Egyetlen rendszer mozgatja őket pásztázás közben &mdash; ezt fogjuk megírni.</p>
+        </div>
+      </section>
+
+      <!-- ===================== PART 02 ===================== -->
+      <div class="part-head" data-part><span class="num">02</span><h2>Hogyan működik a parallax</h2></div>
+
+      <section class="chapter" id="retegek">
+        <h3>Rétegek és mélység</h3>
+        <p>A parallax jelenet <strong>hátulról előrefelé</strong> épül fel. Mindegyik réteg egy átlátszó hátterű kép, ami a sajátján kívül mindent átenged. A klasszikus felállás egy táj-vistához:</p>
+        <ol>
+          <li><strong>Ég</strong> &mdash; színátmenet, nap/hold, csillagok. Nem (vagy alig) mozog.</li>
+          <li><strong>Távoli hegyek</strong> &mdash; halvány, kékes sziluett. Nagyon lassan csúszik.</li>
+          <li><strong>Dombok</strong> &mdash; középtávoli, telítettebb. Közepes sebesség.</li>
+          <li><strong>Közeli fasor</strong> &mdash; sötét sziluett. Gyorsan csúszik.</li>
+          <li><strong>Előtér</strong> &mdash; fűcsomók, bokrok a kép alján. A leggyorsabb.</li>
+        </ol>
+        <p>Kapcsold ki-be a rétegeket, és nézd, hogyan épül fel (vagy esik szét) a kép mélysége:</p>
+
+        <div class="demo">
+          <p class="dh">Beépített demó &middot; rétegek ki/be</p>
+          <canvas id="layersCanvas" width="560" height="176"></canvas>
+          <div class="controls" id="layerBtns">
+            <button class="btn on" data-layer="sky">Ég</button>
+            <button class="btn on" data-layer="mtn">Hegyek</button>
+            <button class="btn on" data-layer="hill">Dombok</button>
+            <button class="btn on" data-layer="tree">Fasor</button>
+            <button class="btn on" data-layer="grass">Előtér</button>
+          </div>
+          <p class="lbl" style="text-align:left">A jelenet magától pásztáz. Vedd el a középső rétegeket &mdash; az ég és az előtér között &bdquo;kiürül&rdquo; a tér.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="faktor">
+        <h3>A parallax faktor</h3>
+        <p>Minden réteghez tartozik egy <strong>sebesség-faktor</strong> 0 és 1 között: ennyit mozog a réteg a kamera mozgásához képest.</p>
+        <ul>
+          <li><strong>1.0</strong> &mdash; teljes sebesség. A réteg úgy mozog, mintha a &bdquo;földhöz&rdquo; lenne szögezve (előtér).</li>
+          <li><strong>0.0</strong> &mdash; egyáltalán nem mozog a képernyőn (a végtelen távoli ég).</li>
+          <li><strong>0.1&ndash;0.6</strong> &mdash; köztes távolságok: minél kisebb, annál &bdquo;messzebb&rdquo; érződik.</li>
+        </ul>
+        <p>A képlet egyszerű: a réteg vízszintes eltolása = <strong>görgetés &times; faktor</strong>. Húzd a csúszkát (ez maga a &bdquo;kamerapásztázás&rdquo;), és figyeld, ahogy a rétegek <em>eltérő ütemben</em> válnak szét &mdash; pont ettől születik a mélység:</p>
+
+        <div class="demo">
+          <p class="dh">Beépített demó &middot; faktor = sebesség = távolság</p>
+          <div class="row">
+            <div style="flex:1 1 320px;min-width:280px">
+              <canvas id="factorCanvas" width="360" height="150" style="width:100%"></canvas>
+            </div>
+            <div class="legend">
+              <div class="row2"><span class="sw" style="background:#79709e"></span><span class="nm">Hegyek</span><span class="sp">faktor 0.15</span></div>
+              <div class="row2"><span class="sw" style="background:#52746e"></span><span class="nm">Dombok</span><span class="sp">faktor 0.35</span></div>
+              <div class="row2"><span class="sw" style="background:#283635"></span><span class="nm">Fasor</span><span class="sp">faktor 0.60</span></div>
+              <div class="row2"><span class="sw" style="background:#141e19"></span><span class="nm">Előtér</span><span class="sp">faktor 1.00</span></div>
+            </div>
+          </div>
+          <div class="controls">
+            <label style="font-family:var(--mono);font-size:12px;color:var(--ink-faint);flex:1 1 220px">Kamera (görgetés)
+              <input type="range" id="scrubScroll" min="0" max="800" value="120" step="1" style="width:100%;vertical-align:middle">
+            </label>
+            <button class="btn" id="factorPlay">▶ Auto-pásztázás</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="chapter" id="vegtelen">
+        <h3>Végtelenített görgetés</h3>
+        <p>Egy mozi-pásztázás hosszabb, mint egyetlen kép szélessége. A megoldás: a rétegek <strong>vízszintesen ismétlődnek</strong> (tile). Ha a kép két széle <em>varratmentesen illeszkedik</em> (a jobb szél folytatása a bal szélnek), akkor egymás mellé csempézve <strong>végtelen</strong> sávot kapsz, és a görgetést egy egyszerű maradékos osztással (modulo) &bdquo;visszacsavarod&rdquo;, mielőtt elfogyna.</p>
+        <p>A sárga szaggatott vonalak egyetlen csempe határait jelölik. Figyeld: bár csak <em>egy</em> csempénk van, a varrat sehol sem látszik &mdash; ezért tűnik végtelennek:</p>
+
+        <div class="demo">
+          <p class="dh">Beépített demó &middot; egy varratmentes csempe, végtelenül</p>
+          <canvas id="seamCanvas" width="560" height="150"></canvas>
+          <div class="controls">
+            <button class="btn" id="seamGuides">Csempehatárok mutatása</button>
+          </div>
+          <p class="lbl" style="text-align:left">A görgetés folyamatosan nő, de a réteg pozícióját a csempe szélességével modulózzuk &mdash; így sosem fut ki a képből.</p>
+        </div>
+
+        <div class="note warn">
+          <span class="tag">VIGYÁZZ</span>
+          <p>Ha a kép két széle nem passzol, csempézésnél <strong>látható varrat</strong> (függőleges csík) jelenik meg minden csempe-határnál. A réteget mindig &bdquo;tileable&rdquo;-re kell rajzolni: a jobb szélen kifutó bokor a bal szélen folytatódjon.</p>
+        </div>
+      </section>
+
+      <!-- ===================== PART 03 ===================== -->
+      <div class="part-head" data-part><span class="num">03</span><h2>A rétegek tervezése</h2></div>
+
+      <section class="chapter" id="reteg-tartalom">
+        <h3>Mi kerül egy rétegbe?</h3>
+        <p>A jó parallax-réteg <strong>egyszerű és olvasható</strong>. Minél távolabbi a réteg, annál kevesebb részlet és annál inkább puszta sziluett. A részletet az előtérnek tartogasd &mdash; oda néz a szem.</p>
+        <table class="tbl">
+          <thead><tr><th>Réteg</th><th>Tartalom</th><th>Faktor</th><th>Jellemző</th></tr></thead>
+          <tbody>
+            <tr><td>Ég</td><td>Színátmenet, nap/hold, csillagok, felhők</td><td><code>0.0&ndash;0.05</code></td><td>Sima, nagy felület, nincs éles forma</td></tr>
+            <tr><td>Távoli hegyek</td><td>Lágy sziluett, 1&ndash;2 árnyalat</td><td><code>0.1&ndash;0.2</code></td><td>Halvány, kékes, alacsony kontraszt</td></tr>
+            <tr><td>Dombok</td><td>Sziluett, némi textúra</td><td><code>0.3&ndash;0.4</code></td><td>Telítettebb, mint a hegy</td></tr>
+            <tr><td>Fasor</td><td>Lombkorona-sáv, fatörzsek</td><td><code>0.5&ndash;0.7</code></td><td>Sötét, határozott él</td></tr>
+            <tr><td>Előtér</td><td>Fűcsomók, bokrok, kövek</td><td><code>0.9&ndash;1.0</code></td><td>Legsötétebb, legtöbb részlet</td></tr>
+          </tbody>
+        </table>
+        <p>Tartsd a rétegszámot kézben: <strong>4&ndash;6 réteg</strong> bőven elég egy meggyőző vistához. Több réteg több munka és több draw call, miközben a néző már nem érzékeli a különbséget.</p>
+      </section>
+
+      <section class="chapter" id="atmoszfera">
+        <h3>Atmoszférikus perspektíva</h3>
+        <p>A valóságban a távoli dolgokra a levegő &bdquo;ráül&rdquo;: <strong>halványabbak, kékesebbek, alacsonyabb kontrasztúak</strong>. Ez az <strong>atmoszférikus perspektíva</strong>, és pixel artban is döntő a mélységhez &mdash; gyakran erősebb jel, mint maga a parallax-mozgás.</p>
+        <ul>
+          <li><strong>Távoli = világosabb</strong> és az ég színe felé tolt (itt: kékes-lilás).</li>
+          <li><strong>Közeli = sötétebb</strong>, telítettebb, nagyobb kontraszt.</li>
+          <li>Minden réteg a háttere felé veszít a kontrasztjából.</li>
+        </ul>
+        <p>Kapcsold át, és nézd a különbséget: ugyanaz a geometria, csak a színkezelés más &mdash; mégis az egyik lapos, a másik térbeli:</p>
+
+        <div class="demo">
+          <p class="dh">Beépített demó &middot; atmoszférikus perspektíva</p>
+          <canvas id="atmoCanvas" width="560" height="160"></canvas>
+          <div class="controls">
+            <button class="btn on" id="atmoToggle">Atmoszféra: BE</button>
+          </div>
+          <p class="lbl" style="text-align:left">Kikapcsolva minden réteg ugyanazt a zöldet kapja &mdash; a rétegek &bdquo;összeragadnak&rdquo;, eltűnik a távolság.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="kompozicio">
+        <h3>Kompozíció és tempó</h3>
+        <p>Az intro nem csak technika, hanem <strong>rendezés</strong>. Pár alapelv, amitől &bdquo;filmes&rdquo; lesz a néhány másodperc:</p>
+        <ul>
+          <li><strong>Vezesd a szemet.</strong> Hagyj negatív teret az égben, ahová majd a cím kerül. A horizontot ne tedd pont középre &mdash; a harmadolás (felső vagy alsó harmad) érdekesebb.</li>
+          <li><strong>Lassú a jó.</strong> A pásztázás legyen kényelmes, egyenletes. A kapkodó kameramozgás olcsónak hat és el is rontja a parallax-élményt.</li>
+          <li><strong>Egy fókuszpont.</strong> Egy lemenő nap, egy magányos torony, egy vándor sziluettje &mdash; valami, amin megpihen a szem.</li>
+          <li><strong>Ritmus.</strong> Beúszás &rarr; pásztázás &rarr; cím &rarr; tartás &rarr; kiúszás. A &bdquo;tartás&rdquo; (amikor csak a kép és a cím van) adja a súlyt.</li>
+        </ul>
+        <div class="note tip">
+          <span class="tag">TIPP</span>
+          <p>A hangulatot a fény adja. Egy hajnali/alkonyi ég (meleg horizont, hideg zenit) önmagában &bdquo;eladja&rdquo; az egész jelenetet. A demók is ezt a dawn-palettát használják.</p>
+        </div>
+      </section>
+
+      <!-- ===================== PART 04 ===================== -->
+      <div class="part-head" data-part><span class="num">04</span><h2>A forgatókönyv</h2></div>
+
+      <section class="chapter" id="idovonal">
+        <h3>Az intro mint idővonal</h3>
+        <p>Egy mozi-intro <strong>idő-vezérelt</strong>: nem a játékos inputja viszi előre, hanem az eltelt idő. Érdemes <strong>ütemekben (beat)</strong> gondolkodni &mdash; egy &bdquo;forgatókönyv&rdquo;, ahol minden eseménynek van időpontja:</p>
+        <table class="tbl">
+          <thead><tr><th>Idő</th><th>Ütem</th><th>Mi történik</th></tr></thead>
+          <tbody>
+            <tr><td>0.0&ndash;1.5s</td><td>Beúszás</td><td>Feketéből feltárul a kép (fade in)</td></tr>
+            <tr><td>1.5&ndash;2.5s</td><td>Pásztázás</td><td>A kamera lassan halad, a parallax dolgozik</td></tr>
+            <tr><td>2.5&ndash;4.0s</td><td>Cím be</td><td>A játék címe előtűnik</td></tr>
+            <tr><td>4.0&ndash;7.0s</td><td>Tartás</td><td>Kép + cím együtt, hagyjuk hatni</td></tr>
+            <tr><td>7.0&ndash;8.0s</td><td>Cím ki</td><td>A cím elhalványul</td></tr>
+            <tr><td>8.0&ndash;10.0s</td><td>Kiúszás</td><td>Feketébe vált, majd indul a játék</td></tr>
+          </tbody>
+        </table>
+        <p>Ezt az idővonalat egyetlen &bdquo;rendező&rdquo; rendszer hajtja végre: minden frame-ben megnézi, hol tartunk az időben, és ennek megfelelően állítja a fátyol és a cím átlátszóságát. A végén állapotot vált a játékra.</p>
+      </section>
+
+      <section class="chapter" id="fade-cim">
+        <h3>Fade és cím</h3>
+        <p>Két dolog teszi &bdquo;filmessé&rdquo; a jelenetet: a <strong>fekete fátyol</strong> (fade) és a <strong>cím</strong> beúszása. Mindkettő ugyanazon az elven működik: az <strong>átlátszóságot (alpha)</strong> animáljuk 0 és 1 között.</p>
+        <ul>
+          <li><strong>Fade in/out.</strong> Egy teljes képernyős fekete réteg, aminek az alpháját 1&rarr;0 (beúszás), majd a végén 0&rarr;1 (kiúszás) visszük.</li>
+          <li><strong>Cím.</strong> Egy középre helyezett szöveg, aminek az alpháját 0&rarr;1 visszük a megfelelő ütemben, majd 1&rarr;0 a tartás után.</li>
+        </ul>
+        <p>Próbáld ki a teljes forgatókönyvet &mdash; ez a teljes intro &bdquo;mozija&rdquo; egy lejátszóban. Tekerd a fejet, vagy indítsd el:</p>
+
+        <div class="demo">
+          <p class="dh">Beépített demó &middot; a teljes intro idővonala</p>
+          <canvas id="timelinePreview" width="560" height="176"></canvas>
+          <div class="tl">
+            <div class="tl-bar" id="tlBar">
+              <div class="tl-seg" style="flex:1.5;background:#3a2c5a;color:#ECEAFB">Beúszás</div>
+              <div class="tl-seg" style="flex:1;background:#46D6B4">Pásztázás</div>
+              <div class="tl-seg" style="flex:1.5;background:#A98BFF">Cím be</div>
+              <div class="tl-seg" style="flex:3;background:#FFC861">Tartás</div>
+              <div class="tl-seg" style="flex:1;background:#ff8a7a">Cím ki</div>
+              <div class="tl-seg" style="flex:2;background:#FF6F5E">Kiúszás → játék</div>
+              <div class="tl-head" id="tlHead" style="left:0%"></div>
+            </div>
+            <div class="tl-phase" id="tlPhase">0.0s &mdash; Beúszás</div>
+          </div>
+          <div class="controls">
+            <button class="btn on" id="tlPlay">⏸ Pause</button>
+            <button class="btn" id="tlRestart">⟲ Újra</button>
+            <label style="font-family:var(--mono);font-size:12px;color:var(--ink-faint);flex:1 1 200px">Idő
+              <input type="range" id="tlScrub" min="0" max="1000" value="0" step="1" style="width:100%;vertical-align:middle">
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="chapter" id="skip-atmenet">
+        <h3>Átléphetőség &amp; átmenet a játékba</h3>
+        <p>Egy introt <strong>mindig lehessen átugorni</strong> &mdash; a második végigjátszásnál senki sem akarja végignézni. Egy gombnyomás (Space/Esc/kattintás) azonnal a játékba ugrik.</p>
+        <p>Az átmenet maga egy <strong>állapotváltás</strong>: <code>Intro</code> &rarr; <code>Game</code>. Amint elhagyjuk az <code>Intro</code> állapotot, az összes intro-entitás (kamera, rétegek, fátyol, cím) automatikusan eltűnik, és felépül a tényleges top-down játék &mdash; saját kamerával, pályával, játékossal.</p>
+        <div class="note bevy">
+          <span class="tag">BEVY</span>
+          <p>A Bevy <code class="k">States</code> rendszere pont erre való: <code class="k">OnEnter</code>/<code class="k">OnExit</code> ütemezések építik fel és bontják le a jeleneteket, a <code class="k">DespawnOnExit</code> komponens pedig automatikusan despawnolja az adott állapothoz kötött entitásokat. A következő részben mindezt kódban is megírjuk.</p>
+        </div>
+      </section>
+
+      <!-- ===================== PART 05 ===================== -->
+      <div class="part-head" data-part><span class="num">05</span><h2>Bevy 0.18 implementáció</h2></div>
+
+      <section class="chapter" id="ecs">
+        <h3>ECS &amp; állapotok</h3>
+        <p>A Bevy egy <strong>ECS</strong> (Entity-Component-System) motor: az <em>entitások</em> azonosítók, a rájuk aggatott <em>komponensek</em> az adatok, a <em>rendszerek</em> pedig a logika. Az intro két fő állapotot használ: az <code class="k">Intro</code> (a mozi) és a <code class="k">Game</code> (a tényleges játék).</p>
+        <p>Az <code class="k">ImagePlugin::default_nearest()</code> a pixel art kötelező eleme: a <em>nearest-neighbor</em> szűrés őrzi meg az éles pixeleket nagyításkor. A parallax-rendszerek csak az <code class="k">Intro</code> állapotban futnak.</p>
+        <pre class="code"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="fn">Cargo.toml</span></div><code data-code="cargo"></code></pre>
+        <pre class="code"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="fn">src/main.rs</span></div><code data-code="state"></code></pre>
+        <div class="note tip">
+          <span class="tag">TIPP</span>
+          <p>A két rendszer-felépítés (<code>setup_intro</code> a jelenethez, <code>setup_intro_ui</code> a fátyolhoz/címhez) ugyanabban az <code>OnEnter(AppState::Intro)</code>-ban fut. Külön tartani őket átláthatóbb, mint egyetlen óriás-rendszerbe zsúfolni mindent.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="setup-jelenet">
+        <h3>A jelenet felépítése</h3>
+        <p>Most spawnoljuk a <strong>kamerát</strong> és a <strong>rétegeket</strong>. Minden réteg egy <code class="k">Sprite</code>, saját Z-mélységgel (hátul kis Z, elöl nagy Z) és egy <code class="k">ParallaxLayer</code> komponenssel, ami a sebesség-faktort és a csempeszélességet tárolja.</p>
+        <p>A varratmentes ismétlést a <code class="k">SpriteImageMode::Tiled</code> intézi: a textúra vízszintesen ismétlődik a sprite teljes <code class="k">custom_size</code> szélességén. Tedd a méretet jó szélesre (legalább a képernyő + 2 csempe), hogy pásztázás közben mindig kitöltse a képet.</p>
+        <pre class="code"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="fn">a parallax jelenet</span></div><code data-code="setup"></code></pre>
+        <div class="note warn">
+          <span class="tag">VIGYÁZZ</span>
+          <p>A <code class="k">ParallaxLayer.width</code> a textúra <em>natív</em> szélessége legyen (a csempe periódusa), nem a sprite <code class="k">custom_size</code>-a. A modulózás ezzel a periódussal lesz varratmentes. Ha nincs <code class="k">Tiled</code> a verziódban, két-három egymást követő példányt is használhatsz rétegenként &mdash; ugyanaz az elv.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="parallax-rendszer">
+        <h3>A parallax rendszer</h3>
+        <p>Itt a lényeg. Egy <code class="k">Scroll</code> erőforrás tárolja, mennyit pásztáztunk eddig &mdash; ezt növeljük időarányosan (ez maga a kameramozgás). Minden frame-ben minden réteget a saját <strong>faktorával</strong> tolunk el, majd a csempeszélességgel <strong>visszacsavarjuk</strong> (<code class="k">rem_euclid</code>), hogy végtelen legyen.</p>
+        <pre class="code"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="fn">parallax_scroll</span></div><code data-code="parallax"></code></pre>
+        <p>A <code class="k">rem_euclid</code> a kulcs: a sima <code class="k">%</code> operátor negatív értékre negatívat adhat, a <code class="k">rem_euclid</code> viszont mindig <code>[0, width)</code> tartományba esik. A mínusz előjel a balra (jobbra-pásztázáskor) történő csúszást adja. Mivel a textúra periódusa pont <code class="k">width</code>, a csempe-egységnyi visszaugrás láthatatlan.</p>
+        <div class="note bevy">
+          <span class="tag">BEVY</span>
+          <p>A &bdquo;kamera áll, a háttér csúszik&rdquo; modellt használjuk &mdash; ez a legtisztább egy scriptelt introhoz, és 1:1-ben megfelel a fenti demóknak. Ha a játékban mozgó kamerád lesz, ott a rétegeket a kamera <code class="k">Transform</code>-jához képest pozícionálod ugyanezzel a faktorral.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="fade-kod">
+        <h3>Fátyol és cím (UI)</h3>
+        <p>A fátyol és a cím <strong>UI-elemek</strong> (képernyő-tér, nem világ-tér), így a parallax nem mozgatja őket. A fátyol egy teljes képernyős, fekete <code class="k">Node</code> &mdash; induláskor <strong>teljesen átlátszatlan</strong> (alpha = 1). A cím egy középre helyezett <code class="k">Text</code> &mdash; induláskor <strong>láthatatlan</strong> (alpha = 0). Mindkettőt a rendező animálja majd. A magas <code class="k">GlobalZIndex</code> biztosítja, hogy a fátyol mindenek fölött legyen.</p>
+        <pre class="code"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="fn">setup_intro_ui</span></div><code data-code="hud"></code></pre>
+        <div class="note tip">
+          <span class="tag">TIPP</span>
+          <p>A <code class="k">FadeOverlay</code> és <code class="k">TitleText</code> üres marker-komponensek &mdash; csak arra valók, hogy a rendező-rendszer <code class="k">Query</code>-vel rájuk találjon. Mindkét entitásra rákerül a <code class="k">DespawnOnExit(AppState::Intro)</code> is, így a játékba lépéskor maguktól eltűnnek.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="director-kod">
+        <h3>A rendező rendszer</h3>
+        <p>A <code class="k">cinematic_director</code> a forgatókönyv motorja. Számolja az eltelt időt, és <strong>kulcsidőpontok</strong> (keyframe-ek) közt lineárisan interpolálva állítja a fátyol és a cím alpháját. A <code class="k">ramp(t, a, b)</code> segéd 0&rarr;1 közé visz az <code>a</code>&hellip;<code>b</code> idő alatt. A végén <code class="k">NextState</code>-tel a játékba vált.</p>
+        <pre class="code"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="fn">cinematic_director</span></div><code data-code="director"></code></pre>
+        <p>A <code class="k">skip_intro</code> rendszer pedig az átléphetőséget adja: bármelyik &bdquo;tovább&rdquo; gombra azonnal a játékba ugrik.</p>
+        <pre class="code"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="fn">skip_intro</span></div><code data-code="skip"></code></pre>
+        <div class="note bevy">
+          <span class="tag">BEVY</span>
+          <p>A <code class="k">single_mut()</code> a 0.18-ban <code class="k">Result</code>-ot ad vissza, ezért <code class="k">if let Ok(..)</code>-kal bontjuk ki &mdash; így nem panikol, ha épp nincs (vagy több) találat. A <code class="k">with_alpha</code> az <code class="k">Alpha</code> traitből jön, és csak az átlátszóságot cseréli a színen.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="atmenet-kod">
+        <h3>Átmenet a top-down játékba</h3>
+        <p>Amikor a rendező (vagy a skip) átvált <code class="k">AppState::Game</code>-re, két dolog történik magától. Egy: a <code class="k">DespawnOnExit(AppState::Intro)</code> miatt minden intro-entitás <strong>despawnol</strong> &mdash; nem kell kézzel takarítani. Kettő: az <code class="k">OnEnter(AppState::Game)</code> ütemezés felépíti a <strong>tényleges játékot</strong>: egy friss kamerát (most már a top-down nézethez), a pályát, a játékost.</p>
+        <pre class="code"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="fn">setup_game</span></div><code data-code="togame"></code></pre>
+        <p>Itt zárul a kör: az oldalnézeti, parallaxos &bdquo;mozi&rdquo; tiszta lappal átadja a helyét a felülnézetes játéknak &mdash; pontosan az a kontraszt, amiről az 1. részben beszéltünk.</p>
+      </section>
+
+      <section class="chapter" id="crates">
+        <h3>Hova tovább? &mdash; hasznos crate-ek</h3>
+        <p>Az itt felépített rendszer szándékosan &bdquo;kézi&rdquo;, hogy lásd a működést. Ha kényelmesebbre vágysz, a közösség sokat letesz az asztalra:</p>
+        <table class="tbl">
+          <thead><tr><th>Crate</th><th>Mire jó</th></tr></thead>
+          <tbody>
+            <tr><td><code>bevy_parallax</code></td><td>Kész parallax-rétegkezelés (sebességek, ismétlés) dobozból</td></tr>
+            <tr><td><code>bevy_tweening</code> / <code>bevy_easings</code></td><td>Alpha-, pozíció-, méret-animációk (fade, cím-beúszás) easing-görbékkel</td></tr>
+            <tr><td><code>iyes_progress</code></td><td>Betöltés-állapot: az intro alatt töltsd be a játék eszközeit</td></tr>
+            <tr><td><code>bevy_asset_loader</code></td><td>Eszközök rendezett betöltése állapotokhoz kötve</td></tr>
+          </tbody>
+        </table>
+        <p>Tipikus bővítések innen: <strong>finomítás</strong> (easing a lineáris <code class="k">ramp</code> helyett &mdash; egy <code>ease-in-out</code> sokkal filmesebb), <strong>függőleges parallax</strong> (enyhe fel/le pásztázás), <strong>felhők/köd külön rétegen</strong>, <strong>betűnként beúszó cím</strong>, és <strong>betöltés az intro alatt</strong>, hogy a játék azonnal induljon, amint vége a mozinak.</p>
+        <div class="note tip">
+          <span class="tag">TIPP</span>
+          <p>A leghálásabb egyetlen fejlesztés: cseréld a lineáris <code class="k">ramp</code>-et egy <em>smoothstep</em>-re (<code>t*t*(3.0 - 2.0*t)</code>). A fade-ek és a cím beúszása így &bdquo;lágy be, lágy ki&rdquo; lesz a rideg lineáris helyett &mdash; egyetlen sor, óriási hangulati különbség.</p>
+        </div>
+      </section>
+
+      <div class="footer">
+        <p><b>Pixel art parallax intro &mdash; Bevy 0.18.</b> A demók procedurálisan, valós időben rajzolódnak (HTML canvas), és pontosan azt az öt-réteges, idővezérelt felépítést mutatják, amit a kód megvalósít. A Rust kódrészletek a 0.18-as API-ra épülnek: <code>States</code>, <code>DespawnOnExit</code>, <code>SpriteImageMode::Tiled</code>, UI <code>Node</code>/<code>Text</code>.</p>
+        <p>Készíts varratmentes rétegeket, válassz egy hangulatos eget, írd meg a forgatókönyvet &mdash; és a felülnézetes játékod egy igazi &bdquo;mozival&rdquo; nyit.</p>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+/* =========================================================
+   NAV / SCROLLSPY
+========================================================= */
+(function(){
+  const parts = [
+    {n:"01", t:"A mozi-intro", items:[
+      ["mi-az-intro","Mi az az intro?"],["miert-parallax","Miért parallax?"]]},
+    {n:"02", t:"Hogyan működik", items:[
+      ["retegek","Rétegek és mélység"],["faktor","A parallax faktor"],["vegtelen","Végtelenített görgetés"]]},
+    {n:"03", t:"Rétegek tervezése", items:[
+      ["reteg-tartalom","Mi kerül egy rétegbe"],["atmoszfera","Atmoszférikus perspektíva"],["kompozicio","Kompozíció & tempó"]]},
+    {n:"04", t:"A forgatókönyv", items:[
+      ["idovonal","Az intro mint idővonal"],["fade-cim","Fade és cím"],["skip-atmenet","Skip & átmenet"]]},
+    {n:"05", t:"Bevy 0.18", items:[
+      ["ecs","ECS & állapotok"],["setup-jelenet","A jelenet felépítése"],["parallax-rendszer","A parallax rendszer"],["fade-kod","Fátyol és cím (UI)"],["director-kod","A rendező rendszer"],["atmenet-kod","Átmenet a játékba"],["crates","Hasznos crate-ek"]]},
+  ];
+  const nav = document.getElementById('nav');
+  parts.forEach(p=>{
+    const sec=document.createElement('div'); sec.className='nav-part';
+    sec.innerHTML='<p class="part-label"><span class="pid">'+p.n+'</span>'+p.t+'</p>';
+    const ul=document.createElement('ul'); ul.className='nav-list';
+    p.items.forEach(([id,label])=>{
+      const li=document.createElement('li');
+      li.innerHTML='<a href="#'+id+'">'+label+'</a>';
+      ul.appendChild(li);
+    });
+    sec.appendChild(ul); nav.appendChild(sec);
+  });
+
+  const links = Array.from(nav.querySelectorAll('a'));
+  const map = {};
+  links.forEach(a=>map[a.getAttribute('href').slice(1)]=a);
+  const chapters = Array.from(document.querySelectorAll('.chapter'));
+  let activeId=null;
+  function setActive(id){
+    if(id===activeId) return; activeId=id;
+    links.forEach(a=>a.classList.remove('active'));
+    if(map[id]) map[id].classList.add('active');
+  }
+  const obs = new IntersectionObserver((entries)=>{
+    let best=null;
+    entries.forEach(e=>{ if(e.isIntersecting){ if(!best || e.boundingClientRect.top<best.boundingClientRect.top) best=e; }});
+    if(best) setActive(best.target.id);
+    else{
+      let cur=chapters[0].id;
+      for(const c of chapters){ if(c.getBoundingClientRect().top<140) cur=c.id; }
+      setActive(cur);
+    }
+  },{rootMargin:'-72px 0px -60% 0px', threshold:[0,1]});
+  chapters.forEach(c=>obs.observe(c));
+
+  const body=document.body, mb=document.getElementById('menuBtn'), scrim=document.getElementById('scrim');
+  mb.addEventListener('click',()=>body.classList.toggle('nav-open'));
+  scrim.addEventListener('click',()=>body.classList.remove('nav-open'));
+  nav.addEventListener('click',e=>{ if(e.target.tagName==='A') body.classList.remove('nav-open'); });
+})();
+
+/* =========================================================
+   RUST SYNTAX HIGHLIGHTER + CODE INJECTION
+========================================================= */
+(function(){
+  const KW=new Set("fn let mut const static struct enum impl trait for in if else match while loop return use mod pub crate self super as where ref move dyn async await unsafe type default continue break".split(" "));
+  function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function hl(code){
+    const re=/(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])')|(#!?\[[^\]]*\])|('[a-z_][a-z0-9_]*\b(?!'))|(\b[A-Za-z_][A-Za-z0-9_]*!(?=\s*[\(\[{]))|(\b[A-Z][A-Za-z0-9_]*\b)|(\b[0-9][0-9_]*(?:\.[0-9_]+)?(?:f32|f64|u8|u16|u32|u64|usize|i8|i16|i32|i64|isize)?\b)|(\b[a-zA-Z_][A-Za-z0-9_]*\b)/g;
+    let out='',last=0,m;
+    while((m=re.exec(code))){
+      out+=esc(code.slice(last,m.index)); last=re.lastIndex;
+      const t=m[0];
+      if(m[1]) out+='<span class="c-com">'+esc(t)+'</span>';
+      else if(m[2]) out+='<span class="c-str">'+esc(t)+'</span>';
+      else if(m[3]) out+='<span class="c-attr">'+esc(t)+'</span>';
+      else if(m[4]) out+='<span class="c-life">'+esc(t)+'</span>';
+      else if(m[5]) out+='<span class="c-macro">'+esc(t)+'</span>';
+      else if(m[6]) out+='<span class="c-type">'+esc(t)+'</span>';
+      else if(m[7]) out+='<span class="c-num">'+esc(t)+'</span>';
+      else if(m[8]){
+        if(KW.has(t)) out+='<span class="c-kw">'+esc(t)+'</span>';
+        else if(code[re.lastIndex]==='(') out+='<span class="c-fn">'+esc(t)+'</span>';
+        else out+=esc(t);
+      }
+    }
+    out+=esc(code.slice(last));
+    return out;
+  }
+
+  const CODE={
+cargo:
+`[dependencies]
+bevy = "0.18"`,
+state:
+`use bevy::prelude::*;
+
+#[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
+enum AppState {
+    #[default]
+    Intro,   // a parallax "mozi"
+    Game,    // a tényleges top-down játék
+}
+
+fn main() {
+    App::new()
+        // nearest szűrés -> éles pixelek a felnagyított rétegeken
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .init_state::<AppState>()
+        .init_resource::<Scroll>()
+        .init_resource::<Cinematic>()
+        // az intro belépéskor épül fel (jelenet + UI):
+        .add_systems(OnEnter(AppState::Intro), (setup_intro, setup_intro_ui))
+        // a játék az állapotváltáskor:
+        .add_systems(OnEnter(AppState::Game), setup_game)
+        // az intro logikája CSAK az Intro állapotban fut:
+        .add_systems(Update, (
+            parallax_scroll,
+            cinematic_director,
+            skip_intro,
+        ).run_if(in_state(AppState::Intro)))
+        .run();
+}`,
+setup:
+`#[derive(Resource, Default)]
+struct Scroll(f32);   // mennyit pásztáztunk eddig (world unit)
+
+#[derive(Component)]
+struct ParallaxLayer {
+    speed: f32,   // 0.0 = mozdulatlan távol, 1.0 = teljes sebességű előtér
+    width: f32,   // egy ismétlődő csempe (textúra) natív szélessége
+}
+
+// A rétegek hátulról előre: (kép, Z-mélység, parallax-faktor)
+const LAYERS: &[(&str, f32, f32)] = &[
+    ("intro/sky.png",       0.0, 0.00),  // ég: nem mozdul
+    ("intro/mountains.png", 1.0, 0.15),  // távoli hegyek
+    ("intro/hills.png",     2.0, 0.35),  // dombok
+    ("intro/trees.png",     3.0, 0.60),  // közeli fasor
+    ("intro/grass.png",     4.0, 1.00),  // előtér: teljes sebesség
+];
+
+fn setup_intro(mut commands: Commands, asset_server: Res<AssetServer>) {
+    // friss számlálók minden belépéskor
+    commands.insert_resource(Scroll::default());
+    commands.insert_resource(Cinematic::default());
+
+    // 2D kamera (MSAA ki -> nincs felesleges élsimítás 2D-ben)
+    commands.spawn((Camera2d, Msaa::Off, DespawnOnExit(AppState::Intro)));
+
+    for &(path, z, speed) in LAYERS {
+        commands.spawn((
+            Sprite {
+                image: asset_server.load(path),
+                // a textúra vízszintesen ismétlődjön...
+                image_mode: SpriteImageMode::Tiled {
+                    tile_x: true, tile_y: false, stretch_value: 1.0,
+                },
+                // ...és legyen jó széles, hogy pásztázás közben
+                // mindig kitöltse a képernyőt (kb. képernyő + 2 csempe):
+                custom_size: Some(Vec2::new(2400.0, 540.0)),
+                ..default()
+            },
+            Transform::from_xyz(0.0, 0.0, z),
+            ParallaxLayer { speed, width: 480.0 }, // 480 = a textúra natív szélessége
+            DespawnOnExit(AppState::Intro),
+        ));
+    }
+}`,
+parallax:
+`fn parallax_scroll(
+    time: Res<Time>,
+    mut scroll: ResMut<Scroll>,
+    mut layers: Query<(&ParallaxLayer, &mut Transform)>,
+) {
+    // a "kamera" egyenletesen pásztáz jobbra (ez maga a mozi-mozgás)
+    scroll.0 += 40.0 * time.delta_secs();
+
+    for (layer, mut transform) in &mut layers {
+        // mennyit kéne csúsznia ennek a rétegnek a faktora szerint...
+        let shift = scroll.0 * layer.speed;
+        // ...de a csempe szélességével visszacsavarjuk, így sosem fogy el.
+        // rem_euclid: mindig [0, width) -> a mínusz a balra-csúszás.
+        transform.translation.x = -shift.rem_euclid(layer.width);
+    }
+}`,
+hud:
+`#[derive(Component)]
+struct FadeOverlay;   // a fekete fátyol markere
+
+#[derive(Component)]
+struct TitleText;     // a cím markere
+
+fn setup_intro_ui(mut commands: Commands) {
+    // Teljes képernyős fekete fátyol, induláskor ÁTLÁTSZATLAN (alpha = 1):
+    commands.spawn((
+        Node {
+            position_type: PositionType::Absolute,
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            ..default()
+        },
+        BackgroundColor(Color::BLACK),   // alpha = 1.0
+        GlobalZIndex(10),                // minden réteg fölött
+        FadeOverlay,
+        DespawnOnExit(AppState::Intro),
+    ));
+
+    // A cím konténere: középre igazít, a felső harmadba húzva:
+    commands.spawn((
+        Node {
+            position_type: PositionType::Absolute,
+            width: Val::Percent(100.0),
+            top: Val::Percent(38.0),
+            justify_content: JustifyContent::Center,
+            ..default()
+        },
+        GlobalZIndex(11),
+        DespawnOnExit(AppState::Intro),
+    ))
+    .with_children(|p| {
+        p.spawn((
+            Text::new("A HOSSZÚ ÚT"),
+            TextFont { font_size: 64.0, ..default() },
+            // induláskor LÁTHATATLAN (alpha = 0):
+            TextColor(Color::srgba(1.0, 0.95, 0.85, 0.0)),
+            TitleText,
+        ));
+    });
+}`,
+director:
+`#[derive(Resource, Default)]
+struct Cinematic { t: f32 }   // eltelt idő az intro kezdete óta
+
+// lineáris felfutás: 0.0 az 'a' időpontban, 1.0 a 'b'-ben
+fn ramp(t: f32, a: f32, b: f32) -> f32 {
+    ((t - a) / (b - a)).clamp(0.0, 1.0)
+}
+
+fn cinematic_director(
+    time: Res<Time>,
+    mut cine: ResMut<Cinematic>,
+    mut fade: Query<&mut BackgroundColor, With<FadeOverlay>>,
+    mut title: Query<&mut TextColor, With<TitleText>>,
+    mut next: ResMut<NextState<AppState>>,
+) {
+    cine.t += time.delta_secs();
+    let t = cine.t;
+
+    // FÁTYOL: 0.0–1.5s beúszás (1->0), 8.0–10.0s kiúszás (0->1)
+    let fade_in  = 1.0 - ramp(t, 0.0, 1.5);
+    let fade_out = ramp(t, 8.0, 10.0);
+    let alpha = fade_in.max(fade_out);
+    if let Ok(mut bg) = fade.single_mut() {
+        bg.0 = bg.0.with_alpha(alpha);
+    }
+
+    // CÍM: 2.5–4.0s megjelenik, 7.0–8.0s eltűnik
+    let title_a = ramp(t, 2.5, 4.0) * (1.0 - ramp(t, 7.0, 8.0));
+    if let Ok(mut color) = title.single_mut() {
+        color.0 = color.0.with_alpha(title_a);
+    }
+
+    // a mozi vége: átváltunk a top-down játékba
+    if t >= 10.0 {
+        next.set(AppState::Game);
+    }
+}`,
+skip:
+`fn skip_intro(
+    keys: Res<ButtonInput<KeyCode>>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    mut next: ResMut<NextState<AppState>>,
+) {
+    if keys.just_pressed(KeyCode::Space)
+        || keys.just_pressed(KeyCode::Escape)
+        || mouse.just_pressed(MouseButton::Left)
+    {
+        next.set(AppState::Game);   // ugorjunk egyből a játékba
+    }
+}`,
+togame:
+`fn setup_game(mut commands: Commands) {
+    // Az intro minden entitása (kamera, rétegek, fátyol, cím) a
+    // DespawnOnExit miatt MÁR eltűnt -> tiszta lappal indulunk.
+
+    // Itt jön a TÉNYLEGES top-down játék felépítése:
+    commands.spawn(Camera2d);            // most már a felülnézethez
+    // commands.spawn(player_bundle());  // a játékos
+    // spawn_tilemap(&mut commands);     // a pálya
+    // ...
+}`
+  };
+
+  document.querySelectorAll('code[data-code]').forEach(el=>{
+    const key=el.getAttribute('data-code');
+    if(CODE[key]!==undefined) el.innerHTML=hl(CODE[key]);
+  });
+})();
+
+/* =========================================================
+   PARALLAX ENGINE (procedurális demók)
+========================================================= */
+(function(){
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const TAU = Math.PI*2;
+  const TW = 256;   // egy csempe logikai szélessége (px)
+  const H  = 64;    // a világ logikai magassága (px)
+
+  function offscreen(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; return c; }
+
+  /* ---- silhouette tile builder (varratmentes: csak egész frekvenciák) ---- */
+  function buildSilhouette(colTop, colBody, topFn){
+    const c=offscreen(TW,H), o=c.getContext('2d');
+    for(let x=0;x<TW;x++){
+      let y=Math.round(topFn(x));
+      if(y<1) y=1; if(y>H-1) y=H-1;
+      o.fillStyle=colBody; o.fillRect(x,y,1,H-y);
+      o.fillStyle=colTop;  o.fillRect(x,y,1,1);
+    }
+    return c;
+  }
+
+  const topMtn  = x => 18 + Math.sin(x/TW*TAU)*5     + Math.sin(x/TW*TAU*2+1.0)*3   + Math.sin(x/TW*TAU*4+0.5)*1.5;
+  const topHill = x => 30 + Math.sin(x/TW*TAU+2.0)*3 + Math.sin(x/TW*TAU*3+0.4)*2   + Math.sin(x/TW*TAU*6)*1.0;
+  const topTree = x => 36 - 5 - 3*Math.abs(Math.sin(x/TW*TAU*8)) - 2*Math.sin(x/TW*TAU*3+1.0) + (Math.sin(x/TW*TAU*16)>0.6?-2:0);
+  const topGrass= x => 50 - 3 - 3*Math.abs(Math.sin(x/TW*TAU*20+0.3)) - 2*Math.abs(Math.sin(x/TW*TAU*9));
+
+  // szín-paletták: atmoszféra BE (mélységi tint) vs KI (egységes zöld)
+  function paletteFor(atmo){
+    if(atmo) return {
+      mtn:['#8f87b6','#79709e'], hill:['#688f88','#52746e'],
+      tree:['#33453e','#283635'], grass:['#20302a','#141e19']
+    };
+    return {
+      mtn:['#46a052','#357a40'], hill:['#46a052','#357a40'],
+      tree:['#46a052','#357a40'], grass:['#3f8e4f','#2f6e3c']
+    };
+  }
+
+  const tileCache={};
+  function getTiles(atmo){
+    const key=atmo?'a':'f';
+    if(tileCache[key]) return tileCache[key];
+    const p=paletteFor(atmo);
+    const t={
+      mtn  : buildSilhouette(p.mtn[0],  p.mtn[1],  topMtn),
+      hill : buildSilhouette(p.hill[0], p.hill[1], topHill),
+      tree : buildSilhouette(p.tree[0], p.tree[1], topTree),
+      grass: buildSilhouette(p.grass[0],p.grass[1],topGrass),
+    };
+    tileCache[key]=t; return t;
+  }
+
+  // csillagok + nap fix pozíciókkal
+  const STARS=[];
+  for(let i=0;i<14;i++){ STARS.push([ (i*53+11)%TW, (i*29+3)%16 ]); }
+
+  function drawSky(ctx,VW){
+    const g=ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0.00,'#241a3a');
+    g.addColorStop(0.42,'#52406f');
+    g.addColorStop(0.60,'#b06a6e');
+    g.addColorStop(0.72,'#e09b62');
+    g.addColorStop(1.00,'#f3bd7d');
+    ctx.fillStyle=g; ctx.fillRect(0,0,VW,H);
+    // csillagok (csak az ég tetején)
+    ctx.fillStyle='rgba(255,245,220,.75)';
+    for(const [sx,sy] of STARS){ if(sx<VW) ctx.fillRect(sx,sy,1,1); }
+    // nap: lágy korong + glow, a horizont fölött
+    const cx=Math.round(VW*0.70), cy=24, r=6;
+    const gg=ctx.createRadialGradient(cx,cy,1,cx,cy,r*2.6);
+    gg.addColorStop(0,'rgba(255,225,170,.9)'); gg.addColorStop(1,'rgba(255,225,170,0)');
+    ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(cx,cy,r*2.6,0,TAU); ctx.fill();
+    ctx.fillStyle='#ffe1a6'; ctx.beginPath(); ctx.arc(cx,cy,r,0,TAU); ctx.fill();
+  }
+
+  // egy csempe ismételt kirajzolása scroll+faktor szerint
+  function blit(ctx,tile,scroll,speed,VW){
+    let off = -(((scroll*speed)%TW));
+    if(off>0) off-=TW;          // off ∈ (-TW, 0]
+    for(let x=off; x<VW; x+=TW){ ctx.drawImage(tile, Math.round(x), 0); }
+  }
+
+  // buffer-cache logikai méret szerint
+  const bufCache={};
+  function getBuf(w){ const k=w+'x'+H; if(!bufCache[k]) bufCache[k]=offscreen(w,H); return bufCache[k]; }
+
+  const SPEEDS={ mtn:0.15, hill:0.35, tree:0.60, grass:1.00 };
+
+  function drawScene(cv, st){
+    if(!cv) return;
+    const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+    const cw=cv.width, ch=cv.height;
+    const VW=Math.max(1, Math.round(H*cw/ch));
+    const buf=getBuf(VW); const b=buf.getContext('2d'); b.imageSmoothingEnabled=false;
+    const L=st.layers||{sky:1,mtn:1,hill:1,tree:1,grass:1};
+    const tiles=getTiles(st.atmo!==false);
+
+    b.clearRect(0,0,VW,H);
+    if(L.sky) drawSky(b,VW); else { b.fillStyle='#0f1226'; b.fillRect(0,0,VW,H); }
+    if(L.mtn)   blit(b,tiles.mtn,  st.scroll, SPEEDS.mtn,  VW);
+    if(L.hill)  blit(b,tiles.hill, st.scroll, SPEEDS.hill, VW);
+    if(L.tree)  blit(b,tiles.tree, st.scroll, SPEEDS.tree, VW);
+    if(L.grass) blit(b,tiles.grass,st.scroll, SPEEDS.grass,VW);
+
+    // buffer -> target (felnagyítva, nearest)
+    ctx.clearRect(0,0,cw,ch);
+    ctx.drawImage(buf,0,0,VW,H,0,0,cw,ch);
+
+    // cím (display felbontáson, éles)
+    if(st.titleA>0){
+      ctx.save(); ctx.globalAlpha=Math.min(1,st.titleA);
+      ctx.fillStyle='#ffe9c2'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      const fs=Math.max(12, Math.round(cw/22));
+      ctx.font=fs+'px "Press Start 2P", monospace';
+      ctx.shadowColor='rgba(0,0,0,.55)'; ctx.shadowOffsetX=2; ctx.shadowOffsetY=2;
+      ctx.fillText('A HOSSZÚ ÚT', cw/2, ch*0.40);
+      ctx.restore();
+    }
+
+    // csempehatárok (a végtelenítés demójához)
+    if(st.guides){
+      const sx=cw/VW, sp=(st.guideSpeed!=null?st.guideSpeed:1.0);
+      let off=-(((st.scroll*sp)%TW)); if(off>0) off-=TW;
+      ctx.save();
+      ctx.strokeStyle='rgba(255,200,97,.85)'; ctx.lineWidth=2; ctx.setLineDash([6,5]);
+      for(let x=off; x<=VW+1; x+=TW){ const px=x*sx; ctx.beginPath(); ctx.moveTo(px,0); ctx.lineTo(px,ch); ctx.stroke(); }
+      ctx.setLineDash([]);
+      ctx.fillStyle='rgba(255,200,97,.95)'; ctx.font='11px "JetBrains Mono",monospace'; ctx.textAlign='left';
+      ctx.fillText('1 csempe', off*sx+8, 16);
+      ctx.restore();
+    }
+
+    // fekete fátyol (legfelül, a cím fölött is)
+    if(st.fade>0){ ctx.fillStyle='rgba(8,6,16,'+Math.min(1,st.fade)+')'; ctx.fillRect(0,0,cw,ch); }
+
+    // záró "GAME" jelzés a kiúszás végén
+    if(st.flash){
+      ctx.save(); ctx.globalAlpha=Math.min(1,st.flash);
+      ctx.fillStyle='#46D6B4'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.font='12px "Press Start 2P", monospace';
+      ctx.fillText('▶ TOP-DOWN JÁTÉK', cw/2, ch/2);
+      ctx.restore();
+    }
+  }
+
+  /* =====================================================
+     TOP-DOWN vs PARALLAX (1. rész)
+  ===================================================== */
+  (function(){
+    // --- top-down kis jelenet ---
+    const td=document.getElementById('tdCanvas');
+    if(td){
+      const ctx=td.getContext('2d'); ctx.imageSmoothingEnabled=false;
+      const N=40; const buf=offscreen(N,N); const o=buf.getContext('2d');
+      o.fillStyle='#3f8e4f'; o.fillRect(0,0,N,N);
+      // fű-pöttyök (determinisztikus)
+      function rng(s){ let x=Math.sin(s*99.13)*43758.5; return x-Math.floor(x); }
+      for(let i=0;i<70;i++){ const x=(rng(i)*N)|0, y=(rng(i+99)*N)|0;
+        o.fillStyle=(i%2)?'#357a40':'#57a861'; o.fillRect(x,y,1,1); }
+      // földút átlósan
+      o.fillStyle='#c9a86a'; for(let i=0;i<N;i++){ const w=4; o.fillRect(((i*0.6)|0), i, w, 1); }
+      o.fillStyle='#b5945a'; for(let i=0;i<N;i++){ o.fillRect(((i*0.6)|0), i, 1, 1); }
+      // fák felülnézetből (sötét korona + törzs-pont)
+      function treeTop(cx,cy){ o.fillStyle='#2f6e3c'; o.beginPath(); o.arc(cx,cy,4,0,TAU); o.fill();
+        o.fillStyle='#234a2a'; o.beginPath(); o.arc(cx+1,cy+1,2.4,0,TAU); o.fill();
+        o.fillStyle='#5a3a2a'; o.fillRect(cx,cy,1,1); }
+      treeTop(8,9); treeTop(31,12); treeTop(13,30); treeTop(33,31);
+      // játékos (kis figura felülről)
+      o.fillStyle='#241a33'; o.fillRect(21,23,4,5);
+      o.fillStyle='#ff6f5e'; o.fillRect(21,24,4,2);
+      o.fillStyle='#f2c79a'; o.fillRect(22,22,2,2);
+      ctx.clearRect(0,0,td.width,td.height);
+      ctx.drawImage(buf,0,0,td.width,td.height);
+    }
+    // --- parallax kis jelenet (állókép) ---
+    const px=document.getElementById('pxCanvas');
+    if(px) drawScene(px,{scroll:90, atmo:true, fade:0, titleA:0});
+  })();
+
+  /* =====================================================
+     HERO — teljes intro loop
+  ===================================================== */
+  (function(){
+    const cv=document.getElementById('heroCanvas'); if(!cv)return;
+    const DUR=10;
+    function ramp(t,a,b){ return Math.max(0,Math.min(1,(t-a)/(b-a))); }
+    function frame(t){
+      const fade=Math.max(1-ramp(t,0,1.5), ramp(t,8,10));
+      const titleA=ramp(t,2.5,4)*(1-ramp(t,7,8));
+      drawScene(cv,{ scroll:60+t*40, atmo:true, fade, titleA });
+    }
+    if(reduce){ frame(5); return; }
+    let t=2, last=performance.now();
+    function loop(now){ t+=(now-last)/1000; last=now; if(t>DUR+1.2) t=0; frame(Math.min(t,DUR)); requestAnimationFrame(loop); }
+    requestAnimationFrame(loop);
+  })();
+
+  /* =====================================================
+     RÉTEGEK ki/be
+  ===================================================== */
+  (function(){
+    const cv=document.getElementById('layersCanvas'); if(!cv)return;
+    const on={sky:1,mtn:1,hill:1,tree:1,grass:1};
+    document.querySelectorAll('#layerBtns .btn').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const k=btn.dataset.layer; on[k]=on[k]?0:1;
+        btn.classList.toggle('on',!!on[k]);
+      });
+    });
+    let scroll=40;
+    function frame(){ drawScene(cv,{scroll, atmo:true, fade:0, titleA:0, layers:on}); }
+    if(reduce){ frame(); return; }
+    let last=performance.now();
+    function loop(now){ scroll+=(now-last)/1000*36; last=now; frame(); requestAnimationFrame(loop); }
+    requestAnimationFrame(loop);
+  })();
+
+  /* =====================================================
+     FAKTOR — scrub + auto
+  ===================================================== */
+  (function(){
+    const cv=document.getElementById('factorCanvas'); if(!cv)return;
+    const sl=document.getElementById('scrubScroll');
+    const btn=document.getElementById('factorPlay');
+    let playing=false, last=performance.now();
+    function frame(){ drawScene(cv,{scroll:+sl.value, atmo:true, fade:0, titleA:0}); }
+    sl.addEventListener('input',()=>{ if(!playing) frame(); });
+    btn.addEventListener('click',()=>{ playing=!playing; btn.classList.toggle('on',playing);
+      btn.textContent=playing?'⏸ Auto-pásztázás':'▶ Auto-pásztázás'; last=performance.now(); });
+    function loop(now){
+      if(playing){ let v=(+sl.value + (now-last)/1000*60); if(v>+sl.max) v=+sl.min; sl.value=v; frame(); }
+      last=now; requestAnimationFrame(loop);
+    }
+    frame(); if(!reduce) requestAnimationFrame(loop);
+  })();
+
+  /* =====================================================
+     VÉGTELENÍTÉS — varrat + csempehatárok
+  ===================================================== */
+  (function(){
+    const cv=document.getElementById('seamCanvas'); if(!cv)return;
+    const btn=document.getElementById('seamGuides');
+    let guides=false, scroll=0, last=performance.now();
+    btn.addEventListener('click',()=>{ guides=!guides; btn.classList.toggle('on',guides); if(reduce) frame(); });
+    function frame(){ drawScene(cv,{scroll, atmo:true, fade:0, titleA:0, guides, guideSpeed:1.0}); }
+    if(reduce){ scroll=120; frame(); return; }
+    function loop(now){ scroll+=(now-last)/1000*55; last=now; frame(); requestAnimationFrame(loop); }
+    requestAnimationFrame(loop);
+  })();
+
+  /* =====================================================
+     ATMOSZFÉRA be/ki
+  ===================================================== */
+  (function(){
+    const cv=document.getElementById('atmoCanvas'); if(!cv)return;
+    const btn=document.getElementById('atmoToggle');
+    let atmo=true, scroll=30, last=performance.now();
+    btn.addEventListener('click',()=>{ atmo=!atmo; btn.classList.toggle('on',atmo);
+      btn.textContent='Atmoszféra: '+(atmo?'BE':'KI'); if(reduce) frame(); });
+    function frame(){ drawScene(cv,{scroll, atmo, fade:0, titleA:0}); }
+    if(reduce){ frame(); return; }
+    function loop(now){ scroll+=(now-last)/1000*28; last=now; frame(); requestAnimationFrame(loop); }
+    requestAnimationFrame(loop);
+  })();
+
+  /* =====================================================
+     IDŐVONAL — a teljes intro lejátszó
+  ===================================================== */
+  (function(){
+    const cv=document.getElementById('timelinePreview'); if(!cv)return;
+    const DUR=10;
+    const head=document.getElementById('tlHead');
+    const phaseEl=document.getElementById('tlPhase');
+    const scrub=document.getElementById('tlScrub');
+    const playBtn=document.getElementById('tlPlay');
+    const restartBtn=document.getElementById('tlRestart');
+    function ramp(t,a,b){ return Math.max(0,Math.min(1,(t-a)/(b-a))); }
+    function phaseName(t){
+      if(t<1.5) return 'Beúszás (fade in)';
+      if(t<2.5) return 'Pásztázás';
+      if(t<4.0) return 'Cím beúszik';
+      if(t<7.0) return 'Tartás';
+      if(t<8.0) return 'Cím kiúszik';
+      if(t<10.0) return 'Kiúszás → játék';
+      return 'Vége — indul a játék';
+    }
+    function frame(t){
+      const fade=Math.max(1-ramp(t,0,1.5), ramp(t,8,10));
+      const titleA=ramp(t,2.5,4)*(1-ramp(t,7,8));
+      const flash=ramp(t,9.6,10)*0.95;
+      drawScene(cv,{ scroll:60+t*40, atmo:true, fade, titleA, flash });
+      head.style.left=(t/DUR*100)+'%';
+      phaseEl.textContent=t.toFixed(1)+'s — '+phaseName(t);
+    }
+    let t=0, playing=!reduce, last=performance.now();
+    scrub.addEventListener('input',()=>{ t=(+scrub.value/1000)*DUR; if(!playing) frame(t); });
+    playBtn.addEventListener('click',()=>{ playing=!playing; playBtn.classList.toggle('on',playing);
+      playBtn.textContent=playing?'⏸ Pause':'▶ Play'; last=performance.now(); });
+    restartBtn.addEventListener('click',()=>{ t=0; scrub.value=0; frame(0); });
+    if(reduce){ playBtn.textContent='▶ Play'; playBtn.classList.remove('on'); }
+    function loop(now){
+      if(playing){ t+=(now-last)/1000; if(t>DUR+0.6){ t=0; } scrub.value=Math.min(1000,(t/DUR*1000)); frame(Math.min(t,DUR)); }
+      last=now; requestAnimationFrame(loop);
+    }
+    frame(0); requestAnimationFrame(loop);
+  })();
+
+})();
+</script>
+</body>
+</html>

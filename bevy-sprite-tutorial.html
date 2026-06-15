@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel art sprite-ok top-down játékokhoz — Bevy 0.18 tutorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#15142b;
+  --bg-2:#1c1a38;
+  --surface:#23214a;
+  --surface-2:#2c2a59;
+  --line:#39366b;
+  --line-soft:#2c2a55;
+  --ink:#ECEAFB;
+  --ink-dim:#B4AFDC;
+  --ink-faint:#7a75ad;
+  --coral:#FF6F5E;
+  --coral-soft:#ff8a7a;
+  --gold:#FFC861;
+  --teal:#46D6B4;
+  --violet:#A98BFF;
+
+  /* code tokens */
+  --c-com:#6f6aa0;
+  --c-str:#FFC861;
+  --c-kw:#FF6F5E;
+  --c-type:#46D6B4;
+  --c-macro:#C79BFF;
+  --c-fn:#84B7FF;
+  --c-num:#C79BFF;
+  --c-attr:#86829c;
+  --c-life:#46D6B4;
+
+  --maxw:840px;
+  --sb:288px;
+  --radius:14px;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --pix:"Press Start 2P",var(--mono);
+  --disp:"Space Grotesk","Segoe UI",system-ui,sans-serif;
+  --body:"Inter","Segoe UI",system-ui,sans-serif;
+}
+
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  background:
+    radial-gradient(1200px 700px at 80% -10%, #221f44 0%, rgba(34,31,68,0) 60%),
+    radial-gradient(900px 600px at -10% 10%, #1d1b3c 0%, rgba(29,27,60,0) 55%),
+    var(--bg);
+  color:var(--ink-dim);
+  font-family:var(--body);
+  font-size:16.5px;
+  line-height:1.72;
+  -webkit-font-smoothing:antialiased;
+}
+body::before{
+  content:"";
+  position:fixed; inset:0;
+  pointer-events:none; z-index:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size:24px 24px;
+  mask-image:radial-gradient(80% 60% at 50% 0%, #000 0%, transparent 75%);
+}
+
+a{color:var(--violet);text-decoration:none;}
+a:hover{text-decoration:underline;text-underline-offset:3px;}
+
+/* ---------- topbar ---------- */
+.topbar{
+  position:sticky; top:0; z-index:40;
+  display:flex; align-items:center; gap:14px;
+  padding:13px 20px;
+  background:rgba(21,20,43,.82);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line-soft);
+}
+.brand{display:flex;align-items:center;gap:11px;}
+.brand .glyph{
+  width:26px;height:26px;display:grid;place-items:center;
+  background:var(--coral); color:#1a1226;
+  box-shadow:3px 3px 0 #b53f33;
+  image-rendering:pixelated;
+}
+.brand .glyph svg{display:block}
+.brand b{font-family:var(--pix);font-size:11px;color:var(--ink);letter-spacing:.5px;}
+.brand span{color:var(--coral);}
+.topbar .ver{
+  margin-left:auto; font-family:var(--mono); font-size:12px;
+  color:var(--ink-faint); border:1px solid var(--line);
+  padding:4px 9px; border-radius:999px; white-space:nowrap;
+}
+.menu-btn{
+  display:none; background:var(--surface); border:1px solid var(--line);
+  color:var(--ink); border-radius:9px; padding:7px 10px; cursor:pointer;
+  font-family:var(--mono); font-size:13px;
+}
+
+/* ---------- layout ---------- */
+.layout{display:flex; align-items:flex-start; position:relative; z-index:1;}
+.sidebar{
+  width:var(--sb); flex:none;
+  position:sticky; top:53px;
+  height:calc(100vh - 53px);
+  overflow-y:auto;
+  padding:26px 18px 60px 24px;
+  border-right:1px solid var(--line-soft);
+}
+.sidebar::-webkit-scrollbar{width:9px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px;}
+.sidebar .intro{
+  font-family:var(--mono); font-size:11px; color:var(--ink-faint);
+  letter-spacing:1.5px; text-transform:uppercase; margin:0 0 18px 4px;
+}
+.nav-part{margin-bottom:20px;}
+.nav-part > .part-label{
+  display:flex; align-items:center; gap:8px;
+  font-family:var(--pix); font-size:9px; line-height:1.6;
+  color:var(--gold); letter-spacing:.5px; margin:0 0 9px 0;
+}
+.nav-part > .part-label .pid{color:var(--coral);}
+.nav-list{list-style:none; margin:0; padding:0;}
+.nav-list a{
+  display:block; color:var(--ink-faint); font-size:13.5px;
+  padding:5px 10px 5px 14px; border-left:2px solid transparent;
+  border-radius:0 7px 7px 0; transition:.13s; line-height:1.45;
+}
+.nav-list a:hover{color:var(--ink-dim); background:rgba(255,255,255,.03); text-decoration:none;}
+.nav-list a.active{
+  color:var(--coral); border-left-color:var(--coral);
+  background:linear-gradient(90deg, rgba(255,111,94,.12), transparent);
+  font-weight:500;
+}
+.nav-list a.active::after{
+  content:"▮"; margin-left:6px; color:var(--coral);
+  animation:blink 1.05s steps(1) infinite;
+}
+@keyframes blink{50%{opacity:0}}
+
+/* ---------- main ---------- */
+main{
+  flex:1 1 auto; min-width:0;
+  padding:0 clamp(20px,5vw,64px) 120px;
+}
+.wrap{max-width:var(--maxw); margin:0 auto;}
+
+/* hero */
+.hero{padding:54px 0 30px;}
+.eyebrow{
+  font-family:var(--pix); font-size:10px; color:var(--coral);
+  letter-spacing:1px; margin:0 0 20px;
+}
+.hero h1{
+  font-family:var(--disp); font-weight:700;
+  font-size:clamp(34px,5.4vw,56px); line-height:1.04;
+  color:var(--ink); margin:0 0 18px; letter-spacing:-.02em;
+}
+.hero h1 em{font-style:normal; color:var(--coral);}
+.hero .lead{font-size:18.5px; max-width:640px; color:var(--ink-dim);}
+.hero-stage{
+  margin:32px 0 8px; padding:18px;
+  background:linear-gradient(180deg,#1b1939,#191734);
+  border:1px solid var(--line); border-radius:var(--radius);
+  display:flex; align-items:center; gap:22px; flex-wrap:wrap;
+  box-shadow:0 24px 60px -30px rgba(0,0,0,.8);
+}
+.hero-stage canvas{
+  image-rendering:pixelated; border-radius:8px;
+  background:#0f1226; box-shadow:0 0 0 1px var(--line) inset;
+}
+.hero-stage .cap{font-family:var(--mono); font-size:12.5px; color:var(--ink-faint); max-width:300px;}
+.hero-stage .cap b{color:var(--teal);font-weight:500;}
+
+/* sections */
+.part-head{
+  margin:78px 0 8px; padding-top:18px;
+  display:flex; align-items:baseline; gap:14px;
+  border-top:1px solid var(--line-soft);
+}
+.part-head .num{font-family:var(--pix); font-size:13px; color:var(--coral);}
+.part-head h2{
+  font-family:var(--disp); font-weight:700; font-size:13px;
+  letter-spacing:3px; text-transform:uppercase; color:var(--gold); margin:0;
+}
+.chapter{padding-top:30px; scroll-margin-top:72px;}
+.chapter h3{
+  font-family:var(--disp); font-weight:600;
+  font-size:clamp(23px,3.2vw,30px); color:var(--ink);
+  margin:0 0 6px; letter-spacing:-.01em;
+}
+.chapter h4{
+  font-family:var(--disp); font-weight:600; font-size:18px;
+  color:var(--teal); margin:30px 0 4px;
+}
+.chapter p{margin:14px 0;}
+.chapter ul,.chapter ol{margin:14px 0; padding-left:22px;}
+.chapter li{margin:7px 0;}
+.chapter li::marker{color:var(--coral);}
+strong{color:var(--ink); font-weight:600;}
+hr.soft{border:none;border-top:1px solid var(--line-soft);margin:26px 0;}
+
+/* inline code */
+code.k{
+  font-family:var(--mono); font-size:.86em;
+  background:var(--surface); color:var(--teal);
+  padding:1px 6px; border-radius:6px; border:1px solid var(--line-soft);
+}
+
+/* code blocks */
+pre.code{
+  margin:18px 0; padding:0;
+  background:#13122a; border:1px solid var(--line);
+  border-radius:12px; overflow:hidden;
+  box-shadow:0 16px 40px -28px rgba(0,0,0,.9);
+}
+pre.code .bar{
+  display:flex; align-items:center; gap:7px;
+  padding:9px 14px; border-bottom:1px solid var(--line-soft);
+  background:rgba(255,255,255,.02);
+}
+pre.code .bar i{width:10px;height:10px;border-radius:50%;display:inline-block;}
+pre.code .bar .fn{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);margin-left:6px;}
+pre.code code{
+  display:block; padding:16px 18px; overflow-x:auto;
+  font-family:var(--mono); font-size:13.3px; line-height:1.62;
+  color:#cfcbe8; white-space:pre;
+}
+pre.code code::-webkit-scrollbar{height:9px;}
+pre.code code::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px;}
+.c-com{color:var(--c-com);font-style:italic;}
+.c-str{color:var(--c-str);}
+.c-kw{color:var(--c-kw);}
+.c-type{color:var(--c-type);}
+.c-macro{color:var(--c-macro);}
+.c-fn{color:var(--c-fn);}
+.c-num{color:var(--c-num);}
+.c-attr{color:var(--c-attr);}
+.c-life{color:var(--c-life);}
+
+/* callouts */
+.note{
+  margin:20px 0; padding:15px 17px 15px 18px;
+  border-radius:11px; border:1px solid var(--line);
+  background:var(--bg-2); position:relative;
+}
+.note .tag{
+  font-family:var(--pix); font-size:8px; letter-spacing:.5px;
+  display:inline-block; margin-bottom:9px; padding:4px 7px; border-radius:6px;
+}
+.note p{margin:6px 0;}
+.note.bevy{border-left:3px solid var(--teal);}
+.note.bevy .tag{color:#0f2b25;background:var(--teal);}
+.note.tip{border-left:3px solid var(--gold);}
+.note.tip .tag{color:#2c2008;background:var(--gold);}
+.note.warn{border-left:3px solid var(--coral);}
+.note.warn .tag{color:#2a0f0a;background:var(--coral);}
+
+/* demo card */
+.demo{
+  margin:24px 0; padding:18px;
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius);
+}
+.demo .dh{
+  font-family:var(--mono); font-size:11px; letter-spacing:1.5px;
+  text-transform:uppercase; color:var(--ink-faint); margin:0 0 14px;
+  display:flex;align-items:center;gap:8px;
+}
+.demo .dh::before{content:"●"; color:var(--teal); font-size:9px;}
+.demo .row{display:flex; gap:22px; align-items:flex-start; flex-wrap:wrap;}
+.demo canvas{image-rendering:pixelated; background:#0f1226; border-radius:8px; box-shadow:0 0 0 1px var(--line) inset;}
+.demo .lbl{font-family:var(--mono); font-size:12px; color:var(--ink-faint); margin-top:7px; text-align:center;}
+.demo .lbl b{color:var(--teal); font-weight:500;}
+.demo .controls{display:flex; gap:9px; align-items:center; flex-wrap:wrap; margin-top:14px;}
+.btn{
+  font-family:var(--mono); font-size:12.5px; cursor:pointer;
+  background:var(--surface-2); color:var(--ink-dim);
+  border:1px solid var(--line); border-radius:8px; padding:7px 13px;
+  transition:.12s;
+}
+.btn:hover{border-color:var(--coral); color:var(--coral);}
+.btn.on{background:var(--coral); color:#1a0f0c; border-color:var(--coral);}
+input[type=range]{accent-color:var(--coral);}
+.swatchgrid{display:grid; grid-template-columns:repeat(8,1fr); gap:4px; max-width:440px;}
+.swatch{aspect-ratio:1; border-radius:4px; position:relative; cursor:pointer; box-shadow:0 0 0 1px rgba(0,0,0,.3) inset;}
+.swatch:hover::after{
+  content:attr(data-hex); position:absolute; left:50%; bottom:calc(100% + 5px);
+  transform:translateX(-50%); background:#0c0b1d; color:var(--ink);
+  font-family:var(--mono); font-size:10px; padding:3px 6px; border-radius:5px;
+  border:1px solid var(--line); white-space:nowrap; z-index:3;
+}
+
+/* tables */
+.tbl{width:100%; border-collapse:collapse; margin:20px 0; font-size:14.5px;}
+.tbl th,.tbl td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--line-soft);}
+.tbl th{font-family:var(--disp); font-weight:600; color:var(--gold); font-size:13px; letter-spacing:.4px;}
+.tbl td{color:var(--ink-dim);}
+.tbl tr:hover td{background:rgba(255,255,255,.02);}
+.tbl code{font-family:var(--mono); font-size:12.5px; color:var(--teal);}
+
+.footer{
+  max-width:var(--maxw); margin:90px auto 0; padding-top:24px;
+  border-top:1px solid var(--line-soft);
+  font-family:var(--mono); font-size:12.5px; color:var(--ink-faint);
+}
+.footer b{color:var(--ink-dim);font-weight:500;}
+
+.scrim{display:none;}
+
+@media (max-width:980px){
+  .menu-btn{display:block;}
+  .sidebar{
+    position:fixed; top:0; left:0; bottom:0; height:100vh; z-index:60;
+    width:300px; background:var(--bg-2); transform:translateX(-105%);
+    transition:transform .22s ease; box-shadow:30px 0 70px -30px #000;
+    padding-top:20px;
+  }
+  body.nav-open .sidebar{transform:none;}
+  body.nav-open .scrim{display:block; position:fixed; inset:0; z-index:55; background:rgba(8,7,18,.6);}
+  main{padding-left:clamp(18px,6vw,28px); padding-right:clamp(18px,6vw,28px);}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto;}
+  .nav-list a.active::after{animation:none;}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <button class="menu-btn" id="menuBtn" aria-label="Tartalom megnyitása">☰ Tartalom</button>
+  <div class="brand">
+    <span class="glyph" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 8 8"><rect width="8" height="8" fill="#1a1226"/><rect x="2" y="1" width="4" height="2" fill="#FF6F5E"/><rect x="1" y="3" width="6" height="3" fill="#FFC861"/><rect x="2" y="6" width="1" height="1" fill="#FF6F5E"/><rect x="5" y="6" width="1" height="1" fill="#FF6F5E"/></svg>
+    </span>
+    <b>SPRITE<span>·</span>DOJO</b>
+  </div>
+  <span class="ver">Bevy 0.18 · top-down pixel art</span>
+</header>
+
+<div class="layout">
+  <div class="scrim" id="scrim"></div>
+  <aside class="sidebar" id="sidebar">
+    <p class="intro">Tartalom</p>
+    <nav id="nav"></nav>
+  </aside>
+
+  <main>
+    <div class="wrap">
+
+      <!-- HERO -->
+      <section class="hero">
+        <p class="eyebrow">PIXEL ART · SPRITE-OK · TOP-DOWN</p>
+        <h1>Sprite-ok, amikből <em>top-down</em> világ épül</h1>
+        <p class="lead">Gyakorlati útmutató a pixel art sprite-ok tervezéséhez és használatához: színek, méretek, karakterek, tile-ok, UI, sprite atlasz és optimalizálás &mdash; végig konkrét <strong>Bevy 0.18</strong> kóddal és a használt motor-funkciók magyarázatával.</p>
+        <div class="hero-stage">
+          <canvas id="heroCanvas" width="240" height="160"></canvas>
+          <div class="cap">Egy 16&times;16-os karakter négy frame-es járás-ciklusa, <b>nearest-neighbor</b> nagyítással egy fűcsempén. Pontosan ezt fogjuk felépíteni Bevyben.</div>
+        </div>
+      </section>
+
+      <!-- ===================== PART A ===================== -->
+      <div class="part-head" data-part><span class="num">01</span><h2>Alapok</h2></div>
+
+      <section class="chapter" id="mi-a-sprite">
+        <h3>Mi az a sprite?</h3>
+        <p>A <strong>sprite</strong> egy 2D kép (textúra), amit a motor a játéktérbe rajzol. Top-down (felülnézetes) játékban szinte minden látható dolog egy sprite: a karakter, az ellenfelek, a fák, a padló-csempék, a tárgyak, sőt a felület (UI) elemei is.</p>
+        <p>Technikailag a sprite egy <strong>raszteres kép</strong> &mdash; pixelek egy rácsban, mindegyiknek van színe (és többnyire átlátszósága, az alfa-csatorna). A GPU ezt a textúrát egy négyszögre (quad) feszíti rá, és a kamerán keresztül a képernyőre rajzolja.</p>
+        <p>A pixel art esetében a kép szándékosan <strong>kis felbontású</strong>, és a felnagyítást a motorra bízzuk. Ezért minden döntés &mdash; hány pixel, milyen szín, milyen rács &mdash; közvetlenül látszik a végeredményen. Ettől lesz egy pixel art játéknak karakteres, kézzel megmunkált hangulata.</p>
+        <div class="note bevy">
+          <span class="tag">BEVY</span>
+          <p>Bevyben a sprite egy <code class="k">Sprite</code> komponens, amit egy entitásra teszünk. A komponens egy <code class="k">Handle&lt;Image&gt;</code>-et tárol (hivatkozás a betöltött képre), nem magát a képet. A motor a <code class="k">Transform</code> komponens alapján helyezi el, forgatja és skálázza.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="pixel-art">
+        <h3>Pixel art alapelvek</h3>
+        <p>A pixel art nem &bdquo;kis felbontású PNG&rdquo;, hanem stílus, aminek megvannak a szabályai. A legfontosabbak:</p>
+        <ul>
+          <li><strong>1 pixel = 1 döntés.</strong> Minden pixelt te raksz le. Ne keverj a képbe szoftveres élsimítást (anti-aliasing): a homályos szélek &bdquo;piszkosnak&rdquo; tűnnek, ha a játékban felnagyítod.</li>
+          <li><strong>Egységes pixelméret.</strong> Ha a karakter pixelei 16&times;16-os rácson ülnek, a tile-ok pixelei is ugyanakkorák legyenek. A &bdquo;mixed resolution&rdquo; (kevert felbontás) a leggyakoribb kezdő hiba.</li>
+          <li><strong>Olvashatóság kicsiben.</strong> A sziluettnek már 1&times; méretben is felismerhetőnek kell lennie. Hunyorítva nézd: ha a forma szétesik, túl sok a részlet.</li>
+          <li><strong>Egész számú nagyítás.</strong> A pixel artot mindig egész szorzóval (2&times;, 3&times;, 4&times;&hellip;) nagyítsd, különben a pixelek egyenetlenek lesznek (egyik 3, másik 4 képernyő-pixel széles).</li>
+        </ul>
+        <h4>Raszter vs. vektor</h4>
+        <p>A vektorgrafika (pl. SVG) képletekkel ír le formákat, így bármekkora méretben éles. A raszteres kép viszont fix pixelekből áll. A pixel art szándékosan raszteres: a &bdquo;tökéletlenség&rdquo;, a látható pixelrács maga a stílus. Ezért nem nagyítjuk simítással, hanem <em>nearest-neighbor</em> mintavételezéssel, ami megőrzi a kemény éleket (erről bővebben az optimalizálásnál).</p>
+      </section>
+
+      <!-- ===================== PART B ===================== -->
+      <div class="part-head" data-part><span class="num">02</span><h2>Színek</h2></div>
+
+      <section class="chapter" id="paletta">
+        <h3>Korlátozott paletták</h3>
+        <p>A pixel art művészek általában <strong>korlátozott palettával</strong> dolgoznak: 8, 16, esetleg 32 színnel az egész játékra (vagy egy karakterre). Ennek nem technikai, hanem esztétikai oka van &mdash; bár régen a hardver tényleg ennyit tudott.</p>
+        <ul>
+          <li><strong>Vizuális egység.</strong> Ha minden sprite ugyanabból a palettából merít, a fa, a karakter és a UI &bdquo;összetartozik&rdquo;, mintha egy kéz rajzolta volna.</li>
+          <li><strong>Gyorsabb munka.</strong> Kevesebb szín = kevesebb döntés. Nem veszel el az árnyalatok között.</li>
+          <li><strong>Erősebb kontraszt.</strong> A korlát kreativitásra kényszerít: egy szín több szerepet is betölt (egy sötétkék lehet árnyék is és kontúr is).</li>
+        </ul>
+        <p>Egy karakteren tipikusan elég <strong>3&ndash;5 szín</strong> (pl. világos, alap, árnyék + kontúr). Az árnyalatokat ne csak sötétítéssel, hanem <strong>hue shift</strong>-tel csináld: az árnyékot told a kék/lila felé, a fényt a sárga felé &mdash; ettől lesz &bdquo;élő&rdquo; a szín.</p>
+      </section>
+
+      <section class="chapter" id="hires-paletta">
+        <h3>Híres paletták</h3>
+        <p>Nem kötelező nulláról palettát építeni &mdash; léteznek bevált, közösségi paletták, amik már eleve jól harmonizálnak. Kattints rá egy színre a hex-kódért.</p>
+
+        <div class="demo">
+          <p class="dh">Beépített demó &middot; közismert paletták</p>
+          <div style="display:flex;gap:28px;flex-wrap:wrap;">
+            <div>
+              <div class="swatchgrid" id="palPico"></div>
+              <p class="lbl"><b>PICO-8</b> &mdash; 16 szín, fantasy-konzol</p>
+            </div>
+            <div>
+              <div class="swatchgrid" id="palDb"></div>
+              <p class="lbl"><b>DawnBringer 16</b> &mdash; klasszikus 16-as</p>
+            </div>
+          </div>
+        </div>
+
+        <table class="tbl">
+          <thead><tr><th>Paletta</th><th>Színek</th><th>Mire jó</th></tr></thead>
+          <tbody>
+            <tr><td>PICO-8</td><td>16</td><td>Cuki, telített, &bdquo;retró konzol&rdquo; hangulat</td></tr>
+            <tr><td>DawnBringer 16 / 32</td><td>16 / 32</td><td>Univerzális, jól árnyalható, RPG-barát</td></tr>
+            <tr><td>Sweetie 16</td><td>16</td><td>Élénk, modern indie look</td></tr>
+            <tr><td>AAP-64 / Resurrect 64</td><td>64</td><td>Részletes munkák, sok árnyalat</td></tr>
+          </tbody>
+        </table>
+        <div class="note tip">
+          <span class="tag">TIPP</span>
+          <p>Kezdj kevés színnel és bővíts csak akkor, ha tényleg hiányzik egy árnyalat. Egy 16 színű palettán messzebb jutsz, mint hinnéd &mdash; a profi pixel art munkák nagy része ennél is kevesebbet használ egy adott jeleneten.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="dithering">
+        <h3>Dithering &amp; kézi élsimítás</h3>
+        <p>Ha kevés színed van, de lágy átmenetet akarsz, jön a <strong>dithering</strong>: két szín pixeleit váltakozó (sakktábla- vagy szórt) mintában keverve a szem új, köztes árnyalatot lát. Így korlátozott palettával is lehet &bdquo;gradiens&rdquo; hatást kelteni.</p>
+        <p>A <strong>kézi anti-aliasing</strong> (AA) ennek rokona: a formák szélén néhány köztes árnyalatú pixelt raksz le kézzel, hogy a lépcsőzés (jaggies) simább legyen. Fontos: ezt <em>a sprite-on belül</em> teszed meg, szándékosan &mdash; nem a motor szoftveres simításával, ami a nagyításkor mosná el az egészet.</p>
+        <p>Top-down játéknál visszafogottan ditherelj: a folyamatosan ismétlődő, dithered tile-ok távolról zajosnak tűnhetnek. A nagy felületeknél (víz, fű) gyakran tisztább pár markáns árnyalattal dolgozni, mint mindent ditheringgel összemosni.</p>
+      </section>
+
+      <!-- ===================== PART C ===================== -->
+      <div class="part-head" data-part><span class="num">03</span><h2>Méretek</h2></div>
+
+      <section class="chapter" id="miert-meret">
+        <h3>Miért számít a méret?</h3>
+        <p>A sprite alapfelbontása (hány pixel széles és magas) eldönti, mennyi részlet fér rá, mennyi munka megrajzolni és animálni, és mennyi helyet foglal a memóriában. Top-down játéknál a méret ráadásul közvetlenül összefügg a <strong>kamera távolságával</strong>: minél nagyobb felbontásúak a sprite-ok, annál &bdquo;közelebb&rdquo; érződik a világ.</p>
+        <p>Minél több pixel, annál finomabb a forma &mdash; de annál többet is kell rajzolni minden egyes frame-hez. Nézd meg, hogyan változik ugyanannak a formának a részletessége a rács sűrűségével:</p>
+
+        <div class="demo">
+          <p class="dh">Beépített demó &middot; ugyanaz a forma, három felbontáson</p>
+          <div class="row">
+            <div><canvas id="resA" width="128" height="128"></canvas><p class="lbl"><b>16&times;16</b> &mdash; durva, ikonikus</p></div>
+            <div><canvas id="resB" width="128" height="128"></canvas><p class="lbl"><b>32&times;32</b> &mdash; lágyabb él</p></div>
+            <div><canvas id="resC" width="128" height="128"></canvas><p class="lbl"><b>64&times;64</b> &mdash; sima, részletes</p></div>
+          </div>
+          <p class="lbl" style="text-align:left;margin-top:12px">Mindhárom <b>8&times;</b> nagyításban, hogy lásd a tényleges pixeleket. A forma azonos, csak a rács sűrűsödik.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="16-32-64">
+        <h3>16&times;16, 32&times;32, 64&times;64 &mdash; mikor melyik?</h3>
+        <table class="tbl">
+          <thead><tr><th>Méret</th><th>Jellemző felhasználás</th><th>Részletesség</th></tr></thead>
+          <tbody>
+            <tr><td><code>16&times;16</code></td><td>Tile-ok, kis tárgyak, ikonok; retró top-down karakterek (pl. klasszikus Zelda-stílus)</td><td>Sziluett-szintű; arc, ujjak nem férnek el</td></tr>
+            <tr><td><code>32&times;32</code></td><td>Karakterek a legtöbb modern top-down indie játékban; nagyobb props, bútorok</td><td>Arckifejezés, ruharészletek, kis animáció belefér</td></tr>
+            <tr><td><code>64&times;64</code></td><td>Bossok, nagy tárgyak, részletes hősök, közeli kamera</td><td>Finom árnyalás, sok frame-es animáció</td></tr>
+          </tbody>
+        </table>
+        <p>A kulcs a <strong>konzisztencia</strong>: válassz egy &bdquo;alap&rdquo; tile-méretet (pl. 16 vagy 32), és minden más ehhez igazodjon. Egy 32-es világban egy karakter lehet 32&times;32 (egy csempényi) vagy 32&times;48 (másfél csempe magas, hogy &bdquo;kilógjon&rdquo; a padlóból &mdash; ez tipikus top-down trükk a térérzethez).</p>
+        <h4>Power-of-two?</h4>
+        <p>A 16/32/64 nem véletlen: ezek kettő-hatványok. A GPU-k a kettő-hatvány méretű textúrákat kezelik a leghatékonyabban (mipmap, csomagolás). Ma már nem kötelező, de a tile-méreteknél praktikus megszokás.</p>
+      </section>
+
+      <section class="chapter" id="ppu">
+        <h3>Pixel-per-unit &amp; konzisztencia</h3>
+        <p>A motor világa nem pixelben, hanem absztrakt &bdquo;world unit&rdquo;-okban mér. A <strong>pixels-per-unit (PPU)</strong> mondja meg, hány textúra-pixel feleljen meg egy world unitnak. Ezt érdemes az alap tile-mérethez kötni: ha PPU = 16, akkor egy 16&times;16-os tile pont 1&times;1 world unit lesz &mdash; így a fizika, a rács és a mozgás szép kerek számokkal dolgozik.</p>
+        <div class="note bevy">
+          <span class="tag">BEVY</span>
+          <p>Bevyben alapból <strong>1 textúra-pixel = 1 world unit</strong> (a <code class="k">Sprite</code> a kép natív méretében jelenik meg). A &bdquo;zoom&rdquo;-ot vagy a kamera projekciójának skálázásával, vagy a sprite-ok egész szorzós nagyításával éred el (<code class="k">Transform</code> scale). A lényeg: <em>egész</em> szorzót használj a pixel-perfect kép érdekében.</p>
+        </div>
+        <div class="note warn">
+          <span class="tag">VIGYÁZZ</span>
+          <p>Ne keverd a <code class="k">custom_size</code> (a sprite <em>látszik</em> nagyobbnak) és a <code class="k">Transform</code> scale (a sprite tényleg nagyobb a világban) használatát összevissza. A fizikai méret (ütközők) a world unitokhoz kötődik, nem a képernyő-pixelekhez.</p>
+        </div>
+      </section>
+
+      <!-- ===================== PART D ===================== -->
+      <div class="part-head" data-part><span class="num">04</span><h2>Karakterek</h2></div>
+
+      <section class="chapter" id="karakter-felepites">
+        <h3>Karakter sprite felépítése</h3>
+        <p>Egy top-down karakter rétegekből áll, még ha egyetlen képen is van: <strong>kontúr</strong> (vagy kontúr nélküli stílus), <strong>alapszín</strong>, <strong>árnyék</strong>, <strong>fény</strong>. A jó sziluett a legfontosabb &mdash; ezt nézd először, mielőtt beleesel a részletekbe.</p>
+        <ul>
+          <li><strong>Fej-test arány.</strong> A pixel art karakterek gyakran &bdquo;chibi&rdquo; arányúak (nagy fej), mert kis felbontáson az arc a kifejezőerő &mdash; egy 16 pixel magas reális arányú emberen a fej 2&ndash;3 pixel, az semmit nem mond el.</li>
+          <li><strong>Olvasható végtagok.</strong> A kar és láb mozgása viszi az animációt; ezeknek el kell férniük és el kell válniuk a testtől.</li>
+          <li><strong>Konzisztens fényforrás.</strong> Döntsd el, honnan jön a fény (pl. felülről), és minden sprite-on tartsd magad hozzá.</li>
+        </ul>
+      </section>
+
+      <section class="chapter" id="iranyok">
+        <h3>Irányok &amp; nézetek</h3>
+        <p>Top-down játéknál a karakternek általában több irányba kell néznie. Két fő séma:</p>
+        <ul>
+          <li><strong>4 irány</strong> (le, fel, balra, jobbra): a leggyakoribb. A bal/jobb gyakran <em>tükrözött</em> egymás, így csak 3 irányt kell megrajzolni &mdash; a motor a negyediket az X tengelyen tükrözi.</li>
+          <li><strong>8 irány</strong> (átlók is): simább a mozgás, de több munka, és nem tükrözhető olyan egyszerűen.</li>
+        </ul>
+        <p>Minden irányhoz tartozik egy vagy több animáció (idle, walk). Ezeket egy <strong>sprite sheet</strong>-en (rácsban) tároljuk: pl. soronként egy irány, oszloponként egy animációs frame.</p>
+        <div class="note tip">
+          <span class="tag">TIPP</span>
+          <p>A bal/jobb tükrözés ingyen feleannyi rajzolás &mdash; de figyelj az aszimmetrikus részletekre (kard a jobb kézben, sebhely az arcon): ezek tükrözéskor &bdquo;átugranak&rdquo; a másik oldalra. Ha ez zavaró, rajzold meg külön mindkét irányt.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="animacio">
+        <h3>Animációs ciklusok</h3>
+        <p>A 2D animáció lényege: gyorsan váltogatunk néhány álló képet (frame). Egy egyszerű <strong>járás-ciklus</strong> meglepően kevés frame-ből összejön &mdash; gyakran 4 is elég. A frame-ek egy sprite sheeten egymás mellett ülnek, az animáció pedig a megjelenített frame indexét lépteti időzítve.</p>
+
+        <div class="demo">
+          <p class="dh">Beépített demó &middot; 4 frame-es járás-ciklus egy sprite sheetből</p>
+          <div class="row" style="align-items:center">
+            <div>
+              <canvas id="sheetCanvas" width="264" height="72"></canvas>
+              <p class="lbl">A <b>sprite sheet</b> &mdash; 4 frame egy sorban (16&times;16 each)</p>
+            </div>
+            <div>
+              <canvas id="playCanvas" width="96" height="96"></canvas>
+              <p class="lbl">Lejátszva: index <b><span id="frameIdx">0</span></b></p>
+            </div>
+          </div>
+          <div class="controls">
+            <button class="btn on" id="playBtn">⏸ Pause</button>
+            <label style="font-family:var(--mono);font-size:12px;color:var(--ink-faint)">Sebesség
+              <input type="range" id="speed" min="60" max="320" value="150" step="10" style="vertical-align:middle">
+            </label>
+          </div>
+        </div>
+
+        <p>A logika mindenhol ugyanaz, motortól függetlenül: van egy időzítő, ami adott időközönként &bdquo;jelez&rdquo;, és akkor lépünk a következő frame indexre &mdash; az utolsó után vissza az elsőre. Bevyben pontosan ezt fogjuk megírni egy <code class="k">Timer</code>-rel és a <code class="k">TextureAtlas</code> indexének léptetésével (lásd a Bevy-fejezetet).</p>
+        <table class="tbl">
+          <thead><tr><th>Animáció</th><th>Tipikus frame-szám</th><th>Sebesség</th></tr></thead>
+          <tbody>
+            <tr><td>Idle (állás)</td><td>2&ndash;4</td><td>Lassú, ~4&ndash;6 FPS, finom &bdquo;légzés&rdquo;</td></tr>
+            <tr><td>Walk (járás)</td><td>4&ndash;8</td><td>~8&ndash;12 FPS</td></tr>
+            <tr><td>Attack (támadás)</td><td>3&ndash;6</td><td>Gyors, &bdquo;snappy&rdquo;, kulcsképekkel</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ===================== PART E ===================== -->
+      <div class="part-head" data-part><span class="num">05</span><h2>Tile-ok</h2></div>
+
+      <section class="chapter" id="tile-alap">
+        <h3>Tile-ok és a tilemap</h3>
+        <p>Egy top-down világ padlóját és falait nem egyetlen óriási képből rakjuk össze, hanem kicsi, ismétlődő <strong>tile-okból</strong> (csempékből). Ezek egy <strong>tileset</strong>ben (csempekészletben) élnek, a pálya pedig csak egy index-rács: melyik cellába melyik csempe kerül.</p>
+        <ul>
+          <li><strong>Memóriahatékony:</strong> 20 csempéből hatalmas pályát építhetsz, mert csak indexeket tárolsz, nem külön képeket.</li>
+          <li><strong>Gyors szerkesztés:</strong> tile-editorral &bdquo;festheted&rdquo; a pályát.</li>
+          <li><strong>Rácsra simulás:</strong> a mozgás, a fizika és a path-finding is jól illeszkedik a rácshoz.</li>
+        </ul>
+
+        <div class="demo">
+          <p class="dh">Beépített demó &middot; tileset + belőle összerakott térkép</p>
+          <div class="row" style="align-items:center">
+            <div>
+              <canvas id="tilesetCanvas" width="160" height="32"></canvas>
+              <p class="lbl">A <b>tileset</b> (5 csempe, 16&times;16)</p>
+            </div>
+            <div>
+              <canvas id="tilemapCanvas" width="192" height="160"></canvas>
+              <p class="lbl">A <b>tilemap</b> &mdash; csak indexekből rajzolva</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="chapter" id="seamless">
+        <h3>Illeszkedő (seamless) tile-ok</h3>
+        <p>Egy padló-csempének <strong>varratmentesen</strong> kell ismétlődnie: ha sokszor egymás mellé rakod, ne legyen látható &bdquo;rács&rdquo; vagy ismétlődő minta. Két szabály:</p>
+        <ul>
+          <li><strong>Élek folytonossága:</strong> a csempe bal széle illeszkedjen a jobb széléhez, a teteje az aljához (mintha körbeforgatható lenne). Sok editor &bdquo;wrap&rdquo; nézetben mutatja ezt.</li>
+          <li><strong>Ne legyen feltűnő részlet:</strong> egy fényes pötty vagy egyedi virág, ha minden csempén ugyanott van, rácsmintaként &bdquo;villog&rdquo;. Az ilyen részleteket inkább külön, ritkán elszórt sprite-ként rakd a fűre.</li>
+        </ul>
+        <p>A monotonitás ellen <strong>variációkat</strong> készíts ugyanahhoz a felülethez (3&ndash;4 fűcsempe kicsit eltérő pöttyökkel), és véletlenszerűen szórd őket. A szem így &bdquo;természetesnek&rdquo; látja a felületet.</p>
+      </section>
+
+      <section class="chapter" id="autotile">
+        <h3>Auto-tiling &amp; bitmask</h3>
+        <p>Az átmeneteket (fű&rarr;víz part, út&rarr;fal sarok) nem kézzel rakjuk minden cellába. Az <strong>auto-tiling</strong> megnézi, hogy egy cella szomszédjai &bdquo;ugyanolyanok-e&rdquo;, és ez alapján automatikusan a helyes sarok/él csempét választja.</p>
+        <p>A bevett technika a <strong>bitmask</strong>: minden szomszéd (fent, jobbra, lent, balra &mdash; vagy a sarkok is) ad egy bitet, ezek összege egy szám, ami a megfelelő csempére mutat. A 4 fő szomszéddal 16 eset van; a sarkokat is figyelembe véve a klasszikus <strong>&bdquo;47-tile blob&rdquo;</strong> készlet jön ki. A <strong>Wang tiles</strong> egy rokon megközelítés, ahol az élek &bdquo;színe&rdquo; alapján illeszkednek a csempék.</p>
+        <div class="note tip">
+          <span class="tag">TIPP</span>
+          <p>Tervezz auto-tile készletre <em>előre</em>: rajzold meg a 47 (vagy 16) variánst szabályos elrendezésben. Eszközök, mint a Tiled vagy az LDtk, beépítve támogatják az auto-tile szabályokat, így nem neked kell a bitmask-logikát kézzel kódolnod.</p>
+        </div>
+      </section>
+
+      <!-- ===================== PART F ===================== -->
+      <div class="part-head" data-part><span class="num">06</span><h2>Egyéb grafika &amp; UI</h2></div>
+
+      <section class="chapter" id="propok">
+        <h3>Tárgyak, effektek, particle-ök</h3>
+        <p>A világot a karaktereken és csempéken túl rengeteg apró sprite tölti meg:</p>
+        <ul>
+          <li><strong>Propok / dekoráció:</strong> fák, hordók, ládák, bútorok. Ezek gyakran &bdquo;kilógnak&rdquo; a saját csempéjükből (magasak), ezért nem a tilemapba, hanem külön entitásként, magasabb rendezési sorrenddel (z-index / y-sort) kerülnek be.</li>
+          <li><strong>Effektek:</strong> robbanás, csillanás, füst &mdash; rövid animációs sheetek, amik lejátszás után eltűnnek.</li>
+          <li><strong>Particle sprite-ok:</strong> a részecskerendszerek apró sprite-okat (szikra, levél, por) sokszorosítanak. Minél kisebb és egyszerűbb, annál olcsóbb sokat megjeleníteni.</li>
+        </ul>
+        <p>Top-down játékban kulcskérdés a <strong>mélységi rendezés (y-sort)</strong>: az alacsonyabban (a képernyőn lentebb) lévő objektum takarja a feljebb lévőt, így a karakter eltűnik a fa mögött, ha mögé lép. Ezt általában az entitás Y pozíciójából számolt z-értékkel oldjuk meg.</p>
+      </section>
+
+      <section class="chapter" id="ui">
+        <h3>UI és a 9-slice</h3>
+        <p>A felület (panelek, gombok, párbeszéd-dobozok) is sprite-okból épül, de itt egy különleges technika kell: a <strong>9-slice</strong> (kilenc-szelet, más néven 9-patch). A probléma: egy díszített keretű panelt nem tudsz simán felnagyítani, mert a sarkok eltorzulnának.</p>
+        <p>A megoldás: a panelt 9 részre vágod. A <strong>4 sarok</strong> sosem nyúlik, a <strong>4 él</strong> csak a saját tengelye mentén, a <strong>közép</strong> mindkét irányban. Így bármilyen méretű, éles keretű panel összerakható egyetlen kis sprite-ból.</p>
+
+        <div class="demo">
+          <p class="dh">Beépített demó &middot; 9-slice panel átméretezése</p>
+          <div class="row" style="align-items:flex-start">
+            <div>
+              <canvas id="ninePanel" width="320" height="180"></canvas>
+              <p class="lbl">A sarkok élesek maradnak, csak az élek/közép nyúlnak</p>
+            </div>
+          </div>
+          <div class="controls">
+            <label style="font-family:var(--mono);font-size:12px;color:var(--ink-faint)">Szélesség
+              <input type="range" id="nineW" min="48" max="300" value="220" style="vertical-align:middle"></label>
+            <label style="font-family:var(--mono);font-size:12px;color:var(--ink-faint)">Magasság
+              <input type="range" id="nineH" min="48" max="170" value="120" style="vertical-align:middle"></label>
+          </div>
+        </div>
+        <p>A bitmap fontok (pixel betűtípusok) ugyanígy működnek: minden karakter egy kis sprite egy atlaszon, és a szöveget ezekből a &bdquo;glyph&rdquo;-ekből rakja össze a motor.</p>
+      </section>
+
+      <!-- ===================== PART G ===================== -->
+      <div class="part-head" data-part><span class="num">07</span><h2>Sprite atlasz</h2></div>
+
+      <section class="chapter" id="mi-az-atlas">
+        <h3>Mi az a sprite atlasz?</h3>
+        <p>A <strong>sprite atlasz</strong> (texture atlas, sprite sheet) egyetlen nagy kép, amin sok kis sprite ül egy rácsban vagy szabad elrendezésben. A motor egy <strong>index</strong> vagy egy <strong>téglalap (rect)</strong> segítségével vágja ki belőle az éppen kellő darabot.</p>
+        <p>Két fő fajta:</p>
+        <ul>
+          <li><strong>Rács alapú (grid):</strong> minden cella azonos méretű (pl. 16&times;16). Animációs frame-ekhez és azonos méretű csempékhez ideális &mdash; csak az indexet kell tudni.</li>
+          <li><strong>Pakolt (packed):</strong> különböző méretű sprite-ok szorosan összerakva, mindegyikhez tartozik egy rect. Helytakarékos, de pakoló eszköz kell hozzá.</li>
+        </ul>
+
+        <div class="demo">
+          <p class="dh">Beépített demó &middot; atlasz indexelése (kattints egy cellára)</p>
+          <div class="row" style="align-items:flex-start">
+            <div>
+              <canvas id="atlasCanvas" width="288" height="144" style="cursor:pointer"></canvas>
+              <p class="lbl">Minden cella egy <b>index</b>. Erre hivatkozik a motor.</p>
+            </div>
+            <div style="min-width:160px">
+              <canvas id="atlasPick" width="96" height="96"></canvas>
+              <p class="lbl">Kiválasztott: <b>index = <span id="atlasIdx">0</span></b></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="chapter" id="miert-atlas">
+        <h3>Miért kell? (draw call batching)</h3>
+        <p>A GPU akkor a leggyorsabb, ha sok dolgot <em>egyszerre</em> rajzol. Minden alkalom, amikor a motor azt mondja a GPU-nak, hogy &bdquo;rajzolj&rdquo;, egy <strong>draw call</strong> &mdash; és textúraváltáskor általában új draw call kell. Ha minden sprite külön képfájl, a motor folyton textúrát vált, ami sok lassú draw callt jelent.</p>
+        <p>Ha viszont minden sprite <strong>egyetlen atlaszon</strong> van, a motor egyszerre, egy textúrával rajzolhatja ki őket &mdash; ezt hívják <strong>batching</strong>nek. Egy atlasz tehát:</p>
+        <ul>
+          <li>drasztikusan <strong>csökkenti a draw callok számát</strong> (gyakran több ezerről néhányra),</li>
+          <li>kevesebb <strong>textúra-kötést (bind)</strong> jelent a GPU-n,</li>
+          <li>és gyorsabb betöltést, mert egy fájlt kell beolvasni sok helyett.</li>
+        </ul>
+        <div class="note bevy">
+          <span class="tag">BEVY</span>
+          <p>Bevy automatikusan <strong>batchel</strong> olyan sprite-okat, amelyek ugyanazt a textúrát (atlaszt) használják és nem keverednek más anyagú objektumokkal a rendezési sorrendben. Ezért is fontos a z-index: ha eltérő textúrájú sprite-ok &bdquo;belógnak&rdquo; egymás közé a sorrendben, megtörik a batch.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="padding">
+        <h3>Padding, bleeding, extrudálás</h3>
+        <p>Az atlasz egyik klasszikus baja a <strong>texture bleeding</strong> (&bdquo;átszivárgás&rdquo;): a szomszédos sprite szélső pixelei belelógnak a kivágott darab szélébe, és vékony, idegen színű csíkként megjelennek a sprite peremén &mdash; főleg nagyításkor vagy nem egész kamerapozíciónál.</p>
+        <ul>
+          <li><strong>Padding (térköz):</strong> hagyj 1&ndash;2 üres pixelt a sprite-ok között az atlaszon.</li>
+          <li><strong>Extrudálás (extrude/bleed):</strong> a térköz helyett (vagy mellett) a sprite szélső pixelsorát másold ki kifelé, így ha a mintavétel kicsit túllóg, ugyanazt a színt kapja vissza.</li>
+          <li><strong>Egész pixelre igazítás:</strong> a kamera és a sprite-ok pozíciója lehetőleg egész pixelekre essen (pixel snapping), ez sok bleeding-problémát eleve megelőz.</li>
+        </ul>
+        <div class="note bevy">
+          <span class="tag">BEVY</span>
+          <p>A <code class="k">TextureAtlasLayout::from_grid</code> ötödik-hatodik paramétere pont a <strong>padding</strong> és az <strong>offset</strong> (mindkettő <code class="k">Option&lt;UVec2&gt;</code>). Ha a sprite sheetedben van térköz a frame-ek között, itt add meg, különben &bdquo;elcsúszik&rdquo; a vágás.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="pakolas">
+        <h3>Pakolás &amp; eszközök</h3>
+        <p>A különböző méretű sprite-ok atlaszba rendezése (packing) NP-nehéz csomagolási feladat, ezért eszközt használunk rá. Néhány elterjedt:</p>
+        <table class="tbl">
+          <thead><tr><th>Eszköz</th><th>Mit ad</th></tr></thead>
+          <tbody>
+            <tr><td>Aseprite</td><td>Pixel art editor; közvetlenül exportál sprite sheetet + JSON-t a frame-rectekkel és animáció-tagekkel</td></tr>
+            <tr><td>TexturePacker</td><td>Profi pakoló: extrudálás, trimmelés, sok motor-formátum</td></tr>
+            <tr><td>Tiled / LDtk</td><td>Pálya- és tileset-szerkesztők auto-tile támogatással</td></tr>
+            <tr><td>Bevy beépített builder</td><td>Külön képfájlokból futásidőben épít atlaszt (<code>TextureAtlasBuilder</code>)</td></tr>
+          </tbody>
+        </table>
+        <p>Két munkafolyamat lehetséges: vagy <strong>előre összerakott</strong> sheettel dolgozol (egy kép + layout/JSON), vagy <strong>külön fájlokból</strong> a motor épít atlaszt betöltéskor. Mindkettőt megnézzük Bevyben.</p>
+      </section>
+
+      <!-- ===================== PART H ===================== -->
+      <div class="part-head" data-part><span class="num">08</span><h2>Optimalizálás</h2></div>
+
+      <section class="chapter" id="draw-call">
+        <h3>Draw call &amp; VRAM</h3>
+        <p>A 2D pixel art játék ritkán &bdquo;nehéz&rdquo; a GPU-nak &mdash; de a rosszul szervezett rajzolás így is bekúszhat. A fő szempontok:</p>
+        <ul>
+          <li><strong>Atlaszolj.</strong> Ahogy láttuk, ez a legnagyobb nyereség: kevés textúra &rarr; kevés draw call &rarr; jó batching.</li>
+          <li><strong>Vágj le, ami nem látszik (culling).</strong> A képernyőn kívüli sprite-okat ne rajzold. A motorok ezt többnyire automatikusan megteszik.</li>
+          <li><strong>Figyelj a VRAM-ra.</strong> Egy 64&times;64-es sprite 4-szer annyi pixelt (és memóriát) eszik, mint egy 32&times;32-es. Nagy felbontás &times; sok variáció gyorsan elfogyasztja a textúramemóriát.</li>
+          <li><strong>Ne legyen felesleges átlátszó terület.</strong> Az atlasz trimmelése (a fölösleges üres szél levágása) helyet spórol.</li>
+        </ul>
+        <p>Pixel artnál a <strong>mipmapping</strong> általában <em>kikapcsolva</em> jó: a mipmap a távoli textúrákat kisebb, előre simított változatokra cseréli, ami pixel artnál pont a kemény éleket mosná el. 2D-ben ritkán van rá szükség.</p>
+      </section>
+
+      <section class="chapter" id="filtering">
+        <h3>Szűrés: nearest vs. linear</h3>
+        <p>Amikor a GPU egy textúrát a natívtól eltérő méretben rajzol, döntenie kell, milyen színt vegyen a köztes pontokon. Két alapmód:</p>
+        <ul>
+          <li><strong>Nearest-neighbor:</strong> a legközelebbi pixelt veszi, &bdquo;másolja&rdquo; &mdash; kemény, éles élek. <strong>Ez kell pixel arthoz.</strong></li>
+          <li><strong>Linear (bilinear):</strong> a szomszédos pixeleket átlagolja &mdash; sima, de elmosott. Fotószerű textúrákhoz jó, pixel arthoz <em>nem</em>.</li>
+        </ul>
+
+        <div class="demo">
+          <p class="dh">Beépített demó &middot; ugyanaz a 16&times;16 sprite, 10&times; nagyítva</p>
+          <div class="row" style="align-items:center">
+            <div><canvas id="nearCanvas" width="160" height="160"></canvas><p class="lbl"><b>nearest</b> &mdash; éles, &bdquo;pixeles&rdquo;</p></div>
+            <div><canvas id="linCanvas" width="160" height="160"></canvas><p class="lbl"><b>linear</b> &mdash; elmosott</p></div>
+          </div>
+        </div>
+        <div class="note bevy">
+          <span class="tag">BEVY</span>
+          <p>Bevyben a teljes appra beállíthatod a nearest szűrést egyetlen sorral: <code class="k">DefaultPlugins.set(ImagePlugin::default_nearest())</code>. Enélkül az alap a linear, és minden pixel arted homályos lesz &mdash; ez az egyik leggyakoribb kezdő &bdquo;miért életlen?&rdquo; hiba.</p>
+        </div>
+      </section>
+
+      <!-- ===================== PART I ===================== -->
+      <div class="part-head" data-part><span class="num">09</span><h2>Bevy 0.18 gyakorlat</h2></div>
+
+      <section class="chapter" id="ecs">
+        <h3>Bevy ECS gyorstalpaló</h3>
+        <p>Mielőtt kódot írunk, érdemes tisztázni a Bevy alapjait, hiszen az itteni példák ezeket használják. A Bevy egy <strong>ECS</strong> (Entity-Component-System) motor:</p>
+        <ul>
+          <li><strong><code class="k">Entity</code></strong> &mdash; egy azonosító (ID). Önmagában üres; a tulajdonságait komponensek adják.</li>
+          <li><strong><code class="k">Component</code></strong> &mdash; adat, amit egy entitásra teszünk (pl. <code class="k">Sprite</code>, <code class="k">Transform</code>). Egy sima struct, amire ráírod a <code class="k">#[derive(Component)]</code>-et.</li>
+          <li><strong>System</strong> &mdash; egy sima Rust függvény, ami komponenseken dolgozik. A Bevy automatikusan meghívja, és a paraméterei alapján &bdquo;injektálja&rdquo; neki, amire szüksége van.</li>
+          <li><strong><code class="k">Resource</code></strong> &mdash; globális, egyetlen példányban létező adat (pl. az eltelt idő, vagy a betöltött atlasz layoutok gyűjteménye).</li>
+          <li><strong><code class="k">App</code> &amp; <code class="k">Plugin</code></strong> &mdash; az <code class="k">App</code> köti össze az egészet; a <code class="k">DefaultPlugins</code> hozza az ablakot, rendert, input-kezelést stb.</li>
+        </ul>
+        <p>A rendszerek paramétereiben látott típusok jelentése:</p>
+        <table class="tbl">
+          <thead><tr><th>Típus a system paraméterében</th><th>Mit jelent</th></tr></thead>
+          <tbody>
+            <tr><td><code>Commands</code></td><td>Entitások létrehozása/törlése, komponensek hozzáadása (&bdquo;parancssor&rdquo;, ami a frame végén fut le)</td></tr>
+            <tr><td><code>Query&lt;(&amp;A, &amp;mut B)&gt;</code></td><td>Végigjárja azokat az entitásokat, amelyeknek van A és B komponensük; <code>&amp;mut</code> = írható hozzáférés</td></tr>
+            <tr><td><code>Res&lt;T&gt;</code> / <code>ResMut&lt;T&gt;</code></td><td>Csak olvasható / írható hozzáférés egy <code>Resource</code>-hoz</td></tr>
+            <tr><td><code>Res&lt;AssetServer&gt;</code></td><td>Az eszközbetöltő: fájlból <code>Handle</code>-t ad vissza</td></tr>
+            <tr><td><code>Res&lt;Time&gt;</code></td><td>Az eltelt idő; <code>time.delta()</code> az előző frame óta eltelt idő</td></tr>
+          </tbody>
+        </table>
+        <p>Egy <strong><code class="k">Handle&lt;T&gt;</code></strong> nem maga az eszköz, hanem egy <em>hivatkozás</em> rá (pl. <code class="k">Handle&lt;Image&gt;</code>). A betöltés aszinkron: a kód azonnal kap egy handle-t, a kép a háttérben töltődik be.</p>
+      </section>
+
+      <section class="chapter" id="setup">
+        <h3>Projekt &amp; ImagePlugin</h3>
+        <p>Először a <code class="k">Cargo.toml</code>-ban felvesszük a Bevyt, majd az appot úgy állítjuk be, hogy a pixel art éles maradjon.</p>
+        <pre class="code"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="fn">Cargo.toml</span></div><code data-code="cargo"></code></pre>
+        <pre class="code"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="fn">src/main.rs</span></div><code data-code="setup"></code></pre>
+        <div class="note bevy">
+          <span class="tag">BEVY · MIT CSINÁL</span>
+          <p><code class="k">App::new()</code> létrehozza az alkalmazást. A <code class="k">.add_plugins(...)</code> beregisztrálja a <code class="k">DefaultPlugins</code>-t (ablak, renderer, input), de a <code class="k">.set(ImagePlugin::default_nearest())</code>-tel felülírjuk a kép-szűrést <strong>nearest</strong>-re. Az <code class="k">.add_systems(Startup, setup)</code> egyszer, induláskor futtatja a <code class="k">setup</code> függvényt; az <code class="k">Update</code> minden frame-ben. A <code class="k">.run()</code> indítja a fő ciklust.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="elso-sprite">
+        <h3>Első sprite betöltése</h3>
+        <p>A <code class="k">setup</code> rendszerben létrehozunk egy 2D kamerát és egy egyszerű sprite-ot. Az eszközöket az <code class="k">assets/</code> mappából tölti a motor.</p>
+        <pre class="code"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="fn">egyszerű sprite</span></div><code data-code="firstsprite"></code></pre>
+        <div class="note bevy">
+          <span class="tag">BEVY · MIT CSINÁL</span>
+          <p><code class="k">commands.spawn(Camera2d)</code> létrehoz egy entitást a <code class="k">Camera2d</code> komponenssel &mdash; ez a 2D nézet. <code class="k">asset_server.load("...")</code> elindítja a kép betöltését és visszaad egy <code class="k">Handle&lt;Image&gt;</code>-et. A <code class="k">Sprite::from_image(handle)</code> egy <code class="k">Sprite</code> komponenst készít abból a handle-ből. A <code class="k">spawn</code> a komponenseket egy új entitásra teszi.</p>
+        </div>
+        <p>Ha kézzel akarod beállítani a méretet vagy a horgonypontot:</p>
+        <pre class="code"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="fn">méret + anchor + rétegzés</span></div><code data-code="sized"></code></pre>
+        <div class="note bevy">
+          <span class="tag">BEVY · MIT CSINÁL</span>
+          <p>A <code class="k">custom_size</code> azt szabja meg, mekkorának <em>látsszon</em> a sprite (a kép nyúlik rá). Az <code class="k">Anchor</code> a 0.18-ban külön (required) komponens: megmondja, hol legyen a sprite &bdquo;origója&rdquo; (alapból <code class="k">Anchor::Center</code>). A <code class="k">Transform</code> <code class="k">z</code> értéke dönti el a <strong>rajzolási sorrendet</strong>: a nagyobb z kerül előrébb &mdash; így lesz a karakter a fű fölött.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="atlas-kod">
+        <h3>TextureAtlasLayout &amp; TextureAtlas</h3>
+        <p>Egy sprite sheetből (rácsos atlasz) így vágunk ki egyetlen frame-et. Két dolog kell: egy <strong>layout</strong> (hogyan van felosztva a kép) és egy <strong>index</strong> (melyik cellát mutatjuk).</p>
+        <pre class="code"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="fn">atlaszból egy frame</span></div><code data-code="atlas"></code></pre>
+        <div class="note bevy">
+          <span class="tag">BEVY · MIT CSINÁL</span>
+          <p><code class="k">TextureAtlasLayout::from_grid(tile, oszlopok, sorok, padding, offset)</code> egy rácsos felosztást ír le: a <code class="k">UVec2::splat(16)</code> egy 16&times;16-os cellát jelent, utána az oszlopok és sorok száma, végül az opcionális térköz és eltolás (<code class="k">None</code>, ha nincs). A layout egy <strong>eszköz</strong> (<code class="k">Asset</code>), ezért a <code class="k">ResMut&lt;Assets&lt;TextureAtlasLayout&gt;&gt;</code>-be tesszük be <code class="k">.add(...)</code>-dal, és egy <code class="k">Handle&lt;TextureAtlasLayout&gt;</code>-t kapunk vissza. A <code class="k">Sprite::from_atlas_image(kep, TextureAtlas { layout, index })</code> összeköti a képet a layouttal, és az <code class="k">index</code> mondja meg, melyik cellát rajzolja.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="anim-kod">
+        <h3>Animáció rendszer</h3>
+        <p>Most életre keltjük a sprite-ot: egy időzítő minden &bdquo;tick&rdquo;-nél lépteti az atlasz indexét &mdash; pontosan az a logika, amit a karakter-fejezet demójában láttál.</p>
+        <pre class="code"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="fn">animációs komponensek + system</span></div><code data-code="anim"></code></pre>
+        <div class="note bevy">
+          <span class="tag">BEVY · MIT CSINÁL</span>
+          <p>Két saját komponenst definiálunk: <code class="k">AnimationIndices</code> (az animáció első és utolsó frame-indexe) és <code class="k">AnimationTimer</code> (egy ismétlődő <code class="k">Timer</code>). Az <code class="k">animate_sprite</code> system minden frame-ben lekéri a <code class="k">Time</code>-ot és a megfelelő entitásokat egy <code class="k">Query</code>-vel. A <code class="k">timer.tick(time.delta())</code> előrelépteti az időzítőt; ha <code class="k">just_finished()</code>, akkor a <code class="k">sprite.texture_atlas</code> (egy <code class="k">Option</code>) indexét léptetjük &mdash; az utolsó után vissza az elsőre. Mivel a <code class="k">Timer</code> <code class="k">Repeating</code>, magától újraindul.</p>
+        </div>
+        <p>A spawn ugyanúgy néz ki, mint az előző fejezetben, csak ráteszünk egy <code class="k">AnimationIndices</code> és egy <code class="k">AnimationTimer</code> komponenst is:</p>
+        <pre class="code"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="fn">animált karakter spawn</span></div><code data-code="animspawn"></code></pre>
+      </section>
+
+      <section class="chapter" id="builder">
+        <h3>Több képből atlasz: TextureAtlasBuilder</h3>
+        <p>Ha a sprite-jaid <strong>külön fájlokban</strong> vannak (nem egy előre összerakott sheetben), a Bevy futásidőben össze tudja pakolni őket egyetlen atlaszba. Ehhez először betöltjük a mappát, majd &mdash; miután minden betöltött &mdash; építünk belőle atlaszt.</p>
+        <pre class="code"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="fn">mappa betöltése + builder</span></div><code data-code="builder"></code></pre>
+        <div class="note bevy">
+          <span class="tag">BEVY · MIT CSINÁL</span>
+          <p>Az <code class="k">asset_server.load_folder("...")</code> egy egész mappát tölt be, és egy <code class="k">Handle&lt;LoadedFolder&gt;</code>-t ad. A <code class="k">TextureAtlasBuilder</code>-be a <code class="k">add_texture(...)</code>-rel pakoljuk a betöltött képeket, a <code class="k">build()</code> pedig visszaad egy layoutot, egy &bdquo;source&rdquo; térképet (melyik kép melyik indexre került) és magát az összeállított textúrát. Ezt érdemes egy állapotgéppel (<code class="k">States</code>) megvárni, hogy biztosan minden betöltődjön a build előtt.</p>
+        </div>
+        <p>Mikor melyik? Az előre összerakott sheet (előző fejezetek) egyszerűbb és gyorsabb induláskor; a builder akkor jó, ha a forrás-sprite-okat külön fájlként akarod kezelni, vagy modolhatóságot szeretnél.</p>
+      </section>
+
+      <section class="chapter" id="pixel-perfect">
+        <h3>Pixel-perfect kamera</h3>
+        <p>A nearest szűrés (a <code class="k">setup</code>-ban már beállítottuk) az alapja a tiszta pixel artnak, de a teljesen ropogós képhez még két dolog segít:</p>
+        <ul>
+          <li>Kapcsold ki az <strong>MSAA</strong>-t a kamerán (a többszörös mintavételezés 2D-ben felesleges és életlen szélt adhat).</li>
+          <li>Használj <strong>egész</strong> kamera-skálát és igazítsd a sprite-pozíciókat pixelre, hogy ne legyen &bdquo;úszó&rdquo;, fél-pixeles él.</li>
+        </ul>
+        <pre class="code"><div class="bar"><i style="background:#ff5f56"></i><i style="background:#ffbd2e"></i><i style="background:#27c93f"></i><span class="fn">kamera MSAA nélkül</span></div><code data-code="pixelperfect"></code></pre>
+        <div class="note tip">
+          <span class="tag">TIPP</span>
+          <p>Igazán &bdquo;tökéletes&rdquo; pixel skálázáshoz bevett trükk: rendereld a játékot egy alacsony felbontású <strong>köztes textúrára</strong> (render target), majd azt nagyítsd egész szorzóval a képernyőre. Így minden world-pixel pontosan ugyanannyi képernyő-pixel lesz, függetlenül az ablakmérettől.</p>
+        </div>
+      </section>
+
+      <section class="chapter" id="crates">
+        <h3>Hasznos crate-ek (0.18-hoz)</h3>
+        <p>A nyers Bevy mindent tud, amit eddig láttunk, de tilemaphoz, animációhoz és fizikához kényelmes ökoszisztéma-crate-ek vannak. Tarts mértéket: csak akkor vegyél fel függőséget, ha a beépített megoldás már fáj.</p>
+        <table class="tbl">
+          <thead><tr><th>Crate</th><th>Mire való</th></tr></thead>
+          <tbody>
+            <tr><td><code>bevy_ecs_tilemap</code></td><td>Hatékony, chunkokra bontott tilemap-renderelés nagy pályákhoz</td></tr>
+            <tr><td><code>bevy_ecs_ldtk</code> / <code>bevy_ecs_tiled</code></td><td>LDtk, illetve Tiled pályaformátumok betöltése (auto-tile, rétegek, entitások)</td></tr>
+            <tr><td><code>bevy_aseprite_ultra</code></td><td>Aseprite fájlok közvetlen betöltése animáció-tagekkel együtt</td></tr>
+            <tr><td><code>avian2d</code></td><td>Modern 2D fizika és ütközésdetektálás (ECS-natív)</td></tr>
+            <tr><td><code>leafwing-input-manager</code></td><td>Akció-alapú input (&bdquo;Move&rdquo; absztrakció billentyű/gamepad fölött)</td></tr>
+            <tr><td><code>bevy_asset_loader</code></td><td>Eszközök kényelmes, állapot-alapú betöltése (loading screen)</td></tr>
+            <tr><td><code>bevy_kira_audio</code></td><td>Fejlettebb hangkezelés a beépített audio fölött</td></tr>
+            <tr><td><code>bevy-inspector-egui</code></td><td>Futásidejű debug-panel az entitások/komponensek szerkesztéséhez</td></tr>
+          </tbody>
+        </table>
+        <div class="note warn">
+          <span class="tag">VIGYÁZZ · VERZIÓK</span>
+          <p>A Bevy gyorsan fejlődik, és minden kiadás <strong>törő változásokat</strong> hozhat. Mindig olyan crate-verziót válassz, ami kifejezetten <strong>Bevy 0.18-at</strong> támogat (nézd meg a crate <code class="k">Cargo.toml</code>-ját vagy a README kompatibilitási tábláját). Egy 0.17-re írt crate gyakran nem fordul 0.18-cal. Ha valami nem fordul, először a verzióegyezést ellenőrizd.</p>
+        </div>
+      </section>
+
+      <div class="footer">
+        <p><b>SPRITE·DOJO</b> &mdash; pixel art sprite tutorial top-down játékokhoz, Bevy 0.18.</p>
+        <p>A kód-részletek a Bevy 0.18 hivatalos API-jára épülnek (<code style="font-family:var(--mono)">Sprite</code>, <code style="font-family:var(--mono)">TextureAtlasLayout</code>, <code style="font-family:var(--mono)">TextureAtlas</code>). A demók procedurálisan, canvason rajzolódnak &mdash; a fájl külső kép nélkül, offline is működik.</p>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+/* =========================================================
+   NAV / SCROLLSPY
+========================================================= */
+(function(){
+  const parts = [
+    {n:"01", t:"Alapok", items:[
+      ["mi-a-sprite","Mi az a sprite?"],["pixel-art","Pixel art alapelvek"]]},
+    {n:"02", t:"Színek", items:[
+      ["paletta","Korlátozott paletták"],["hires-paletta","Híres paletták"],["dithering","Dithering & élsimítás"]]},
+    {n:"03", t:"Méretek", items:[
+      ["miert-meret","Miért számít a méret"],["16-32-64","16×16, 32×32, 64×64"],["ppu","Pixel-per-unit"]]},
+    {n:"04", t:"Karakterek", items:[
+      ["karakter-felepites","Karakter felépítése"],["iranyok","Irányok & nézetek"],["animacio","Animációs ciklusok"]]},
+    {n:"05", t:"Tile-ok", items:[
+      ["tile-alap","Tile-ok és tilemap"],["seamless","Illeszkedő tile-ok"],["autotile","Auto-tiling & bitmask"]]},
+    {n:"06", t:"Egyéb & UI", items:[
+      ["propok","Tárgyak, effektek"],["ui","UI és 9-slice"]]},
+    {n:"07", t:"Sprite atlasz", items:[
+      ["mi-az-atlas","Mi az a sprite atlasz?"],["miert-atlas","Miért kell? (batching)"],["padding","Padding & bleeding"],["pakolas","Pakolás & eszközök"]]},
+    {n:"08", t:"Optimalizálás", items:[
+      ["draw-call","Draw call & VRAM"],["filtering","nearest vs linear"]]},
+    {n:"09", t:"Bevy 0.18", items:[
+      ["ecs","ECS gyorstalpaló"],["setup","Projekt & ImagePlugin"],["elso-sprite","Első sprite"],["atlas-kod","TextureAtlas(Layout)"],["anim-kod","Animáció rendszer"],["builder","TextureAtlasBuilder"],["pixel-perfect","Pixel-perfect kamera"],["crates","Hasznos crate-ek"]]},
+  ];
+  const nav = document.getElementById('nav');
+  parts.forEach(p=>{
+    const sec=document.createElement('div'); sec.className='nav-part';
+    sec.innerHTML='<p class="part-label"><span class="pid">'+p.n+'</span>'+p.t+'</p>';
+    const ul=document.createElement('ul'); ul.className='nav-list';
+    p.items.forEach(([id,label])=>{
+      const li=document.createElement('li');
+      li.innerHTML='<a href="#'+id+'">'+label+'</a>';
+      ul.appendChild(li);
+    });
+    sec.appendChild(ul); nav.appendChild(sec);
+  });
+
+  const links = Array.from(nav.querySelectorAll('a'));
+  const map = {};
+  links.forEach(a=>map[a.getAttribute('href').slice(1)]=a);
+  const chapters = Array.from(document.querySelectorAll('.chapter'));
+  let activeId=null;
+  function setActive(id){
+    if(id===activeId) return; activeId=id;
+    links.forEach(a=>a.classList.remove('active'));
+    if(map[id]) map[id].classList.add('active');
+  }
+  const obs = new IntersectionObserver((entries)=>{
+    // pick the entry nearest the top that is intersecting
+    let best=null;
+    entries.forEach(e=>{ if(e.isIntersecting){ if(!best || e.boundingClientRect.top<best.boundingClientRect.top) best=e; }});
+    if(best) setActive(best.target.id);
+    else{
+      // fallback: nearest chapter above viewport mid
+      let cur=chapters[0].id;
+      for(const c of chapters){ if(c.getBoundingClientRect().top<140) cur=c.id; }
+      setActive(cur);
+    }
+  },{rootMargin:'-72px 0px -60% 0px', threshold:[0,1]});
+  chapters.forEach(c=>obs.observe(c));
+
+  // mobile menu
+  const body=document.body, mb=document.getElementById('menuBtn'), scrim=document.getElementById('scrim');
+  mb.addEventListener('click',()=>body.classList.toggle('nav-open'));
+  scrim.addEventListener('click',()=>body.classList.remove('nav-open'));
+  nav.addEventListener('click',e=>{ if(e.target.tagName==='A') body.classList.remove('nav-open'); });
+})();
+
+/* =========================================================
+   RUST SYNTAX HIGHLIGHTER + CODE INJECTION
+========================================================= */
+(function(){
+  const KW=new Set("fn let mut const static struct enum impl trait for in if else match while loop return use mod pub crate self super as where ref move dyn async await unsafe type default continue break".split(" "));
+  function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function hl(code){
+    const re=/(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])')|(#!?\[[^\]]*\])|('[a-z_][a-z0-9_]*\b(?!'))|(\b[A-Za-z_][A-Za-z0-9_]*!(?=\s*[\(\[{]))|(\b[A-Z][A-Za-z0-9_]*\b)|(\b[0-9][0-9_]*(?:\.[0-9_]+)?(?:f32|f64|u8|u16|u32|u64|usize|i8|i16|i32|i64|isize)?\b)|(\b[a-zA-Z_][A-Za-z0-9_]*\b)/g;
+    let out='',last=0,m;
+    while((m=re.exec(code))){
+      out+=esc(code.slice(last,m.index)); last=re.lastIndex;
+      const t=m[0];
+      if(m[1]) out+='<span class="c-com">'+esc(t)+'</span>';
+      else if(m[2]) out+='<span class="c-str">'+esc(t)+'</span>';
+      else if(m[3]) out+='<span class="c-attr">'+esc(t)+'</span>';
+      else if(m[4]) out+='<span class="c-life">'+esc(t)+'</span>';
+      else if(m[5]) out+='<span class="c-macro">'+esc(t)+'</span>';
+      else if(m[6]) out+='<span class="c-type">'+esc(t)+'</span>';
+      else if(m[7]) out+='<span class="c-num">'+esc(t)+'</span>';
+      else if(m[8]){
+        if(KW.has(t)) out+='<span class="c-kw">'+esc(t)+'</span>';
+        else if(code[re.lastIndex]==='(') out+='<span class="c-fn">'+esc(t)+'</span>';
+        else out+=esc(t);
+      }
+    }
+    out+=esc(code.slice(last));
+    return out;
+  }
+
+  const CODE={
+cargo:
+`[dependencies]
+bevy = "0.18"`,
+setup:
+`use bevy::prelude::*;
+
+fn main() {
+    App::new()
+        // A nearest szűrés őrzi meg az éles pixeleket
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .add_systems(Startup, setup)
+        .add_systems(Update, animate_sprite)
+        .run();
+}`,
+firstsprite:
+`fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+    // 2D kamera
+    commands.spawn(Camera2d);
+
+    // Egyetlen kép sprite-ként, natív méretben
+    commands.spawn(Sprite::from_image(
+        asset_server.load("sprites/player.png"),
+    ));
+}`,
+sized:
+`fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.spawn(Camera2d);
+
+    // A fűcsempe hátul (z = 0.0)
+    commands.spawn(Sprite::from_image(asset_server.load("tiles/grass.png")));
+
+    // A karakter elöl: nagyítva, bal-alsó horgonnyal, z = 1.0
+    commands.spawn((
+        Sprite {
+            image: asset_server.load("sprites/player.png"),
+            custom_size: Some(Vec2::splat(32.0)), // mekkorának LÁTSZIK
+            ..default()
+        },
+        Anchor::BOTTOM_LEFT,                       // origo a bal-alsó sarokban
+        Transform::from_xyz(0.0, 0.0, 1.0),        // a fű FÖLÖTT
+    ));
+}`,
+atlas:
+`fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut layouts: ResMut<Assets<TextureAtlasLayout>>,
+) {
+    commands.spawn(Camera2d);
+
+    // A teljes sprite sheet egyetlen képként
+    let texture = asset_server.load("sprites/player_walk.png");
+
+    // Hogyan van felosztva: 16x16-os cellák, 4 oszlop, 1 sor,
+    // nincs padding, nincs offset
+    let layout = TextureAtlasLayout::from_grid(
+        UVec2::splat(16), // egy cella mérete
+        4,                // oszlopok
+        1,                // sorok
+        None,             // padding (Option<UVec2>)
+        None,             // offset  (Option<UVec2>)
+    );
+    let layout_handle = layouts.add(layout);
+
+    // Sprite, ami az atlasz 0. celláját mutatja
+    commands.spawn(Sprite::from_atlas_image(
+        texture,
+        TextureAtlas { layout: layout_handle, index: 0 },
+    ));
+}`,
+anim:
+`#[derive(Component)]
+struct AnimationIndices {
+    first: usize,
+    last: usize,
+}
+
+#[derive(Component, Deref, DerefMut)]
+struct AnimationTimer(Timer);
+
+fn animate_sprite(
+    time: Res<Time>,
+    mut query: Query<(&AnimationIndices, &mut AnimationTimer, &mut Sprite)>,
+) {
+    for (indices, mut timer, mut sprite) in &mut query {
+        // Léptetjük az időzítőt az eltelt idővel
+        timer.tick(time.delta());
+
+        if timer.just_finished() {
+            // A texture_atlas Option, ezért kibontjuk
+            if let Some(atlas) = &mut sprite.texture_atlas {
+                atlas.index = if atlas.index == indices.last {
+                    indices.first        // vissza az elejére
+                } else {
+                    atlas.index + 1      // következő frame
+                };
+            }
+        }
+    }
+}`,
+animspawn:
+`fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut layouts: ResMut<Assets<TextureAtlasLayout>>,
+) {
+    commands.spawn(Camera2d);
+
+    let texture = asset_server.load("sprites/player_walk.png");
+    let layout = TextureAtlasLayout::from_grid(UVec2::splat(16), 4, 1, None, None);
+    let layout_handle = layouts.add(layout);
+
+    let indices = AnimationIndices { first: 0, last: 3 };
+
+    commands.spawn((
+        Sprite::from_atlas_image(
+            texture,
+            TextureAtlas { layout: layout_handle, index: indices.first },
+        ),
+        Transform::from_scale(Vec3::splat(4.0)), // 4x nagyítás (egész!)
+        indices,
+        // 0.15 mp-enként vált frame-et, ismétlődve
+        AnimationTimer(Timer::from_seconds(0.15, TimerMode::Repeating)),
+    ));
+}`,
+builder:
+`#[derive(Resource, Default)]
+struct SpriteFolder(Handle<LoadedFolder>);
+
+// 1) Induláskor betöltjük az egész mappát
+fn load_textures(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.insert_resource(SpriteFolder(
+        asset_server.load_folder("textures/props"),
+    ));
+}
+
+// 2) Miután minden betöltött, atlaszt építünk belőle
+fn build_atlas(
+    folder_handle: Res<SpriteFolder>,
+    folders: Res<Assets<LoadedFolder>>,
+    mut images: ResMut<Assets<Image>>,
+    mut layouts: ResMut<Assets<TextureAtlasLayout>>,
+) {
+    let folder = folders.get(&folder_handle.0).unwrap();
+    let mut builder = TextureAtlasBuilder::default();
+
+    for handle in folder.handles.iter() {
+        let id = handle.id().typed_unchecked::<Image>();
+        let Some(image) = images.get(id) else { continue };
+        builder.add_texture(Some(id), image);
+    }
+
+    // layout, source-térkép (kép -> index) és a kész textúra
+    let (layout, _sources, texture) = builder.build().unwrap();
+    let layout_handle = layouts.add(layout);
+    let texture_handle = images.add(texture);
+    // ezeket eltárolnád egy Resource-ban a későbbi használathoz
+}`,
+pixelperfect:
+`fn setup(mut commands: Commands) {
+    // MSAA kikapcsolása ezen a kamerán (2D-ben felesleges)
+    commands.spawn((Camera2d, Msaa::Off));
+}`
+  };
+
+  document.querySelectorAll('code[data-code]').forEach(el=>{
+    const key=el.getAttribute('data-code');
+    if(CODE[key]!==undefined) el.innerHTML=hl(CODE[key]);
+  });
+})();
+
+/* =========================================================
+   PIXEL ART ENGINE (procedurális demók)
+========================================================= */
+(function(){
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- shared palette ----
+  const P = {
+    _: null,            // transparent
+    out:'#241a33',      // kontúr
+    skin:'#f2c79a', skinD:'#d49a6a',
+    hair:'#5a3a2a',
+    shirt:'#ff6f5e', shirtD:'#c44a3d',
+    pants:'#3d4f9e', pantsD:'#2a3878',
+    boot:'#2a2030',
+    grass:'#3f8e4f', grassD:'#2f6e3c', grassL:'#57a861',
+    water:'#3a78c2', waterL:'#5b97d6',
+    sand:'#d8b878', sandD:'#bd9a58',
+    wood:'#7a4a28', leaf:'#3f8e4f', leafD:'#2f6e3c',
+    stone:'#8a8aa0', stoneD:'#6a6a82', mortar:'#4a4a60',
+    flower:'#ffd166'
+  };
+  function cell(ctx,x,y,c,s){ if(!c)return; ctx.fillStyle=c; ctx.fillRect(x*s,y*s,s,s); }
+  function box(ctx,x,y,w,h,c,s){ if(!c)return; ctx.fillStyle=c; ctx.fillRect(x*s,y*s,w*s,h*s); }
+
+  // ---- 16x16 top-down character, 4 walk frames ----
+  // returns to an offscreen 16x16 canvas for a given frame
+  function drawChar(ctx, s, frame){
+    // leg phase: 0,1,2,3 -> contact, passing, contact, passing (mirror)
+    const legL = (frame===1)? -1 : (frame===3? 0 : 0);
+    const legR = (frame===3)? -1 : (frame===1? 0 : 0);
+    const armL = (frame===1)? 1 : (frame===3? -1 : 0);
+    const armR = -armL;
+    const bob  = (frame===1||frame===3)? -1 : 0;
+
+    const oy = bob;
+    // hair / head
+    box(ctx,5,2+oy,6,1,P.hair,s);
+    box(ctx,4,3+oy,8,2,P.hair,s);
+    // face
+    box(ctx,5,5+oy,6,2,P.skin,s);
+    box(ctx,5,7+oy,6,1,P.skinD,s); // chin shade
+    // eyes
+    cell(ctx,6,5+oy,P.out,s); cell(ctx,9,5+oy,P.out,s);
+    // body / shirt
+    box(ctx,5,8+oy,6,3,P.shirt,s);
+    box(ctx,5,10+oy,6,1,P.shirtD,s);
+    // arms
+    box(ctx,4,8+oy+armL,1,3,P.skin,s);
+    box(ctx,11,8+oy+armR,1,3,P.skin,s);
+    // legs (pants)
+    box(ctx,5,11+oy+legL,2,2,P.pants,s);
+    box(ctx,9,11+oy+legR,2,2,P.pants,s);
+    // boots
+    box(ctx,5,13+oy+legL,2,1,P.boot,s);
+    box(ctx,9,13+oy+legR,2,1,P.boot,s);
+  }
+
+  // ---- tiles (16x16), deterministic specks ----
+  function rng(seed){ let x=Math.sin(seed*99.13)*43758.5453; return x-Math.floor(x); }
+  function tileGrass(ctx,s,seed){
+    box(ctx,0,0,16,16,P.grass,s);
+    for(let i=0;i<10;i++){ const x=((rng(seed+i)*16)|0), y=((rng(seed+i+50)*16)|0);
+      cell(ctx,x,y, (i%2?P.grassD:P.grassL), s); }
+  }
+  function tileWater(ctx,s,seed){
+    box(ctx,0,0,16,16,P.water,s);
+    for(let y=2;y<16;y+=5){ const off=((rng(seed+y)*6)|0);
+      box(ctx,off,y,4,1,P.waterL,s); box(ctx,off+7,y+2,3,1,P.waterL,s); }
+  }
+  function tileSand(ctx,s,seed){
+    box(ctx,0,0,16,16,P.sand,s);
+    for(let i=0;i<8;i++){ cell(ctx,(rng(seed+i)*16)|0,(rng(seed+i+9)*16)|0,P.sandD,s); }
+  }
+  function tileTree(ctx,s){
+    box(ctx,0,0,16,16,P.grass,s);
+    box(ctx,7,11,2,4,P.wood,s);            // trunk
+    box(ctx,3,3,10,8,P.leaf,s);            // canopy
+    box(ctx,3,9,10,2,P.leafD,s);
+    box(ctx,4,2,8,1,P.leaf,s);
+    for(let i=0;i<5;i++) cell(ctx,4+((i*3)%8),4+((i*2)%5),P.leafD,s);
+  }
+  function tileWall(ctx,s){
+    box(ctx,0,0,16,16,P.mortar,s);
+    function brick(x,y,w){ box(ctx,x,y,w,3,P.stone,s); box(ctx,x,y+2,w,1,P.stoneD,s); }
+    brick(1,1,6); brick(8,1,7);
+    brick(-2,5,5); brick(4,5,7); brick(12,5,5);
+    brick(1,9,6); brick(8,9,7);
+    brick(-2,13,5); brick(4,13,7); brick(12,13,5);
+  }
+  const TILES=[tileGrass,tileWater,tileSand,tileTree,tileWall];
+  function drawTile(ctx,id,s,seed){ TILES[id](ctx,s,seed||(id+1)); }
+
+  function offscreen(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; return c; }
+
+  /* ---------- HERO ---------- */
+  (function(){
+    const cv=document.getElementById('heroCanvas'); if(!cv)return;
+    const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+    const charC=offscreen(16,16); const cctx=charC.getContext('2d');
+    let frame=0, t=0, last=performance.now();
+    function render(){
+      ctx.clearRect(0,0,cv.width,cv.height);
+      // grass field background (tiled)
+      const gC=offscreen(16,16); tileGrass(gC.getContext('2d'),1,7);
+      for(let y=0;y<cv.height;y+=32) for(let x=0;x<cv.width;x+=32) ctx.drawImage(gC,x,y,32,32);
+      // character centered, scaled 6x
+      cctx.clearRect(0,0,16,16); drawChar(cctx,1,frame);
+      const sc=6; ctx.drawImage(charC, (cv.width-16*sc)/2, (cv.height-16*sc)/2-6, 16*sc,16*sc);
+    }
+    function loop(now){
+      t+=now-last; last=now;
+      if(t>160){ t=0; frame=(frame+1)%4; }
+      render(); if(!reduce) requestAnimationFrame(loop);
+    }
+    render(); if(!reduce) requestAnimationFrame(loop);
+  })();
+
+  /* ---------- PALETTES ---------- */
+  (function(){
+    const pico=["000000","1D2B53","7E2553","008751","AB5236","5F574F","C2C3C7","FFF1E8","FF004D","FFA300","FFEC27","00E436","29ADFF","83769C","FF77A8","FFCCAA"];
+    const db=["140C1C","442434","30346D","4E4A4F","854C30","346524","D04648","757161","597DCE","D27D2C","8595A1","6DAA2C","D2AA99","6DC2CA","DAD45E","DEEED6"];
+    function fill(id,arr){ const g=document.getElementById(id); if(!g)return;
+      arr.forEach(h=>{ const d=document.createElement('div'); d.className='swatch';
+        d.style.background='#'+h; d.dataset.hex='#'+h; g.appendChild(d); }); }
+    fill('palPico',pico); fill('palDb',db);
+  })();
+
+  /* ---------- RESOLUTION (heart raster) ---------- */
+  (function(){
+    function heartInside(u,v){ // u,v in [-1,1], heart pointing up
+      const x=u*1.25, y=-v*1.25+0.35;
+      const a=x*x+y*y-1;
+      return a*a*a - x*x*y*y*y <= 0;
+    }
+    function raster(canvasId,N){
+      const cv=document.getElementById(canvasId); if(!cv)return;
+      const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+      const off=offscreen(N,N); const o=off.getContext('2d');
+      for(let py=0;py<N;py++)for(let px=0;px<N;px++){
+        const u=(px+0.5)/N*2-1, v=(py+0.5)/N*2-1;
+        if(heartInside(u,v)){
+          const edge = !(heartInside((px+1.5)/N*2-1,v)&&heartInside((px-0.5)/N*2-1,v)&&heartInside(u,(py+1.5)/N*2-1)&&heartInside(u,(py-0.5)/N*2-1));
+          o.fillStyle = edge? '#c44a3d':'#ff6f5e';
+          o.fillRect(px,py,1,1);
+        }
+      }
+      ctx.clearRect(0,0,cv.width,cv.height);
+      ctx.drawImage(off,0,0,cv.width,cv.height);
+    }
+    raster('resA',16); raster('resB',32); raster('resC',64);
+  })();
+
+  /* ---------- WALK CYCLE (sheet + player) ---------- */
+  (function(){
+    const sheet=document.getElementById('sheetCanvas');
+    const play=document.getElementById('playCanvas'); if(!sheet||!play)return;
+    const sctx=sheet.getContext('2d'); sctx.imageSmoothingEnabled=false;
+    const pctx=play.getContext('2d'); pctx.imageSmoothingEnabled=false;
+    const frames=[];
+    for(let f=0;f<4;f++){ const c=offscreen(16,16); drawChar(c.getContext('2d'),1,f); frames.push(c); }
+    const SC=16, gap=8, cell=16*SC; // 64px frame in sheet? use SC=3 -> 48
+    const FS=48; // frame display size in sheet
+    function drawSheet(active){
+      sctx.clearRect(0,0,sheet.width,sheet.height);
+      for(let f=0;f<4;f++){
+        const x=8+f*(FS+8), y=10;
+        sctx.fillStyle='#0f1226'; sctx.fillRect(x-2,y-2,FS+4,FS+4);
+        sctx.drawImage(frames[f],x,y,FS,FS);
+        sctx.strokeStyle=(f===active)?'#ff6f5e':'#39366b';
+        sctx.lineWidth=(f===active)?3:1;
+        sctx.strokeRect(x-2,y-2,FS+4,FS+4);
+        sctx.fillStyle=(f===active)?'#ff6f5e':'#7a75ad';
+        sctx.font='10px "JetBrains Mono",monospace';
+        sctx.fillText(String(f), x+FS/2-3, y+FS+13);
+      }
+    }
+    function drawPlay(f){ pctx.clearRect(0,0,play.width,play.height);
+      pctx.drawImage(frames[f],0,0,play.width,play.height); }
+    let frame=0, t=0, last=performance.now(), playing=!reduce;
+    let speed=150;
+    const idx=document.getElementById('frameIdx');
+    const btn=document.getElementById('playBtn');
+    const sp=document.getElementById('speed');
+    function step(){ idx.textContent=frame; drawSheet(frame); drawPlay(frame); }
+    function loop(now){ if(playing){ t+=now-last; last=now;
+        if(t>speed){ t=0; frame=(frame+1)%4; step(); } } else { last=now; }
+      requestAnimationFrame(loop); }
+    btn.addEventListener('click',()=>{ playing=!playing;
+      btn.textContent=playing?'⏸ Pause':'▶ Play'; btn.classList.toggle('on',playing); });
+    sp.addEventListener('input',e=>speed=+e.target.value);
+    if(reduce){ playing=false; btn.textContent='▶ Play'; btn.classList.remove('on'); }
+    step(); requestAnimationFrame(loop);
+  })();
+
+  /* ---------- TILESET + TILEMAP ---------- */
+  (function(){
+    const ts=document.getElementById('tilesetCanvas');
+    const tm=document.getElementById('tilemapCanvas'); if(!ts||!tm)return;
+    const tsx=ts.getContext('2d'); tsx.imageSmoothingEnabled=false;
+    const tmx=tm.getContext('2d'); tmx.imageSmoothingEnabled=false;
+    const tcanv=[]; for(let i=0;i<5;i++){ const c=offscreen(16,16); drawTile(c.getContext('2d'),i,1); tcanv.push(c); }
+    // tileset strip
+    tsx.clearRect(0,0,ts.width,ts.height);
+    for(let i=0;i<5;i++){ tsx.drawImage(tcanv[i],i*32,0,32,32);
+      tsx.strokeStyle='#39366b'; tsx.strokeRect(i*32+.5,.5,31,31); }
+    // map of indices (0=grass,1=water,2=sand,3=tree,4=wall)
+    const map=[
+      [0,0,0,2,2,2],
+      [0,3,0,2,1,1],
+      [0,0,0,2,1,1],
+      [4,4,0,0,2,2],
+      [4,0,0,3,0,0],
+    ];
+    const TS=32;
+    for(let y=0;y<map.length;y++)for(let x=0;x<map[0].length;x++){
+      // draw grass under tree/wall for natural look already handled in tile
+      tmx.drawImage(tcanv[map[y][x]], x*TS, y*TS, TS, TS);
+    }
+  })();
+
+  /* ---------- 9-SLICE ---------- */
+  (function(){
+    const cv=document.getElementById('ninePanel'); if(!cv)return;
+    const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+    // build a 24x24 panel sprite with 8px corners
+    const SRC=24, B=8;
+    const src=offscreen(SRC,SRC); const o=src.getContext('2d');
+    o.fillStyle='#2c2a59'; o.fillRect(0,0,SRC,SRC);            // fill
+    o.fillStyle='#1c1a38'; o.fillRect(2,2,SRC-4,SRC-4);        // inner
+    o.fillStyle='#46d6b4'; // border ring
+    o.fillRect(0,0,SRC,2); o.fillRect(0,SRC-2,SRC,2);
+    o.fillRect(0,0,2,SRC); o.fillRect(SRC-2,0,2,SRC);
+    o.fillStyle='#ffc861'; // corner studs
+    [[1,1],[SRC-5,1],[1,SRC-5],[SRC-5,SRC-5]].forEach(([x,y])=>o.fillRect(x,y,4,4));
+    const wEl=document.getElementById('nineW'), hEl=document.getElementById('nineH');
+    function nineSlice(dw,dh){
+      ctx.clearRect(0,0,cv.width,cv.height);
+      const px=(cv.width-dw)/2, py=(cv.height-dh)/2;
+      const SC=3, b=B; // draw scale handled by dest sizes
+      function part(sx,sy,sw,sh,dx,dy,ddw,ddh){ ctx.drawImage(src,sx,sy,sw,sh,dx,dy,ddw,ddh); }
+      const cw=b*SC, midW=dw-2*cw, midH=dh-2*cw;
+      const mid=SRC-2*b;
+      // corners
+      part(0,0,b,b, px,py, cw,cw);
+      part(SRC-b,0,b,b, px+dw-cw,py, cw,cw);
+      part(0,SRC-b,b,b, px,py+dh-cw, cw,cw);
+      part(SRC-b,SRC-b,b,b, px+dw-cw,py+dh-cw, cw,cw);
+      // edges
+      part(b,0,mid,b, px+cw,py, midW,cw);
+      part(b,SRC-b,mid,b, px+cw,py+dh-cw, midW,cw);
+      part(0,b,b,mid, px,py+cw, cw,midH);
+      part(SRC-b,b,b,mid, px+dw-cw,py+cw, cw,midH);
+      // center
+      part(b,b,mid,mid, px+cw,py+cw, midW,midH);
+      // grid guides
+      ctx.strokeStyle='rgba(255,111,94,.5)'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+      ctx.strokeRect(px+cw+.5,py+.5,midW-1,dh-1);
+      ctx.strokeRect(px+.5,py+cw+.5,dw-1,midH-1);
+      ctx.setLineDash([]);
+    }
+    function upd(){ nineSlice(+wEl.value,+hEl.value); }
+    wEl.addEventListener('input',upd); hEl.addEventListener('input',upd); upd();
+  })();
+
+  /* ---------- ATLAS INDEXING ---------- */
+  (function(){
+    const cv=document.getElementById('atlasCanvas');
+    const pick=document.getElementById('atlasPick');
+    const idxEl=document.getElementById('atlasIdx'); if(!cv||!pick)return;
+    const ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+    const pctx=pick.getContext('2d'); pctx.imageSmoothingEnabled=false;
+    // 6 cells x ? : we will build 12 cells (4 char frames + 5 tiles + 3 extra) -> use grid 6x2 =12
+    const cells=[];
+    for(let f=0;f<4;f++){ const c=offscreen(16,16); drawChar(c.getContext('2d'),1,f); cells.push(c); }
+    for(let i=0;i<5;i++){ const c=offscreen(16,16); drawTile(c.getContext('2d'),i,1); cells.push(c); }
+    // extras: flower, chest-ish, etc -> simple props
+    const fl=offscreen(16,16); { const o=fl.getContext('2d'); tileGrass(o,1,3); box(o,7,6,2,2,P.flower,1); box(o,6,8,4,1,P.leafD,1);} cells.push(fl);
+    const ch=offscreen(16,16); { const o=ch.getContext('2d'); tileGrass(o,1,9); box(o,4,7,8,5,P.wood,1); box(o,4,9,8,1,'#a86a38',1); box(o,7,9,2,2,P.flower,1);} cells.push(ch);
+    const gem=offscreen(16,16); { const o=gem.getContext('2d'); tileGrass(o,1,11); box(o,6,6,4,4,'#46d6b4',1); box(o,7,5,2,1,'#a8f0e0',1);} cells.push(gem);
+    const COLS=6, ROWS=2, CS=48;
+    let sel=0;
+    function draw(){
+      ctx.clearRect(0,0,cv.width,cv.height);
+      for(let i=0;i<cells.length;i++){
+        const cx=(i%COLS)*CS, cy=((i/COLS)|0)*CS;
+        ctx.fillStyle='#0f1226'; ctx.fillRect(cx,cy,CS,CS);
+        ctx.drawImage(cells[i],cx+4,cy+4,40,40);
+        ctx.strokeStyle=(i===sel)?'#ff6f5e':'#39366b';
+        ctx.lineWidth=(i===sel)?3:1; ctx.strokeRect(cx+1.5,cy+1.5,CS-3,CS-3);
+        ctx.fillStyle=(i===sel)?'#ff6f5e':'#7a75ad';
+        ctx.font='10px "JetBrains Mono",monospace';
+        ctx.fillText(String(i),cx+4,cy+13);
+      }
+      pctx.clearRect(0,0,pick.width,pick.height);
+      pctx.drawImage(cells[sel],0,0,pick.width,pick.height);
+      idxEl.textContent=sel;
+    }
+    cv.addEventListener('click',e=>{
+      const r=cv.getBoundingClientRect();
+      const x=(e.clientX-r.left)*(cv.width/r.width);
+      const y=(e.clientY-r.top)*(cv.height/r.height);
+      const i=((y/CS)|0)*COLS + ((x/CS)|0);
+      if(i>=0&&i<cells.length){ sel=i; draw(); }
+    });
+    draw();
+  })();
+
+  /* ---------- FILTERING nearest vs linear ---------- */
+  (function(){
+    const near=document.getElementById('nearCanvas');
+    const lin=document.getElementById('linCanvas'); if(!near||!lin)return;
+    const src=offscreen(16,16); drawChar(src.getContext('2d'),1,0);
+    const nctx=near.getContext('2d'); nctx.imageSmoothingEnabled=false;
+    nctx.drawImage(src,0,0,near.width,near.height);
+    const lctx=lin.getContext('2d'); lctx.imageSmoothingEnabled=true; lctx.imageSmoothingQuality='high';
+    lctx.drawImage(src,0,0,lin.width,lin.height);
+  })();
+
+})();
+</script>
+</body>
+</html>
