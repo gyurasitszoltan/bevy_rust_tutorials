@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pathfinding (A*) & ütközés — kattintós mozgás, üldözés, kóborlás · Bevy 0.18 tutorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13; --bg-deep:#0b110c; --panel:#1a241b; --panel-2:#162017;
+  --ink:#e9e3cd; --muted:#9caa90;
+  --grass:#7ecb52; --grass-hi:#a5e87d; --grass-dk:#4e8f33;
+  --dirt:#c99c66; --dirt-dk:#9a6e43; --water:#6cc8d9; --stone:#9aa0aa;
+  --concrete:#cacac3; --lava:#ff7a3c; --ice:#bfe0f0;
+  --line:#2d3b2c; --line-hi:#41543e; --code-bg:#0c120d; --shadow:rgba(0,0,0,.45);
+  --kw:#ff9d5c; --ty:#8fd8e8; --fnc:#a5e87d; --str:#e8c878; --cmt:#6d7c64; --mac:#d8a0e8; --num:#f0b8a0;
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px)}
+::selection{background:var(--grass-dk);color:#fff}
+
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--bg-deep);border-right:3px solid var(--line);overflow-y:auto;z-index:30;padding:22px 0 40px}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px}
+.logo .title{font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15}
+.logo .sub{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em}
+.logo .badge{display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;box-shadow:2px 2px 0 var(--shadow)}
+.logo .badge.pro{background:var(--lava);color:#1a0d06;margin-left:6px}
+.nav-part{font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);padding:16px 20px 6px;text-transform:uppercase}
+.nav a{display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;font-size:14px;position:relative;border-left:4px solid transparent;transition:color .12s,background .12s}
+.nav a::before{content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);transition:opacity .12s,left .12s}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{color:var(--grass-hi);background:rgba(126,203,82,.10);border-left-color:var(--grass);font-weight:600}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;background:var(--grass);color:#10180f;border:none;padding:8px 14px;box-shadow:3px 3px 0 var(--shadow);text-decoration:none;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+.menu-toggle{display:none;position:fixed;top:14px;left:14px;z-index:40;font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;background:var(--panel);color:var(--ink);border:3px solid var(--line);box-shadow:3px 3px 0 var(--shadow)}
+
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-family:"Pixelify Sans";font-weight:700;font-size:clamp(34px,5.2vw,54px);line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px}
+.hero h1 .g{color:var(--grass-hi)}.hero h1 .d{color:var(--dirt)}.hero h1 .l{color:var(--lava)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{border:3px solid var(--line);background:var(--bg-deep);padding:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow)}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6}
+.hero-strip .cap b{color:var(--grass)}
+
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);text-transform:uppercase}
+.ch-eyebrow{font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);text-transform:uppercase;margin-bottom:8px}
+h2{font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);margin:34px 0 12px}
+p{margin-bottom:14px}p+p{margin-top:2px}
+strong{color:#fff}em{color:var(--dirt)}a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}li{margin-bottom:7px}
+code:not(pre code){font-family:"IBM Plex Mono";font-size:.86em;background:var(--code-bg);color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+
+.code{margin:22px 0;border:3px solid var(--line);background:var(--code-bg);box-shadow:4px 4px 0 var(--shadow)}
+.code-head{display:flex;justify-content:space-between;align-items:center;background:var(--panel);border-bottom:3px solid var(--line);padding:7px 12px}
+.code-head .fname{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--dirt);letter-spacing:.05em}
+.copy-btn{font-family:"Pixelify Sans";font-size:12.5px;cursor:pointer;background:transparent;color:var(--muted);border:2px solid var(--line-hi);padding:2px 9px;transition:all .1s}
+.copy-btn:hover{color:var(--grass-hi);border-color:var(--grass)}
+.code pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13.5px;line-height:1.62}
+.code pre::-webkit-scrollbar{height:8px}
+.code pre::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.k{color:var(--kw)}.t{color:var(--ty)}.f{color:var(--fnc)}.s{color:var(--str)}.c{color:var(--cmt);font-style:italic}.m{color:var(--mac)}.n{color:var(--num)}
+
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--grass)}.diagram pre .di{color:var(--dirt)}.diagram pre .wa{color:var(--water)}.diagram pre .st{color:var(--stone)}.diagram pre .lv{color:var(--lava)}.diagram pre .mu{color:var(--muted)}.diagram pre .yl{color:#e8d24a}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+
+.bevy-box{margin:24px 0;border:3px solid #2a4a52;background:#0d181b;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.bevy-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.bevy-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.bevy-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.bevy-box ul{font-size:15px;color:#cfdbd5}
+
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--grass);margin-bottom:4px}
+.note.warn .n-tag{color:var(--dirt)}
+
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+
+.playground{margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);border-bottom:3px solid var(--grass-dk);padding:10px 14px}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em}
+.playground .pg-body{padding:16px;display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#000;cursor:crosshair;touch-action:none;max-width:100%}
+.playground .pg-side{flex:1;min-width:230px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:2}
+.pg-chip{display:inline-block;width:14px;height:14px;vertical-align:-2px;margin-right:7px;border:2px solid var(--line)}
+.pg-controls{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+.stat{font-family:"IBM Plex Mono";font-size:13px;color:var(--grass-hi)}
+.slider-row{display:flex;align-items:center;gap:10px;margin:6px 0;font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted)}
+.slider-row input[type=range]{flex:1;accent-color:var(--grass)}
+.slider-row .val{color:var(--grass-hi);min-width:54px;text-align:right}
+.wbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:4px 11px;transition:all .1s}
+.wbtn:hover{color:var(--ink)}
+.wbtn.active{background:var(--water);color:var(--bg-deep);border-color:var(--water)}
+
+footer{margin-top:90px;border-top:3px solid var(--line);padding-top:24px;font-size:13.5px;color:var(--muted)}
+footer .pix{font-family:"Pixelify Sans";color:var(--grass);font-size:15px}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}
+  .menu-toggle{display:block}.main{margin-left:0}.wrap{padding:0 20px 100px}.hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">PATHFINDING<br>&amp; ÜTKÖZÉS</div>
+    <div class="sub">A* · kattintós mozgás · üldözés · Rust</div>
+    <span class="badge">BEVY 0.18</span><span class="badge pro">A*</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I. rész — Elmélet</div>
+    <a href="#ch1">1 · A feladat: kattints, és odatalál</a>
+    <a href="#ch2">2 · A rács mint gráf</a>
+    <a href="#ch3">3 · BFS, Dijkstra, A*</a>
+    <a href="#ch4">4 · Heurisztikák</a>
+    <a href="#ch5">5 · Útkövetés &amp; ütközés</a>
+    <div class="nav-part">II. rész — Bevy alapok</div>
+    <a href="#ch6">6 · Projekt + a rács erőforrás</a>
+    <a href="#ch7">7 · Komponensek</a>
+    <div class="nav-part">III. rész — Implementáció</div>
+    <a href="#ch8">8 · A* Rustban</a>
+    <a href="#ch9">9 · Kattintásos mozgás</a>
+    <a href="#ch10">10 · Útkövetés + ütközés</a>
+    <a href="#ch11">11 · Üldözés</a>
+    <a href="#ch12">12 · Kóborlás (random walk)</a>
+    <a href="#ch13">13 · A teljes main.rs</a>
+    <a href="#ch14">14 · Merre tovább?</a>
+  </nav>
+  <div class="dl-box">
+    <p>A rács és a falak ugyanaz, mint a <span class="mono">dual-grid</span> tilemapnél — itt megtanítjuk a karaktert <strong>végigtalálni</strong> rajta.</p>
+    <a class="btn secondary" href="#ch13">A teljes main.rs ▸</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// folytatás-tutorial · A* pályakeresés + ütközés · magyar nyelven</div>
+  <h1>Kattints — és a karakter <span class="g">odatalál</span></h1>
+  <p class="lead">Nem WASD, hanem <strong>egérkattintós</strong> mozgás: ahová a pályán kattintasz, oda a karakter <em>kikeresi</em> az utat a falak között (<strong>A*</strong>), majd simán végigmegy rajta — <strong>ütközés-kezeléssel</strong>. Plusz: egy ellenfél <strong>üldöz</strong>, és kóborló (<strong>random walk</strong>) szörnyek. Végig Bevy 0.18 ECS-szel, shader nélkül.</p>
+  <div class="hero-strip">
+    <canvas id="pfHero" width="416" height="176" style="width:580px;height:245px"></canvas>
+    <div class="cap">↑ Élő minta: a karakter <b>magától</b> céloz be véletlen pontokat, és A*-ral keres oda utat a falak közt.<br>A zöld vonal a megtalált <b>útvonal</b>.</div>
+  </div>
+</header>
+
+<!-- I. RÉSZ -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Elmélet</span></div>
+
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>A feladat: kattints, és odatalál</h2>
+  <p>A klikk-mozgás (point-and-click) láncolata mindig ugyanaz, motortól függetlenül:</p>
+  <div class="diagram">
+    <div class="d-head">⊞ A klikk-mozgás folyamata</div>
+    <pre>
+  <span class="yl">kattintás</span> (képernyő-px)
+      │  viewport_to_world_2d
+      ▼
+  <span class="wa">világ-koordináta</span>  ──►  <span class="wa">cella</span> (osztás a cellamérettel)
+      │
+      ▼  <span class="gr">A*</span>(rács, start-cella, cél-cella)
+  <span class="gr">útvonal</span> = cellák listája  ──►  világ-koordináta waypointok
+      │
+      ▼  útkövetés (lépdelünk a következő waypoint felé)
+  <span class="di">mozgás</span>  +  <span class="lv">ütközés</span> (ne menjünk falba, ne csússzunk át sarkon)</pre>
+    <div class="d-cap">Öt lépés: klikk → világ → cella → A* → útkövetés. Az ütközés a végén „rendet rak”, ha a karakter mégis falhoz érne.</div>
+  </div>
+  <p>Ugyanezt a gépezetet használja az <strong>MI</strong> is, csak más a cél-cella forrása:</p>
+  <ul>
+    <li><strong>Üldözés (pursue):</strong> a cél a <em>játékos</em> aktuális cellája — időnként újratervezve.</li>
+    <li><strong>Kóborlás (random walk):</strong> a cél egy <em>véletlen</em> járható cella; ha odaért, új célt sorsol.</li>
+  </ul>
+  <p>A szív tehát a pályakereső (A*), amit egyszer megírunk, és háromféleképp etetünk meg célokkal: kattintás, játékos, véletlen.</p>
+  <div class="note">
+    <div class="n-tag">▲ A rács honnan jön?</div>
+    A <em>dual-grid</em> tutorial tilemapjéből: minden cella járható vagy nem (fal). A pályakeresés ezen a <strong>logikai rácson</strong> dolgozik — a látvány (tile-ok) és a logika (járhatóság) szétválik, ahogy ott is.
+  </div>
+</section>
+
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>A rács mint gráf</h2>
+  <p>Az algoritmusok <strong>gráfon</strong> dolgoznak: csúcsok (node) és élek (edge). A rácsunk természetesen az: minden <strong>cella egy csúcs</strong>, és minden cella össze van kötve a <strong>szomszédaival</strong> (él). Egy fal-cella vagy nincs is a gráfban, vagy nem vezet bele él.</p>
+  <h3>4 vagy 8 irány?</h3>
+  <ul>
+    <li><strong>4 irány</strong> (fel/le/bal/jobb): egyszerű, „derékszögű” utak. Minden lépés költsége 1.</li>
+    <li><strong>8 irány</strong> (átlókkal): simább, rövidebb utak, de figyelni kell a <em>sarokvágásra</em> — az átlós lépést csak akkor engedd, ha a két érintett egyenes szomszéd is szabad (különben a karakter „átbújik” a fal sarkán). Az átló költsége <code>√2 ≈ 1.41</code>.</li>
+  </ul>
+  <div class="diagram">
+    <div class="d-head">⊞ Szomszédok &amp; a sarokvágás tiltása</div>
+    <pre>
+   4 irányú             8 irányú            sarokvágás TILTVA
+     · <span class="gr">N</span> ·              <span class="gr">NW</span> <span class="gr">N</span> <span class="gr">NE</span>            <span class="st">██</span> <span class="gr">N</span>     az átló (NE) csak akkor
+     <span class="gr">W</span> <span class="yl">C</span> <span class="gr">E</span>              <span class="gr">W</span> <span class="yl">C</span> <span class="gr">E</span>            <span class="st">██</span> <span class="yl">C</span> <span class="lv">✗</span>   járható, ha N és E is az;
+     · <span class="gr">S</span> ·              <span class="gr">SW</span> <span class="gr">S</span> <span class="gr">SE</span>             <span class="gr">S</span>      itt a fal miatt nem</pre>
+    <div class="d-cap">8 irányban a karakter „levágná” a fal sarkát — ezt tiltjuk, hogy ne ússzon át tömör blokkokon.</div>
+  </div>
+  <h3>Költségek</h3>
+  <p>Az élnek lehet <strong>súlya</strong> (cost): a normál talaj 1, a mocsár/homok 3 (lassabb), az út 0.5 (gyorsabb). A pályakereső a <em>legkisebb összköltségű</em> utat keresi — így a karakter kerülni fogja a mocsarat, ha van jobb út. Egységnyi (mindenhol 1) költséggel a „legolcsóbb” = „legkevesebb lépés”.</p>
+</section>
+
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>BFS, Dijkstra, A*</h2>
+  <p>Három klasszikus algoritmus, egyazon ötlet egyre okosabb változatai. Mind a kiindulóponttól <strong>kifelé terjeszkedik</strong>, cellákat „felfedezve”, amíg el nem éri a célt. A különbség: <em>milyen sorrendben</em> dolgozzák fel a cellákat.</p>
+  <table>
+    <tr><th>Algoritmus</th><th>Sorrend (prioritás)</th><th>Optimális?</th><th>Mit fedez fel</th></tr>
+    <tr><td><strong>BFS</strong></td><td>érkezési sorrend (FIFO)</td><td>Igen (egységnyi költség)</td><td>Mindent egyenletesen, körkörösen</td></tr>
+    <tr><td><strong>Dijkstra</strong></td><td>legkisebb eddigi költség <code>g</code></td><td>Igen (súlyozott is)</td><td>Mindent, a költség szerint</td></tr>
+    <tr><td><strong>Greedy</strong></td><td>becsült hátralévő <code>h</code></td><td><strong>Nem</strong></td><td>Keveset, de a cél felé „nekiront”</td></tr>
+    <tr><td><strong>A*</strong></td><td><code>f = g + h</code></td><td>Igen (jó heurisztikával)</td><td>Keveset, célirányosan</td></tr>
+  </table>
+  <p>Az <strong>A*</strong> egyesíti a kettő erényét: a Dijkstra biztos optimalitását (<code>g</code> = eddigi tényleges költség) és a Greedy célirányosságát (<code>h</code> = becsült hátralévő út, a <em>heurisztika</em>). A <code>g + h</code> prioritás miatt csak a cél felé eső cellákat vizsgálja — gyorsabb, mégis optimális.</p>
+  <p>Nézd meg élőben! Állítsd az algoritmust, és figyeld, <strong>hány cellát kell felfedeznie</strong> ugyanahhoz az úthoz. Kattints a pályára a cél áthelyezéséhez, jobb gombbal (vagy húzással) rajzolj falat.</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — pályakereső-vizualizáló</span>
+      <button class="btn" id="avReplay" style="font-size:13px;padding:5px 10px">⟲ Újra</button></div>
+    <div class="pg-body">
+      <canvas id="astarCanvas" width="416" height="288" style="width:560px"></canvas>
+      <div class="pg-side">
+        <div class="legend">
+          <span class="pg-chip" style="background:#7ecb52"></span>Start &nbsp; <span class="pg-chip" style="background:#ff7a3c"></span>Cél<br>
+          <span class="pg-chip" style="background:#3a6e8a"></span>Felfedezett cella<br>
+          <span class="pg-chip" style="background:#a5e87d"></span>A megtalált útvonal
+        </div>
+        <div class="ctl-label">Algoritmus</div>
+        <div class="pg-controls">
+          <button class="wbtn" data-algo="bfs">BFS</button>
+          <button class="wbtn" data-algo="dijkstra">Dijkstra</button>
+          <button class="wbtn" data-algo="greedy">Greedy</button>
+          <button class="wbtn active" data-algo="astar">A*</button>
+        </div>
+        <div class="pg-controls">
+          <button class="wbtn" id="avDiag">8 irány</button>
+        </div>
+        <p style="margin-top:10px" class="stat" id="avStat">vizsgált cellák: —</p>
+        <p style="margin-top:6px"><span class="kbd">bal klikk</span> cél · <span class="kbd">jobb klikk / húzás</span> fal</p>
+      </div>
+    </div>
+  </div>
+  <p>Figyeld meg: a BFS/Dijkstra szinte az egész nyílt teret bejárja, a Greedy keveset de néha kerülőt választ, az A* pedig <strong>célirányosan</strong> dolgozik — kevés cellát vizsgál, mégis a legrövidebb utat adja.</p>
+</section>
+
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>Heurisztikák</h2>
+  <p>A heurisztika (<code>h</code>) az A* „iránytűje”: megbecsüli, mennyi van még hátra a célig. A jó heurisztika <strong>soha nem becsül felül</strong> (admissible) — különben az A* gyors lehet, de nem feltétlenül optimális. A választás a mozgási irányoktól függ:</p>
+  <table>
+    <tr><th>Heurisztika</th><th>Képlet</th><th>Mikor</th></tr>
+    <tr><td><strong>Manhattan</strong></td><td class="mono">|dx| + |dy|</td><td>4 irányú mozgás — pont a lépésszám</td></tr>
+    <tr><td><strong>Chebyshev</strong></td><td class="mono">max(|dx|, |dy|)</td><td>8 irány, ha az átló is 1 költségű</td></tr>
+    <tr><td><strong>Octile</strong></td><td class="mono">(dx+dy) + (√2−2)·min(dx,dy)</td><td>8 irány, ha az átló √2 — a leg­pontosabb</td></tr>
+    <tr><td><strong>Euklideszi</strong></td><td class="mono">√(dx² + dy²)</td><td>Szabad (bármilyen szögű) mozgás</td></tr>
+  </table>
+  <div class="note warn">
+    <div class="n-tag">⚠ A rossz heurisztika ára</div>
+    Ha <strong>felülbecsülsz</strong> (pl. euklideszit használsz 4 irányú mozgásnál, megszorozva), az A* gyorsabb lesz, de nem garantál optimális utat. Ha <strong>alulbecsülsz</strong> (pl. <code>h = 0</code>), visszakapod a Dijkstrát — optimális, de lassú. A cél a kettő közt: minél pontosabb becslés a felülbecslés határáig.
+  </div>
+  <p>A fenti vizualizálóban a <strong>8 irány</strong> bekapcsolásával az A* automatikusan az octile-szerű, átlós utakat preferálja. Próbáld ki: 8 irányban simább, „rézsútos” utat kapsz.</p>
+</section>
+
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Útkövetés &amp; ütközés</h2>
+  <p>Az A* cellák listáját adja. Ezeket <strong>világ-koordináta waypointokká</strong> alakítjuk (a cella közepe), és a karakter mindig a <em>következő</em> waypoint felé lép. Ha elég közel ér, ráugrik és a sorban következőre vált — amíg el nem fogy az út.</p>
+  <h3>Miért kell még külön ütközés?</h3>
+  <p>A pályakeresés a cellák <em>közepei</em> közt vezet, de a karakternek <strong>mérete</strong> van (egy sugár). Átlós utaknál vagy szűk folyosóban a kör „belelóghat” a sarokba. Ezért a mozgás után egy <strong>ütközés-feloldó</strong> lépés kitolja a kört a fal-cellákból — ettől a karakter szépen <em>elcsúszik</em> a falak mentén ahelyett, hogy beragadna.</p>
+  <div class="diagram">
+    <div class="d-head">⊞ Kör vs fal-cella: kitolás</div>
+    <pre>
+   <span class="st">████</span>          a kör legközelebbi pontja az
+   <span class="st">████</span> <span class="gr">(o</span>      AABB-n: <span class="yl">q</span>. Ha a kör középpontja
+   <span class="st">██</span><span class="yl">q</span><span class="gr">o)</span>     közelebb van <span class="yl">q</span>-hoz, mint a sugár,
+   <span class="st">████</span>          told ki a (q → közép) irányban.</pre>
+    <div class="d-cap">A 3×3 szomszédos cellára lefuttatva a karakter sosem lóg bele falba — és a fal mentén csúszik tovább.</div>
+  </div>
+  <p>Ágensek között ugyanígy: ha két karakter köre átfedi egymást, told szét őket félúton (separation). Kattints a pályára — a karakter odatalál és <strong>elcsúszik</strong> a falak mentén; bal-húzással rajzolj/törölj falat menet közben.</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — kattintós mozgás + ütközés</span>
+      <button class="btn" id="cmClear" style="font-size:13px;padding:5px 10px">Pálya törlése</button></div>
+    <div class="pg-body">
+      <canvas id="clickMoveCanvas" width="416" height="288" style="width:560px"></canvas>
+      <div class="pg-side">
+        <div class="legend">
+          <span class="pg-chip" style="background:#6f8fd6"></span>Karakter<br>
+          <span class="pg-chip" style="background:#a5e87d"></span>A megtalált útvonal<br>
+          <span class="pg-chip" style="background:#9aa0aa"></span>Fal
+        </div>
+        <p style="margin-top:10px"><span class="kbd">bal klikk</span> ide mozogj<br><span class="kbd">jobb klikk / húzás</span> fal rajzolása/törlése</p>
+        <p style="margin-top:6px">A karakter újratervez, ha új fal kerül az útjába.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- II. RÉSZ -->
+<div class="part-divider"><span class="pd-label">█ II. rész — Bevy alapok</span></div>
+
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Projekt + a rács erőforrás</h2>
+  <p>A pályakeresés egy <strong>rács erőforráson</strong> dolgozik: egy járhatósági térkép. Hozzá kell még a világ ↔ cella átváltás. A rendszereket láncba tesszük, hogy a sorrend stabil legyen (előbb cél, aztán mozgás, végül ütközés).</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">terminál</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-sh">cargo new clicknav
+cd clicknav
+cargo add bevy@0.18
+cargo add rand          # a kóborláshoz (véletlen cél)</code></pre>
+  </div>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — rács + átváltás</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+const CELL: f32 = 16.0;   // egy cella mérete world unitban
+
+#[derive(Resource)]
+struct Grid {
+    width: i32,
+    height: i32,
+    walls: Vec&lt;bool&gt;,     // width*height; true = NEM járható
+}
+
+impl Grid {
+    fn idx(&amp;self, c: IVec2) -&gt; usize { (c.y * self.width + c.x) as usize }
+    fn in_bounds(&amp;self, c: IVec2) -&gt; bool {
+        c.x &gt;= 0 &amp;&amp; c.y &gt;= 0 &amp;&amp; c.x &lt; self.width &amp;&amp; c.y &lt; self.height
+    }
+    fn walkable(&amp;self, c: IVec2) -&gt; bool {
+        self.in_bounds(c) &amp;&amp; !self.walls[self.idx(c)]
+    }
+}
+
+// világ-koordináta -&gt; cella, és vissza (a cella KÖZEPÉRE)
+fn world_to_cell(p: Vec2) -&gt; IVec2 {
+    IVec2::new((p.x / CELL).floor() as i32, (p.y / CELL).floor() as i32)
+}
+fn cell_to_world(c: IVec2) -&gt; Vec2 {
+    Vec2::new((c.x as f32 + 0.5) * CELL, (c.y as f32 + 0.5) * CELL)
+}</code></pre>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — IVec2 mint cella-kulcs</div>
+    <p>A cellákat <code>IVec2</code>-vel (egész 2D vektor) címezzük. Ez <code>Copy + Hash + Eq</code>, így közvetlenül használható <code>HashMap</code>/<code>HashSet</code> kulcsként az A*-ban — nem kell külön index-számolgatás a halmazokhoz. A <code>Grid.walls</code> viszont lapos <code>Vec&lt;bool&gt;</code> a gyors indexelésért.</p>
+  </div>
+</section>
+
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>Komponensek</h2>
+  <p>Kevés komponens kell. Egy <code>Path</code> tárolja a követendő waypointokat, egy <code>Mover</code> a sebességet; a markerek döntik el, ki kap célt és honnan.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — komponensek</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">#[derive(Component)]
+struct Mover { speed: f32 }
+
+// a követendő útvonal: világ-koordináta waypointok + hol tartunk
+#[derive(Component)]
+struct Path { points: Vec&lt;Vec2&gt;, index: usize }
+
+#[derive(Component)] struct Player;          // őt irányítja a kattintás
+
+#[derive(Component)]
+struct Pursuer { repath: Timer }             // üldöző: időnként újratervez
+
+#[derive(Component)]
+struct Wanderer { wait: Timer }              // kóborló: szünet után új cél</pre></code></pre>
+  </div>
+  <div class="note">
+    <div class="n-tag">▲ A Path nem fix — jön és megy</div>
+    Amikor célt adunk (kattintás, üldözés, kóborlás), <strong>ráteszünk</strong> egy <code>Path</code> komponenst az entitásra. Amikor a karakter végigért, <strong>levesszük</strong>. Így a „van-e épp útja?” kérdés egyszerűen a <code>Path</code> meglétére redukálódik — a kóborló pl. csak akkor sorsol új célt, ha nincs <code>Path</code>-a (<code>Without&lt;Path&gt;</code>).
+  </div>
+</section>
+
+<!-- III. RÉSZ -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Implementáció</span></div>
+
+<section id="ch8">
+  <div class="ch-eyebrow">8. fejezet</div>
+  <h2>A* Rustban</h2>
+  <p>Itt a lényeg: egy önálló <code>astar</code> függvény. Egy <strong>prioritási sor</strong> (min-heap) tartja a feldolgozandó cellákat <code>f = g + h</code> szerint; a <code>came_from</code> jegyzi, honnan értünk egy cellába (ebből rakjuk össze az utat); a <code>g_score</code> az eddigi legjobb költség.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/pathfinding.rs — A*</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use std::collections::{BinaryHeap, HashMap};
+use std::cmp::Ordering;
+
+const DIRS: [IVec2; 4] = [
+    IVec2::new(1, 0), IVec2::new(-1, 0), IVec2::new(0, 1), IVec2::new(0, -1),
+];
+
+// a prioritási sor eleme: a cella és az f-értéke
+#[derive(Copy, Clone, PartialEq)]
+struct Node { f: f32, cell: IVec2 }
+impl Eq for Node {}
+impl Ord for Node {
+    fn cmp(&amp;self, other: &amp;Self) -&gt; Ordering {
+        // a BinaryHeap MAX-heap -&gt; megfordítjuk, hogy a KISEBB f jöjjön elöl
+        other.f.partial_cmp(&amp;self.f).unwrap_or(Ordering::Equal)
+    }
+}
+impl PartialOrd for Node {
+    fn partial_cmp(&amp;self, other: &amp;Self) -&gt; Option&lt;Ordering&gt; { Some(self.cmp(other)) }
+}
+
+// Manhattan-távolság — 4 irányú mozgáshoz admissible (sosem becsül felül)
+fn heuristic(a: IVec2, b: IVec2) -&gt; f32 {
+    ((a.x - b.x).abs() + (a.y - b.y).abs()) as f32
+}
+
+/// A legrövidebb út `start`-ból `goal`-ba, vagy None ha nincs.
+pub fn astar(grid: &amp;Grid, start: IVec2, goal: IVec2) -&gt; Option&lt;Vec&lt;IVec2&gt;&gt; {
+    if !grid.walkable(goal) || !grid.walkable(start) { return None; }
+
+    let mut open = BinaryHeap::new();
+    let mut came_from: HashMap&lt;IVec2, IVec2&gt; = HashMap::new();
+    let mut g_score: HashMap&lt;IVec2, f32&gt; = HashMap::new();
+
+    g_score.insert(start, 0.0);
+    open.push(Node { f: heuristic(start, goal), cell: start });
+
+    while let Some(Node { cell, .. }) = open.pop() {
+        if cell == goal {
+            return Some(reconstruct(&amp;came_from, goal));
+        }
+        let g = g_score[&amp;cell];
+        for dir in DIRS {
+            let next = cell + dir;
+            if !grid.walkable(next) { continue; }
+
+            let tentative = g + 1.0;   // minden lépés költsége 1
+            if tentative &lt; *g_score.get(&amp;next).unwrap_or(&amp;f32::INFINITY) {
+                came_from.insert(next, cell);
+                g_score.insert(next, tentative);
+                open.push(Node { f: tentative + heuristic(next, goal), cell: next });
+            }
+        }
+    }
+    None // a cél nem érhető el
+}
+
+// a came_from láncot a célból visszafelé követve rakjuk össze az utat
+fn reconstruct(came_from: &amp;HashMap&lt;IVec2, IVec2&gt;, goal: IVec2) -&gt; Vec&lt;IVec2&gt; {
+    let mut path = vec![goal];
+    let mut cur = goal;
+    while let Some(&amp;prev) = came_from.get(&amp;cur) {
+        cur = prev;
+        path.push(cur);
+    }
+    path.reverse();   // start -&gt; goal sorrend
+    path
+}</code></pre>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▲ 8 irány &amp; súlyok</div>
+    8 irányhoz vedd fel az átlós <code>DIRS</code>-eket (költség <code>std::f32::consts::SQRT_2</code>), tiltsd a sarokvágást (mindkét egyenes szomszéd legyen járható), és cseréld a heurisztikát octile-ra. Súlyozott talajhoz a <code>+ 1.0</code> helyett a belépett cella költségét add (<code>grid.cost(next)</code>) — így lesz Dijkstra/A* mocsárral, úttal.
+  </div>
+  <div class="note warn">
+    <div class="n-tag">⚠ Ne találd fel újra — ott a `pathfinding` crate</div>
+    Éles projektben a <code>pathfinding</code> crate kész, jól tesztelt <code>astar</code>, <code>bfs</code>, <code>dijkstra</code> függvényeket ad. A fentit azért írtuk meg kézzel, hogy <em>értsd</em ; production-ben nyugodtan hívd a crate-et.
+  </div>
+</section>
+
+<section id="ch9">
+  <div class="ch-eyebrow">9. fejezet</div>
+  <h2>Kattintásos mozgás</h2>
+  <p>A kattintást világ-koordinátává alakítjuk (<code>viewport_to_world_2d</code>), abból cellát csinálunk, lefuttatjuk az A*-ot a játékos cellájából, és a kapott utat <code>Path</code> komponensként rátesszük a játékosra.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — click_to_move</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn click_to_move(
+    mouse: Res&lt;ButtonInput&lt;MouseButton&gt;&gt;,
+    windows: Query&lt;&amp;Window&gt;,
+    camera: Query&lt;(&amp;Camera, &amp;GlobalTransform)&gt;,
+    grid: Res&lt;Grid&gt;,
+    mut commands: Commands,
+    player: Query&lt;(Entity, &amp;Transform), With&lt;Player&gt;&gt;,
+) {
+    if !mouse.just_pressed(MouseButton::Left) { return; }
+
+    let Ok(window) = windows.single() else { return };
+    let Some(cursor) = window.cursor_position() else { return };
+    let Ok((cam, cam_tf)) = camera.single() else { return };
+    let Ok(world) = cam.viewport_to_world_2d(cam_tf, cursor) else { return };
+
+    let Ok((entity, tf)) = player.single() else { return };
+    let start = world_to_cell(tf.translation.truncate());
+    let goal = world_to_cell(world);
+
+    if let Some(cells) = astar(&amp;grid, start, goal) {
+        // cellák -&gt; világ-koordináta waypointok
+        let points = cells.iter().map(|c| cell_to_world(*c)).collect();
+        commands.entity(entity).insert(Path { points, index: 0 });
+    }
+}</code></pre>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — viewport_to_world_2d</div>
+    <p>A <code>Camera::viewport_to_world_2d(cam_transform, cursor_px)</code> a képernyő-pixelt világ-koordinátává alakítja a kamera vetítése szerint — figyelembe véve a zoomot és a kamera pozícióját. A 0.18-ban <code>Result</code>-ot ad (a kurzor lehet a vásznon kívül), ezért a <code>let Ok(..) = ... else { return }</code> mintát használjuk.</p>
+  </div>
+</section>
+
+<section id="ch10">
+  <div class="ch-eyebrow">10. fejezet</div>
+  <h2>Útkövetés + ütközés</h2>
+  <p>A <code>follow_path</code> a következő waypoint felé lépteti az entitást; ha elérte, vált a következőre, a végén leveszi a <code>Path</code>-t. A <code>collide_walls</code> utána kitolja a kört a fal-cellákból.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — follow_path</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn follow_path(
+    time: Res&lt;Time&gt;,
+    mut commands: Commands,
+    mut q: Query&lt;(Entity, &amp;mut Transform, &amp;Mover, &amp;mut Path)&gt;,
+) {
+    for (e, mut tf, mover, mut path) in &amp;mut q {
+        if path.index &gt;= path.points.len() {
+            commands.entity(e).remove::&lt;Path&gt;();   // odaértünk
+            continue;
+        }
+        let target = path.points[path.index];
+        let pos = tf.translation.truncate();
+        let to = target - pos;
+        let step = mover.speed * time.delta_secs();
+
+        if to.length() &lt;= step {
+            tf.translation = target.extend(tf.translation.z); // pattanjunk a waypointra
+            path.index += 1;                                   // következő
+        } else {
+            let dir = to.normalize_or_zero();
+            tf.translation += (dir * step).extend(0.0);
+        }
+    }
+}</code></pre>
+  </div>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — collide_walls (kör vs fal-AABB)</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn collide_walls(grid: Res&lt;Grid&gt;, mut q: Query&lt;&amp;mut Transform, With&lt;Mover&gt;&gt;) {
+    let radius = CELL * 0.35;
+    for mut tf in &amp;mut q {
+        let mut p = tf.translation.truncate();
+        let cell = world_to_cell(p);
+
+        // a 3x3 szomszédos cellát nézzük végig
+        for dy in -1..=1 {
+            for dx in -1..=1 {
+                let c = cell + IVec2::new(dx, dy);
+                if grid.walkable(c) { continue; }   // csak a falak taszítanak
+
+                // a fal-cella AABB-je, és a kör középpontjának legközelebbi pontja rajta
+                let min = Vec2::new(c.x as f32 * CELL, c.y as f32 * CELL);
+                let max = min + Vec2::splat(CELL);
+                let closest = p.clamp(min, max);
+
+                let delta = p - closest;
+                let dist = delta.length();
+                if dist &lt; radius &amp;&amp; dist &gt; 0.0 {
+                    p += delta / dist * (radius - dist); // told ki a falból
+                }
+            }
+        }
+        tf.translation = p.extend(tf.translation.z);
+    }
+}</code></pre>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▲ Ágensek széttolása (separation)</div>
+    Két karakter közt ugyanez az ötlet: ha a köreik átfednek (<code>táv &lt; r1 + r2</code>), told szét őket az átfedés felével mindkét irányba. Sok ágensnél ezt párokra futtatod (vagy térbeli ráccsal gyorsítod), de a logika ugyanaz a „kitolás”.
+  </div>
+</section>
+
+<section id="ch11">
+  <div class="ch-eyebrow">11. fejezet</div>
+  <h2>Üldözés</h2>
+  <p>Az üldöző MI ugyanazt a <code>Path</code>-gépezetet használja, csak a célja a <strong>játékos cellája</strong>. Kulcskérdés a <em>gyakoriság</em>: ne tervezz újra minden frame-ben (drága és felesleges), hanem időzítve — pár tizedmásodpercenként. A <code>follow_path</code> a két újratervezés között simán viszi tovább.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — pursue</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn pursue(
+    time: Res&lt;Time&gt;,
+    grid: Res&lt;Grid&gt;,
+    mut commands: Commands,
+    player: Query&lt;&amp;Transform, With&lt;Player&gt;&gt;,
+    mut pursuers: Query&lt;(Entity, &amp;Transform, &amp;mut Pursuer), Without&lt;Player&gt;&gt;,
+) {
+    let Ok(player_tf) = player.single() else { return };
+    let goal = world_to_cell(player_tf.translation.truncate());
+
+    for (e, tf, mut pursuer) in &amp;mut pursuers {
+        pursuer.repath.tick(time.delta());
+        if !pursuer.repath.just_finished() { continue; }   // csak időzítve
+
+        let start = world_to_cell(tf.translation.truncate());
+        if let Some(cells) = astar(&amp;grid, start, goal) {
+            let points = cells.iter().map(|c| cell_to_world(*c)).collect();
+            commands.entity(e).insert(Path { points, index: 0 });
+        }
+    }
+}
+// spawn: Pursuer { repath: Timer::from_seconds(0.4, TimerMode::Repeating) }</code></pre>
+  </div>
+
+  <p>Próbáld ki: a kék karakter a kattintásodat követi, a piros üldöz. Állítsd, milyen sűrűn tervez újra — túl ritkán „elavult” úton kódorog, túl sűrűn pazarol.</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — üldözés</span></div>
+    <div class="pg-body">
+      <canvas id="chaseCanvas" width="416" height="288" style="width:560px"></canvas>
+      <div class="pg-side">
+        <div class="legend">
+          <span class="pg-chip" style="background:#6f8fd6"></span>Játékos (<span class="kbd">bal klikk</span> = ide)<br>
+          <span class="pg-chip" style="background:#d66f6f"></span>Üldöző (A*-ral követ)
+        </div>
+        <div class="slider-row"><span>Újratervezés</span><input type="range" id="chRepath" min="10" max="200" value="50"><span class="val" id="chRepathV">0.50 s</span></div>
+        <p style="margin-top:10px" id="chStat">&nbsp;</p>
+        <p style="margin-top:6px">Tipp: ha az üldöző „elavult” cellára fut, az azért van, mert régen tervezett — gyorsítsd fel.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="ch12">
+  <div class="ch-eyebrow">12. fejezet</div>
+  <h2>Kóborlás (random walk)</h2>
+  <p>A kóborló szörny akkor sorsol új célt, amikor <strong>nincs útja</strong> (épp megérkezett vagy még nem indult). A <code>Without&lt;Path&gt;</code> szűrő elegánsan kifejezi ezt: a rendszer csak az „üres kezű” kóborlókat látja.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — wander</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use rand::Rng;
+
+fn wander(
+    time: Res&lt;Time&gt;,
+    grid: Res&lt;Grid&gt;,
+    mut commands: Commands,
+    // CSAK az kap új célt, akinek épp NINCS útja:
+    mut q: Query&lt;(Entity, &amp;Transform, &amp;mut Wanderer), Without&lt;Path&gt;&gt;,
+) {
+    let mut rng = rand::thread_rng();
+    for (e, tf, mut w) in &amp;mut q {
+        w.wait.tick(time.delta());
+        if !w.wait.just_finished() { continue; }   // pihen egy kicsit a célok közt
+
+        // sorsolunk egy véletlen JÁRHATÓ cellát
+        let mut goal;
+        loop {
+            goal = IVec2::new(rng.gen_range(0..grid.width), rng.gen_range(0..grid.height));
+            if grid.walkable(goal) { break; }
+        }
+
+        let start = world_to_cell(tf.translation.truncate());
+        if let Some(cells) = astar(&amp;grid, start, goal) {
+            let points = cells.iter().map(|c| cell_to_world(*c)).collect();
+            commands.entity(e).insert(Path { points, index: 0 });
+        }
+    }
+}
+// spawn: Wanderer { wait: Timer::from_seconds(0.8, TimerMode::Repeating) }</code></pre>
+  </div>
+
+  <p>Több kóborló egyszerre, mindegyik a maga ütemében céloz be új pontokat:</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — kóborlás</span></div>
+    <div class="pg-body">
+      <canvas id="wanderCanvas" width="416" height="240" style="width:560px"></canvas>
+      <div class="pg-side">
+        <p>Három szörny kóborol: mind véletlen járható cellát sorsol, A*-ral odamegy, pihen, és új célt vesz.</p>
+        <p style="margin-top:8px">A halvány vonalak az aktuális útvonalaik. Egymást is kerülgetik (separation).</p>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    <div class="n-tag">▲ Olcsóbb kóborlás A* nélkül</div>
+    Ha a kóborlásnak nem kell a <em>legrövidebb</em> út (csak „menjen valamerre”), elég egy egyszerű <strong>steering</strong>: lépj egy véletlen irányba, és ha falnak ütköznél, válassz újat. Az A*-os változat akkor jó, ha a szörny tényleg konkrét pontokat látogat (őrjárat, betakarítás).
+  </div>
+</section>
+
+<section id="ch13">
+  <div class="ch-eyebrow">13. fejezet</div>
+  <h2>A teljes main.rs</h2>
+  <p>Az egész egyben: rács, játékos (kattintós mozgás), egy üldöző, két kóborló, útkövetés és ütközés. A rendszereket láncba tesszük: előbb a célt adók (<code>click_to_move</code>, <code>pursue</code>, <code>wander</code>), majd a mozgás (<code>follow_path</code>), végül az ütközés (<code>collide_walls</code>).</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — teljes (az astar a 8. fejezetből)</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use rand::Rng;
+
+const CELL: f32 = 16.0;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .insert_resource(make_grid())
+        .add_systems(Startup, setup)
+        .add_systems(Update, (
+            click_to_move, pursue, wander,   // célt adnak (Path-t tesznek)
+            follow_path,                     // mozgatnak az úton
+            collide_walls,                   // kitolnak a falból
+        ).chain())
+        .run();
+}
+
+// ---------- rács ----------
+#[derive(Resource)]
+struct Grid { width: i32, height: i32, walls: Vec&lt;bool&gt; }
+impl Grid {
+    fn idx(&amp;self, c: IVec2) -&gt; usize { (c.y * self.width + c.x) as usize }
+    fn in_bounds(&amp;self, c: IVec2) -&gt; bool { c.x &gt;= 0 &amp;&amp; c.y &gt;= 0 &amp;&amp; c.x &lt; self.width &amp;&amp; c.y &lt; self.height }
+    fn walkable(&amp;self, c: IVec2) -&gt; bool { self.in_bounds(c) &amp;&amp; !self.walls[self.idx(c)] }
+}
+fn world_to_cell(p: Vec2) -&gt; IVec2 { IVec2::new((p.x / CELL).floor() as i32, (p.y / CELL).floor() as i32) }
+fn cell_to_world(c: IVec2) -&gt; Vec2 { Vec2::new((c.x as f32 + 0.5) * CELL, (c.y as f32 + 0.5) * CELL) }
+
+fn make_grid() -&gt; Grid {
+    let (w, h) = (30, 20);
+    let mut walls = vec![false; (w * h) as usize];
+    // pár fal-blokk (a valóságban a tilemapből töltöd)
+    for y in 5..15 { walls[(y * w + 10) as usize] = true; }
+    for x in 10..20 { walls[(8 * w + x) as usize] = true; }
+    Grid { width: w, height: h, walls }
+}
+
+// ---------- komponensek ----------
+#[derive(Component)] struct Mover { speed: f32 }
+#[derive(Component)] struct Path { points: Vec&lt;Vec2&gt;, index: usize }
+#[derive(Component)] struct Player;
+#[derive(Component)] struct Pursuer { repath: Timer }
+#[derive(Component)] struct Wanderer { wait: Timer }
+
+// ---------- setup ----------
+fn setup(mut commands: Commands, asset_server: Res&lt;AssetServer&gt;) {
+    commands.spawn(Camera2d);
+
+    let dude = asset_server.load("dude.png");
+    commands.spawn((Player, Mover { speed: 90.0 },
+        Sprite::from_image(dude.clone()), Transform::from_translation(cell_to_world(IVec2::new(2, 2)).extend(10.0))));
+
+    commands.spawn((Pursuer { repath: Timer::from_seconds(0.4, TimerMode::Repeating) },
+        Mover { speed: 70.0 }, Sprite::from_image(asset_server.load("enemy.png")),
+        Transform::from_translation(cell_to_world(IVec2::new(27, 17)).extend(10.0))));
+
+    for start in [IVec2::new(5, 16), IVec2::new(24, 4)] {
+        commands.spawn((Wanderer { wait: Timer::from_seconds(0.8, TimerMode::Repeating) },
+            Mover { speed: 55.0 }, Sprite::from_image(asset_server.load("slime.png")),
+            Transform::from_translation(cell_to_world(start).extend(10.0))));
+    }
+}
+
+// ---------- célt adó rendszerek ----------
+fn click_to_move(
+    mouse: Res&lt;ButtonInput&lt;MouseButton&gt;&gt;, windows: Query&lt;&amp;Window&gt;,
+    camera: Query&lt;(&amp;Camera, &amp;GlobalTransform)&gt;, grid: Res&lt;Grid&gt;,
+    mut commands: Commands, player: Query&lt;(Entity, &amp;Transform), With&lt;Player&gt;&gt;,
+) {
+    if !mouse.just_pressed(MouseButton::Left) { return; }
+    let Ok(window) = windows.single() else { return };
+    let Some(cursor) = window.cursor_position() else { return };
+    let Ok((cam, cam_tf)) = camera.single() else { return };
+    let Ok(world) = cam.viewport_to_world_2d(cam_tf, cursor) else { return };
+    let Ok((entity, tf)) = player.single() else { return };
+    if let Some(cells) = astar(&amp;grid, world_to_cell(tf.translation.truncate()), world_to_cell(world)) {
+        commands.entity(entity).insert(Path { points: cells.iter().map(|c| cell_to_world(*c)).collect(), index: 0 });
+    }
+}
+
+fn pursue(
+    time: Res&lt;Time&gt;, grid: Res&lt;Grid&gt;, mut commands: Commands,
+    player: Query&lt;&amp;Transform, With&lt;Player&gt;&gt;,
+    mut pursuers: Query&lt;(Entity, &amp;Transform, &amp;mut Pursuer), Without&lt;Player&gt;&gt;,
+) {
+    let Ok(player_tf) = player.single() else { return };
+    let goal = world_to_cell(player_tf.translation.truncate());
+    for (e, tf, mut p) in &amp;mut pursuers {
+        p.repath.tick(time.delta());
+        if !p.repath.just_finished() { continue; }
+        if let Some(cells) = astar(&amp;grid, world_to_cell(tf.translation.truncate()), goal) {
+            commands.entity(e).insert(Path { points: cells.iter().map(|c| cell_to_world(*c)).collect(), index: 0 });
+        }
+    }
+}
+
+fn wander(
+    time: Res&lt;Time&gt;, grid: Res&lt;Grid&gt;, mut commands: Commands,
+    mut q: Query&lt;(Entity, &amp;Transform, &amp;mut Wanderer), Without&lt;Path&gt;&gt;,
+) {
+    let mut rng = rand::thread_rng();
+    for (e, tf, mut w) in &amp;mut q {
+        w.wait.tick(time.delta());
+        if !w.wait.just_finished() { continue; }
+        let mut goal = IVec2::ZERO;
+        loop { goal = IVec2::new(rng.gen_range(0..grid.width), rng.gen_range(0..grid.height));
+               if grid.walkable(goal) { break; } }
+        if let Some(cells) = astar(&amp;grid, world_to_cell(tf.translation.truncate()), goal) {
+            commands.entity(e).insert(Path { points: cells.iter().map(|c| cell_to_world(*c)).collect(), index: 0 });
+        }
+    }
+}
+
+// ---------- mozgás + ütközés ----------
+fn follow_path(time: Res&lt;Time&gt;, mut commands: Commands, mut q: Query&lt;(Entity, &amp;mut Transform, &amp;Mover, &amp;mut Path)&gt;) {
+    for (e, mut tf, mover, mut path) in &amp;mut q {
+        if path.index &gt;= path.points.len() { commands.entity(e).remove::&lt;Path&gt;(); continue; }
+        let target = path.points[path.index];
+        let to = target - tf.translation.truncate();
+        let step = mover.speed * time.delta_secs();
+        if to.length() &lt;= step { tf.translation = target.extend(tf.translation.z); path.index += 1; }
+        else { tf.translation += (to.normalize_or_zero() * step).extend(0.0); }
+    }
+}
+
+fn collide_walls(grid: Res&lt;Grid&gt;, mut q: Query&lt;&amp;mut Transform, With&lt;Mover&gt;&gt;) {
+    let radius = CELL * 0.35;
+    for mut tf in &amp;mut q {
+        let mut p = tf.translation.truncate();
+        let cell = world_to_cell(p);
+        for dy in -1..=1 { for dx in -1..=1 {
+            let c = cell + IVec2::new(dx, dy);
+            if grid.walkable(c) { continue; }
+            let min = Vec2::new(c.x as f32 * CELL, c.y as f32 * CELL);
+            let closest = p.clamp(min, min + Vec2::splat(CELL));
+            let delta = p - closest;
+            let dist = delta.length();
+            if dist &lt; radius &amp;&amp; dist &gt; 0.0 { p += delta / dist * (radius - dist); }
+        }}
+        tf.translation = p.extend(tf.translation.z);
+    }
+}
+
+// ---------- A* (a 8. fejezetből) ----------
+// fn astar(...) { ... }  &lt;- másold ide a pathfinding.rs tartalmát</code></pre>
+  </div>
+</section>
+
+<section id="ch14">
+  <div class="ch-eyebrow">14. fejezet</div>
+  <h2>Merre tovább?</h2>
+  <ul>
+    <li><strong>Kész crate.</strong> A <code>pathfinding</code> crate <code>astar</code>/<code>bfs</code>/<code>dijkstra</code>-ja kipróbált és gyors — éles projektben ezt hívd.</li>
+    <li><strong>Sok ágens, egy cél: flow field.</strong> Ha 100 szörny ugyanazt a játékost üldözi, ne fuss 100 A*-ot. Számolj <em>egyszer</em> egy „áramlási mezőt” (minden cella egy nyilat tárol a cél felé), és minden ágens csak a nyilat követi.</li>
+    <li><strong>Nagy pálya: hierarchikus pathfinding.</strong> Oszd régiókra (HPA*), tervezz előbb régiók közt, aztán cellaszinten — nagyságrendekkel gyorsabb.</li>
+    <li><strong>Navmesh.</strong> Nyílt, nem rács-alapú világhoz az <code>oxidized_navigation</code> (Bevy) navmesh-t ad — sokszögekre, nem cellákra tervez.</li>
+    <li><strong>Steering &amp; útsimítás.</strong> Az A* út szögletes; egy „string-pulling”/line-of-sight simítás levágja a felesleges töréseket, a steering-viselkedések (seek, avoid) emberibb mozgást adnak.</li>
+    <li><strong>Újratervezés okosan.</strong> Üldözésnél csak akkor tervezz újra, ha a játékos <em>cellát váltott</em> (vagy elromlott az út) — nem vakon időzítve.</li>
+  </ul>
+  <div class="bevy-box">
+    <div class="tag">⚙ Az igazi tanulság</div>
+    <p>A klikk-mozgás, az üldözés és a kóborlás <strong>ugyanaz a gépezet</strong>: egy A*, ami egy <code>Path</code>-t tesz az entitásra, egy útkövető, ami viszi rajta, és egy ütközés-feloldó, ami rendet rak. Csak a <em>cél forrása</em> különbözik: kattintás, játékos, vagy véletlen. Ha ezt a szétválasztást érted, bármilyen mozgó MI-t összeraksz belőle. Jó kódolást! ▸▸</p>
+  </div>
+</section>
+
+<footer>
+  <p class="pix">PATHFINDING &amp; ÜTKÖZÉS — kattintós mozgás Bevy 0.18-ban</p>
+  <p>A <em>dual-grid</em> tilemap-sorozat folytatása. A demók procedurálisan, valós időben futnak (HTML canvas): ugyanaz az A*, útkövetés és kör-vs-fal ütközés, amit a Rust kód is megvalósít. A kódrészletek a 0.18-as API-ra épülnek: <code>viewport_to_world_2d</code>, <code>IVec2</code> kulcsok, <code>BinaryHeap</code> A*, <code>Timer</code>-es újratervezés, <code>Without&lt;Path&gt;</code> szűrő.</p>
+</footer>
+
+</div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var TAU=Math.PI*2;
+
+/* =====================================================================
+   1) TILE-LOOK (grass/stone full-tile a dual-grid palettájával)
+   ===================================================================== */
+var T=16, RR=8;
+var CORNERS=[[0,0],[T,0],[0,T],[T,T]];
+function bits(m){return [(m>>3)&1,(m>>2)&1,(m>>1)&1,m&1];}
+function d2(x,y,c){var dx=x-c[0],dy=y-c[1];return dx*dx+dy*dy;}
+function inside(m,x,y){var b=bits(m),n=b[0]+b[1]+b[2]+b[3];if(n===0)return false;if(n===4)return true;var i,R2=RR*RR;
+  if(n===1){for(i=0;i<4;i++)if(b[i])return d2(x,y,CORNERS[i])<R2;}
+  if(n===3){for(i=0;i<4;i++)if(!b[i])return d2(x,y,CORNERS[i])>R2;}
+  if(b[0]&&b[1])return y<RR;if(b[2]&&b[3])return y>RR;if(b[0]&&b[2])return x<RR;if(b[1]&&b[3])return x>RR;
+  for(i=0;i<4;i++)if(b[i]&&d2(x,y,CORNERS[i])<R2)return true;return false;}
+function hash(x,y){var h=(x*374761393+y*668265263)|0;h=(h^(h>>13))*1274126177|0;return ((h^(h>>16))>>>0)%100;}
+function clamp(v){return v<0?0:v>255?255:v|0;}
+function r2h(c){return "#"+((1<<24)+(clamp(c[0])<<16)+(clamp(c[1])<<8)+clamp(c[2])).toString(16).slice(1);}
+var PAL={grass:{main:[111,191,72],lt:[142,219,99],dk:[78,143,51],sp:[99,176,63],rim:[63,122,46]},
+         stone:{main:[138,144,154],lt:[170,176,186],dk:[107,112,121],sp:[120,126,136],rim:[86,91,99]}};
+function pickShade(p,v,rim){if(rim)return p.rim;if(v<8)return p.lt;if(v<15)return p.dk;if(v>90)return p.sp;return p.main;}
+var tileCache={};
+function fullTile(kind){ if(tileCache[kind])return tileCache[kind];
+  var c=document.createElement("canvas"); c.width=T; c.height=T; var o=c.getContext("2d"); var pal=PAL[kind], seed=kind==="stone"?700:0;
+  for(var py=0;py<T;py++)for(var px=0;px<T;px++){ var v=hash(px+seed,py); var rim=(px===0||py===0||px===T-1||py===T-1);
+    o.fillStyle=r2h(pickShade(pal,v,rim)); o.fillRect(px,py,1,1); }
+  tileCache[kind]=c; return c;
+}
+
+/* =====================================================================
+   2) PATHFINDING
+   ===================================================================== */
+var CS=16;  // cella mérete px-ben (a canvas natív felbontásán)
+function makeGrid(W,H){ return {W:W,H:H,wall:new Uint8Array(W*H)}; }
+function wallAt(g,x,y){ return (x<0||y<0||x>=g.W||y>=g.H) ? true : g.wall[y*g.W+x]===1; }
+function kkey(x,y){ return y*100000+x; }
+
+// egységes kereső: algo 'bfs'|'dijkstra'|'greedy'|'astar', diag, heur
+function search(g,sx,sy,gx,gy,opts){
+  opts=opts||{}; var algo=opts.algo||"astar", diag=!!opts.diag, ht=opts.heur||"manhattan";
+  if(wallAt(g,gx,gy)||wallAt(g,sx,sy)) return {path:[],order:[],found:false};
+  function H(x,y){ var dx=Math.abs(x-gx),dy=Math.abs(y-gy);
+    if(ht==="euclid")return Math.sqrt(dx*dx+dy*dy);
+    if(ht==="chebyshev")return Math.max(dx,dy);
+    if(diag)return (dx+dy)+(Math.SQRT2-2)*Math.min(dx,dy); // octile
+    return dx+dy; }
+  var gScore={}, came={}, order=[], closed={}, open=[], counter=0;
+  function prio(x,y,gc){ if(algo==="bfs")return counter++; if(algo==="dijkstra")return gc; if(algo==="greedy")return H(x,y); return gc+H(x,y); }
+  gScore[kkey(sx,sy)]=0; open.push({x:sx,y:sy,p:prio(sx,sy,0)});
+  var dirs=[[1,0,1],[-1,0,1],[0,1,1],[0,-1,1]];
+  if(diag) dirs=dirs.concat([[1,1,Math.SQRT2],[1,-1,Math.SQRT2],[-1,1,Math.SQRT2],[-1,-1,Math.SQRT2]]);
+  while(open.length){
+    var bi=0; for(var i=1;i<open.length;i++) if(open[i].p<open[bi].p) bi=i;
+    var cur=open.splice(bi,1)[0], ck=kkey(cur.x,cur.y);
+    if(closed[ck]) continue; closed[ck]=1; order.push([cur.x,cur.y]);
+    if(cur.x===gx&&cur.y===gy) return {path:recon(came,gx,gy),order:order,found:true};
+    var gc=gScore[ck];
+    for(var di=0;di<dirs.length;di++){ var nx=cur.x+dirs[di][0], ny=cur.y+dirs[di][1], cost=dirs[di][2];
+      if(wallAt(g,nx,ny)) continue;
+      if(cost>1 && (wallAt(g,cur.x+dirs[di][0],cur.y)||wallAt(g,cur.x,cur.y+dirs[di][1]))) continue; // sarokvágás tiltása
+      var nk=kkey(nx,ny), tg=gc+cost, old=(gScore[nk]===undefined?Infinity:gScore[nk]);
+      if(tg<old){ gScore[nk]=tg; came[nk]=[cur.x,cur.y]; open.push({x:nx,y:ny,p:prio(nx,ny,tg)}); }
+    }
+  }
+  return {path:[],order:order,found:false};
+}
+function recon(came,gx,gy){ var path=[[gx,gy]],k=kkey(gx,gy); while(came[k]){ var p=came[k]; path.push(p); k=kkey(p[0],p[1]); } path.reverse(); return path; }
+function astar(g,sx,sy,gx,gy,diag){ return search(g,sx,sy,gx,gy,{algo:"astar",diag:!!diag}).path; }
+function randCell(g){ var x,y,n=0; do{ x=(Math.random()*g.W)|0; y=(Math.random()*g.H)|0; }while(wallAt(g,x,y)&&++n<200); return [x,y]; }
+
+/* =====================================================================
+   3) ÁGENSEK
+   ===================================================================== */
+function makeAgent(cx,cy,color,speed){ return {x:(cx+0.5)*CS,y:(cy+0.5)*CS,path:null,idx:0,color:color,speed:speed||60}; }
+function setPath(a,cells){ if(!cells||!cells.length){a.path=null;return;} a.path=cells.map(function(c){return [(c[0]+0.5)*CS,(c[1]+0.5)*CS];}); a.idx=0; }
+function agentCell(a){ return [Math.floor(a.x/CS),Math.floor(a.y/CS)]; }
+function updateAgent(a,dt,grid){
+  if(a.path && a.idx<a.path.length){ var t=a.path[a.idx],dx=t[0]-a.x,dy=t[1]-a.y,d=Math.hypot(dx,dy),step=a.speed*dt;
+    if(d<=step){ a.x=t[0]; a.y=t[1]; a.idx++; if(a.idx>=a.path.length)a.path=null; }
+    else { a.x+=dx/d*step; a.y+=dy/d*step; } }
+  if(grid) collideWalls(a,grid);
+}
+function collideWalls(a,grid){ var rad=CS*0.32, cx=Math.floor(a.x/CS), cy=Math.floor(a.y/CS);
+  for(var dy=-1;dy<=1;dy++)for(var dx=-1;dx<=1;dx++){ var c=[cx+dx,cy+dy]; if(!wallAt(grid,c[0],c[1])) continue;
+    var minx=c[0]*CS,miny=c[1]*CS,maxx=minx+CS,maxy=miny+CS;
+    var qx=Math.max(minx,Math.min(a.x,maxx)), qy=Math.max(miny,Math.min(a.y,maxy));
+    var ex=a.x-qx,ey=a.y-qy,dist=Math.hypot(ex,ey);
+    if(dist<rad&&dist>0.001){ a.x+=ex/dist*(rad-dist); a.y+=ey/dist*(rad-dist); }
+  }
+}
+function separate(a,b){ var dx=a.x-b.x,dy=a.y-b.y,d=Math.hypot(dx,dy),min=CS*0.6;
+  if(d<min&&d>0.001){ var push=(min-d)/2; a.x+=dx/d*push; a.y+=dy/d*push; b.x-=dx/d*push; b.y-=dy/d*push; } }
+
+/* =====================================================================
+   4) RAJZOLÁS
+   ===================================================================== */
+function drawMap(ctx,grid){ ctx.imageSmoothingEnabled=false;
+  for(var y=0;y<grid.H;y++)for(var x=0;x<grid.W;x++){
+    var wall=wallAt(grid,x,y);
+    ctx.drawImage(fullTile(wall?"stone":"grass"), x*CS, y*CS);
+    if(wall){ ctx.fillStyle="rgba(0,0,0,.28)"; ctx.fillRect(x*CS,y*CS+CS-3,CS,3); ctx.fillStyle="rgba(255,255,255,.10)"; ctx.fillRect(x*CS,y*CS,CS,1); }
+  }
+}
+function drawGridLines(ctx,grid){ ctx.strokeStyle="rgba(13,24,15,.30)"; ctx.lineWidth=1; ctx.beginPath();
+  for(var x=0;x<=grid.W;x++){ ctx.moveTo(x*CS+.5,0); ctx.lineTo(x*CS+.5,grid.H*CS); }
+  for(var y=0;y<=grid.H;y++){ ctx.moveTo(0,y*CS+.5); ctx.lineTo(grid.W*CS,y*CS+.5); } ctx.stroke(); }
+function drawExplored(ctx,order,count){ ctx.fillStyle="rgba(58,110,138,.55)";
+  for(var i=0;i<count&&i<order.length;i++){ var c=order[i]; ctx.fillRect(c[0]*CS+1,c[1]*CS+1,CS-2,CS-2); }
+  // wavefront kiemelés
+  ctx.fillStyle="rgba(232,210,74,.5)";
+  for(var j=Math.max(0,count-8);j<count&&j<order.length;j++){ var d=order[j]; ctx.fillRect(d[0]*CS+1,d[1]*CS+1,CS-2,CS-2); }
+}
+function drawPath(ctx,cells,color){ if(!cells||cells.length<1)return; ctx.strokeStyle=color||"#a5e87d"; ctx.lineWidth=3; ctx.lineJoin="round"; ctx.beginPath();
+  for(var i=0;i<cells.length;i++){ var px=(cells[i][0]+0.5)*CS, py=(cells[i][1]+0.5)*CS; if(i===0)ctx.moveTo(px,py); else ctx.lineTo(px,py); } ctx.stroke(); }
+function cellMark(ctx,cx,cy,color){ ctx.fillStyle=color; ctx.fillRect(cx*CS+3,cy*CS+3,CS-6,CS-6);
+  ctx.strokeStyle="rgba(0,0,0,.5)"; ctx.lineWidth=1; ctx.strokeRect(cx*CS+3.5,cy*CS+3.5,CS-7,CS-7); }
+function drawToken(ctx,x,y,col,dark){
+  ctx.fillStyle="rgba(0,0,0,.32)"; ctx.beginPath(); ctx.ellipse(x,y+5,5,2.2,0,0,TAU); ctx.fill();
+  ctx.fillStyle=col; ctx.fillRect(x-3,y-3,6,6);
+  ctx.fillStyle=dark||"rgba(0,0,0,.25)"; ctx.fillRect(x-3,y+2,6,1);
+  ctx.fillStyle="#e8b487"; ctx.fillRect(x-2,y-7,4,4);
+  ctx.fillStyle="#4a3322"; ctx.fillRect(x-2,y-8,4,2);
+}
+function mouseCell(cv,grid,e){ var r=cv.getBoundingClientRect(); var x=(e.clientX-r.left)*(cv.width/r.width), y=(e.clientY-r.top)*(cv.height/r.height);
+  return [Math.floor(x/CS),Math.floor(y/CS)]; }
+
+var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* =====================================================================
+   demo-pálya generátor
+   ===================================================================== */
+function demoWalls(grid){
+  var W=grid.W,H=grid.H;
+  function v(x,y0,y1){ for(var y=y0;y<y1;y++) grid.wall[y*W+x]=1; }
+  function hh(y,x0,x1){ for(var x=x0;x<x1;x++) grid.wall[y*W+x]=1; }
+  v((W*0.32)|0, 2, (H*0.7)|0);
+  hh((H*0.35)|0, (W*0.5)|0, (W*0.85)|0);
+  v((W*0.66)|0, (H*0.35)|0, H-2);
+  hh((H*0.72)|0, 2, (W*0.45)|0);
+  return grid;
+}
+
+/* =====================================================================
+   5) HERO — auto click-move
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("pfHero"); if(!cv) return; var ctx=cv.getContext("2d");
+  var grid=demoWalls(makeGrid(cv.width/CS|0, cv.height/CS|0));
+  var sc=randCell(grid); var a=makeAgent(sc[0],sc[1],"#6f8fd6",70); var pathCells=null, wait=0;
+  function newGoal(){ var gc=randCell(grid); var c=agentCell(a); var r=search(grid,c[0],c[1],gc[0],gc[1],{algo:"astar"});
+    if(r.found){ pathCells=r.path; setPath(a,r.path); } }
+  newGoal();
+  function frame(dt){ ctx.clearRect(0,0,cv.width,cv.height); drawMap(ctx,grid); drawGridLines(ctx,grid);
+    if(pathCells) drawPath(ctx,pathCells); updateAgent(a,dt,grid);
+    if(!a.path){ wait+=dt; if(wait>0.6){ wait=0; newGoal(); } } drawToken(ctx,a.x,a.y,a.color); }
+  if(reduceMotion){ frame(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   6) A* VIZUALIZÁLÓ
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("astarCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var grid=demoWalls(makeGrid(cv.width/CS|0, cv.height/CS|0));
+  var algo="astar", diag=false;
+  var start=[2,2], goal=[grid.W-3,grid.H-3];
+  var res=null, reveal=0, statEl=document.getElementById("avStat");
+  function recompute(){ res=search(grid,start[0],start[1],goal[0],goal[1],{algo:algo,diag:diag}); reveal=0; }
+  function draw(){ ctx.clearRect(0,0,cv.width,cv.height); drawMap(ctx,grid);
+    if(res) drawExplored(ctx,res.order,reveal); drawGridLines(ctx,grid);
+    if(res && reveal>=res.order.length && res.found) drawPath(ctx,res.path);
+    cellMark(ctx,start[0],start[1],"#7ecb52"); cellMark(ctx,goal[0],goal[1],"#ff7a3c");
+    if(res){ var done=reveal>=res.order.length; statEl.textContent="vizsgált cellák: "+Math.min(reveal,res.order.length)+(done?(res.found?(" · út: "+res.path.length+" lépés"):" · NINCS út"):"…"); } }
+  recompute();
+  // interakció
+  var painting=false, erase=false;
+  cv.addEventListener("contextmenu",function(e){ e.preventDefault(); });
+  cv.addEventListener("pointerdown",function(e){ var c=mouseCell(cv,grid,e); if(c[0]<0||c[1]<0||c[0]>=grid.W||c[1]>=grid.H) return;
+    if(e.button===2){ painting=true; erase=wallAt(grid,c[0],c[1]); grid.wall[c[1]*grid.W+c[0]]=erase?0:1; recompute(); }
+    else { if(!wallAt(grid,c[0],c[1])){ goal=c; recompute(); } } });
+  cv.addEventListener("pointermove",function(e){ if(!painting)return; var c=mouseCell(cv,grid,e); if(c[0]<0||c[1]<0||c[0]>=grid.W||c[1]>=grid.H)return;
+    if((c[0]===start[0]&&c[1]===start[1])||(c[0]===goal[0]&&c[1]===goal[1]))return; grid.wall[c[1]*grid.W+c[0]]=erase?0:1; recompute(); });
+  window.addEventListener("pointerup",function(){ painting=false; });
+  document.querySelectorAll("[data-algo]").forEach(function(b){ b.addEventListener("click",function(){
+    document.querySelectorAll("[data-algo]").forEach(function(x){x.classList.remove("active");}); b.classList.add("active");
+    algo=b.getAttribute("data-algo"); recompute(); }); });
+  var diagBtn=document.getElementById("avDiag");
+  diagBtn.addEventListener("click",function(){ diag=!diag; diagBtn.classList.toggle("active",diag); diagBtn.textContent=diag?"8 irány ✓":"8 irány"; recompute(); });
+  document.getElementById("avReplay").addEventListener("click",function(){ reveal=0; });
+  if(reduceMotion){ reveal=res?res.order.length:0; draw(); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=(now-last)/1000; last=now;
+    if(res && reveal<res.order.length){ reveal+=Math.max(2,(res.order.length*dt*1.4)|0); if(reveal>res.order.length)reveal=res.order.length; }
+    draw(); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   7) KATTINTÓS MOZGÁS + ÜTKÖZÉS
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("clickMoveCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var grid=demoWalls(makeGrid(cv.width/CS|0, cv.height/CS|0));
+  var a=makeAgent(2,2,"#6f8fd6",95); var pathCells=null, goalCell=null;
+  var painting=false, erase=false;
+  function repath(){ if(!goalCell)return; var c=agentCell(a); var r=search(grid,c[0],c[1],goalCell[0],goalCell[1],{algo:"astar"});
+    if(r.found){ pathCells=r.path; setPath(a,r.path); } }
+  cv.addEventListener("contextmenu",function(e){ e.preventDefault(); });
+  cv.addEventListener("pointerdown",function(e){ var c=mouseCell(cv,grid,e); if(c[0]<0||c[1]<0||c[0]>=grid.W||c[1]>=grid.H)return;
+    if(e.button===2){ painting=true; erase=wallAt(grid,c[0],c[1]); grid.wall[c[1]*grid.W+c[0]]=erase?0:1; repath(); }
+    else if(!wallAt(grid,c[0],c[1])){ goalCell=c; repath(); } });
+  cv.addEventListener("pointermove",function(e){ if(!painting)return; var c=mouseCell(cv,grid,e); if(c[0]<0||c[1]<0||c[0]>=grid.W||c[1]>=grid.H)return;
+    grid.wall[c[1]*grid.W+c[0]]=erase?0:1; repath(); });
+  window.addEventListener("pointerup",function(){ painting=false; });
+  document.getElementById("cmClear").addEventListener("click",function(){ grid.wall.fill(0); pathCells=null; });
+  function frame(dt){ ctx.clearRect(0,0,cv.width,cv.height); drawMap(ctx,grid); drawGridLines(ctx,grid);
+    if(a.path) drawPath(ctx,pathCells); if(goalCell) cellMark(ctx,goalCell[0],goalCell[1],"rgba(255,122,60,.6)");
+    updateAgent(a,dt,grid); drawToken(ctx,a.x,a.y,a.color); }
+  if(reduceMotion){ frame(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   8) ÜLDÖZÉS
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("chaseCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var grid=demoWalls(makeGrid(cv.width/CS|0, cv.height/CS|0));
+  var player=makeAgent(3,3,"#6f8fd6",95), enemy=makeAgent(grid.W-3,grid.H-3,"#d66f6f",70);
+  var pPath=null, ePath=null, pGoal=null, repathT=0, interval=0.5;
+  var sl=document.getElementById("chRepath"), slv=document.getElementById("chRepathV"), statEl=document.getElementById("chStat");
+  sl.addEventListener("input",function(){ interval=+sl.value/100; slv.textContent=interval.toFixed(2)+" s"; });
+  function pRepath(){ if(!pGoal)return; var c=agentCell(player); var r=search(grid,c[0],c[1],pGoal[0],pGoal[1],{algo:"astar"}); if(r.found){pPath=r.path;setPath(player,r.path);} }
+  cv.addEventListener("pointerdown",function(e){ var c=mouseCell(cv,grid,e); if(c[0]<0||c[1]<0||c[0]>=grid.W||c[1]>=grid.H||wallAt(grid,c[0],c[1]))return; pGoal=c; pRepath(); });
+  function frame(dt){ ctx.clearRect(0,0,cv.width,cv.height); drawMap(ctx,grid); drawGridLines(ctx,grid);
+    // üldöző újratervez időzítve
+    repathT+=dt; if(repathT>=interval){ repathT=0; var ec=agentCell(enemy), pc=agentCell(player);
+      var r=search(grid,ec[0],ec[1],pc[0],pc[1],{algo:"astar"}); if(r.found){ ePath=r.path; setPath(enemy,r.path); } }
+    if(ePath) drawPath(ctx,ePath,"rgba(214,111,111,.7)");
+    if(player.path&&pPath) drawPath(ctx,pPath,"rgba(165,232,125,.8)");
+    if(pGoal) cellMark(ctx,pGoal[0],pGoal[1],"rgba(255,122,60,.55)");
+    updateAgent(player,dt,grid); updateAgent(enemy,dt,grid); separate(player,enemy);
+    var caught=Math.hypot(player.x-enemy.x,player.y-enemy.y)<CS*0.8;
+    drawToken(ctx,player.x,player.y,player.color); drawToken(ctx,enemy.x,enemy.y,enemy.color);
+    statEl.innerHTML = caught ? '<b style="color:#ff7a3c">elkapott!</b>' : '&nbsp;';
+    if(caught){ enemy.x=(grid.W-2.5)*CS; enemy.y=(grid.H-2.5)*CS; enemy.path=null; }
+  }
+  if(reduceMotion){ frame(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   9) KÓBORLÁS
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("wanderCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var grid=demoWalls(makeGrid(cv.width/CS|0, cv.height/CS|0));
+  var cols=["#9bd66f","#d6b86f","#6fc9d6"]; var agents=[], paths=[], waits=[];
+  for(var i=0;i<3;i++){ var sc=randCell(grid); agents.push(makeAgent(sc[0],sc[1],cols[i],45+i*8)); paths.push(null); waits.push(Math.random()*0.6); }
+  function newGoal(i){ var gc=randCell(grid); var c=agentCell(agents[i]); var r=search(grid,c[0],c[1],gc[0],gc[1],{algo:"astar"});
+    if(r.found){ paths[i]=r.path; setPath(agents[i],r.path); } }
+  function frame(dt){ ctx.clearRect(0,0,cv.width,cv.height); drawMap(ctx,grid); drawGridLines(ctx,grid);
+    for(var i=0;i<agents.length;i++){ if(agents[i].path&&paths[i]){ ctx.globalAlpha=.5; drawPath(ctx,paths[i],agents[i].color); ctx.globalAlpha=1; } }
+    for(i=0;i<agents.length;i++){ updateAgent(agents[i],dt,grid);
+      if(!agents[i].path){ waits[i]-=dt; if(waits[i]<=0){ waits[i]=0.5+Math.random()*0.8; newGoal(i); } } }
+    for(i=0;i<agents.length;i++)for(var j=i+1;j<agents.length;j++) separate(agents[i],agents[j]);
+    for(i=0;i<agents.length;i++) drawToken(ctx,agents[i].x,agents[i].y,agents[i].color); }
+  if(reduceMotion){ frame(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   10) Rust szintaxis-kiemelő
+   ===================================================================== */
+var KW=/\b(?:fn|let|mut|use|struct|enum|impl|const|pub|return|if|else|for|in|while|loop|match|as|mod|crate|self|Self|true|false|move|ref|static|dyn|where|name|version|edition)\b/;
+var TOKEN=new RegExp("(\\/\\/[^\\n]*)"+"|(#!?\\[[^\\]]*\\])"+"|(\"(?:[^\"\\\\]|\\\\.)*\")"+"|([A-Za-z_][A-Za-z0-9_]*!)"+"|("+KW.source.slice(2,-2)+")"+"|(\\b[A-Z][A-Za-z0-9_]*\\b)"+"|(\\b\\d[\\d_]*(?:\\.\\d+)?\\b)","g");
+var CLS=[null,"c","m","s","m","k","t","n"];
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+document.querySelectorAll("pre code").forEach(function(code){ var src=code.textContent,out="",last=0,m; TOKEN.lastIndex=0;
+  while((m=TOKEN.exec(src))){ out+=esc(src.slice(last,m.index));
+    for(var gi=1;gi<=7;gi++) if(m[gi]!==undefined){ out+='<span class="'+CLS[gi]+'">'+esc(m[gi])+"</span>"; break; }
+    last=m.index+m[0].length; } out+=esc(src.slice(last)); code.innerHTML=out; });
+
+/* =====================================================================
+   11) Másolás gombok
+   ===================================================================== */
+document.querySelectorAll(".copy-btn").forEach(function(btn){ btn.addEventListener("click",function(){
+  var code=btn.closest(".code").querySelector("pre"), txt=code.textContent;
+  function done(){ btn.textContent="✓ másolva"; setTimeout(function(){btn.textContent="másolás";},1500); }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done); }
+  else{ var ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); done(); } }); });
+
+/* =====================================================================
+   12) Scrollspy + mobil menü
+   ===================================================================== */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){ var pos=window.scrollY+140,active=0; for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i;
+  links.forEach(function(a,i){a.classList.toggle("active",i===active);}); }
+window.addEventListener("scroll",spy,{passive:true}); spy();
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>

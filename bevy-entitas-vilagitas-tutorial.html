@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2D világítás entitásokra: karakterek, normal map, emissive & árnyék — Bevy 0.18 tutorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13;
+  --bg-deep:#0b110c;
+  --panel:#1a241b;
+  --panel-2:#162017;
+  --ink:#e9e3cd;
+  --muted:#9caa90;
+  --grass:#7ecb52;
+  --grass-hi:#a5e87d;
+  --grass-dk:#4e8f33;
+  --dirt:#c99c66;
+  --dirt-dk:#9a6e43;
+  --water:#6cc8d9;
+  --stone:#9aa0aa;
+  --concrete:#cacac3;
+  --lava:#ff7a3c;
+  --ice:#bfe0f0;
+  --line:#2d3b2c;
+  --line-hi:#41543e;
+  --code-bg:#0c120d;
+  --shadow:rgba(0,0,0,.45);
+  --kw:#ff9d5c;      /* rust kulcsszó */
+  --ty:#8fd8e8;      /* típus */
+  --fnc:#a5e87d;     /* függvény */
+  --str:#e8c878;     /* string */
+  --cmt:#6d7c64;     /* komment */
+  --mac:#d8a0e8;     /* makró */
+  --num:#f0b8a0;     /* szám */
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  font-size:16.5px;
+  line-height:1.7;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px);
+}
+::selection{background:var(--grass-dk);color:#fff}
+
+/* ---------- SIDEBAR ---------- */
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);
+  background:var(--bg-deep);
+  border-right:3px solid var(--line);
+  overflow-y:auto;z-index:30;
+  padding:22px 0 40px;
+}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{
+  padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px;
+}
+.logo .title{
+  font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;
+  color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15;
+}
+.logo .sub{
+  font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em;
+}
+.logo .badge{
+  display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;
+  color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;
+  box-shadow:2px 2px 0 var(--shadow);
+}
+.logo .badge.pro{background:var(--lava);color:#1a0d06;margin-left:6px}
+.nav-part{
+  font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);
+  padding:16px 20px 6px;text-transform:uppercase;
+}
+.nav a{
+  display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;
+  font-size:14px;position:relative;border-left:4px solid transparent;
+  transition:color .12s,background .12s;
+}
+.nav a::before{
+  content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);
+  transition:opacity .12s,left .12s;
+}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{
+  color:var(--grass-hi);background:rgba(126,203,82,.10);
+  border-left-color:var(--grass);font-weight:600;
+}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{
+  display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;
+  background:var(--grass);color:#10180f;border:none;padding:8px 14px;
+  box-shadow:3px 3px 0 var(--shadow);text-decoration:none;
+  transition:transform .08s,box-shadow .08s;
+}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+.btn.lava{background:var(--lava);color:#1a0d06}
+
+.menu-toggle{
+  display:none;position:fixed;top:14px;left:14px;z-index:40;
+  font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;
+  background:var(--panel);color:var(--ink);border:3px solid var(--line);
+  box-shadow:3px 3px 0 var(--shadow);
+}
+
+/* ---------- FŐ TARTALOM ---------- */
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+
+/* HERO */
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{
+  font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;
+  text-transform:uppercase;margin-bottom:14px;
+}
+.hero h1{
+  font-family:"Pixelify Sans";font-weight:700;font-size:clamp(34px,5.2vw,54px);
+  line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px;
+}
+.hero h1 .g{color:var(--grass-hi)}
+.hero h1 .d{color:var(--dirt)}
+.hero h1 .l{color:var(--lava)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{
+  border:3px solid var(--line);background:var(--bg-deep);padding:14px;
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  box-shadow:4px 4px 0 var(--shadow);
+}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6}
+.hero-strip .cap b{color:var(--grass)}
+
+/* SZEKCIÓK */
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{
+  font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);
+  text-transform:uppercase;
+}
+.ch-eyebrow{
+  font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);
+  text-transform:uppercase;margin-bottom:8px;
+}
+h2{
+  font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;
+  color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px;
+}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);margin:34px 0 12px}
+p{margin-bottom:14px}
+p+p{margin-top:2px}
+strong{color:#fff}
+em{color:var(--dirt)}
+a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}
+li{margin-bottom:7px}
+code:not(pre code){
+  font-family:"IBM Plex Mono";font-size:.86em;background:var(--code-bg);
+  color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap;
+}
+
+/* KÓD DOBOZ */
+.code{margin:22px 0;border:3px solid var(--line);background:var(--code-bg);box-shadow:4px 4px 0 var(--shadow)}
+.code-head{
+  display:flex;justify-content:space-between;align-items:center;
+  background:var(--panel);border-bottom:3px solid var(--line);padding:7px 12px;
+}
+.code-head .fname{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--dirt);letter-spacing:.05em}
+.copy-btn{
+  font-family:"Pixelify Sans";font-size:12.5px;cursor:pointer;
+  background:transparent;color:var(--muted);border:2px solid var(--line-hi);
+  padding:2px 9px;transition:all .1s;
+}
+.copy-btn:hover{color:var(--grass-hi);border-color:var(--grass)}
+.code pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13.5px;line-height:1.62}
+.code pre::-webkit-scrollbar{height:8px}
+.code pre::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.k{color:var(--kw)}.t{color:var(--ty)}.f{color:var(--fnc)}.s{color:var(--str)}
+.c{color:var(--cmt);font-style:italic}.m{color:var(--mac)}.n{color:var(--num)}
+
+/* ASCII ÁBRA */
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{
+  font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;
+  padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase;
+}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--grass)}
+.diagram pre .di{color:var(--dirt)}
+.diagram pre .wa{color:var(--water)}
+.diagram pre .st{color:var(--stone)}
+.diagram pre .lv{color:var(--lava)}
+.diagram pre .mu{color:var(--muted)}
+.diagram pre .yl{color:#e8d24a}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+
+/* BEVY FOGALOM doboz */
+.bevy-box{margin:24px 0;border:3px solid #2a4a52;background:#0d181b;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.bevy-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.bevy-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.bevy-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.bevy-box ul{font-size:15px;color:#cfdbd5}
+
+/* TIPP / FIGYELEM doboz */
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--grass);margin-bottom:4px}
+.note.warn .n-tag{color:var(--dirt)}
+
+/* TÁBLÁZAT */
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+
+/* JÁTSZÓTÉR */
+.playground{margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
+  background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);
+  border-bottom:3px solid var(--grass-dk);padding:10px 14px;
+}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em}
+.playground .pg-body{padding:16px;display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#000;cursor:crosshair;touch-action:none;max-width:100%}
+.playground .pg-side{flex:1;min-width:240px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:2}
+.pg-chip{display:inline-block;width:14px;height:14px;vertical-align:-2px;margin-right:7px;border:2px solid var(--line)}
+.pg-controls{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--dirt);letter-spacing:.06em;margin:12px 0 2px;text-transform:uppercase}
+.slider-row{display:flex;align-items:center;gap:10px;margin:6px 0;font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted)}
+.slider-row input[type=range]{flex:1;accent-color:var(--grass)}
+.slider-row .val{color:var(--grass-hi);min-width:48px;text-align:right}
+.wbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:4px 12px;transition:all .1s}
+.wbtn:hover{color:var(--ink)}
+.wbtn.active{background:var(--water);color:var(--bg-deep);border-color:var(--water)}
+.wbtn.warm.active{background:var(--lava);color:#1a0d06;border-color:var(--lava)}
+
+footer{margin-top:90px;border-top:3px solid var(--line);padding-top:24px;font-size:13.5px;color:var(--muted)}
+footer .pix{font-family:"Pixelify Sans";color:var(--grass);font-size:15px}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}
+  .menu-toggle{display:block}
+  .main{margin-left:0}
+  .wrap{padding:0 20px 100px}
+  .hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">FÉNY az<br>ENTITÁSOKON</div>
+    <div class="sub">karakter · normal map · emissive · árnyék · Rust</div>
+    <span class="badge">BEVY 0.18</span><span class="badge pro">2. RÉSZ</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I. rész — Elmélet</div>
+    <a href="#ch1">1 · Tile vs entitás — mi a más?</a>
+    <a href="#ch2">2 · Hol mintavételezzünk?</a>
+    <a href="#ch3">3 · Lapos tint vs forma: normal map</a>
+    <a href="#ch4">4 · Saját fény: emissive &amp; ragyogás</a>
+    <a href="#ch5">5 · Földre helyezés: drop shadow</a>
+    <div class="nav-part">II. rész — Bevy alapok</div>
+    <a href="#ch6">6 · Projekt + a sötét alap</a>
+    <a href="#ch7">7 · Komponensek</a>
+    <div class="nav-part">III. rész — Implementáció</div>
+    <a href="#ch8">8 · Entitások megvilágítása</a>
+    <a href="#ch9">9 · Hordozott fáklya (parenting)</a>
+    <a href="#ch10">10 · Emissive réteg + Bloom</a>
+    <a href="#ch11">11 · Drop shadow rendszer</a>
+    <a href="#ch12">12 · Normal map: Material2d</a>
+    <a href="#ch13">13 · A teljes main.rs</a>
+    <a href="#ch14">14 · Merre tovább?</a>
+  </nav>
+  <div class="dl-box">
+    <p>Ez a <span class="mono">FÉNY &amp; SÖTÉTSÉG</span> tutorial folytatása: ott a <strong>tile-okat</strong> világítottuk meg, itt mindent, ami a tile-on <strong>kívül</strong> van — karaktereket, ellenfeleket, tárgyakat.</p>
+    <a class="btn secondary" href="#ch13">A teljes main.rs ▸</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// folytatás-tutorial · fény a karaktereken · magyar nyelven</div>
+  <h1>Fény az <span class="g">entitásokon</span> —<br>karakter, <span class="d">forma</span>, <span class="l">ragyogás</span></h1>
+  <p class="lead">A tile-világítás megvolt; most jön minden, ami a padlón <strong>áll vagy mozog</strong>: a karakter, az ellenfelek, a tárgyak. Megtanuljuk a <strong>talp-mintavételt</strong>, a <strong>normal map</strong>-et (amitől a lapos sprite-nak <em>formája</em> lesz), az <strong>emissive</strong> ragyogást (világító szem, fáklya), a <strong>drop shadow</strong>-t, és a karakterhez <em>szült</em> fényt — végig Bevy 0.18 ECS-szel.</p>
+  <div class="hero-strip">
+    <canvas id="entHero" width="384" height="160" style="width:576px;height:240px"></canvas>
+    <div class="cap">↑ Élő minta: egy karakter a sötétben, körülötte keringő fáklyafénnyel.<br>A <b>normal map</b> miatt a fény felőli oldala világosabb — <b>formája</b> van. A szeme <b>ragyog</b>, alatta <b>árnyék</b>.</div>
+  </div>
+</header>
+
+<!-- ================= I. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Elmélet</span></div>
+
+<!-- 1 -->
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>Tile vs entitás — mi a más?</h2>
+
+  <p>A jó hír: a <strong>modell ugyanaz</strong>. Ahogy a tile-tutorialban, a fény most is egy <strong>szorzó-tint</strong>: a <code>Sprite.color</code>-t a ráeső fény szerint állítjuk (ambiens + a fények összege). Ha egy karakterre ráteszed a <code>Lit</code> markert, ugyanaz a rendszer megvilágítja, ami a padlót.</p>
+
+  <p>A rossz hír: a karakter <strong>nem</strong> egy statikus padló-csempe. Négy dolog másképp viselkedik, és ez a négy adja ennek a tutorialnak a gerincét:</p>
+
+  <table>
+    <tr><th>Téma</th><th>Tile (padló)</th><th>Entitás (karakter, tárgy)</th></tr>
+    <tr><td><strong>Hol mintavételezünk?</strong></td><td>A cella közepén — mindegy</td><td>A <em>talpánál</em>, hogy a padlóhoz illeszkedjen (2. fej.)</td></tr>
+    <tr><td><strong>Van-e formája?</strong></td><td>Lapos, elég a tint</td><td><em>Normal map</em>-pel megvilágítva domború, „3D-s” lesz (3. fej.)</td></tr>
+    <tr><td><strong>Világíthat-e magától?</strong></td><td>Ritkán (láva)</td><td>Igen: világító szem, fáklya, mágikus tárgy — <em>emissive</em> (4. fej.)</td></tr>
+    <tr><td><strong>Vet-e árnyékot?</strong></td><td>Nem (ő a padló)</td><td>Igen: <em>drop shadow</em> alá, ez „a földre teszi” (5. fej.)</td></tr>
+  </table>
+
+  <p>Ráadásul az entitás gyakran <strong>fényt is hordoz</strong> (a játékos fáklyája), és <strong>mozog</strong>. Lássuk sorban, mit jelent ez.</p>
+
+  <div class="bevy-box">
+    <div class="tag">⚙ Emlékeztető — a fény az SZORZÁS</div>
+    <p>A megvilágítatlan sprite × fényérték. <code>fény = 1</code> → változatlan; <code>fény = 0</code> → fekete; köztes, színes érték → tompa, hangulati tint. A <code>Sprite.color</code> pont ilyen szorzó a textúra fölött — ezért nem kell shader a tint-alapú világításhoz.</p>
+  </div>
+</section>
+
+<!-- 2 -->
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>Hol mintavételezzünk?</h2>
+
+  <p>Egy karakter-sprite gyakran <strong>magas</strong> (egy csempényi széles, de másfél-két csempe magas, hogy „kilógjon” a padlóból). Ha a fényt a sprite <em>középpontjában</em> mintavételezed, a karakter „lebeghet”: a feje magasságában lévő fény dönt, nem ott, ahol valójában <strong>áll</strong>.</p>
+
+  <p>A megoldás egyszerű: mintavételezz a <strong>talpnál</strong> (a sprite alja). Így a karakter pontosan annyi fényt kap, mint a padló, amin áll — odatartozik a jelenetbe.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Mintavételi pont: közép vs talp</div>
+    <pre>
+        ___                 ___
+       |o o|  ← közép?     |o o|
+       |/|\| ··· <span class="yl">●</span> itt    |/|\|
+       | | |   mintáznál   | | |
+       |_|_|               |_|_| ··· <span class="gr">●</span> itt mintázz (talp)
+      =======             =======  &lt;- a padló, amin ÁLL
+
+   közép-minta: a karakter "lebeghet"   talp-minta: a padlóhoz tapad</pre>
+    <div class="d-cap">A <code>Lit</code> komponensbe egy kis eltolást teszünk: a karakteré a talpra mutat <code>(0, -magasság/2)</code>, egy padló-tile-é nulla.</div>
+  </div>
+
+  <p>Mozgasd az egeret (vagy hagyd auto-módban): a fény fix, a karakter halad át rajta. Figyeld, hogy a tint a <strong>talpánál</strong> lévő fény szerint változik — ez most még <em>lapos</em> tint, forma nélkül (azt a 3. fejezet hozza).</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — talp-mintavétel</span></div>
+    <div class="pg-body">
+      <canvas id="sampleCanvas" width="416" height="240" style="width:560px"></canvas>
+      <div class="pg-side">
+        <div class="legend">
+          <span class="pg-chip" style="background:#e8d24a"></span>Fix fényforrás<br>
+          <span class="pg-chip" style="background:#7ecb52"></span>A talp-minta pontja (zöld)
+        </div>
+        <div class="slider-row"><span>Fény X</span><input type="range" id="smpLight" min="0" max="416" value="208"><span class="val" id="smpLightV">208</span></div>
+        <div class="pg-controls">
+          <button class="wbtn active" id="smpAuto">↔ auto-séta</button>
+        </div>
+        <p style="margin-top:10px">A teljes sprite egyetlen tint-et kap (a talpánál mért fényt). Nagy karaktereknél ezért érdemes a <em>formát</em> is megvilágítani — jön a normal map.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3 -->
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>Lapos tint vs forma: a normal map</h2>
+
+  <p>A tint az egész sprite-ot <em>egyformán</em> sötétíti/világosítja — a karakter lapos marad, csak „lekapcsolt lámpa” lesz. Egy igazi tárgynak viszont a fény <strong>felőli oldala világosabb</strong>, a túloldala sötétebb. Ehhez tudnunk kell, hogy minden pixel <strong>merre néz</strong> — ezt adja a <strong>normal map</strong>.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A normal map: minden pixel egy irány</div>
+    <pre>
+   normal térkép (RGB)         megvilágítás
+   R = X irány (bal-jobb)      fény ↘
+   G = Y irány (fel-le)              <span class="yl">██</span><span class="di">▓▒</span>
+   B = Z irány (kifelé)            <span class="yl">███</span><span class="di">▓▒░</span>   a fény felőli
+                                    <span class="yl">██</span><span class="di">▓▒░</span><span class="mu">░</span>   oldal világos,
+   fényerő = max(0, N · L)        <span class="di">▓▒░</span><span class="mu">░░</span>    a túloldal sötét
+   (N = pixel normálja,
+    L = fény iránya)            → a lapos kép „domború" lesz</pre>
+    <div class="d-cap">A normál (N) és a fény iránya (L) skaláris szorzata adja a fényerőt. Ahol a felület a fény felé néz, ott 1 közeli; ahol elfordul, ott 0. Ez a <em>forma</em>.</div>
+  </div>
+
+  <p>Próbáld ki: mozgasd az egeret = a fény pozíciója. Kapcsold a <strong>normal map</strong>-et ki/be — látod a különbséget a „lapos lámpa” és a „megformált, domború” között. Válts a gömb és a karakter közt.</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — normal map megvilágítás</span></div>
+    <div class="pg-body">
+      <canvas id="normalCanvas" width="416" height="288" style="width:560px"></canvas>
+      <div class="pg-side">
+        <p>A fény a kurzort követi. A gömbnek „tökéletes” normáljai vannak — rajta látszik legtisztábban a forma-árnyékolás.</p>
+        <div class="pg-controls">
+          <button class="wbtn active" id="nmOn">◐ normal map: BE</button>
+          <button class="wbtn" id="nmObj">⬤ gömb</button>
+        </div>
+        <p style="margin-top:10px">Kikapcsolt normal map-pel mindkettő csak egy egyenletes tintet kap — lapos. Bekapcsolva a fény <em>iránya</em> számít, és forma jelenik meg.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4 -->
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>Saját fény: emissive &amp; ragyogás</h2>
+
+  <p>Néhány dolog <strong>magától világít</strong>, függetlenül a sötétségtől: a karakter világító szeme, egy fáklya lángja, egy mágikus tárgy. Ezek az <strong>emissive</strong> (önfényű) részek — őket <em>nem</em> sötétíti az ambiens, mindig teljes fényerővel látszanak.</p>
+
+  <p>A trükk: az emissive rész egy <strong>külön sprite-réteg</strong>, amin <em>nincs</em> <code>Lit</code> marker. Mivel a megvilágító rendszer csak a <code>Lit</code> sprite-okat érinti, az emissive réteg érintetlen marad — vaksötétben is ragyog. Igazi „izzáshoz” pedig HDR + Bloom (12. és 10. fejezet).</p>
+
+  <p>Húzd le az ambienst nullára: a karakter eltűnik a sötétben — <strong>de a szeme megmarad</strong>. Kapcsold a lámpást is.</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — emissive</span></div>
+    <div class="pg-body">
+      <canvas id="emiCanvas" width="416" height="240" style="width:560px"></canvas>
+      <div class="pg-side">
+        <div class="legend">
+          <span class="pg-chip" style="background:#bfe9ff"></span>Világító szem (emissive)<br>
+          <span class="pg-chip" style="background:#ffcf7a"></span>Lámpás láng (emissive + saját fény)
+        </div>
+        <div class="slider-row"><span>Ambiens</span><input type="range" id="emiAmb" min="0" max="100" value="6"><span class="val" id="emiAmbV">0.06</span></div>
+        <div class="pg-controls">
+          <button class="wbtn active" id="emiEyes">◉ szem</button>
+          <button class="wbtn active" id="emiLantern">🏮 lámpás</button>
+        </div>
+        <p style="margin-top:10px">Vedd észre: az emissive réteg akkor is látszik, amikor a teljes ambiens 0. A lámpás ráadásul <em>fényt is ad</em> a környezetnek.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 -->
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Földre helyezés: drop shadow</h2>
+
+  <p>Egy megvilágított karakter még mindig „lebeghet”, ha nincs alatta <strong>árnyék</strong>. Egy egyszerű, lágy, sötét ellipszis a talp alatt azonnal a <em>földre teszi</em> — ez a <strong>drop shadow</strong> (vagy blob shadow). Egy lépéssel tovább: az árnyék a fénytől <strong>elfelé</strong> mutasson és nyúljon meg a távolsággal — így „valódi” árnyéknak tűnik.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Az árnyék a fénytől elfelé mutat</div>
+    <pre>
+          <span class="yl">☀</span> fény
+           \
+            \                 karakter
+             \                  ▟▙
+              \                 ▜▛
+               ▼            <span class="mu">▂▂▄▄████▄▄▂▂</span>  ← árnyék: a fénytől
+                            a fény felőli   ELFELÉ nyúlik</pre>
+    <div class="d-cap">Az árnyék iránya = a karaktertől a fénytől <em>elfelé</em> mutató vektor. Minél távolabb/laposabb a fény, annál hosszabb az árnyék.</div>
+  </div>
+
+  <p>Mozgasd az egeret (a fény): az árnyék vele szemben fordul. Kapcsold ki-be az árnyékot és a lágy szélt.</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — drop shadow</span></div>
+    <div class="pg-body">
+      <canvas id="shadowCanvas" width="416" height="240" style="width:560px"></canvas>
+      <div class="pg-side">
+        <p>A fény a kurzort követi. Az árnyék mindig a fénytől elfelé esik.</p>
+        <div class="pg-controls">
+          <button class="wbtn active" id="shOn">▦ árnyék: BE</button>
+          <button class="wbtn active" id="shSoft">◠ lágy szél</button>
+        </div>
+        <p style="margin-top:10px">Az árnyék egy <strong>külön sprite</strong> (sötét ellipszis), a karakter alatt, kicsivel a padló fölött. Egy rendszer forgatja/nyújtja a fény szerint.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= II. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ II. rész — Bevy alapok</span></div>
+
+<!-- 6 -->
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Projekt + a sötét alap</h2>
+
+  <p>Az alap ugyanaz, mint a tile-tutorialban: <em>nearest</em> szűrés, fekete háttér, egy <code>Ambient</code> erőforrás. A rendszereket egy láncba (<code>.chain()</code>) tesszük, hogy a megvilágítás mindig a fények friss pozícióját lássa.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">terminál</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-sh">cargo new lit_entities
+cd lit_entities
+cargo add bevy@0.18</code></pre>
+  </div>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — váz</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .insert_resource(ClearColor(Color::BLACK))
+        .init_resource::&lt;Ambient&gt;()
+        .add_systems(Startup, setup)
+        .add_systems(Update, (
+            move_player,        // a karakter mozgása
+            flicker_torch,      // a hordozott fáklya villódzása
+            update_shadows,     // a drop shadow-k igazítása a fényhez
+            light_sprites,      // <- UTOLJÁRA: tile-okat ÉS entitásokat is színez
+        ).chain())
+        .run();
+}</code></pre>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▲ Egyetlen rendszer mindenre</div>
+    A <code>light_sprites</code> nem tesz különbséget tile és karakter közt — minden <code>Lit</code> sprite-ot megvilágít. A különbség csak a <code>Lit</code> komponens <em>mintavételi eltolásában</em> van (közép vs talp), és abban, hogy mit raksz az entitásra <em>ráadásként</em> (emissive, árnyék).
+  </div>
+</section>
+
+<!-- 7 -->
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>Komponensek</h2>
+
+  <p>A fény-komponensek (<code>RadialLight</code>, <code>ConeLight</code>) változatlanok az előző tutorialhoz képest. Az újdonság a <code>Lit</code>, ami most <em>mintavételi pontot</em> hordoz, plusz pár entitás-marker.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — erőforrás + komponensek</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">#[derive(Resource)]
+struct Ambient { level: f32, color: Color }
+impl Default for Ambient {
+    fn default() -&gt; Self { Self { level: 0.06, color: Color::srgb(0.45, 0.55, 1.0) } }
+}
+
+#[derive(Component)]
+struct RadialLight { radius: f32, intensity: f32, color: Color }
+#[derive(Component)]
+struct ConeLight { range: f32, half_angle: f32, intensity: f32, color: Color }
+
+// Megvilágítható sprite + HOL mintavételezzük a fényt (a középponthoz képest).
+#[derive(Component)]
+struct Lit { sample: Vec2 }
+impl Lit {
+    fn center() -&gt; Self { Self { sample: Vec2::ZERO } }            // tile, tárgy középen
+    fn feet(height: f32) -&gt; Self { Self { sample: Vec2::new(0.0, -height * 0.5) } } // karakter talpa
+}
+
+#[derive(Component)] struct Player;
+#[derive(Component)] struct Torch;        // a hordozott fáklya (fény) — a villódzáshoz
+#[derive(Component)] struct Emissive;     // önfényű réteg — NINCS rajta Lit
+#[derive(Component)] struct CastsShadow;  // ez az entitás vet drop shadow-t
+#[derive(Component)] struct Shadow { of: Entity }  // egy árnyék-sprite + kit követ</code></pre>
+  </div>
+</section>
+
+<!-- ================= III. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Implementáció</span></div>
+
+<!-- 8 -->
+<section id="ch8">
+  <div class="ch-eyebrow">8. fejezet</div>
+  <h2>Entitások megvilágítása</h2>
+
+  <p>A megvilágító rendszer szinte szóról szóra az, amit a tile-tutorialban írtunk — egyetlen különbséggel: a fényt a <code>Lit::sample</code> eltolásnál mintavételezzük (a karakternél ez a talp). Ugyanez a rendszer kezeli a padlót és a karaktert is.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — light_sprites</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn light_sprites(
+    ambient: Res&lt;Ambient&gt;,
+    radials: Query&lt;(&amp;GlobalTransform, &amp;RadialLight)&gt;,
+    cones: Query&lt;(&amp;GlobalTransform, &amp;ConeLight)&gt;,
+    mut q: Query&lt;(&amp;GlobalTransform, &amp;Lit, &amp;mut Sprite)&gt;,
+) {
+    let amb = rgb(ambient.color) * ambient.level;
+
+    for (tf, lit, mut sprite) in &amp;mut q {
+        // a mintavételi pont: a karakternél a TALP, tile-nál a közép
+        let p = tf.translation().truncate() + lit.sample;
+        let mut light = amb;
+
+        for (lt, rl) in &amp;radials {
+            let d = lt.translation().truncate().distance(p);
+            let f = (1.0 - d / rl.radius).clamp(0.0, 1.0);
+            light += rgb(rl.color) * (rl.intensity * f * f);
+        }
+        for (lt, cl) in &amp;cones {
+            let to = p - lt.translation().truncate();
+            let dist = to.length();
+            if dist &gt; cl.range { continue; }
+            let forward = lt.right().truncate();
+            let angle = forward.angle_to(to).abs();
+            if angle &gt; cl.half_angle { continue; }
+            let radial = (1.0 - dist / cl.range).clamp(0.0, 1.0);
+            let angular = (1.0 - angle / cl.half_angle).clamp(0.0, 1.0);
+            light += rgb(cl.color) * (cl.intensity * radial * angular);
+        }
+
+        let c = light.min(Vec3::ONE);
+        sprite.color = Color::linear_rgb(c.x, c.y, c.z);
+    }
+}
+
+fn rgb(color: Color) -&gt; Vec3 { let l = color.to_linear(); Vec3::new(l.red, l.green, l.blue) }</code></pre>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">⚠ Egy tint az egész sprite-ra</div>
+    Ez a módszer az <em>egész</em> karaktert egyetlen színnel szorozza (a talpánál mért fénnyel). Ez egyszerű és olcsó, de lapos: a fény iránya nem látszik a karakteren. Ha „formát” akarsz (a fény felőli oldal világosabb), arra a normal map kell — 12. fejezet. A kettő kombinálható: a tint adja az általános fényszintet, a normal map a formát.
+  </div>
+</section>
+
+<!-- 9 -->
+<section id="ch9">
+  <div class="ch-eyebrow">9. fejezet</div>
+  <h2>Hordozott fáklya (parenting)</h2>
+
+  <p>A játékos <strong>fényt visz magával</strong>. A legtisztább megoldás: a fény a karakter <strong>gyereke</strong> (child entity). Így a <code>GlobalTransform</code>-ja automatikusan követi a szülőt — nem kell külön szinkronizálni. Ugyanígy tesszük a karakter alá az árnyékot és fölé a világító szemet.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — a játékos + a fáklya, mint gyerek</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">const TILE: f32 = 16.0;
+
+fn setup(mut commands: Commands, asset_server: Res&lt;AssetServer&gt;) {
+    commands.spawn(Camera2d);
+    spawn_floor(&amp;mut commands, &amp;asset_server);
+
+    // a játékos: megvilágított, talp-mintával, árnyékot vet
+    let player = commands.spawn((
+        Player,
+        Sprite::from_image(asset_server.load("hero.png")),
+        Transform::from_xyz(0.0, 0.0, 10.0),
+        Lit::feet(22.0),
+        CastsShadow,
+    )).with_children(|parent| {
+        // a fáklya fénye a karakter GYEREKE -> vele mozog
+        parent.spawn((
+            Torch,
+            RadialLight { radius: 130.0, intensity: 1.8, color: Color::srgb(1.0, 0.72, 0.38) },
+            Transform::from_xyz(7.0, 2.0, 0.0),  // a kéznél
+        ));
+        // a világító szem: Emissive, NINCS rajta Lit -> nem sötétül
+        parent.spawn((
+            Emissive,
+            Sprite::from_image(asset_server.load("hero_eyes.png")),
+            Transform::from_xyz(0.0, 4.0, 1.0),
+        ));
+    }).id();
+
+    // az árnyék külön sprite, ami a játékost követi (lásd 11. fej.)
+    spawn_shadow(&amp;mut commands, &amp;asset_server, player);
+}
+
+fn flicker_torch(time: Res&lt;Time&gt;, mut q: Query&lt;&amp;mut RadialLight, With&lt;Torch&gt;&gt;) {
+    let t = time.elapsed_secs();
+    for mut l in &amp;mut q {
+        // lobogás: két gyors szinusz összege
+        l.intensity = 1.7 + (t * 15.0).sin() * 0.15 + (t * 37.0).sin() * 0.10;
+    }
+}</code></pre>
+  </div>
+
+  <p>Próbáld ki a teljes képet: a játékos a kurzort követi, viszi a fáklyát, ami megvilágítja a padlót, az ellenfelet és a tárgyat is. A tárgy <em>magától</em> is ragyog (emissive).</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — minden együtt</span></div>
+    <div class="pg-body">
+      <canvas id="entPlay" width="416" height="288" style="width:560px"></canvas>
+      <div class="pg-side">
+        <div class="legend">
+          <span class="pg-chip" style="background:#6f8fd6"></span>Játékos (viszi a fáklyát)<br>
+          <span class="pg-chip" style="background:#d66f6f"></span>Ellenfél (megvilágítva + árnyék)<br>
+          <span class="pg-chip" style="background:#ffd24a"></span>Tárgy (emissive — magától ragyog)
+        </div>
+        <p style="margin-top:10px"><strong>Mozgasd az egeret</strong> — a játékos és a fáklyája követi. Minden entitás normal-map-pel árnyékolódik, és árnyékot vet.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 10 -->
+<section id="ch10">
+  <div class="ch-eyebrow">10. fejezet</div>
+  <h2>Emissive réteg + Bloom</h2>
+
+  <p>Az emissive réteg „varázsa” pusztán annyi, hogy <strong>nincs rajta <code>Lit</code></strong>, így a <code>light_sprites</code> nem nyúl hozzá — a színe végig a teljes, fényes érték marad. Magasabb <code>Transform.z</code>-vel a karakter fölé kerül.</p>
+
+  <p>Az igazi <em>izzáshoz</em> (a fény „túlcsordul” a kontúron) HDR kamera + <code>Bloom</code> kell. A Bloom a fényes pixeleket elmossa és felragyogtatja — ettől lesz a világító szemből/tárgyból igazi neon-hatás.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — HDR kamera + Bloom az izzáshoz</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn setup_camera(mut commands: Commands) {
+    commands.spawn((
+        Camera2d,
+        Camera { hdr: true, ..default() },  // HDR kell a Bloomhoz
+        Bloom::default(),                   // a fényes részek felragyognak
+    ));
+}
+
+// az emissive sprite-okat HDR-ben "1.0 fölé" hajtjuk, hogy a Bloom elkapja:
+fn setup_glow(mut commands: Commands, asset_server: Res&lt;AssetServer&gt;) {
+    commands.spawn((
+        Emissive,
+        Sprite {
+            image: asset_server.load("orb.png"),
+            // a Bloom a &gt;1.0 fényerejű (HDR) pixeleket ragyogtatja fel
+            color: Color::linear_rgb(2.4, 1.8, 0.6),
+            ..default()
+        },
+        Transform::from_xyz(40.0, 0.0, 12.0),
+    ));
+}</code></pre>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — HDR &amp; Bloom 2D-ben</div>
+    <p>A <code>Bloom</code> komponens a kamerára kerül, és csak <code>hdr: true</code> esetén dolgozik. A trükk: az emissive sprite színét <strong>1.0 fölé</strong> állítod (lineáris térben, pl. 2.4) — a Bloom ezt „túlexponáltnak” látja, és körberagyogtatja. Sima (nem-HDR) jelenetben az emissive csak „nem sötétül”; izzani a Bloommal fog.</p>
+  </div>
+</section>
+
+<!-- 11 -->
+<section id="ch11">
+  <div class="ch-eyebrow">11. fejezet</div>
+  <h2>Drop shadow rendszer</h2>
+
+  <p>Az árnyék egy <strong>külön sprite</strong> (sötét, áttetsző ellipszis), ami a karaktert követi. Egy rendszer minden frame-ben a talp alá teszi, és a fő fénytől <strong>elfelé</strong> tolja — így az árnyék a fénnyel szemben esik.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — árnyék spawnolása + igazítása</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn spawn_shadow(commands: &amp;mut Commands, asset_server: &amp;AssetServer, target: Entity) {
+    commands.spawn((
+        Shadow { of: target },
+        Sprite {
+            image: asset_server.load("blob_shadow.png"),  // lágy, sötét ellipszis
+            color: Color::srgba(0.0, 0.0, 0.0, 0.5),
+            ..default()
+        },
+        Transform::from_xyz(0.0, 0.0, 0.5),  // a padló FÖLÖTT, a karakter ALATT
+    ));
+}
+
+fn update_shadows(
+    lights: Query&lt;&amp;GlobalTransform, With&lt;Torch&gt;&gt;,
+    targets: Query&lt;&amp;GlobalTransform, With&lt;CastsShadow&gt;&gt;,
+    mut shadows: Query&lt;(&amp;Shadow, &amp;mut Transform)&gt;,
+) {
+    let Ok(light) = lights.single() else { return };
+    let lp = light.translation().truncate();
+
+    for (shadow, mut tf) in &amp;mut shadows {
+        let Ok(target) = targets.get(shadow.of) else { continue };
+        let tp = target.translation().truncate();
+
+        let away = (tp - lp).normalize_or_zero();   // a fénytől ELFELÉ
+        let feet = tp - Vec2::new(0.0, 10.0);        // a talp magassága
+        // a padlón, a fénytől elfelé tolva (a távolsággal nyújtható)
+        tf.translation = (feet + away * 6.0).extend(0.5);
+    }
+}</code></pre>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▲ Miért külön entitás, és nem gyerek?</div>
+    Lehetne a karakter gyereke is (akkor a pozíciót nem kell másolni), de egy <em>külön</em> árnyék-entitást könnyebb a fény szerint forgatni/nyújtani anélkül, hogy a karakter forgását is megzavarnád. A <code>Shadow { of: Entity }</code> egyszerűen megjegyzi, kit követ; a <code>targets.get(...)</code> lekéri annak a pozícióját.
+  </div>
+</section>
+
+<!-- 12 -->
+<section id="ch12">
+  <div class="ch-eyebrow">12. fejezet</div>
+  <h2>Normal map: Material2d</h2>
+
+  <p>A tint az egész sprite-ot egyformán színezi. A <strong>formához</strong> (a 3. fejezet demója) minden pixel <em>normálja</em> kell, és egy kis shader, ami a <code>dot(N, L)</code>-t kiszámolja. Bevyben ez egy egyedi <strong>Material2d</strong> + egy rövid WGSL fragment shader.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/lit_material.rs — vázlat</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use bevy::sprite::{Material2d, Material2dPlugin};
+use bevy::render::render_resource::{AsBindGroup, ShaderRef};
+
+#[derive(Asset, TypePath, AsBindGroup, Clone)]
+struct LitMaterial {
+    #[texture(0)] #[sampler(1)]
+    albedo: Handle&lt;Image&gt;,    // a sprite alapszíne
+    #[texture(2)] #[sampler(3)]
+    normal: Handle&lt;Image&gt;,    // a normal map
+    #[uniform(4)]
+    light_dir: Vec4,          // a fény iránya (xyz) + erő (w)
+    #[uniform(5)]
+    ambient: LinearRgba,
+}
+
+impl Material2d for LitMaterial {
+    fn fragment_shader() -&gt; ShaderRef { "shaders/lit_sprite.wgsl".into() }
+}
+
+// a pluginhoz: app.add_plugins(Material2dPlugin::&lt;LitMaterial&gt;::default());
+// majd a sprite helyett: Mesh2d(quad) + MeshMaterial2d(materials.add(LitMaterial { .. }))</code></pre>
+  </div>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">assets/shaders/lit_sprite.wgsl — a lényeg</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">// a normál térképből kiolvassuk az irányt: [0,1] -> [-1,1]
+let n = normalize(textureSample(normal_tex, normal_sampler, uv).rgb * 2.0 - 1.0);
+let l = normalize(light_dir.xyz);
+
+// forma-árnyékolás: a fény felé néző felület világosabb
+let diffuse = max(dot(n, l), 0.0) * light_dir.w;
+
+let base = textureSample(albedo_tex, albedo_sampler, uv);
+return vec4(base.rgb * (ambient.rgb + diffuse), base.a);</code></pre>
+  </div>
+
+  <p>Mivel ez render-pipeline-szintű munka (anyag, shader, mesh a sprite helyett), a gyakorlatban gyakran <strong>kész crate</strong> a célszerű:</p>
+
+  <table>
+    <tr><th>Crate</th><th>Mit ad</th></tr>
+    <tr><td><code>bevy_incandescent</code></td><td>2D fény <strong>normal map</strong>-pel és árnyékvetéssel — pont erre való</td></tr>
+    <tr><td><code>bevy_light_2d</code></td><td>Pont/spot fények 2D-ben, komponens-alapú API (forma nélkül, de egyszerű)</td></tr>
+    <tr><td><code>bevy_sprite3d</code> / saját <code>Material2d</code></td><td>Ha teljes kontrollt akarsz a shader fölött</td></tr>
+  </table>
+
+  <div class="bevy-box">
+    <div class="tag">⚙ Honnan a normal map?</div>
+    <p>Pixel-art sprite-hoz a normal map-et generálhatod (<em>Laigter</em>, <em>SpriteIlluminator</em>) vagy kézzel festheted. Animált karakternél <strong>minden frame-hez</strong> kell egy normal-frame — ezért az atlaszod albedo-sávja mellé egy normal-sáv kerül, ugyanabban a kiosztásban. A shader mindkettőből ugyanazt a cellát olvassa.</p>
+  </div>
+</section>
+
+<!-- 13 -->
+<section id="ch13">
+  <div class="ch-eyebrow">13. fejezet</div>
+  <h2>A teljes, futtatható main.rs</h2>
+
+  <p>Az egész egyben (a tint-alapú út: játékos hordozott fáklyával, megvilágított ellenfél, emissive tárgy, drop shadow-k). Tedd be a <code>hero.png</code>, <code>hero_eyes.png</code>, <code>enemy.png</code>, <code>orb.png</code>, <code>blob_shadow.png</code>, <code>tiles/grass.png</code> assetet — vagy a saját sprite-jaidat — és <code>cargo run</code>.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — teljes</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+const TILE: f32 = 16.0;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .insert_resource(ClearColor(Color::BLACK))
+        .init_resource::&lt;Ambient&gt;()
+        .add_systems(Startup, setup)
+        .add_systems(Update, (move_player, flicker_torch, update_shadows, light_sprites).chain())
+        .run();
+}
+
+// ---------- erőforrás + komponensek ----------
+#[derive(Resource)]
+struct Ambient { level: f32, color: Color }
+impl Default for Ambient {
+    fn default() -&gt; Self { Self { level: 0.06, color: Color::srgb(0.45, 0.55, 1.0) } }
+}
+
+#[derive(Component)]
+struct RadialLight { radius: f32, intensity: f32, color: Color }
+#[derive(Component)]
+struct ConeLight { range: f32, half_angle: f32, intensity: f32, color: Color }
+
+#[derive(Component)]
+struct Lit { sample: Vec2 }
+impl Lit {
+    fn center() -&gt; Self { Self { sample: Vec2::ZERO } }
+    fn feet(height: f32) -&gt; Self { Self { sample: Vec2::new(0.0, -height * 0.5) } }
+}
+
+#[derive(Component)] struct Player;
+#[derive(Component)] struct Torch;
+#[derive(Component)] struct Emissive;
+#[derive(Component)] struct CastsShadow;
+#[derive(Component)] struct Shadow { of: Entity }
+
+// ---------- setup ----------
+fn setup(mut commands: Commands, asset_server: Res&lt;AssetServer&gt;) {
+    commands.spawn(Camera2d);
+
+    // padló: minden tile Lit (közép-minta)
+    let grass = asset_server.load("tiles/grass.png");
+    for y in -8..8 {
+        for x in -12..12 {
+            commands.spawn((
+                Sprite::from_image(grass.clone()),
+                Transform::from_xyz(x as f32 * TILE, y as f32 * TILE, 0.0),
+                Lit::center(),
+            ));
+        }
+    }
+
+    // játékos + fáklya (gyerek) + világító szem (gyerek)
+    let player = commands.spawn((
+        Player,
+        Sprite::from_image(asset_server.load("hero.png")),
+        Transform::from_xyz(0.0, 0.0, 10.0),
+        Lit::feet(22.0),
+        CastsShadow,
+    )).with_children(|p| {
+        p.spawn((
+            Torch,
+            RadialLight { radius: 130.0, intensity: 1.8, color: Color::srgb(1.0, 0.72, 0.38) },
+            Transform::from_xyz(7.0, 2.0, 0.0),
+        ));
+        p.spawn((
+            Emissive,
+            Sprite::from_image(asset_server.load("hero_eyes.png")),
+            Transform::from_xyz(0.0, 4.0, 1.0),
+        ));
+    }).id();
+    spawn_shadow(&amp;mut commands, &amp;asset_server, player);
+
+    // ellenfél: megvilágítva + árnyék
+    let enemy = commands.spawn((
+        Sprite::from_image(asset_server.load("enemy.png")),
+        Transform::from_xyz(70.0, 30.0, 10.0),
+        Lit::feet(22.0),
+        CastsShadow,
+    )).id();
+    spawn_shadow(&amp;mut commands, &amp;asset_server, enemy);
+
+    // tárgy: emissive (magától ragyog)
+    commands.spawn((
+        Emissive,
+        Sprite::from_image(asset_server.load("orb.png")),
+        Transform::from_xyz(-60.0, -20.0, 11.0),
+    ));
+}
+
+fn spawn_shadow(commands: &amp;mut Commands, asset_server: &amp;AssetServer, target: Entity) {
+    commands.spawn((
+        Shadow { of: target },
+        Sprite { image: asset_server.load("blob_shadow.png"),
+                 color: Color::srgba(0.0, 0.0, 0.0, 0.5), ..default() },
+        Transform::from_xyz(0.0, 0.0, 0.5),
+    ));
+}
+
+// ---------- mozgás / villódzás / árnyék ----------
+fn move_player(
+    time: Res&lt;Time&gt;,
+    keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    mut q: Query&lt;&amp;mut Transform, With&lt;Player&gt;&gt;,
+) {
+    let mut dir = Vec2::ZERO;
+    if keys.pressed(KeyCode::KeyW) { dir.y += 1.0; }
+    if keys.pressed(KeyCode::KeyS) { dir.y -= 1.0; }
+    if keys.pressed(KeyCode::KeyA) { dir.x -= 1.0; }
+    if keys.pressed(KeyCode::KeyD) { dir.x += 1.0; }
+    for mut tf in &amp;mut q {
+        tf.translation += (dir.normalize_or_zero() * 90.0 * time.delta_secs()).extend(0.0);
+    }
+}
+
+fn flicker_torch(time: Res&lt;Time&gt;, mut q: Query&lt;&amp;mut RadialLight, With&lt;Torch&gt;&gt;) {
+    let t = time.elapsed_secs();
+    for mut l in &amp;mut q {
+        l.intensity = 1.7 + (t * 15.0).sin() * 0.15 + (t * 37.0).sin() * 0.10;
+    }
+}
+
+fn update_shadows(
+    lights: Query&lt;&amp;GlobalTransform, With&lt;Torch&gt;&gt;,
+    targets: Query&lt;&amp;GlobalTransform, With&lt;CastsShadow&gt;&gt;,
+    mut shadows: Query&lt;(&amp;Shadow, &amp;mut Transform)&gt;,
+) {
+    let Ok(light) = lights.single() else { return };
+    let lp = light.translation().truncate();
+    for (shadow, mut tf) in &amp;mut shadows {
+        let Ok(target) = targets.get(shadow.of) else { continue };
+        let tp = target.translation().truncate();
+        let away = (tp - lp).normalize_or_zero();
+        let feet = tp - Vec2::new(0.0, 10.0);
+        tf.translation = (feet + away * 6.0).extend(0.5);
+    }
+}
+
+// ---------- a megvilágító rendszer (tile + entitás) ----------
+fn light_sprites(
+    ambient: Res&lt;Ambient&gt;,
+    radials: Query&lt;(&amp;GlobalTransform, &amp;RadialLight)&gt;,
+    cones: Query&lt;(&amp;GlobalTransform, &amp;ConeLight)&gt;,
+    mut q: Query&lt;(&amp;GlobalTransform, &amp;Lit, &amp;mut Sprite)&gt;,
+) {
+    let amb = rgb(ambient.color) * ambient.level;
+    for (tf, lit, mut sprite) in &amp;mut q {
+        let p = tf.translation().truncate() + lit.sample;
+        let mut light = amb;
+
+        for (lt, rl) in &amp;radials {
+            let d = lt.translation().truncate().distance(p);
+            let f = (1.0 - d / rl.radius).clamp(0.0, 1.0);
+            light += rgb(rl.color) * (rl.intensity * f * f);
+        }
+        for (lt, cl) in &amp;cones {
+            let to = p - lt.translation().truncate();
+            let dist = to.length();
+            if dist &gt; cl.range { continue; }
+            let forward = lt.right().truncate();
+            let angle = forward.angle_to(to).abs();
+            if angle &gt; cl.half_angle { continue; }
+            let radial = (1.0 - dist / cl.range).clamp(0.0, 1.0);
+            let angular = (1.0 - angle / cl.half_angle).clamp(0.0, 1.0);
+            light += rgb(cl.color) * (cl.intensity * radial * angular);
+        }
+
+        let c = light.min(Vec3::ONE);
+        sprite.color = Color::linear_rgb(c.x, c.y, c.z);
+    }
+}
+
+fn rgb(color: Color) -&gt; Vec3 { let l = color.to_linear(); Vec3::new(l.red, l.green, l.blue) }</code></pre>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▲ Az emissive itt</div>
+    Az <code>orb</code> és a <code>hero_eyes</code> sprite-okon <strong>nincs <code>Lit</code></strong>, ezért a <code>light_sprites</code> nem sötétíti őket — magától ragyognak a sötétben. Ha izzást is akarsz, told a kamerát HDR-be és tedd rá a <code>Bloom</code>-ot (10. fejezet).
+  </div>
+</section>
+
+<!-- 14 -->
+<section id="ch14">
+  <div class="ch-eyebrow">14. fejezet</div>
+  <h2>Merre tovább?</h2>
+
+  <ul>
+    <li><strong>Normal map mindenre.</strong> Cseréld a tint-et a 12. fejezet <code>Material2d</code>-jére (vagy a <code>bevy_incandescent</code>-re), hogy a karaktereknek <em>formájuk</em> legyen — a fény iránya látszódjon rajtuk.</li>
+    <li><strong>Animáció + fény.</strong> Animált karakternél az atlasz albedo-sávja mellé tedd a normal-sávot, ugyanabban a cellakiosztásban; a shader frame-enként ugyanazt a cellát olvassa mindkettőből.</li>
+    <li><strong>Izzás.</strong> HDR kamera + <code>Bloom</code>, az emissive színt 1.0 fölé (lineárisan) — neon-szem, izzó tárgy, lángoló fáklya.</li>
+    <li><strong>Az entitás árnyékot vet a fényben.</strong> A tile-tutorial raycastját kösd be: a karakter teste takarja a mögötte lévő tile-ok fényét (occlusion). Igazi árnyékvetéshez <code>bevy_magic_light_2d</code> / <code>bevy_incandescent</code>.</li>
+    <li><strong>Láthatóság = játékmenet.</strong> A sötétben lévő entitás <em>rejtve</em> van (lopakodás), a megvilágított látszik. Ugyanazt a fényértéket, amit a tinthez számolsz, használhatod „mennyire látható” logikának is.</li>
+    <li><strong>Teljesítmény.</strong> Csak a fény hatótávján belüli entitásokat frissítsd; a normal-map shader úgyis a GPU-n fut, ott a fények száma alig számít.</li>
+  </ul>
+
+  <div class="bevy-box">
+    <div class="tag">⚙ Az igazi tanulság</div>
+    <p>Az entitás-világítás ugyanaz a <strong>szorzás</strong>, mint a tile-oké — három ráadással: <em>hol</em> mintavételezünk (talp), <em>mivel</em> egészítjük ki a formát (normal map), és <em>mit</em> teszünk rá külön rétegként (emissive ragyogás, drop shadow). Ha ezt a négyet érted, bármilyen entitást élővé és „odatartozóvá” teszel a sötétben. Jó kódolást! ▸▸</p>
+  </div>
+</section>
+
+<footer>
+  <p class="pix">FÉNY az ENTITÁSOKON — 2D karakter-világítás Bevy 0.18-ban</p>
+  <p>A <em>FÉNY &amp; SÖTÉTSÉG</em> tile-tutorial folytatása. A demók procedurálisan, valós időben rajzolódnak (HTML canvas): a karakter normal map-je is futásidőben generálódik a sziluettből. A kódrészletek a 0.18-as API-ra épülnek: <code>Sprite.color</code> tint, parenting (<code>with_children</code>), <code>Bloom</code>, <code>Material2d</code>.</p>
+</footer>
+
+</div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+var TAU = Math.PI*2;
+
+/* =====================================================================
+   1) TILE-MOTOR (a padló-háttérhez — a dual-grid tutorialból)
+   ===================================================================== */
+var T = 16, R = 8;
+var CORNERS = [[0,0],[T,0],[0,T],[T,T]];
+function bits(mask){ return [(mask>>3)&1,(mask>>2)&1,(mask>>1)&1,mask&1]; }
+function d2(x,y,c){ var dx=x-c[0], dy=y-c[1]; return dx*dx+dy*dy; }
+function inside(mask,x,y){
+  var b=bits(mask), n=b[0]+b[1]+b[2]+b[3];
+  if(n===0) return false; if(n===4) return true;
+  var i, R2=R*R;
+  if(n===1){ for(i=0;i<4;i++) if(b[i]) return d2(x,y,CORNERS[i])<R2; }
+  if(n===3){ for(i=0;i<4;i++) if(!b[i]) return d2(x,y,CORNERS[i])>R2; }
+  if(b[0]&&b[1]) return y<R; if(b[2]&&b[3]) return y>R;
+  if(b[0]&&b[2]) return x<R; if(b[1]&&b[3]) return x>R;
+  for(i=0;i<4;i++) if(b[i]&&d2(x,y,CORNERS[i])<R2) return true;
+  return false;
+}
+function hash(x,y){ var h=(x*374761393 + y*668265263)|0; h=(h^(h>>13))*1274126177|0; return ((h^(h>>16))>>>0)%100; }
+var TERRAINS=["water","lava","dirt","grass","stone","concrete"];
+var TERRAIN_COUNT=TERRAINS.length, DEFAULT_TERR=2;
+var PAL={
+  water:{main:[87,182,207],lt:[127,210,227],dk:[63,155,184],sp:[150,222,236],rim:[47,126,152]},
+  lava:{main:[224,83,31],lt:[255,157,76],dk:[181,56,15],sp:[255,206,120],rim:[122,34,7]},
+  dirt:{main:[176,124,76],lt:[192,138,88],dk:[154,106,64],sp:[138,92,54],rim:[122,79,46]},
+  grass:{main:[111,191,72],lt:[142,219,99],dk:[78,143,51],sp:[99,176,63],rim:[63,122,46]},
+  stone:{main:[138,144,154],lt:[170,176,186],dk:[107,112,121],sp:[120,126,136],rim:[86,91,99]},
+  concrete:{main:[189,189,182],lt:[214,214,207],dk:[154,154,147],sp:[172,172,165],rim:[126,126,120]}
+};
+function clamp(v){ return v<0?0:v>255?255:v|0; }
+function r2h(c){ return "#"+((1<<24)+(clamp(c[0])<<16)+(clamp(c[1])<<8)+clamp(c[2])).toString(16).slice(1); }
+function pickShade(pal,v,rim){ if(rim)return pal.rim; if(v<8)return pal.lt; if(v<15)return pal.dk; if(v>90)return pal.sp; return pal.main; }
+function drawTerrainTile(ctx,terr,mask,ox,oy){
+  var pal=PAL[TERRAINS[terr]], seed=terr*9173;
+  for(var py=0;py<T;py++)for(var px=0;px<T;px++){
+    var cx=px+0.5, cy=py+0.5; if(!inside(mask,cx,cy)) continue;
+    var v=hash(ox+px+seed,oy+py);
+    var rim=!inside(mask,cx+1,cy)||!inside(mask,cx-1,cy)||!inside(mask,cx,cy+1)||!inside(mask,cx,cy-1);
+    ctx.fillStyle=r2h(pickShade(pal,v,rim)); ctx.fillRect(ox+px,oy+py,1,1);
+  }
+}
+var atlasCache=null;
+function getAtlasSet(){
+  if(!atlasCache){ atlasCache=[];
+    for(var t=0;t<TERRAIN_COUNT;t++){ var cv=document.createElement("canvas"); cv.width=64; cv.height=64;
+      var c=cv.getContext("2d"); for(var m=0;m<16;m++) drawTerrainTile(c,t,m,(m%4)*T,((m/4)|0)*T); atlasCache.push(cv); } }
+  return atlasCache;
+}
+function getTerr(w,x,y){ if(x<0||y<0||x>=w.W||y>=w.H) return DEFAULT_TERR; return w.cells[y*w.W+x]; }
+function layerMask(w,layer,dx,dy){
+  var tl=(getTerr(w,dx-1,dy-1)>=layer)?1:0, tr=(getTerr(w,dx,dy-1)>=layer)?1:0,
+      bl=(getTerr(w,dx-1,dy)>=layer)?1:0, br=(getTerr(w,dx,dy)>=layer)?1:0;
+  return (tl<<3)|(tr<<2)|(bl<<1)|br;
+}
+function renderWorld(ctx,w,atlasSet){
+  var cv=ctx.canvas; ctx.imageSmoothingEnabled=false;
+  ctx.fillStyle="#0b110c"; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.save(); ctx.translate(8,8);
+  for(var layer=0;layer<TERRAIN_COUNT;layer++){ var atlas=atlasSet[layer];
+    for(var dy=0;dy<=w.H;dy++)for(var dx=0;dx<=w.W;dx++){ var m=layerMask(w,layer,dx,dy);
+      if(m===0)continue; ctx.drawImage(atlas,(m%4)*T,((m/4)|0)*T,T,T,dx*T-8,dy*T-8,T,T); } }
+  ctx.restore();
+}
+function makeWorld(W,H){ return {W:W,H:H,cells:new Uint8Array(W*H).fill(DEFAULT_TERR)}; }
+function setT(w,x,y,t){ if(x>=0&&y>=0&&x<w.W&&y<w.H) w.cells[y*w.W+x]=t; }
+function floorWorld(W,H){
+  var w=makeWorld(W,H), cxw=W*0.5, cyw=H*0.52;
+  for(var y=0;y<H;y++)for(var x=0;x<W;x++){ var ex=(x-cxw)/(W*0.5), ey=(y-cyw)/(H*0.5);
+    if(ex*ex+ey*ey<1) setT(w,x,y,3); }
+  for(var cx2=2;cx2<6;cx2++) setT(w,cx2,H-3,5);
+  for(var sx=W-5;sx<W-2;sx++) setT(w,sx,2,4);
+  return w;
+}
+function baseCanvas(world){ var c=document.createElement("canvas"); c.width=(world.W+1)*T; c.height=(world.H+1)*T; renderWorld(c.getContext("2d"),world,getAtlasSet()); return c; }
+
+/* =====================================================================
+   2) FÉNY-MATEK (közös)
+   ===================================================================== */
+function angDiff(a,b){ var d=a-b; while(d>Math.PI)d-=TAU; while(d<-Math.PI)d+=TAU; return d; }
+function smooth01(t){ return t*t*(3-2*t); }
+
+// a fény hozzájárulása egy (wx,wy) ponton, opcionálisan normállal (forma)
+// visszaad: [r,g,b] szorzó
+function litFactor(wx,wy,N,ambient,lights,useNormal){
+  var r=ambient.rgb[0]*ambient.level, g=ambient.rgb[1]*ambient.level, b=ambient.rgb[2]*ambient.level;
+  for(var i=0;i<lights.length;i++){
+    var L=lights[i], dx=wx-L.x, dy=wy-L.y, d=Math.sqrt(dx*dx+dy*dy), atten=0;
+    if(L.kind==="cone"){
+      if(d<=L.range){ var ang=Math.abs(angDiff(Math.atan2(dy,dx),L.angle));
+        if(ang<=L.half){ var rf=1-d/L.range; if(rf<0)rf=0; var af=1-ang/L.half; if(af<0)af=0; atten=rf*smooth01(af); } }
+    }else{ atten=1-d/L.radius; if(atten<0)atten=0; atten*=atten; }
+    if(atten<=0) continue;
+    var diff=1;
+    if(useNormal && N){
+      var lx=L.x-wx, ly=L.y-wy, lz=(L.height||60), len=Math.sqrt(lx*lx+ly*ly+lz*lz);
+      lx/=len; ly/=len; lz/=len;
+      diff=N[0]*lx + N[1]*ly + N[2]*lz; if(diff<0)diff=0;
+      diff=0.18 + 0.82*diff; // kis "wrap", hogy a túloldal ne legyen koromfekete
+    }
+    var f=atten*diff*L.intensity;
+    r+=L.color[0]*f; g+=L.color[1]*f; b+=L.color[2]*f;
+  }
+  return [r,g,b];
+}
+
+/* =====================================================================
+   3) PROCEDURÁLIS KARAKTER + NORMAL MAP
+   ===================================================================== */
+function makeHero(tunic, tunicD){
+  var W=16,H=22;
+  var alb=document.createElement("canvas"); alb.width=W; alb.height=H; var a=alb.getContext("2d");
+  var emi=document.createElement("canvas"); emi.width=W; emi.height=H; var e=emi.getContext("2d");
+  function rc(ctx,x,y,w,h,c){ ctx.fillStyle=c; ctx.fillRect(x,y,w,h); }
+  var SKIN="#e8b487", SKIN_D="#c98f63", HAIR="#4a3322", BELT="#3a2c1c", BOOT="#33271c", HAND="#e8b487";
+  rc(a,5,1,6,2,HAIR); rc(a,4,2,8,2,HAIR);                 // haj
+  rc(a,5,4,6,4,SKIN); rc(a,5,7,6,1,SKIN_D);               // arc
+  rc(a,4,8,8,4,tunic); rc(a,4,11,8,1,BELT);               // törzs
+  rc(a,3,8,1,4,tunic); rc(a,12,8,1,4,tunic);              // karok
+  rc(a,3,11,1,1,HAND); rc(a,12,11,1,1,HAND);              // kezek
+  rc(a,4,12,8,1,tunicD);                                  // tunika-alj árny
+  rc(a,5,13,2,6,tunicD); rc(a,9,13,2,6,tunicD);           // lábak
+  rc(a,5,19,2,2,BOOT); rc(a,9,19,2,2,BOOT);               // csizma
+  // emissive szem
+  e.fillStyle="#bfe9ff"; e.fillRect(6,6,1,1); e.fillRect(9,6,1,1);
+  var hero={W:W,H:H,albedo:alb,emissive:emi};
+  hero.norm=computeNormals(alb);
+  hero._src=alb.getContext("2d").getImageData(0,0,W,H);
+  hero._buf=document.createElement("canvas"); hero._buf.width=W; hero._buf.height=H;
+  return hero;
+}
+// "puffadt" normálok a sziluettből: távolság-transzform + gradiens
+function computeNormals(canvas){
+  var W=canvas.width,H=canvas.height, d=canvas.getContext("2d").getImageData(0,0,W,H).data;
+  var mask=new Float32Array(W*H);
+  for(var i=0;i<W*H;i++) mask[i]= d[i*4+3]>10?1:0;
+  var INF=999, dist=new Float32Array(W*H);
+  for(i=0;i<W*H;i++) dist[i]= mask[i]?INF:0;
+  var x,y,m;
+  for(y=0;y<H;y++)for(x=0;x<W;x++){ if(!mask[y*W+x])continue; m=dist[y*W+x];
+    if(x>0)m=Math.min(m,dist[y*W+x-1]+1); if(y>0)m=Math.min(m,dist[(y-1)*W+x]+1);
+    if(x>0&&y>0)m=Math.min(m,dist[(y-1)*W+x-1]+1.41); if(x<W-1&&y>0)m=Math.min(m,dist[(y-1)*W+x+1]+1.41);
+    dist[y*W+x]=m; }
+  for(y=H-1;y>=0;y--)for(x=W-1;x>=0;x--){ if(!mask[y*W+x])continue; m=dist[y*W+x];
+    if(x<W-1)m=Math.min(m,dist[y*W+x+1]+1); if(y<H-1)m=Math.min(m,dist[(y+1)*W+x]+1);
+    if(x<W-1&&y<H-1)m=Math.min(m,dist[(y+1)*W+x+1]+1.41); if(x>0&&y<H-1)m=Math.min(m,dist[(y+1)*W+x-1]+1.41);
+    dist[y*W+x]=m; }
+  var cap=4.5;
+  function hgt(xx,yy){ if(xx<0||yy<0||xx>=W||yy>=H||!mask[yy*W+xx])return 0; return Math.min(dist[yy*W+xx],cap); }
+  var nx=new Float32Array(W*H), ny=new Float32Array(W*H), nz=new Float32Array(W*H);
+  for(y=0;y<H;y++)for(x=0;x<W;x++){ if(!mask[y*W+x]){ nz[y*W+x]=1; continue; }
+    var gx=hgt(x+1,y)-hgt(x-1,y), gy=hgt(x,y+1)-hgt(x,y-1);
+    var vx=-gx, vy=-gy, vz=1.7, len=Math.sqrt(vx*vx+vy*vy+vz*vz);
+    nx[y*W+x]=vx/len; ny[y*W+x]=vy/len; nz[y*W+x]=vz/len;
+  }
+  return {nx:nx,ny:ny,nz:nz,W:W,H:H};
+}
+// karakter kirajzolása megvilágítva (cx,cy = a sprite KÖZEPE képernyőn)
+function drawHeroLit(ctx,hero,cx,cy,scale,ambient,lights,useNormal,pixel){
+  var W=hero.W,H=hero.H, src=hero._src.data, bctx=hero._buf.getContext("2d");
+  var out=bctx.createImageData(W,H), od=out.data;
+  var ox=cx-W*scale/2, oy=cy-H*scale/2;
+  for(var y=0;y<H;y++)for(var x=0;x<W;x++){ var i=(y*W+x)*4;
+    if(src[i+3]<10){ od[i+3]=0; continue; }
+    var wx=ox+(x+0.5)*scale, wy=oy+(y+0.5)*scale;
+    var N = useNormal ? [hero.norm.nx[y*W+x],hero.norm.ny[y*W+x],hero.norm.nz[y*W+x]] : null;
+    var f=litFactor(wx,wy,N,ambient,lights,useNormal);
+    od[i]=clamp(src[i]*f[0]); od[i+1]=clamp(src[i+1]*f[1]); od[i+2]=clamp(src[i+2]*f[2]); od[i+3]=src[i+3];
+  }
+  bctx.putImageData(out,0,0);
+  ctx.imageSmoothingEnabled=!pixel;
+  ctx.drawImage(hero._buf, ox, oy, W*scale, H*scale);
+  ctx.imageSmoothingEnabled=false;
+  return {ox:ox,oy:oy};
+}
+// emissive réteg (additív, teljes fényerő — a sötétségtől függetlenül)
+function drawEmissive(ctx,hero,cx,cy,scale,alpha){
+  if(alpha<=0) return;
+  var W=hero.W,H=hero.H, ox=cx-W*scale/2, oy=cy-H*scale/2;
+  ctx.globalCompositeOperation="lighter"; ctx.globalAlpha=alpha; ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(hero.emissive, ox, oy, W*scale, H*scale);
+  // kis ragyogás-folt a szem köré
+  ctx.globalAlpha=alpha*0.5;
+  ctx.drawImage(hero.emissive, ox-scale, oy-scale, W*scale+2*scale, H*scale+2*scale);
+  ctx.globalAlpha=1; ctx.globalCompositeOperation="source-over";
+}
+// gömb (tökéletes normálok) — a normal-map demóhoz
+function drawSphereLit(ctx,cx,cy,rad,base,ambient,lights,useNormal,pixel){
+  var NR=Math.max(8,Math.round(rad)); var D=NR*2;
+  var buf=document.createElement("canvas"); buf.width=D; buf.height=D;
+  var bctx=buf.getContext("2d"); var out=bctx.createImageData(D,D), od=out.data;
+  var sc=(rad*2)/D; var ox=cx-rad, oy=cy-rad;
+  for(var py=0;py<D;py++)for(var px=0;px<D;px++){ var i=(py*D+px)*4;
+    var nx=(px+0.5-NR)/NR, ny=(py+0.5-NR)/NR, r2=nx*nx+ny*ny;
+    if(r2>1){ od[i+3]=0; continue; }
+    var nz=Math.sqrt(1-r2);
+    var wx=ox+(px+0.5)*sc, wy=oy+(py+0.5)*sc;
+    var f=litFactor(wx,wy,useNormal?[nx,ny,nz]:null,ambient,lights,useNormal);
+    od[i]=clamp(base[0]*f[0]); od[i+1]=clamp(base[1]*f[1]); od[i+2]=clamp(base[2]*f[2]); od[i+3]=255;
+  }
+  bctx.putImageData(out,0,0);
+  ctx.imageSmoothingEnabled=!pixel; ctx.drawImage(buf,ox,oy,rad*2,rad*2); ctx.imageSmoothingEnabled=false;
+}
+// drop shadow ellipszis (a fénytől elfelé tolva)
+function drawShadow(ctx,cx,feetY,light,soft){
+  var dx=cx-light.x, dy=feetY-light.y, len=Math.sqrt(dx*dx+dy*dy)||1;
+  var ax=dx/len, ay=dy/len;
+  var ox=cx+ax*6, oy=feetY+ay*4;
+  ctx.save();
+  if(soft){
+    var g=ctx.createRadialGradient(ox,oy,1,ox,oy,26);
+    g.addColorStop(0,"rgba(0,0,0,0.55)"); g.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(ox,oy,26,11,0,0,TAU); ctx.fill();
+  }else{
+    ctx.fillStyle="rgba(0,0,0,0.5)"; ctx.beginPath(); ctx.ellipse(ox,oy,20,9,0,0,TAU); ctx.fill();
+  }
+  ctx.restore();
+}
+// a padló megvilágítása (mint az előző tutorialban, multiply fénytérképpel)
+var _lb=null,_lbw=0,_lbh=0;
+function renderFloorLit(ctx,baseC,lights,ambient,smooth){
+  var cw=baseC.width, ch=baseC.height;
+  ctx.globalCompositeOperation="source-over"; ctx.imageSmoothingEnabled=false; ctx.drawImage(baseC,0,0);
+  var LW=Math.ceil(cw/T)+2, LH=Math.ceil(ch/T)+2;
+  if(!_lb||_lbw!==LW||_lbh!==LH){ _lb=document.createElement("canvas"); _lb.width=LW; _lb.height=LH; _lbw=LW; _lbh=LH; }
+  var lc=_lb.getContext("2d");
+  for(var by=0;by<LH;by++)for(var bx=0;bx<LW;bx++){
+    var f=litFactor((bx-0.5)*T,(by-0.5)*T,null,ambient,lights,false);
+    var r=f[0],g=f[1],b=f[2]; if(r>1)r=1; if(g>1)g=1; if(b>1)b=1;
+    lc.fillStyle=r2h([r*255,g*255,b*255]); lc.fillRect(bx,by,1,1);
+  }
+  ctx.imageSmoothingEnabled=!!smooth; ctx.globalCompositeOperation="multiply";
+  ctx.drawImage(_lb,0,0,LW,LH,-T,-T,LW*T,LH*T);
+  ctx.globalCompositeOperation="source-over"; ctx.imageSmoothingEnabled=false;
+}
+
+var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var HERO = makeHero("#6f8fd6","#4f6cae");
+var ENEMY = makeHero("#d66f6f","#a84d4d");
+
+/* =====================================================================
+   4) HERO — minden együtt, keringő fény
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("entHero"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var world=floorWorld(Math.ceil(cv.width/T)-1, Math.ceil(cv.height/T)-1);
+  var base=baseCanvas(world);
+  var amb={rgb:[0.4,0.5,1.0], level:0.05};
+  var cxC=cv.width*0.5, cyC=cv.height*0.52, sc=6.5;
+  var torch={kind:"radial", x:0, y:0, radius:150, intensity:1.7, color:[1.0,0.72,0.38], height:55};
+  function frame(t){
+    var a=t*0.9; torch.x=cxC+Math.cos(a)*120; torch.y=cyC+Math.sin(a)*70;
+    torch.intensity=1.7+Math.sin(t*15)*0.13+Math.sin(t*37)*0.08;
+    renderFloorLit(ctx,base,[torch],amb,true);
+    var feetY=cyC+HERO.H*sc/2;
+    drawShadow(ctx,cxC,feetY,torch,true);
+    drawHeroLit(ctx,HERO,cxC,cyC,sc,amb,[torch],true,false);
+    drawEmissive(ctx,HERO,cxC,cyC,sc,0.9);
+    // a fáklya pici ragyogása
+    ctx.globalCompositeOperation="lighter";
+    var gr=ctx.createRadialGradient(torch.x,torch.y,0,torch.x,torch.y,16);
+    gr.addColorStop(0,"rgba(255,200,120,0.8)"); gr.addColorStop(1,"rgba(255,200,120,0)");
+    ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(torch.x,torch.y,16,0,TAU); ctx.fill();
+    ctx.globalCompositeOperation="source-over";
+  }
+  if(reduceMotion){ frame(0.7); return; }
+  var t0=null; (function loop(now){ if(t0===null)t0=now; frame((now-t0)/1000); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   5) TALP-MINTAVÉTEL demó
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("sampleCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var world=floorWorld(Math.ceil(cv.width/T)-1, Math.ceil(cv.height/T)-1);
+  var base=baseCanvas(world);
+  var amb={rgb:[0.45,0.55,1.0], level:0.12};
+  var sl=document.getElementById("smpLight"), val=document.getElementById("smpLightV"), auto=document.getElementById("smpAuto");
+  var autoOn=true, hx=cv.width*0.5, sc=6;
+  var light={kind:"radial", x:208, y:cv.height*0.42, radius:120, intensity:1.7, color:[1.0,0.86,0.5]};
+  function frame(t){
+    light.x=+sl.value;
+    if(autoOn){ hx=cv.width*0.5+Math.sin(t*0.8)*cv.width*0.34; }
+    var cyC=cv.height*0.46, feetY=cyC+HERO.H*sc/2;
+    renderFloorLit(ctx,base,[light],amb,true);
+    // a fény jele
+    ctx.fillStyle="#e8d24a"; ctx.beginPath(); ctx.arc(light.x,light.y,4,0,TAU); ctx.fill();
+    drawShadow(ctx,hx,feetY,light,true);
+    drawHeroLit(ctx,HERO,hx,cyC,sc,amb,[light],false,false); // LAPOS tint (forma nélkül)
+    drawEmissive(ctx,HERO,hx,cyC,sc,0.85);
+    // talp-minta pont
+    ctx.fillStyle="#7ecb52"; ctx.beginPath(); ctx.arc(hx,feetY-2,3,0,TAU); ctx.fill();
+    val.textContent=sl.value;
+  }
+  sl.addEventListener("input", function(){ autoOn=false; auto.classList.remove("active"); if(reduceMotion) frame(0); });
+  auto.addEventListener("click", function(){ autoOn=!autoOn; auto.classList.toggle("active",autoOn); });
+  if(reduceMotion){ frame(0.5); return; }
+  var t0=null; (function loop(now){ if(t0===null)t0=now; var t=(now-t0)/1000;
+    if(autoOn){ } frame(t); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   6) NORMAL MAP demó
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("normalCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var amb={rgb:[0.5,0.55,0.7], level:0.12};
+  var nmOn=true, showSphere=false, mx=cv.width*0.5, my=70, has=false;
+  var light={kind:"radial", x:mx, y:my, radius:520, intensity:1.25, color:[1.0,0.95,0.85], height:70};
+  var btnOn=document.getElementById("nmOn"), btnObj=document.getElementById("nmObj");
+  function frame(t){
+    if(!has){ light.x=cv.width*0.5+Math.cos(t*0.9)*150; light.y=cv.height*0.5+Math.sin(t*0.9)*90; }
+    else { light.x=mx; light.y=my; }
+    ctx.fillStyle="#07090a"; ctx.fillRect(0,0,cv.width,cv.height);
+    var cxC=cv.width*0.5, cyC=cv.height*0.52;
+    if(showSphere){ drawSphereLit(ctx,cxC,cyC,70,[150,170,220],amb,[light],nmOn,false); }
+    else { drawHeroLit(ctx,HERO,cxC,cyC,8,amb,[light],nmOn,false); drawEmissive(ctx,HERO,cxC,cyC,8,0.7); }
+    // fény jele
+    ctx.globalCompositeOperation="lighter";
+    var gr=ctx.createRadialGradient(light.x,light.y,0,light.x,light.y,18);
+    gr.addColorStop(0,"rgba(255,250,230,0.85)"); gr.addColorStop(1,"rgba(255,250,230,0)");
+    ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(light.x,light.y,18,0,TAU); ctx.fill();
+    ctx.globalCompositeOperation="source-over";
+  }
+  btnOn.addEventListener("click", function(){ nmOn=!nmOn; btnOn.classList.toggle("active",nmOn); btnOn.textContent="◐ normal map: "+(nmOn?"BE":"KI"); if(reduceMotion) frame(0); });
+  btnObj.addEventListener("click", function(){ showSphere=!showSphere; btnObj.textContent=showSphere?"🧍 karakter":"⬤ gömb"; if(reduceMotion) frame(0); });
+  function setM(e){ var r=cv.getBoundingClientRect(); mx=(e.clientX-r.left)*(cv.width/r.width); my=(e.clientY-r.top)*(cv.height/r.height); has=true; }
+  cv.addEventListener("pointermove", setM);
+  cv.addEventListener("pointerleave", function(){ has=false; });
+  if(reduceMotion){ frame(0.6); return; }
+  var t0=null; (function loop(now){ if(t0===null)t0=now; frame((now-t0)/1000); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   7) EMISSIVE demó
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("emiCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var world=floorWorld(Math.ceil(cv.width/T)-1, Math.ceil(cv.height/T)-1);
+  var base=baseCanvas(world);
+  var sl=document.getElementById("emiAmb"), val=document.getElementById("emiAmbV");
+  var bEyes=document.getElementById("emiEyes"), bLant=document.getElementById("emiLantern");
+  var eyes=true, lantern=true, sc=6.5;
+  var lanternLight={kind:"radial", x:0, y:0, radius:95, intensity:1.6, color:[1.0,0.78,0.4]};
+  function frame(t){
+    var lv=+sl.value/100;
+    var amb={rgb:[0.45,0.55,1.0], level:0.02+lv*0.5};
+    var cxC=cv.width*0.36, cyC=cv.height*0.5, feetY=cyC+HERO.H*sc/2;
+    var lights = lantern ? [lanternLight] : [];
+    lanternLight.x=cxC+58; lanternLight.y=cyC-4;
+    lanternLight.intensity=1.5+Math.sin(t*16)*0.18+Math.sin(t*40)*0.1;
+    renderFloorLit(ctx,base,lights,amb,true);
+    drawShadow(ctx,cxC,feetY,{x:lanternLight.x,y:lanternLight.y},true);
+    drawHeroLit(ctx,HERO,cxC,cyC,sc,amb,lights,false,false);
+    if(eyes) drawEmissive(ctx,HERO,cxC,cyC,sc,1.0);
+    if(lantern){ // lámpás láng (emissive folt)
+      ctx.globalCompositeOperation="lighter";
+      var fl=1+Math.sin(t*16)*0.15;
+      var gr=ctx.createRadialGradient(lanternLight.x,lanternLight.y,0,lanternLight.x,lanternLight.y,14*fl);
+      gr.addColorStop(0,"rgba(255,210,120,0.95)"); gr.addColorStop(0.5,"rgba(255,160,60,0.5)"); gr.addColorStop(1,"rgba(255,160,60,0)");
+      ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(lanternLight.x,lanternLight.y,14*fl,0,TAU); ctx.fill();
+      ctx.fillStyle="#ffe08a"; ctx.fillRect(lanternLight.x-1,lanternLight.y-2,2,4);
+      ctx.globalCompositeOperation="source-over";
+    }
+    val.textContent=(0.02+lv*0.5).toFixed(2);
+  }
+  sl.addEventListener("input", function(){ if(reduceMotion) frame(0); });
+  bEyes.addEventListener("click", function(){ eyes=!eyes; bEyes.classList.toggle("active",eyes); if(reduceMotion) frame(0); });
+  bLant.addEventListener("click", function(){ lantern=!lantern; bLant.classList.toggle("active",lantern); if(reduceMotion) frame(0); });
+  if(reduceMotion){ frame(0.5); return; }
+  var t0=null; (function loop(now){ if(t0===null)t0=now; frame((now-t0)/1000); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   8) DROP SHADOW demó
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("shadowCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var world=floorWorld(Math.ceil(cv.width/T)-1, Math.ceil(cv.height/T)-1);
+  var base=baseCanvas(world);
+  var amb={rgb:[0.55,0.6,0.8], level:0.32};
+  var bOn=document.getElementById("shOn"), bSoft=document.getElementById("shSoft");
+  var on=true, soft=true, mx=cv.width*0.5, my=40, has=false, sc=6.5;
+  var light={kind:"radial", x:mx, y:my, radius:360, intensity:1.4, color:[1.0,0.92,0.7]};
+  function frame(t){
+    if(!has){ light.x=cv.width*0.5+Math.cos(t*0.7)*150; light.y=70+Math.sin(t*0.9)*40; }
+    else { light.x=mx; light.y=my; }
+    var cxC=cv.width*0.5, cyC=cv.height*0.5, feetY=cyC+HERO.H*sc/2;
+    renderFloorLit(ctx,base,[light],amb,true);
+    if(on) drawShadow(ctx,cxC,feetY,light,soft);
+    drawHeroLit(ctx,HERO,cxC,cyC,sc,amb,[light],true,false);
+    drawEmissive(ctx,HERO,cxC,cyC,sc,0.6);
+    ctx.fillStyle="#e8d24a"; ctx.beginPath(); ctx.arc(light.x,light.y,4,0,TAU); ctx.fill();
+  }
+  bOn.addEventListener("click", function(){ on=!on; bOn.classList.toggle("active",on); bOn.textContent="▦ árnyék: "+(on?"BE":"KI"); if(reduceMotion) frame(0); });
+  bSoft.addEventListener("click", function(){ soft=!soft; bSoft.classList.toggle("active",soft); bSoft.textContent=soft?"◠ lágy szél":"▭ kemény"; if(reduceMotion) frame(0); });
+  function setM(e){ var r=cv.getBoundingClientRect(); mx=(e.clientX-r.left)*(cv.width/r.width); my=(e.clientY-r.top)*(cv.height/r.height); has=true; }
+  cv.addEventListener("pointermove", setM);
+  cv.addEventListener("pointerleave", function(){ has=false; });
+  if(reduceMotion){ frame(0.5); return; }
+  var t0=null; (function loop(now){ if(t0===null)t0=now; frame((now-t0)/1000); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   9) CAPSTONE — minden együtt, interaktív
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("entPlay"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var world=floorWorld(Math.ceil(cv.width/T)-1, Math.ceil(cv.height/T)-1);
+  var base=baseCanvas(world);
+  var amb={rgb:[0.36,0.44,0.9], level:0.03};
+  var sc=6.5;
+  var player={x:cv.width*0.5, y:cv.height*0.6};
+  var mx=player.x, my=player.y, has=false;
+  var enemy={x:cv.width*0.72, y:cv.height*0.34};
+  var orb={x:cv.width*0.2, y:cv.height*0.32};
+  var torch={kind:"radial", x:0, y:0, radius:150, intensity:1.8, color:[1.0,0.72,0.38], height:55};
+  var orbLight={kind:"radial", x:orb.x, y:orb.y, radius:70, intensity:1.1, color:[1.0,0.82,0.3], height:40};
+  function frame(t){
+    if(has){ player.x+=(mx-player.x)*0.12; player.y+=(my-player.y)*0.12; }
+    torch.x=player.x+10; torch.y=player.y-6;
+    torch.intensity=1.75+Math.sin(t*15)*0.14+Math.sin(t*37)*0.09;
+    var lights=[torch, orbLight];
+    renderFloorLit(ctx,base,lights,amb,true);
+    // árnyékok (a fáklyához viszonyítva)
+    drawShadow(ctx,enemy.x,enemy.y+HERO.H*sc/2,torch,true);
+    drawShadow(ctx,player.x,player.y+HERO.H*sc/2,{x:torch.x,y:torch.y-30},true);
+    // tárgy (emissive orb)
+    ctx.globalCompositeOperation="lighter";
+    var og=ctx.createRadialGradient(orb.x,orb.y,0,orb.x,orb.y,16);
+    og.addColorStop(0,"rgba(255,225,110,0.95)"); og.addColorStop(1,"rgba(255,210,60,0)");
+    ctx.fillStyle=og; ctx.beginPath(); ctx.arc(orb.x,orb.y,16,0,TAU); ctx.fill();
+    ctx.globalCompositeOperation="source-over";
+    ctx.fillStyle="#fff0b0"; ctx.beginPath(); ctx.arc(orb.x,orb.y,4,0,TAU); ctx.fill();
+    // entitások (normal-map-pel)
+    drawHeroLit(ctx,ENEMY,enemy.x,enemy.y,sc,amb,lights,true,false);
+    drawEmissive(ctx,ENEMY,enemy.x,enemy.y,sc,0.5);
+    drawHeroLit(ctx,HERO,player.x,player.y,sc,amb,lights,true,false);
+    drawEmissive(ctx,HERO,player.x,player.y,sc,0.9);
+    // fáklya ragyogás
+    ctx.globalCompositeOperation="lighter";
+    var gr=ctx.createRadialGradient(torch.x,torch.y,0,torch.x,torch.y,15);
+    gr.addColorStop(0,"rgba(255,200,120,0.8)"); gr.addColorStop(1,"rgba(255,200,120,0)");
+    ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(torch.x,torch.y,15,0,TAU); ctx.fill();
+    ctx.globalCompositeOperation="source-over";
+  }
+  function setM(e){ var r=cv.getBoundingClientRect(); mx=(e.clientX-r.left)*(cv.width/r.width); my=(e.clientY-r.top)*(cv.height/r.height); has=true; }
+  cv.addEventListener("pointermove", setM);
+  if(reduceMotion){ has=true; mx=player.x; my=player.y; frame(0.5); return; }
+  var t0=null; (function loop(now){ if(t0===null)t0=now; frame((now-t0)/1000); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   10) Rust szintaxis-kiemelő
+   ===================================================================== */
+var KW=/\b(?:fn|let|mut|use|struct|enum|impl|const|pub|return|if|else|for|in|while|loop|match|as|mod|crate|self|Self|true|false|move|ref|static|dyn|where|name|version|edition)\b/;
+var TOKEN=new RegExp(
+  "(\\/\\/[^\\n]*)"+"|(#!?\\[[^\\]]*\\])"+"|(\"(?:[^\"\\\\]|\\\\.)*\")"+
+  "|([A-Za-z_][A-Za-z0-9_]*!)"+"|("+KW.source.slice(2,-2)+")"+
+  "|(\\b[A-Z][A-Za-z0-9_]*\\b)"+"|(\\b\\d[\\d_]*(?:\\.\\d+)?\\b)","g");
+var CLS=[null,"c","m","s","m","k","t","n"];
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+document.querySelectorAll("pre code").forEach(function(code){
+  var src=code.textContent, out="", last=0, m; TOKEN.lastIndex=0;
+  while((m=TOKEN.exec(src))){
+    out+=esc(src.slice(last,m.index));
+    for(var gi=1;gi<=7;gi++) if(m[gi]!==undefined){ out+='<span class="'+CLS[gi]+'">'+esc(m[gi])+"</span>"; break; }
+    last=m.index+m[0].length;
+  }
+  out+=esc(src.slice(last)); code.innerHTML=out;
+});
+
+/* =====================================================================
+   11) Másolás gombok
+   ===================================================================== */
+document.querySelectorAll(".copy-btn").forEach(function(btn){
+  btn.addEventListener("click", function(){
+    var code=btn.closest(".code").querySelector("pre"); var txt=code.textContent;
+    function done(){ btn.textContent="✓ másolva"; setTimeout(function(){btn.textContent="másolás";},1500); }
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done); }
+    else{ var ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); done(); }
+  });
+});
+
+/* =====================================================================
+   12) Scrollspy + mobil menü
+   ===================================================================== */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){ var pos=window.scrollY+140, active=0;
+  for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i;
+  links.forEach(function(a,i){a.classList.toggle("active",i===active);}); }
+window.addEventListener("scroll",spy,{passive:true}); spy();
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>
