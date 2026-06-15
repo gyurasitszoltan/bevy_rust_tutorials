@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scene-váltás Bevyben: States, átmenetek, plugin-elrendezés · Bevy 0.18 tutorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13; --bg-deep:#0b110c; --panel:#1a241b; --panel-2:#162017;
+  --ink:#e9e3cd; --muted:#9caa90;
+  --grass:#7ecb52; --grass-hi:#a5e87d; --grass-dk:#4e8f33;
+  --dirt:#c99c66; --dirt-dk:#9a6e43; --water:#6cc8d9; --stone:#9aa0aa;
+  --concrete:#cacac3; --lava:#ff7a3c; --ice:#bfe0f0;
+  --line:#2d3b2c; --line-hi:#41543e; --code-bg:#0c120d; --shadow:rgba(0,0,0,.45);
+  --kw:#ff9d5c; --ty:#8fd8e8; --fnc:#a5e87d; --str:#e8c878; --cmt:#6d7c64; --mac:#d8a0e8; --num:#f0b8a0;
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px)}
+::selection{background:var(--grass-dk);color:#fff}
+
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--bg-deep);border-right:3px solid var(--line);overflow-y:auto;z-index:30;padding:22px 0 40px}
+.sidebar::-webkit-scrollbar{width:8px}.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px}
+.logo .title{font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15}
+.logo .sub{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em}
+.logo .badge{display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;box-shadow:2px 2px 0 var(--shadow)}
+.logo .badge.pro{background:var(--lava);color:#1a0d06;margin-left:6px}
+.nav-part{font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);padding:16px 20px 6px;text-transform:uppercase}
+.nav a{display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;font-size:14px;position:relative;border-left:4px solid transparent;transition:color .12s,background .12s}
+.nav a::before{content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);transition:opacity .12s,left .12s}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{color:var(--grass-hi);background:rgba(126,203,82,.10);border-left-color:var(--grass);font-weight:600}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;background:var(--grass);color:#10180f;border:none;padding:8px 14px;box-shadow:3px 3px 0 var(--shadow);text-decoration:none;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+.menu-toggle{display:none;position:fixed;top:14px;left:14px;z-index:40;font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;background:var(--panel);color:var(--ink);border:3px solid var(--line);box-shadow:3px 3px 0 var(--shadow)}
+
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-family:"Pixelify Sans";font-weight:700;font-size:clamp(34px,5.2vw,54px);line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px}
+.hero h1 .g{color:var(--grass-hi)}.hero h1 .d{color:var(--dirt)}.hero h1 .l{color:var(--lava)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{border:3px solid var(--line);background:var(--bg-deep);padding:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow)}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6}
+.hero-strip .cap b{color:var(--grass)}
+
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);text-transform:uppercase}
+.ch-eyebrow{font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);text-transform:uppercase;margin-bottom:8px}
+h2{font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);margin:34px 0 12px}
+p{margin-bottom:14px}p+p{margin-top:2px}
+strong{color:#fff}em{color:var(--dirt)}a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}li{margin-bottom:7px}
+code:not(pre code){font-family:"IBM Plex Mono";font-size:.86em;background:var(--code-bg);color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+
+.code{margin:22px 0;border:3px solid var(--line);background:var(--code-bg);box-shadow:4px 4px 0 var(--shadow)}
+.code-head{display:flex;justify-content:space-between;align-items:center;background:var(--panel);border-bottom:3px solid var(--line);padding:7px 12px}
+.code-head .fname{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--dirt);letter-spacing:.05em}
+.copy-btn{font-family:"Pixelify Sans";font-size:12.5px;cursor:pointer;background:transparent;color:var(--muted);border:2px solid var(--line-hi);padding:2px 9px;transition:all .1s}
+.copy-btn:hover{color:var(--grass-hi);border-color:var(--grass)}
+.code pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13.5px;line-height:1.62}
+.code pre::-webkit-scrollbar{height:8px}.code pre::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.k{color:var(--kw)}.t{color:var(--ty)}.f{color:var(--fnc)}.s{color:var(--str)}.c{color:var(--cmt);font-style:italic}.m{color:var(--mac)}.n{color:var(--num)}
+
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--grass)}.diagram pre .di{color:var(--dirt)}.diagram pre .wa{color:var(--water)}.diagram pre .st{color:var(--stone)}.diagram pre .lv{color:var(--lava)}.diagram pre .mu{color:var(--muted)}.diagram pre .yl{color:#e8d24a}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+
+.bevy-box{margin:24px 0;border:3px solid #2a4a52;background:#0d181b;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.bevy-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.bevy-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.bevy-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.bevy-box ul{font-size:15px;color:#cfdbd5}
+
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--grass);margin-bottom:4px}
+.note.warn .n-tag{color:var(--dirt)}
+
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+
+.playground{margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);border-bottom:3px solid var(--grass-dk);padding:10px 14px}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em}
+.playground .pg-body{padding:16px;display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#000;touch-action:none;max-width:100%}
+.playground .pg-side{flex:1;min-width:230px;font-size:14px;color:var(--muted)}
+.pg-controls{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+.stat{font-family:"IBM Plex Mono";font-size:13px;color:var(--grass-hi)}
+.slider-row{display:flex;align-items:center;gap:10px;margin:6px 0;font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted)}
+.slider-row input[type=range]{flex:1;accent-color:var(--grass)}
+.slider-row .val{color:var(--grass-hi);min-width:64px;text-align:right}
+.wbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:4px 11px;transition:all .1s}
+.wbtn:hover{color:var(--ink)}
+.wbtn.active{background:var(--water);color:var(--bg-deep);border-color:var(--water)}
+.crumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0;font-family:"IBM Plex Mono";font-size:12px}
+.crumb{background:var(--panel);border:2px solid var(--line-hi);color:var(--muted);padding:2px 9px}
+.crumb.cur{background:var(--grass);color:#10180f;border-color:var(--grass);font-weight:600}
+.crumb.arr{border:none;background:none;color:var(--dirt);padding:0 1px}
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--dirt);letter-spacing:.06em;margin:12px 0 2px;text-transform:uppercase}
+
+footer{margin-top:90px;border-top:3px solid var(--line);padding-top:24px;font-size:13.5px;color:var(--muted)}
+footer .pix{font-family:"Pixelify Sans";color:var(--grass);font-size:15px}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}.menu-toggle{display:block}.main{margin-left:0}.wrap{padding:0 20px 100px}.hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">SCENE-<br>VÁLTÁS</div>
+    <div class="sub">States · átmenetek · plugin-elrendezés · Rust</div>
+    <span class="badge">BEVY 0.18</span><span class="badge pro">ARCH</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I. rész — Elmélet</div>
+    <a href="#ch1">1 · Mi az a „scene”?</a>
+    <a href="#ch2">2 · Állapotgép: csúcsok &amp; átmenetek</a>
+    <a href="#ch3">3 · Hub &amp; vissza-navigáció</a>
+    <a href="#ch4">4 · Átmenetek: a fade</a>
+    <a href="#ch5">5 · Adat a scene-k közt</a>
+    <div class="nav-part">II. rész — Architektúra</div>
+    <a href="#ch6">6 · Egy scene = egy plugin</a>
+    <a href="#ch7">7 · File-elrendezés &amp; PluginGroup</a>
+    <div class="nav-part">III. rész — Implementáció</div>
+    <a href="#ch8">8 · A Scene állapot + mag-plugin</a>
+    <a href="#ch9">9 · Az átmenet-plugin (fade)</a>
+    <a href="#ch10">10 · Egy scene-plugin (Intro)</a>
+    <a href="#ch11">11 · A főmenü (hub) + navigáció</a>
+    <a href="#ch12">12 · Pálya-scene-ek + vissza</a>
+    <a href="#ch13">13 · A teljes main.rs + file-fa</a>
+    <a href="#ch14">14 · Merre tovább?</a>
+  </nav>
+  <div class="dl-box">
+    <p>A folyam: <span class="mono">intro → főmenü → 1.pálya → főmenü → 2.pálya …</span> — a főmenü a <strong>hub</strong>, ahonnan a pályák nyílnak, és ahová a „vissza” visszavisz.</p>
+    <a class="btn secondary" href="#ch13">A teljes main.rs ▸</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// folytatás-tutorial · scene-architektúra + plugin-elrendezés · magyar nyelven</div>
+  <h1>Scene-ek közötti <span class="g">váltás</span> — tisztán, <span class="d">fade-del</span></h1>
+  <p class="lead">Hogyan vált a játékod <strong>intro → főmenü → pálya → vissza a menübe → másik pálya</strong> között? A Bevyben minden scene egy <strong>állapot</strong> (State), minden scene egy <strong>plugin</strong>, az átmenet egy <strong>fade</strong>, az adatot pedig vagy <strong>megőrizzük</strong> (resource), vagy <strong>eldobjuk</strong> (scene-höz kötött entitás). Megnézzük az adatstruktúrát ÉS a file/plugin-elrendezést is.</p>
+  <div class="hero-strip">
+    <canvas id="sceneHero" width="384" height="176" style="width:560px;height:257px"></canvas>
+    <div class="cap">↑ Élő minta: a játék <b>magától</b> körbejárja a folyamot — intro, főmenü, pályák — és minden váltásnál <b>feketén át</b> úszik (fade). Lent a jelenlegi scene neve.</div>
+  </div>
+</header>
+
+<!-- I. RÉSZ -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Elmélet</span></div>
+
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>Mi az a „scene”?</h2>
+  <p>A „scene” (jelenet) a játék <strong>aktuális üzemmódja</strong>: az intro, a főmenü, egy pálya, a beállítások, a game-over képernyő. Egyszerre általában <em>egy</em> aktív (a pause kivétel — arról a 14. fejezet). A váltás lényege: a régi scene <strong>lebomlik</strong>, az új <strong>felépül</strong>.</p>
+  <p>Bevyben ezt nem kézzel csináljuk, hanem egy <strong>állapotgéppel</strong> (State). Minden scene az állapot egy értéke; a Bevy adja a „belépéskor építsd fel / kilépéskor bontsd le” horgokat. Ez tisztán elválasztja a scene-eket egymástól.</p>
+  <div class="diagram">
+    <div class="d-head">⊞ A példa-folyam: hub-and-spoke</div>
+    <pre>
+        <span class="yl">Intro</span>
+          │ (vége / Space)
+          ▼
+        <span class="gr">Főmenü</span> ◀────────────┐  ◀────────────┐   &lt;- a HUB
+        │   │                │               │
+   „1.pálya”│ „2.pálya”      │ vissza        │ vissza
+        ▼   ▼                │               │
+   <span class="wa">1. pálya</span>  <span class="lv">2. pálya</span> ───────────┘───────────────┘</pre>
+    <div class="d-cap">A főmenü a <strong>hub</strong>: innen nyílnak a pályák, és a „vissza” mindig ide hoz. A pályák nem tudnak közvetlenül egymásba ugrani — a menün át vezet az út.</div>
+  </div>
+  <p>Három dolgot kell megoldani, és a tutorial ezekre épül: <strong>(1)</strong> az állapotgép, <strong>(2)</strong> a sima átmenet (fade), <strong>(3)</strong> az adat sorsa váltáskor — plusz a <strong>kód elrendezése</strong>, hogy ez ne fajuljon spagettivé.</p>
+</section>
+
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>Állapotgép: csúcsok &amp; átmenetek</h2>
+  <p>Az állapotgép <strong>csúcsai</strong> a scene-ek, az <strong>élei</strong> a megengedett átmenetek. Bevyben a csúcsok egy <code>enum</code> változatai, és három horogra dolgozunk:</p>
+  <ul>
+    <li><code>OnEnter(scene)</code> — egyszer fut, amikor <em>belépünk</em>: itt építjük fel a scene-t (spawn).</li>
+    <li><code>OnExit(scene)</code> — egyszer fut, amikor <em>kilépünk</em>: itt bontjuk le (despawn).</li>
+    <li><code>Update.run_if(in_state(scene))</code> — minden frame, de <em>csak</em> abban a scene-ben: a scene logikája.</li>
+  </ul>
+  <p>Kattints egy csúcsra a váltáshoz, és figyeld, mely horgok futnak le:</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — állapotgép</span></div>
+    <div class="pg-body">
+      <canvas id="fsmCanvas" width="416" height="240" style="width:560px"></canvas>
+      <div class="pg-side">
+        <p>A kiemelt csúcs az <strong>aktív</strong> scene. A nyilak a tervezett átmenetek (a menü a hub).</p>
+        <p style="margin-top:10px" class="stat" id="fsmLog">— válassz egy scene-t —</p>
+        <p style="margin-top:10px">Kattints bármely csúcsra: lefut az <code>OnExit(régi)</code>, majd az <code>OnEnter(új)</code>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>Hub &amp; vissza-navigáció</h2>
+  <p>A „vissza” gomb a klasszikus fejtörő: honnan tudja a pálya, hová térjen vissza? Két megközelítés:</p>
+  <ul>
+    <li><strong>Fix hub:</strong> a „vissza” mindig a <em>főmenübe</em> visz (<code>nav.go(Scene::MainMenu)</code>). Egyszerű, és a legtöbb játéknak pont ez kell.</li>
+    <li><strong>Navigációs verem (stack):</strong> minden váltáskor <em>betesszük</em> a régi scene-t egy verembe; a „vissza” <em>kiveszi</em> a tetejét. Így tetszőleges mélységű visszalépés működik (menü → beállítások → hang → vissza → vissza).</li>
+  </ul>
+  <p>A verem maga az <strong>adatstruktúra</strong>, amit a kérdés igényel: egy <code>Vec&lt;Scene&gt;</code>. Próbáld ki — navigálj, és nézd, ahogy a verem nő/fogy:</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — navigációs verem</span></div>
+    <div class="pg-body">
+      <canvas id="navCanvas" width="320" height="200" style="width:380px"></canvas>
+      <div class="pg-side">
+        <div class="pg-controls">
+          <button class="wbtn" data-nav="intro">Intro</button>
+          <button class="wbtn" data-nav="main">Főmenü</button>
+          <button class="wbtn" data-nav="scene1">1. pálya</button>
+          <button class="wbtn" data-nav="scene2">2. pálya</button>
+        </div>
+        <div class="pg-controls"><button class="btn secondary" id="navBack" style="font-size:13px;padding:6px 12px">◂ Vissza</button></div>
+        <div class="ctl-label">history: Vec&lt;Scene&gt;</div>
+        <div class="crumbs" id="navCrumbs"></div>
+        <p style="margin-top:6px" class="stat" id="navNow">aktív: —</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>Átmenetek: a fade</h2>
+  <p>A nyers állapotváltás <em>azonnali</em> — egyik frame-en intro, a másikon menü. Ez rángat. A <strong>fade</strong> (átúszás feketén) elsimítja, és időt is ad a háttérben az új scene betöltésére. A trükk: <strong>három fázis</strong>.</p>
+  <div class="diagram">
+    <div class="d-head">⊞ A fade három fázisa</div>
+    <pre>
+   <span class="gr">régi scene</span>          FEKETE          <span class="wa">új scene</span>
+   alpha 0 ──► 1   │   itt VÁLTUNK   │   alpha 1 ──► 0
+   <span class="mu">kiúszás (Out)</span>   │  (NextState set) │   <span class="mu">beúszás (In)</span></pre>
+    <div class="d-cap">A váltás (<code>NextState</code>) pont a <strong>fekete csúcson</strong> történik — így a néző sosem látja a „vágást”. Húzd a csúszkát, hogy lásd a fázisokat.</div>
+  </div>
+  <p>Fontos elv: a kérést (<em>„menjünk a menübe”</em>) <strong>szétválasztjuk</strong> az animációtól. A gomb csak beállít egy <em>kérést</em>; a fade-rendszer intézi a kiúszás → váltás → beúszás koreográfiát. Így minden gomb egyformán, fade-del vált.</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — fade-átmenet</span></div>
+    <div class="pg-body">
+      <canvas id="fadeCanvas" width="384" height="176" style="width:520px"></canvas>
+      <div class="pg-side">
+        <p>Átmenet a <strong>főmenüből</strong> az <strong>1. pályára</strong>.</p>
+        <div class="slider-row"><span>Idő</span><input type="range" id="fadeScrub" min="0" max="1000" value="0"><span class="val" id="fadePhase">—</span></div>
+        <div class="pg-controls"><button class="wbtn active" id="fadePlay">⏸ Pause</button></div>
+        <p style="margin-top:8px">A váltás a fekete csúcson történik (a csúszka közepén). Előtte a régi, utána az új scene.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Adat a scene-k közt</h2>
+  <p>Váltáskor a legfontosabb döntés: mi <strong>marad</strong>, és mi <strong>tűnik el</strong>? Három eszköz:</p>
+  <table>
+    <tr><th>Eszköz</th><th>Élettartam</th><th>Mire</th></tr>
+    <tr><td><strong>Perzisztens <code>Resource</code></strong></td><td>Az egész játék alatt él</td><td>Pontszám, érmék, feloldott pályák, beállítások — ami <em>átível</em> a scene-eken</td></tr>
+    <tr><td><strong>Scene-höz kötött entitás</strong><br>(<code>DespawnOnExit</code>)</td><td>Csak az adott scene-ben</td><td>A pálya tile-jai, ellenfelei, a menü gombjai — kilépéskor <em>maguktól</em> despawnolnak</td></tr>
+    <tr><td><strong>Paraméter-<code>Resource</code></strong></td><td>Belépés előtt beállítva</td><td>„Melyik pályát töltsd?” — a menü beállít egy <code>LevelConfig</code>-ot, a pálya <code>OnEnter</code>-je olvassa</td></tr>
+  </table>
+  <p>A demóban a <strong>pontszám</strong> egy perzisztens resource (átível a váltásokon), a <strong>scene-entitások</strong> viszont minden váltáskor eltűnnek és újraépülnek. Növeld a pontot, majd válts scene-t:</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — mi marad, mi tűnik el?</span></div>
+    <div class="pg-body">
+      <canvas id="dataCanvas" width="384" height="160" style="width:520px"></canvas>
+      <div class="pg-side">
+        <p class="stat" id="dataScoreEl">pontszám (Resource): 0</p>
+        <div class="pg-controls">
+          <button class="wbtn" id="dataAdd">+10 pont</button>
+          <button class="btn secondary" id="dataSwitch" style="font-size:13px;padding:6px 12px">Scene-váltás</button>
+        </div>
+        <p style="margin-top:10px"><span class="pg-chip" style="background:#7ecb52;display:inline-block;width:12px;height:12px;vertical-align:-1px;margin-right:5px;border:2px solid var(--line)"></span>scene-höz kötött entitások</p>
+        <p style="margin-top:6px">Váltáskor a zöld pöttyök (entitások) <strong>despawnolnak</strong> és újraépülnek — a pontszám viszont <strong>megmarad</strong>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- II. RÉSZ -->
+<div class="part-divider"><span class="pd-label">█ II. rész — Architektúra (file/plugin)</span></div>
+
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Egy scene = egy plugin</h2>
+  <p>A kulcsdöntés az elrendezéshez: <strong>minden scene egy önálló plugin</strong>. A plugin <code>build</code> metódusa regisztrálja az adott scene <em>összes</em> rendszerét (OnEnter, OnExit, Update). Így egy scene mindene <strong>egy fájlban</strong>, egy helyen él — hozzáadni/elvenni egy sor.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/scene/intro.rs — egy scene-plugin váza</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use crate::scene::Scene;
+
+pub struct IntroPlugin;
+
+impl Plugin for IntroPlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app
+            // belépéskor felépül:
+            .add_systems(OnEnter(Scene::Intro), setup_intro)
+            // csak az Intro alatt fut a logikája:
+            .add_systems(Update, advance_intro.run_if(in_state(Scene::Intro)));
+        // a lebontás automatikus: a spawnolt entitásokra DespawnOnExit kerül
+    }
+}</code></pre>
+  </div>
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — Plugin</div>
+    <p>A <code>Plugin</code> egy újrahasználható csomag rendszerekből/erőforrásokból. A <code>build(&amp;self, app)</code>-ban ugyanúgy hívhatsz <code>add_systems</code>-ot, <code>init_resource</code>-ot, mint a <code>main</code>-ben. A lényeg a <strong>kohézió</strong>: az „Intro” minden viselkedése az <code>IntroPlugin</code>-ban van, nem szétszórva a <code>main</code>-ben.</p>
+  </div>
+</section>
+
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>File-elrendezés &amp; PluginGroup</h2>
+  <p>A fájlokat a scene-ek köré szervezzük. A közös dolgok (a <code>Scene</code> enum, a navigáció, az átmenet) a <code>scene/mod.rs</code>-be kerülnek; minden scene a saját fájljába.</p>
+  <div class="diagram">
+    <div class="d-head">⊞ A projekt fa</div>
+    <pre>
+  src/
+  ├─ <span class="yl">main.rs</span>              App + DefaultPlugins + <span class="gr">ScenesPlugin</span>
+  ├─ <span class="wa">shared.rs</span>            perzisztens erőforrások (GameProgress, LevelConfig)
+  └─ scene/
+     ├─ <span class="gr">mod.rs</span>            Scene enum · SceneNav · SceneCorePlugin · <span class="gr">ScenesPlugin</span>
+     ├─ transition.rs      TransitionPlugin (fade)  + Fade
+     ├─ intro.rs           <span class="di">IntroPlugin</span>
+     ├─ main_menu.rs       <span class="di">MainMenuPlugin</span>   (a hub)
+     ├─ scene1.rs          <span class="di">Scene1Plugin</span>
+     └─ scene2.rs          <span class="di">Scene2Plugin</span></pre>
+    <div class="d-cap">Új pálya = új fájl + egy sor a <code>ScenesPlugin</code>-ban. A <code>main.rs</code> rövid marad.</div>
+  </div>
+  <p>A scene-pluginokat egyetlen <strong><code>PluginGroup</code></strong>-ba kötjük, így a <code>main</code> egyetlen sorral hozzáadja mindet:</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/scene/mod.rs — a PluginGroup</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::app::PluginGroupBuilder;
+use bevy::prelude::*;
+
+mod transition; mod intro; mod main_menu; mod scene1; mod scene2;
+
+pub struct ScenesPlugin;
+
+impl PluginGroup for ScenesPlugin {
+    fn build(self) -&gt; PluginGroupBuilder {
+        PluginGroupBuilder::start::&lt;Self&gt;()
+            .add(SceneCorePlugin)                 // a Scene állapot + közös erőforrások
+            .add(transition::TransitionPlugin)    // a fade
+            .add(intro::IntroPlugin)
+            .add(main_menu::MainMenuPlugin)
+            .add(scene1::Scene1Plugin)
+            .add(scene2::Scene2Plugin)            // &lt;- új pálya csak ide kerül
+    }
+}</code></pre>
+  </div>
+  <div class="note">
+    <div class="n-tag">▲ PluginGroup vs Plugin</div>
+    A <code>Plugin</code> <em>egy</em> csomag; a <code>PluginGroup</code> pluginok <em>rendezett gyűjteménye</em> (mint a <code>DefaultPlugins</code>). A scene-eknek a group a jó, mert így a <code>main</code> nem tud minden scene-ről külön — csak a gyűjteményről.
+  </div>
+</section>
+
+<!-- III. RÉSZ -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Implementáció</span></div>
+
+<section id="ch8">
+  <div class="ch-eyebrow">8. fejezet</div>
+  <h2>A Scene állapot + mag-plugin</h2>
+  <p>A <code>Scene</code> enum a csúcsok halmaza. A <code>SceneCorePlugin</code> regisztrálja az állapotot és a közös erőforrásokat: a navigációt és a perzisztens játékadatot.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/scene/mod.rs — állapot + nav + mag-plugin</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">// fieldless enum -&gt; Copy is mehet; States kell a Bevy állapotgéphez
+#[derive(States, Default, Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Scene {
+    #[default]
+    Intro,
+    MainMenu,   // a HUB
+    Scene1,
+    Scene2,
+}
+
+/// A navigáció adatstruktúrája: hova kérünk átmenetet + a vissza-verem.
+#[derive(Resource, Default)]
+pub struct SceneNav {
+    pub request: Option&lt;(Scene, bool)&gt;,  // (cél, vissza-lépés-e)
+    pub history: Vec&lt;Scene&gt;,             // a meglátogatott scene-ek verme
+}
+impl SceneNav {
+    pub fn go(&amp;mut self, to: Scene) { self.request = Some((to, false)); }
+    pub fn back(&amp;mut self) {
+        if let Some(&amp;prev) = self.history.last() {
+            self.request = Some((prev, true));
+        }
+    }
+}
+
+pub struct SceneCorePlugin;
+impl Plugin for SceneCorePlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app.init_state::&lt;Scene&gt;()                 // regisztrálja az állapotgépet
+           .init_resource::&lt;SceneNav&gt;()
+           .add_systems(Startup, spawn_camera);
+    }
+}
+
+fn spawn_camera(mut commands: Commands) { commands.spawn(Camera2d); }</code></pre>
+  </div>
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — init_state, NextState, in_state</div>
+    <p>Az <code>init_state::&lt;Scene&gt;()</code> létrehozza az állapotgépet a <code>#[default]</code> változattal indulva. Az aktuális állapotot a <code>Res&lt;State&lt;Scene&gt;&gt;</code> (<code>.get()</code>), a váltást a <code>ResMut&lt;NextState&lt;Scene&gt;&gt;</code> (<code>.set(..)</code>) adja. A <code>run_if(in_state(..))</code> egy rendszert csak az adott állapotban enged futni.</p>
+  </div>
+</section>
+
+<section id="ch9">
+  <div class="ch-eyebrow">9. fejezet</div>
+  <h2>Az átmenet-plugin (fade)</h2>
+  <p>A <code>TransitionPlugin</code> egy teljes képernyős fekete fátylat spawnol, és egy rendszerrel vezeti a három fázist. A <code>SceneNav.request</code> a bemenete; a <code>NextState</code> beállítása pont a <strong>fekete csúcson</strong> történik.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/scene/transition.rs</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use crate::scene::{Scene, SceneNav};
+
+#[derive(Resource)]
+struct Fade { alpha: f32, phase: Phase }
+impl Default for Fade {
+    // induláskor fekete + beúszás, hogy az első scene is szépen ússzon be
+    fn default() -&gt; Self { Self { alpha: 1.0, phase: Phase::In } }
+}
+#[derive(Default, PartialEq)]
+enum Phase { #[default] Idle, Out, In }
+
+#[derive(Component)]
+struct FadeOverlay;
+
+pub struct TransitionPlugin;
+impl Plugin for TransitionPlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app.init_resource::&lt;Fade&gt;()
+           .add_systems(Startup, spawn_overlay)
+           .add_systems(Update, drive_transition);
+    }
+}
+
+fn spawn_overlay(mut commands: Commands) {
+    commands.spawn((
+        FadeOverlay,
+        Node { position_type: PositionType::Absolute,
+               width: Val::Percent(100.0), height: Val::Percent(100.0), ..default() },
+        BackgroundColor(Color::BLACK),
+        GlobalZIndex(1000),     // minden fölött
+    ));
+}
+
+fn drive_transition(
+    time: Res&lt;Time&gt;,
+    mut nav: ResMut&lt;SceneNav&gt;,
+    mut fade: ResMut&lt;Fade&gt;,
+    state: Res&lt;State&lt;Scene&gt;&gt;,
+    mut next: ResMut&lt;NextState&lt;Scene&gt;&gt;,
+    mut overlay: Query&lt;&amp;mut BackgroundColor, With&lt;FadeOverlay&gt;&gt;,
+) {
+    let speed = 2.5; // teljes fade ~0.4s
+    match fade.phase {
+        Phase::Idle =&gt; {
+            if nav.request.is_some() { fade.phase = Phase::Out; }
+        }
+        Phase::Out =&gt; {
+            fade.alpha = (fade.alpha + speed * time.delta_secs()).min(1.0);
+            if fade.alpha &gt;= 1.0 {
+                // FEKETÉNÉL alkalmazzuk a váltást + karbantartjuk a vermet
+                if let Some((to, is_back)) = nav.request.take() {
+                    if is_back { nav.history.pop(); }
+                    else { nav.history.push(*state.get()); }
+                    next.set(to);
+                }
+                fade.phase = Phase::In;
+            }
+        }
+        Phase::In =&gt; {
+            fade.alpha = (fade.alpha - speed * time.delta_secs()).max(0.0);
+            if fade.alpha &lt;= 0.0 { fade.phase = Phase::Idle; }
+        }
+    }
+    if let Ok(mut bg) = overlay.single_mut() {
+        bg.0 = bg.0.with_alpha(fade.alpha);
+    }
+}</code></pre>
+  </div>
+  <div class="note warn">
+    <div class="n-tag">⚠ Miért a fekete csúcson váltunk?</div>
+    Ha azonnal váltanánk (a fade előtt), a néző egy frame-re látná a „vágást”. A <code>NextState</code>-et a <code>Phase::Out</code> végén (alpha=1, teljes fekete) hívjuk — ekkor fut le a régi scene <code>OnExit</code>-je és az új <code>OnEnter</code>-je, mind a fátyol mögött, láthatatlanul.
+  </div>
+</section>
+
+<section id="ch10">
+  <div class="ch-eyebrow">10. fejezet</div>
+  <h2>Egy scene-plugin (Intro)</h2>
+  <p>Az <code>IntroPlugin</code> mutatja a teljes mintát: <code>OnEnter</code>-ben spawnolunk (mindenre <code>DespawnOnExit(Scene::Intro)</code>), az <code>Update</code> figyel, mikor lépjünk tovább — és a <code>SceneNav.go</code>-val kérünk fade-es átmenetet a hubba.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/scene/intro.rs</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use crate::scene::{Scene, SceneNav};
+
+pub struct IntroPlugin;
+impl Plugin for IntroPlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app.add_systems(OnEnter(Scene::Intro), setup_intro)
+           .add_systems(Update, advance_intro.run_if(in_state(Scene::Intro)));
+    }
+}
+
+#[derive(Component)] struct IntroTimer(Timer);
+
+fn setup_intro(mut commands: Commands) {
+    // a felirat / a parallax háttér ide jönne — minden DespawnOnExit-tel:
+    commands.spawn((
+        Text::new("A HOSSZÚ ÚT"),
+        TextFont { font_size: 56.0, ..default() },
+        Node { position_type: PositionType::Absolute,
+               top: Val::Percent(40.0), width: Val::Percent(100.0),
+               justify_content: JustifyContent::Center, ..default() },
+        DespawnOnExit(Scene::Intro),      // &lt;- kilépéskor magától eltűnik
+    ));
+    // 3 mp után megy tovább (a Timer is scene-höz kötött)
+    commands.spawn((IntroTimer(Timer::from_seconds(3.0, TimerMode::Once)), DespawnOnExit(Scene::Intro)));
+}
+
+fn advance_intro(
+    time: Res&lt;Time&gt;,
+    keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    mut nav: ResMut&lt;SceneNav&gt;,
+    mut q: Query&lt;&amp;mut IntroTimer&gt;,
+) {
+    let done = q.single_mut().map(|mut t| t.0.tick(time.delta()).finished()).unwrap_or(false);
+    if done || keys.just_pressed(KeyCode::Space) {
+        nav.go(Scene::MainMenu);   // fade-del a hubba
+    }
+}</code></pre>
+  </div>
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — DespawnOnExit</div>
+    <p>A <code>DespawnOnExit(Scene::X)</code> komponens egy entitásra téve azt mondja: „amint elhagyjuk az <code>X</code> állapotot, despawnolj”. Így a scene lebontása <strong>ingyen</strong> van — nem kell <code>OnExit</code>-ben kézzel törölgetni. (Korábbi Bevy-kben ez <code>StateScoped</code> volt.)</p>
+  </div>
+</section>
+
+<section id="ch11">
+  <div class="ch-eyebrow">11. fejezet</div>
+  <h2>A főmenü (hub) + navigáció</h2>
+  <p>A főmenü gombjai a <code>SceneNav</code>-on keresztül kérnek átmenetet. Egy gomb kattintását egy <strong>observer</strong> kapja el; pálya indításakor előbb beállítjuk a <em>paraméter-resource</em>-t (melyik pálya), majd <code>go</code>.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/scene/main_menu.rs</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use crate::scene::{Scene, SceneNav};
+use crate::shared::LevelConfig;
+
+pub struct MainMenuPlugin;
+impl Plugin for MainMenuPlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app.add_systems(OnEnter(Scene::MainMenu), setup_menu);
+    }
+}
+
+fn setup_menu(mut commands: Commands) {
+    commands.spawn((
+        Node { width: Val::Percent(100.0), height: Val::Percent(100.0),
+               flex_direction: FlexDirection::Column, justify_content: JustifyContent::Center,
+               align_items: AlignItems::Center, row_gap: Val::Px(14.0), ..default() },
+        DespawnOnExit(Scene::MainMenu),
+    )).with_children(|p| {
+        p.spawn((Text::new("FŐMENÜ"), TextFont { font_size: 48.0, ..default() }));
+        menu_button(p, "1. pálya", Scene::Scene1, 1, "Erdő");
+        menu_button(p, "2. pálya", Scene::Scene2, 2, "Barlang");
+    });
+}
+
+fn menu_button(p: &amp;mut ChildSpawnerCommands, label: &amp;str, to: Scene, level: u32, name: &amp;str) {
+    let name = name.to_string();
+    p.spawn((Button,
+        Node { width: Val::Px(200.0), height: Val::Px(48.0),
+               justify_content: JustifyContent::Center, align_items: AlignItems::Center, ..default() },
+        BackgroundColor(Color::srgb(0.12, 0.16, 0.12)),
+    ))
+    .with_child((Text::new(label), TextColor(Color::WHITE)))
+    // a kattintás: állítsd be a pályát, majd kérj fade-es átmenetet
+    .observe(move |_: On&lt;Pointer&lt;Click&gt;&gt;, mut commands: Commands, mut nav: ResMut&lt;SceneNav&gt;| {
+        commands.insert_resource(LevelConfig { id: level, name: name.clone() });
+        nav.go(to);
+    });
+}</code></pre>
+  </div>
+  <div class="note">
+    <div class="n-tag">▲ Paraméter-átadás scene-be</div>
+    A „melyik pályát?” kérdést egy <code>LevelConfig</code> resource hordozza: a menü <strong>beállítja</strong> váltás előtt, a pálya <code>OnEnter</code>-je <strong>kiolvassa</strong>. Így ugyanaz a <code>Scene1Plugin</code> akár több pálya-változatot is tölthet — az adat dönt, nem külön scene.
+  </div>
+</section>
+
+<section id="ch12">
+  <div class="ch-eyebrow">12. fejezet</div>
+  <h2>Pálya-scene-ek + vissza</h2>
+  <p>A pálya <code>OnEnter</code>-je kiolvassa a <code>LevelConfig</code>-ot, felépíti a pályát (mind <code>DespawnOnExit</code>), és olvas/ír a perzisztens <code>GameProgress</code>-ba. A „vissza” (Esc) a <code>SceneNav.back()</code>-kel a verem tetejére lép — ez a hub.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/scene/scene1.rs</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use crate::scene::{Scene, SceneNav};
+use crate::shared::{LevelConfig, GameProgress};
+
+pub struct Scene1Plugin;
+impl Plugin for Scene1Plugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app.add_systems(OnEnter(Scene::Scene1), setup_level)
+           .add_systems(Update, back_to_menu.run_if(in_state(Scene::Scene1)));
+    }
+}
+
+fn setup_level(mut commands: Commands, level: Option&lt;Res&lt;LevelConfig&gt;&gt;, mut progress: ResMut&lt;GameProgress&gt;) {
+    let name = level.map(|l| l.name.clone()).unwrap_or_else(|| "?".into());
+    progress.visits += 1;   // a perzisztens adat ÁTÍVEL a váltásokon
+
+    commands.spawn((
+        Text::new(format!("{name} — {}. látogatás", progress.visits)),
+        Node { position_type: PositionType::Absolute, top: Val::Px(20.0), left: Val::Px(20.0), ..default() },
+        DespawnOnExit(Scene::Scene1),   // a pálya kilépéskor lebomlik
+    ));
+    // ... a tényleges tilemap, játékos, ellenfelek — mind DespawnOnExit(Scene::Scene1)
+}
+
+fn back_to_menu(keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;, mut nav: ResMut&lt;SceneNav&gt;) {
+    if keys.just_pressed(KeyCode::Escape) {
+        nav.back();   // a verem tetejére = a hubba
+    }
+}</code></pre>
+  </div>
+  <p>A <code>Scene2Plugin</code> ugyanez a minta, más tartalommal. A <strong>perzisztens</strong> adat (<code>GameProgress</code>) a <code>shared.rs</code>-ben:</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/shared.rs — ami átível a scene-eken</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+#[derive(Resource, Default)]
+pub struct GameProgress { pub visits: u32, pub coins: u32 }
+
+#[derive(Resource)]
+pub struct LevelConfig { pub id: u32, pub name: String }</code></pre>
+  </div>
+</section>
+
+<section id="ch13">
+  <div class="ch-eyebrow">13. fejezet</div>
+  <h2>A teljes main.rs + file-fa</h2>
+  <p>A <code>main</code> így gyönyörűen rövid: a beépített pluginok mellé egyetlen sor a teljes scene-rendszer. A <code>GameProgress</code>-t itt vagy a mag-pluginban inicializáljuk.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — a teljes belépési pont</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+mod scene;     // a Scene enum, a ScenesPlugin, az összes scene-plugin
+mod shared;    // a perzisztens erőforrások
+
+use scene::ScenesPlugin;
+use shared::GameProgress;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .init_resource::&lt;GameProgress&gt;()   // perzisztens: végig él
+        .add_plugins(ScenesPlugin)         // &lt;- az EGÉSZ scene-rendszer egy sorban
+        .run();
+}</code></pre>
+  </div>
+  <div class="diagram">
+    <div class="d-head">⊞ Hova kerül mi? — összefoglaló</div>
+    <pre>
+  main.rs        App + DefaultPlugins + <span class="gr">ScenesPlugin</span> + perzisztens resource
+  shared.rs      <span class="wa">GameProgress</span>, <span class="wa">LevelConfig</span>            (átível a scene-eken)
+  scene/mod.rs   <span class="yl">Scene</span> enum · <span class="yl">SceneNav</span> (verem) · SceneCorePlugin · ScenesPlugin
+  scene/transition.rs   a <span class="di">fade</span> (Out → váltás → In)
+  scene/intro.rs        OnEnter(spawn) · Update(advance) · DespawnOnExit
+  scene/main_menu.rs    a HUB: gombok → SceneNav.go(...) + LevelConfig
+  scene/scene1.rs       OnEnter(LevelConfig olvas, GameProgress ír) · Esc → back()
+  scene/scene2.rs       ugyanaz, más tartalom</pre>
+    <div class="d-cap">Minden scene a saját fájljában, a közös infrastruktúra a <code>mod.rs</code>/<code>transition.rs</code>/<code>shared.rs</code>-ben. Új scene = új fájl + egy sor a groupban.</div>
+  </div>
+</section>
+
+<section id="ch14">
+  <div class="ch-eyebrow">14. fejezet</div>
+  <h2>Merre tovább?</h2>
+  <ul>
+    <li><strong>Pause &amp; al-állapotok (<code>SubStates</code>).</strong> A pause nem helyettesíti a pályát, hanem <em>rákerül</em>. Modellezd <code>SubStates</code>-ként, ami csak a pálya-állapotban létezik — így nem lehet „főmenü + pause” illegális kombináció.</li>
+    <li><strong>Számított állapotok (<code>ComputedStates</code>).</strong> Pl. „épp pályán vagyunk-e?” egy <code>InLevel</code> állapot, amit a <code>Scene1/Scene2</code>-ből <em>számolunk</em> — a közös pálya-logika erre köthető (HUD, kamera).</li>
+    <li><strong>Async betöltés a fade alatt.</strong> A fekete csúcs ideális betöltésre: <code>bevy_asset_loader</code> / <code>iyes_progress</code> a pálya assetjeit a fade-out alatt tölti, és csak készen enged tovább.</li>
+    <li><strong><code>OnTransition</code>.</strong> Egy konkrét él-re (X→Y) is köthetsz rendszert: <code>OnTransition { exited: X, entered: Y }</code> — pl. csak „pálya → game over” esetén szóljon a hang.</li>
+    <li><strong>Tényleges <code>Scene</code> assetek.</strong> A Bevynek van saját <code>Scene</code> asset-rendszere is (entitások szerializált fája, <code>.scn.ron</code>) — ez a <em>pálya-tartalom</em> betöltésére jó, miközben az itteni State-ek a <em>folyamot</em> vezérlik. A kettő együtt dolgozik.</li>
+  </ul>
+  <div class="bevy-box">
+    <div class="tag">⚙ Az igazi tanulság</div>
+    <p>A scene-váltás három, jól szétválasztott darab: az <strong>állapotgép</strong> (Scene + NextState), a <strong>navigáció</strong> (egy <code>Vec&lt;Scene&gt;</code> verem + kérés), és az <strong>átmenet</strong> (fade, ami a fekete csúcson vált). A kódot pedig <strong>scene = plugin</strong> elven szervezed, egy <code>PluginGroup</code>-ba kötve. Ha ez a négy a helyén van, akármilyen bonyolult menü-folyamot felépítesz belőle, és a <code>main</code> egy sor marad. Jó kódolást! ▸▸</p>
+  </div>
+</section>
+
+<footer>
+  <p class="pix">SCENE-VÁLTÁS — States, átmenetek &amp; plugin-elrendezés Bevy 0.18-ban</p>
+  <p>A dual-grid sorozat folytatása az <em>architektúra</em> felé. A demók procedurálisan, valós időben futnak (HTML canvas): ugyanaz az állapotgép, navigációs verem és fade, amit a Rust kód is megvalósít. A kódrészletek a 0.18-as API-ra épülnek: <code>States</code>/<code>init_state</code>/<code>NextState</code>, <code>DespawnOnExit</code>, <code>Plugin</code>/<code>PluginGroup</code>, observer-gombok, <code>GlobalZIndex</code> fátyol.</p>
+</footer>
+
+</div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var TAU=Math.PI*2, LW=128, LH=80;
+function offscreen(w,h){ var c=document.createElement("canvas"); c.width=w; c.height=h; return c; }
+
+/* =====================================================================
+   MINI SCENE-THUMBNAILS (procedurális pixelart)
+   ===================================================================== */
+var SNAME={intro:"Intro", main:"Főmenü (hub)", scene1:"1. pálya — Erdő", scene2:"2. pálya — Barlang"};
+var SHORT={intro:"Intro", main:"Főmenü", scene1:"1. pálya", scene2:"2. pálya"};
+var thumbCache={};
+function drawThumb(o,id){
+  o.imageSmoothingEnabled=false;
+  if(id==="intro"){
+    var g=o.createLinearGradient(0,0,0,LH); g.addColorStop(0,"#241a3a"); g.addColorStop(.5,"#6a3f6e"); g.addColorStop(.72,"#d98a5a"); g.addColorStop(1,"#f0b878");
+    o.fillStyle=g; o.fillRect(0,0,LW,LH);
+    o.fillStyle="#ffe1a6"; o.beginPath(); o.arc(LW*0.7,28,8,0,TAU); o.fill();
+    o.fillStyle="#3a2e52"; for(var x=0;x<LW;x++){ var h=44+Math.sin(x*0.12)*6+Math.sin(x*0.31)*3; o.fillRect(x,h,1,LH-h); }
+    o.fillStyle="#241a33"; for(x=0;x<LW;x++){ var h2=56+Math.sin(x*0.18+2)*5; o.fillRect(x,h2,1,LH-h2); }
+  } else if(id==="main"){
+    o.fillStyle="#141d16"; o.fillRect(0,0,LW,LH);
+    o.fillStyle="#1c2a1d"; o.fillRect(0,0,LW,16);
+    o.fillStyle="#a5e87d"; o.font='bold 9px "Courier New",monospace'; o.textAlign="center"; o.fillText("FŐMENÜ", LW/2, 11);
+    var by=[28,44,60], on=1;
+    for(var i=0;i<3;i++){ o.fillStyle=i===on?"#7ecb52":"#26331f"; o.fillRect(LW/2-30,by[i],60,11);
+      o.fillStyle=i===on?"#10180f":"#7e8a6f"; o.fillRect(LW/2-24,by[i]+4,12,3); o.fillRect(LW/2-6,by[i]+4,30,3); }
+  } else if(id==="scene1"){
+    o.fillStyle="#4e8f33"; o.fillRect(0,0,LW,LH);
+    for(var k=0;k<120;k++){ var px=(Math.sin(k*12.9)*43758.5%1+1)%1*LW|0, py=(Math.sin(k*78.2)*1274.1%1+1)%1*LH|0; o.fillStyle=k%2?"#3f7a2e":"#6fbf48"; o.fillRect(px,py,1,1); }
+    o.fillStyle="#c99c66"; for(var t=0;t<LH;t++){ o.fillRect(40+((t*0.4)|0),t,7,1); }
+    drawBlobTree(o,22,30); drawBlobTree(o,98,50);
+    drawDude(o,64,46,"#6f8fd6");
+  } else { // scene2
+    o.fillStyle="#1a1424"; o.fillRect(0,0,LW,LH);
+    o.fillStyle="#241a2e"; for(var b=0;b<LW;b+=8){ o.fillRect(b,0,1,LH); }
+    lavaPool(o,30,58,16); lavaPool(o,92,40,12);
+    drawDude(o,64,50,"#d66f6f");
+  }
+}
+function drawBlobTree(o,x,y){ o.fillStyle="#5a3a2a"; o.fillRect(x-1,y,2,6); o.fillStyle="#2f6e3c"; o.beginPath(); o.arc(x,y-3,7,0,TAU); o.fill(); o.fillStyle="#234a2a"; o.beginPath(); o.arc(x+2,y,4,0,TAU); o.fill(); }
+function lavaPool(o,x,y,r){ var g=o.createRadialGradient(x,y,1,x,y,r*1.6); g.addColorStop(0,"rgba(255,160,60,.7)"); g.addColorStop(1,"rgba(255,120,40,0)"); o.fillStyle=g; o.beginPath(); o.arc(x,y,r*1.6,0,TAU); o.fill(); o.fillStyle="#ff7a3c"; o.beginPath(); o.ellipse(x,y,r,r*0.5,0,0,TAU); o.fill(); o.fillStyle="#ffd166"; o.beginPath(); o.ellipse(x,y,r*0.5,r*0.25,0,0,TAU); o.fill(); }
+function drawDude(o,x,y,col){ o.fillStyle="rgba(0,0,0,.3)"; o.beginPath(); o.ellipse(x,y+6,5,2,0,0,TAU); o.fill(); o.fillStyle=col; o.fillRect(x-3,y-2,6,7); o.fillStyle="#e8b487"; o.fillRect(x-2,y-7,4,5); o.fillStyle="#4a3322"; o.fillRect(x-2,y-8,4,2); }
+function thumb(id){ if(!thumbCache[id]){ var c=offscreen(LW,LH); drawThumb(c.getContext("2d"),id); thumbCache[id]=c; } return thumbCache[id]; }
+function blitScene(ctx,id,x,y,w,h){ ctx.imageSmoothingEnabled=false; ctx.drawImage(thumb(id),x,y,w,h); }
+
+var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* =====================================================================
+   HERO — auto-folyam fade-del
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("sceneHero"); if(!cv) return; var ctx=cv.getContext("2d");
+  var FLOW=["intro","main","scene1","main","scene2","main"]; var i=0, cur=FLOW[0], nxt=null;
+  var alpha=1, phase="in", hold=0;
+  function frame(dt){
+    if(phase==="hold"){ hold+=dt; if(hold>1.4){ hold=0; phase="out"; nxt=FLOW[(i+1)%FLOW.length]; } }
+    else if(phase==="out"){ alpha+=dt*2.4; if(alpha>=1){ alpha=1; i=(i+1)%FLOW.length; cur=FLOW[i]; phase="in"; } }
+    else { alpha-=dt*2.4; if(alpha<=0){ alpha=0; phase="hold"; } }
+    ctx.clearRect(0,0,cv.width,cv.height);
+    blitScene(ctx,cur,0,0,cv.width,cv.height-26);
+    // alsó névsáv
+    ctx.fillStyle="#0b110c"; ctx.fillRect(0,cv.height-26,cv.width,26);
+    ctx.fillStyle="#a5e87d"; ctx.font='14px "Courier New",monospace'; ctx.textAlign="left"; ctx.textBaseline="middle";
+    ctx.fillText("scene: "+SNAME[cur], 10, cv.height-13);
+    // fátyol
+    if(alpha>0){ ctx.fillStyle="rgba(6,8,6,"+alpha+")"; ctx.fillRect(0,0,cv.width,cv.height-26); }
+  }
+  if(reduceMotion){ alpha=0; phase="hold"; frame(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   ÁLLAPOTGÉP-DIAGRAM
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("fsmCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var nodes={ intro:{x:80,y:50,label:"Intro"}, main:{x:208,y:50,label:"Főmenü"},
+              scene1:{x:120,y:175,label:"1. pálya"}, scene2:{x:300,y:175,label:"2. pálya"} };
+  var edges=[["intro","main"],["main","scene1"],["scene1","main"],["main","scene2"],["scene2","main"]];
+  var cur="intro", logEl=document.getElementById("fsmLog"); var NW=92,NH=38;
+  function nodeAt(mx,my){ for(var k in nodes){ var n=nodes[k]; if(mx>=n.x-NW/2&&mx<=n.x+NW/2&&my>=n.y-NH/2&&my<=n.y+NH/2) return k; } return null; }
+  function arrow(a,b){ var A=nodes[a],B=nodes[b]; var dx=B.x-A.x,dy=B.y-A.y,d=Math.hypot(dx,dy); dx/=d;dy/=d;
+    var sx=A.x+dx*(NW/2+4), sy=A.y+dy*(NH/2+4), ex=B.x-dx*(NW/2+8), ey=B.y-dy*(NH/2+8);
+    ctx.strokeStyle="#41543e"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey); ctx.stroke();
+    var a1=Math.atan2(ey-sy,ex-sx); ctx.fillStyle="#41543e"; ctx.beginPath(); ctx.moveTo(ex,ey);
+    ctx.lineTo(ex-7*Math.cos(a1-0.4),ey-7*Math.sin(a1-0.4)); ctx.lineTo(ex-7*Math.cos(a1+0.4),ey-7*Math.sin(a1+0.4)); ctx.fill(); }
+  function draw(){ ctx.fillStyle="#0b110c"; ctx.fillRect(0,0,cv.width,cv.height);
+    edges.forEach(function(e){ arrow(e[0],e[1]); });
+    for(var k in nodes){ var n=nodes[k], act=(k===cur);
+      ctx.fillStyle=act?"#7ecb52":"#1a241b"; ctx.fillRect(n.x-NW/2,n.y-NH/2,NW,NH);
+      ctx.strokeStyle=act?"#a5e87d":"#41543e"; ctx.lineWidth=act?3:2; ctx.strokeRect(n.x-NW/2,n.y-NH/2,NW,NH);
+      ctx.fillStyle=act?"#10180f":"#9caa90"; ctx.font='bold 13px "Courier New",monospace'; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText(n.label,n.x,n.y);
+      if(act){ ctx.fillStyle="#ff7a3c"; ctx.font='9px "Courier New",monospace'; ctx.fillText("● aktív",n.x,n.y+NH/2-6); } }
+  }
+  cv.style.cursor="pointer";
+  cv.addEventListener("click",function(e){ var r=cv.getBoundingClientRect(); var mx=(e.clientX-r.left)*(cv.width/r.width), my=(e.clientY-r.top)*(cv.height/r.height);
+    var k=nodeAt(mx,my); if(!k||k===cur) return; logEl.innerHTML="OnExit(<b style='color:#ff7a3c'>"+SHORT[cur]+"</b>) → OnEnter(<b style='color:#a5e87d'>"+SHORT[k]+"</b>)"; cur=k; draw(); });
+  draw();
+})();
+
+/* =====================================================================
+   NAVIGÁCIÓS VEREM
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("navCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var cur="intro", history=[], crumbs=document.getElementById("navCrumbs"), nowEl=document.getElementById("navNow");
+  var fade=0, fadeDir=0, pending=null;
+  function render(){
+    crumbs.innerHTML="";
+    history.forEach(function(s){ var c=document.createElement("span"); c.className="crumb"; c.textContent=SHORT[s]; crumbs.appendChild(c);
+      var a=document.createElement("span"); a.className="crumb arr"; a.textContent="▸"; crumbs.appendChild(a); });
+    var cc=document.createElement("span"); cc.className="crumb cur"; cc.textContent=SHORT[cur]; crumbs.appendChild(cc);
+    nowEl.textContent="aktív: "+SNAME[cur]+"  ·  history mélység: "+history.length;
+  }
+  function go(to){ if(to===cur)return; history.push(cur); pending=to; fadeDir=1; }
+  function back(){ if(!history.length)return; pending=history[history.length-1]; pending_back=true; fadeDir=1; }
+  var pending_back=false;
+  function applyPending(){ if(pending_back){ history.pop(); pending_back=false; } cur=pending; pending=null; render(); }
+  document.querySelectorAll("[data-nav]").forEach(function(b){ b.addEventListener("click",function(){ go(b.getAttribute("data-nav")); }); });
+  document.getElementById("navBack").addEventListener("click",back);
+  function frame(dt){
+    if(fadeDir===1){ fade+=dt*3.5; if(fade>=1){ fade=1; applyPending(); fadeDir=-1; } }
+    else if(fadeDir===-1){ fade-=dt*3.5; if(fade<=0){ fade=0; fadeDir=0; } }
+    ctx.clearRect(0,0,cv.width,cv.height); blitScene(ctx,cur,0,0,cv.width,cv.height);
+    if(fade>0){ ctx.fillStyle="rgba(6,8,6,"+fade+")"; ctx.fillRect(0,0,cv.width,cv.height); }
+  }
+  render();
+  if(reduceMotion){ frame(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   FADE-ÁTMENET (scrubber)
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("fadeCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var scrub=document.getElementById("fadeScrub"), phaseEl=document.getElementById("fadePhase"), playBtn=document.getElementById("fadePlay");
+  var from="main", to="scene1", playing=!reduceMotion, t=0;
+  function draw(tt){
+    var scene = tt<0.5 ? from : to;
+    var alpha; var phase;
+    if(tt<0.45){ alpha=tt/0.45; phase="Kiúszás (Out)"; }
+    else if(tt<0.55){ alpha=1; phase="● VÁLTÁS (NextState)"; }
+    else { alpha=1-(tt-0.55)/0.45; phase="Beúszás (In)"; }
+    ctx.clearRect(0,0,cv.width,cv.height); blitScene(ctx,scene,0,0,cv.width,cv.height);
+    ctx.fillStyle="rgba(6,8,6,"+alpha+")"; ctx.fillRect(0,0,cv.width,cv.height);
+    // sarok-címke a scene nevével
+    ctx.fillStyle=alpha<0.85?"#a5e87d":"#ff7a3c"; ctx.font='12px "Courier New",monospace'; ctx.textAlign="left";
+    ctx.fillText(alpha<0.85?("scene: "+SHORT[scene]):"OnExit → OnEnter", 8, 16);
+    phaseEl.textContent=phase;
+  }
+  scrub.addEventListener("input",function(){ playing=false; playBtn.classList.remove("active"); playBtn.textContent="▶ Play"; t=+scrub.value/1000; draw(t); });
+  playBtn.addEventListener("click",function(){ playing=!playing; playBtn.classList.toggle("active",playing); playBtn.textContent=playing?"⏸ Pause":"▶ Play"; });
+  if(reduceMotion){ t=0.3; scrub.value=300; draw(t); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=(now-last)/1000; last=now;
+    if(playing){ t+=dt*0.35; if(t>1.15)t=0; scrub.value=Math.min(1000,t*1000); draw(Math.min(1,t)); } requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   ADAT-ÉLETCIKLUS (perzisztens vs scene-höz kötött)
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("dataCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var scenes=["scene1","scene2","main"], si=0, cur=scenes[0];
+  var score=0, scoreEl=document.getElementById("dataScoreEl");
+  var ents=[], fade=0, fadeDir=0, pending=null;
+  function spawnEnts(){ ents=[]; var n=4+(Math.random()*4|0); for(var i=0;i<n;i++) ents.push({x:30+Math.random()*(cv.width-60),y:30+Math.random()*(cv.height-60),s:0}); }
+  spawnEnts();
+  function frame(dt){
+    if(fadeDir===1){ fade+=dt*3; if(fade>=1){ fade=1; si=(si+1)%scenes.length; cur=scenes[si]; spawnEnts(); fadeDir=-1; } }
+    else if(fadeDir===-1){ fade-=dt*3; if(fade<=0){ fade=0; fadeDir=0; } }
+    ctx.clearRect(0,0,cv.width,cv.height); blitScene(ctx,cur,0,0,cv.width,cv.height);
+    for(var i=0;i<ents.length;i++){ var e=ents[i]; if(e.s<1)e.s=Math.min(1,e.s+dt*4);
+      ctx.fillStyle="rgba(0,0,0,.3)"; ctx.beginPath(); ctx.ellipse(e.x,e.y+5*e.s,6*e.s,2.5*e.s,0,0,TAU); ctx.fill();
+      ctx.fillStyle="#7ecb52"; ctx.beginPath(); ctx.arc(e.x,e.y,5*e.s,0,TAU); ctx.fill();
+      ctx.strokeStyle="#0b110c"; ctx.lineWidth=1.5; ctx.stroke(); }
+    if(fade>0){ ctx.fillStyle="rgba(6,8,6,"+fade+")"; ctx.fillRect(0,0,cv.width,cv.height); }
+    scoreEl.textContent="pontszám (Resource): "+score;
+  }
+  document.getElementById("dataAdd").addEventListener("click",function(){ score+=10; });
+  document.getElementById("dataSwitch").addEventListener("click",function(){ if(fadeDir===0) fadeDir=1; });
+  if(reduceMotion){ frame(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   Rust szintaxis-kiemelő
+   ===================================================================== */
+var KW=/\b(?:fn|let|mut|use|struct|enum|impl|const|pub|return|if|else|for|in|while|loop|match|as|mod|crate|self|Self|true|false|move|ref|static|dyn|where|name|version|edition)\b/;
+var TOKEN=new RegExp("(\\/\\/[^\\n]*)"+"|(#!?\\[[^\\]]*\\])"+"|(\"(?:[^\"\\\\]|\\\\.)*\")"+"|([A-Za-z_][A-Za-z0-9_]*!)"+"|("+KW.source.slice(2,-2)+")"+"|(\\b[A-Z][A-Za-z0-9_]*\\b)"+"|(\\b\\d[\\d_]*(?:\\.\\d+)?\\b)","g");
+var CLS=[null,"c","m","s","m","k","t","n"];
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+document.querySelectorAll("pre code").forEach(function(code){ var src=code.textContent,out="",last=0,m; TOKEN.lastIndex=0;
+  while((m=TOKEN.exec(src))){ out+=esc(src.slice(last,m.index));
+    for(var gi=1;gi<=7;gi++) if(m[gi]!==undefined){ out+='<span class="'+CLS[gi]+'">'+esc(m[gi])+"</span>"; break; }
+    last=m.index+m[0].length; } out+=esc(src.slice(last)); code.innerHTML=out; });
+
+/* másolás gombok */
+document.querySelectorAll(".copy-btn").forEach(function(btn){ btn.addEventListener("click",function(){
+  var code=btn.closest(".code").querySelector("pre"), txt=code.textContent;
+  function done(){ btn.textContent="✓ másolva"; setTimeout(function(){btn.textContent="másolás";},1500); }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done); }
+  else{ var ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); done(); } }); });
+
+/* scrollspy + mobil menü */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){ var pos=window.scrollY+140,active=0; for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i;
+  links.forEach(function(a,i){a.classList.toggle("active",i===active);}); }
+window.addEventListener("scroll",spy,{passive:true}); spy();
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>
