@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Animációk Bevyben: állapotgép, átvezetések, NPC · tile · UI — átfogó tutorial · Bevy 0.18</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13; --bg-deep:#0b110c; --panel:#1a241b; --panel-2:#162017;
+  --ink:#e9e3cd; --muted:#9caa90;
+  --grass:#7ecb52; --grass-hi:#a5e87d; --grass-dk:#4e8f33;
+  --dirt:#c99c66; --dirt-dk:#9a6e43; --water:#6cc8d9; --stone:#9aa0aa;
+  --concrete:#cacac3; --lava:#ff7a3c; --ice:#bfe0f0;
+  --line:#2d3b2c; --line-hi:#41543e; --code-bg:#0c120d; --shadow:rgba(0,0,0,.45);
+  --kw:#ff9d5c; --ty:#8fd8e8; --fnc:#a5e87d; --str:#e8c878; --cmt:#6d7c64; --mac:#d8a0e8; --num:#f0b8a0;
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px)}
+::selection{background:var(--grass-dk);color:#fff}
+
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--bg-deep);border-right:3px solid var(--line);overflow-y:auto;z-index:30;padding:22px 0 40px}
+.sidebar::-webkit-scrollbar{width:8px}.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px}
+.logo .title{font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15}
+.logo .sub{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em}
+.logo .badge{display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;box-shadow:2px 2px 0 var(--shadow)}
+.logo .badge.pro{background:var(--lava);color:#1a0d06;margin-left:6px}
+.nav-part{font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);padding:16px 20px 6px;text-transform:uppercase}
+.nav a{display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;font-size:14px;position:relative;border-left:4px solid transparent;transition:color .12s,background .12s}
+.nav a::before{content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);transition:opacity .12s,left .12s}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{color:var(--grass-hi);background:rgba(126,203,82,.10);border-left-color:var(--grass);font-weight:600}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;background:var(--grass);color:#10180f;border:none;padding:8px 14px;box-shadow:3px 3px 0 var(--shadow);text-decoration:none;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+.menu-toggle{display:none;position:fixed;top:14px;left:14px;z-index:40;font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;background:var(--panel);color:var(--ink);border:3px solid var(--line);box-shadow:3px 3px 0 var(--shadow)}
+
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-family:"Pixelify Sans";font-weight:700;font-size:clamp(34px,5.2vw,54px);line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px}
+.hero h1 .g{color:var(--grass-hi)}.hero h1 .d{color:var(--dirt)}.hero h1 .l{color:var(--lava)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{border:3px solid var(--line);background:var(--bg-deep);padding:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow)}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6}
+.hero-strip .cap b{color:var(--grass)}
+
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);text-transform:uppercase}
+.ch-eyebrow{font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);text-transform:uppercase;margin-bottom:8px}
+h2{font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);margin:34px 0 12px}
+p{margin-bottom:14px}p+p{margin-top:2px}
+strong{color:#fff}em{color:var(--dirt)}a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}li{margin-bottom:7px}
+code:not(pre code){font-family:"IBM Plex Mono";font-size:.86em;background:var(--code-bg);color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+
+.code{margin:22px 0;border:3px solid var(--line);background:var(--code-bg);box-shadow:4px 4px 0 var(--shadow)}
+.code-head{display:flex;justify-content:space-between;align-items:center;background:var(--panel);border-bottom:3px solid var(--line);padding:7px 12px}
+.code-head .fname{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--dirt);letter-spacing:.05em}
+.copy-btn{font-family:"Pixelify Sans";font-size:12.5px;cursor:pointer;background:transparent;color:var(--muted);border:2px solid var(--line-hi);padding:2px 9px;transition:all .1s}
+.copy-btn:hover{color:var(--grass-hi);border-color:var(--grass)}
+.code pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13.5px;line-height:1.62}
+.code pre::-webkit-scrollbar{height:8px}.code pre::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.k{color:var(--kw)}.t{color:var(--ty)}.f{color:var(--fnc)}.s{color:var(--str)}.c{color:var(--cmt);font-style:italic}.m{color:var(--mac)}.n{color:var(--num)}
+
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--grass)}.diagram pre .di{color:var(--dirt)}.diagram pre .wa{color:var(--water)}.diagram pre .st{color:var(--stone)}.diagram pre .lv{color:var(--lava)}.diagram pre .mu{color:var(--muted)}.diagram pre .yl{color:#e8d24a}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+
+.bevy-box{margin:24px 0;border:3px solid #2a4a52;background:#0d181b;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.bevy-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.bevy-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.bevy-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.bevy-box ul{font-size:15px;color:#cfdbd5}
+
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--grass);margin-bottom:4px}
+.note.warn .n-tag{color:var(--dirt)}
+
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+
+.playground{margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);border-bottom:3px solid var(--grass-dk);padding:10px 14px}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em}
+.playground .pg-body{padding:16px;display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#000;touch-action:none;max-width:100%}
+.playground .pg-side{flex:1;min-width:230px;font-size:14px;color:var(--muted)}
+.pg-controls{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+.stat{font-family:"IBM Plex Mono";font-size:13px;color:var(--grass-hi)}
+.slider-row{display:flex;align-items:center;gap:10px;margin:6px 0;font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted)}
+.slider-row input[type=range]{flex:1;accent-color:var(--grass)}
+.slider-row .val{color:var(--grass-hi);min-width:64px;text-align:right}
+.wbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:4px 11px;transition:all .1s}
+.wbtn:hover{color:var(--ink)}
+.wbtn.active{background:var(--water);color:var(--bg-deep);border-color:var(--water)}
+.crumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0;font-family:"IBM Plex Mono";font-size:12px}
+.crumb{background:var(--panel);border:2px solid var(--line-hi);color:var(--muted);padding:2px 9px}
+.crumb.cur{background:var(--grass);color:#10180f;border-color:var(--grass);font-weight:600}
+.crumb.arr{border:none;background:none;color:var(--dirt);padding:0 1px}
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--dirt);letter-spacing:.06em;margin:12px 0 2px;text-transform:uppercase}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}.menu-toggle{display:block}.main{margin-left:0}.wrap{padding:0 20px 100px}.hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">ANIMÁCIÓK</div>
+    <div class="sub">állapotgép · átvezetések · NPC · tile · UI · Rust</div>
+    <span class="badge">BEVY 0.18</span><span class="badge pro">ÁTFOGÓ</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I. rész — Alapok &amp; adatmodell</div>
+    <a href="#ch1">1 · Az animáció anatómiája</a>
+    <a href="#ch2">2 · Az animációs klip</a>
+    <a href="#ch3">3 · A lejátszó rendszer</a>
+    <div class="nav-part">II. rész — Karakter &amp; átvezetések</div>
+    <a href="#ch4">4 · Az állapotgép</a>
+    <a href="#ch5">5 · A vezérlő: állapot → klip</a>
+    <a href="#ch6">6 · Átvezetések</a>
+    <a href="#ch7">7 · Lockolás &amp; átvezető klipek</a>
+    <a href="#ch8">8 · Irány &amp; juice-réteg</a>
+    <div class="nav-part">III. rész — NPC · Tile · UI</div>
+    <a href="#ch9">9 · NPC-animáció</a>
+    <a href="#ch10">10 · Tile-animáció</a>
+    <a href="#ch11">11 · UI-animáció</a>
+    <div class="nav-part">IV. rész — Összerakás</div>
+    <a href="#ch12">12 · Animációs események</a>
+    <a href="#ch13">13 · Az AnimationPlugin</a>
+    <a href="#ch14">14 · Teljesítmény &amp; merre tovább</a>
+  </nav>
+  <div class="dl-box">
+    <p>A vezérelv: <span class="mono">a <strong>klip</strong> az adat, a <strong>lejátszó</strong> közös, a <strong>vezérlő</strong> dönt — és ezt szétválasztjuk. Egy gép hajtja a karaktert, az NPC-t, a tile-t; a UI tween-nel megy.</span></p>
+    <a class="btn secondary" href="#ch5">A játszható karakter ▸</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// átfogó tutorial · animációs rendszerek + átvezetések + NPC/tile/UI · magyar nyelven</div>
+  <h1>Animációk Bevyben — <span class="g">állapotgép</span>, <span class="d">átvezetések</span>, minden réteg</h1>
+  <p class="lead">Hogyan vált egy karakter <strong>tisztán</strong> futásból ugrásba, ugrásból esésbe, esésből landolásba? Hogyan animálsz <strong>sok NPC-t</strong>, <strong>ezer csempét</strong> és a <strong>UI-t</strong> egy átlátható rendszerrel? A kulcs: a klip (adat) + a közös lejátszó + a vezérlő (ami eldönti, mi szóljon) szétválasztása — rá egy <strong>állapotgép</strong> az átvezetésekhez. Végigvesszük mind a négy réteget, élő demókkal.</p>
+  <div class="hero-strip">
+    <canvas id="heroAnim" width="336" height="196" style="width:540px;height:315px"></canvas>
+    <div class="cap">↑ Élő minta: a karakter <b>magától</b> körbejárja az állapotait — <b>idle → fut → ugrik → esik → land → támad</b> —, és minden váltás egy <b>átvezetés</b>. Lent a jelenlegi állapot neve.</div>
+  </div>
+</header>
+
+<!-- I. RÉSZ -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Alapok &amp; adatmodell</span></div>
+
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>Az animáció anatómiája</h2>
+  <p>Egy 2D sprite-animáció Bevyben három, jól szétválasztható dolog. Ez a szétválasztás az egész tutorial gerince — ha ezt elrontod, az animációs kód összegabalyodik a játéklogikával.</p>
+  <div class="diagram">
+    <div class="d-head">⊞ A három réteg</div>
+    <pre>
+  1. <span class="wa">KLIP</span> (adat)      „mely képkockák, milyen tempóban, hogyan ismétlődik”
+                       — AnimClip { first, last, fps, mode }
+
+  2. <span class="gr">LEJÁTSZÓ</span> (közös)  lépteti a képkockát az idő szerint, beállítja az atlas-indexet
+                       — egyetlen rendszer MINDEN sprite-animációhoz
+
+  3. <span class="di">VEZÉRLŐ</span> (dönt)    „MELYIK klip szóljon most?” — bemenet/fizika/AI alapján
+                       — entitás-típusonként más (player input · NPC AI)</pre>
+    <div class="d-cap">A <span class="gr">lejátszó</span> nem tudja, <em>miért</em> fut a karakter — csak lépteti a kockákat. A <span class="di">vezérlő</span> nem tudja, <em>hogyan</em> rajzolódik — csak kiválasztja a klipet. A kettő közt a <span class="wa">klip</span> az interfész.</div>
+  </div>
+  <p>A nyers frame-léptetést (atlas-index + <code>Timer</code>) a <a href="bevy-sprite-anim-vs-transform-tutorial.html">sprite-animáció vs transzformáció</a> tutorialban már láttad — most ezt <strong>rendszerré</strong> emeljük: adatmodell, közös lejátszó, állapotgép, átvezetések. A végén egy <code>AnimationPlugin</code> fogja össze.</p>
+  <div class="note">
+    <div class="n-tag">▲ A legfontosabb elv</div>
+    <strong>Válaszd szét a „mi szóljon”-t a „hogyan játszódik le”-től.</strong> A vezérlő csak állapotot/klipet állít; a lejátszó csak léptet. Így ugyanaz a lejátszó hajtja a karaktert, az NPC-t és a tile-t — és a UI-t külön, tween-nel kezeljük (11. fejezet).
+  </div>
+</section>
+
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>Az animációs klip</h2>
+  <p>A klip a legkisebb adat-egység: melyik képkockák tartoznak hozzá (<code>first..=last</code> az atlaszban), milyen <code>fps</code>-sel pörögnek, és hogyan <strong>ismétlődik</strong>. Az ismétlés-mód három tipikus eset:</p>
+  <ul>
+    <li><strong>Loop</strong> — körbeér, újrakezd (járás, idle, víz-csillámlás).</li>
+    <li><strong>Once</strong> — egyszer lejátszódik, majd megáll a végén (támadás, robbanás). A <em>„vége”</em> jelzi az átvezetést.</li>
+    <li><strong>PingPong</strong> — oda-vissza (lebegés, lélegzés, néhány idle).</li>
+  </ul>
+  <p>Próbáld ki a három módot, és állítsd az <code>fps</code>-t — figyeld a lejátszófejet a képkocka-csíkon:</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — klip lejátszó &amp; ismétlés-módok</span></div>
+    <div class="pg-body">
+      <canvas id="clipCanvas" width="384" height="150" style="width:520px"></canvas>
+      <div class="pg-side">
+        <div class="ctl-label">ismétlés-mód</div>
+        <div class="pg-controls">
+          <button class="wbtn active" data-mode="Loop">Loop</button>
+          <button class="wbtn" data-mode="Once">Once</button>
+          <button class="wbtn" data-mode="PingPong">PingPong</button>
+        </div>
+        <div class="slider-row"><span>fps</span><input type="range" id="clipFps" min="2" max="16" value="8"><span class="val" id="clipFpsVal">8</span></div>
+        <p style="margin-top:8px" class="stat" id="clipStat">frame 0 / 5</p>
+        <p style="margin-top:6px;font-size:13px">A felső sor a <strong>klip képkockái</strong> (atlasz), a keret a <strong>lejátszófej</strong>. Az <code>Once</code> a végén megáll — ezt használjuk az átvezetés kioldására.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/anim/clip.rs — a klip-adatmodell + könyvtár</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use std::collections::HashMap;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum LoopMode { Loop, Once, PingPong }
+
+/// Egy animációs klip: mely képkockák, milyen tempóban, hogyan ismétlődik.
+#[derive(Clone, Copy)]
+pub struct AnimClip {
+    pub first: usize,
+    pub last: usize,
+    pub fps: f32,
+    pub mode: LoopMode,
+}
+
+/// A klip-könyvtár: névvel elérhető klipek (egy helyen definiálva).
+#[derive(Resource, Default)]
+pub struct AnimLibrary {
+    pub clips: HashMap&lt;&amp;'static str, AnimClip&gt;,
+}
+
+fn build_clip_library(mut lib: ResMut&lt;AnimLibrary&gt;) {
+    let mut add = |name, first, last, fps, mode| {
+        lib.clips.insert(name, AnimClip { first, last, fps, mode });
+    };
+    add("hero_idle",   0, 3, 6.0,  LoopMode::Loop);
+    add("hero_run",    8, 13, 12.0, LoopMode::Loop);
+    add("hero_jump",   16, 17, 10.0, LoopMode::Once);
+    add("hero_fall",   18, 19, 10.0, LoopMode::Loop);
+    add("hero_attack", 24, 28, 16.0, LoopMode::Once);
+    // ... a tile/NPC klipek is ide kerülnek
+}</code></pre>
+  </div>
+</section>
+
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>A lejátszó rendszer</h2>
+  <p>A lejátszó egyetlen komponens (<code>SpriteAnimator</code>) + egyetlen rendszer (<code>advance_animation</code>). Ez <strong>minden</strong> sprite-animációt hajt — karaktert, NPC-t, tile-t. Nem tudja, miért fut épp ez a klip; csak lépteti a kockát, és kezeli a három ismétlés-módot.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/anim/player.rs — a közös lejátszó</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use std::time::Duration;
+use super::clip::{AnimClip, LoopMode};
+
+#[derive(Component)]
+pub struct SpriteAnimator {
+    pub clip: AnimClip,
+    pub frame: usize,
+    pub timer: Timer,
+    pub dir: i32,        // PingPong irány
+    pub finished: bool,  // Once végén true → átvezetés kioldása
+}
+
+impl SpriteAnimator {
+    pub fn new(clip: AnimClip) -&gt; Self {
+        Self {
+            frame: clip.first, dir: 1, finished: false, clip,
+            timer: Timer::from_seconds(1.0 / clip.fps, TimerMode::Repeating),
+        }
+    }
+
+    /// Klip-váltás — de CSAK ha tényleg más; különben ne reseteljük a fázist!
+    pub fn play(&amp;mut self, clip: AnimClip) {
+        if clip.first == self.clip.first &amp;&amp; clip.last == self.clip.last { return; }
+        self.clip = clip;
+        self.frame = clip.first;
+        self.dir = 1;
+        self.finished = false;
+        self.timer.set_duration(Duration::from_secs_f32(1.0 / clip.fps));
+        self.timer.reset();
+    }
+}
+
+fn advance_animation(time: Res&lt;Time&gt;, mut q: Query&lt;(&amp;mut SpriteAnimator, &amp;mut Sprite)&gt;) {
+    for (mut anim, mut sprite) in &amp;mut q {
+        anim.timer.tick(time.delta());
+        if !anim.timer.just_finished() { continue; }
+        let (first, last) = (anim.clip.first, anim.clip.last);
+        match anim.clip.mode {
+            LoopMode::Loop =&gt; anim.frame = if anim.frame &gt;= last { first } else { anim.frame + 1 },
+            LoopMode::Once =&gt; if anim.frame &lt; last { anim.frame += 1; } else { anim.finished = true; },
+            LoopMode::PingPong =&gt; {
+                if anim.frame == last { anim.dir = -1; } else if anim.frame == first { anim.dir = 1; }
+                anim.frame = (anim.frame as i32 + anim.dir) as usize;
+            }
+        }
+        if let Some(atlas) = &amp;mut sprite.texture_atlas {
+            atlas.index = anim.frame;
+        }
+    }
+}</code></pre>
+  </div>
+  <div class="note warn">
+    <div class="n-tag">⚠ A leggyakoribb animációs bug</div>
+    A <code>play()</code> elején az „ugyanaz a klip? → return” őr a lényeg. Ha minden frame-ben meghívnád <code>play("hero_run")</code>-t, a <code>frame</code> örökké 0-on ragadna — a futás „beragad" az első kockára. Csak <strong>állapot-váltáskor</strong> váltsunk klipet (lásd a <code>Changed</code> szűrőt a következő fejezetben).
+  </div>
+</section>
+
+<!-- II. RÉSZ -->
+<div class="part-divider"><span class="pd-label">█ II. rész — Karakter &amp; átvezetések</span></div>
+
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>Az állapotgép</h2>
+  <p>Egy karakter nem „valamelyik klipet" játssza — egy <strong>állapotban</strong> van (Idle, Run, Jump, Fall, Attack, Hurt), és az állapothoz <em>tartozik</em> egy klip. A mozgás lényege az <strong>átvezetés</strong>: az állapotok közti váltás. Ezt egy egyszerű enum + a hozzá kötött szabályok modellezik.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/anim/character.rs — az állapot</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+#[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
+pub enum CharState { Idle, Run, Jump, Fall, Attack, Hurt }
+
+#[derive(Component)] pub struct Player;
+#[derive(Component)] pub struct Velocity(pub Vec2);
+#[derive(Component)] pub struct Grounded(pub bool);</code></pre>
+  </div>
+  <div class="diagram">
+    <div class="d-head">⊞ Az állapotok &amp; tipikus átvezetések</div>
+    <pre>
+            ┌──────────────────────── <span class="lv">Attack</span> ◀── (J gomb, bármikor)
+            │                            │ (klip vége)
+            ▼                            ▼
+   <span class="gr">Idle</span> ⇄ <span class="gr">Run</span> ───(elrugaszkodás)──► <span class="wa">Jump</span> ──(v.y&lt;0)──► <span class="wa">Fall</span> ──(talaj)──► <span class="gr">Idle</span>/<span class="gr">Run</span>
+     ▲                                                                    │
+     └────────────────────────── <span class="di">Hurt</span> ◀── (sebzés) ───────────────┘</pre>
+    <div class="d-cap">Idle↔Run a vízszintes sebességtől; a Jump/Fall a levegőben-léttől; az Attack/Hurt <em>prioritásos</em> állapot, ami felülír — és a klip végén visszatér. A 6. fejezet demója interaktívan végigjárható.</div>
+  </div>
+</section>
+
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>A vezérlő: állapot → klip</h2>
+  <p>A vezérlő a fizikából/inputból <strong>kiszámolja</strong> az állapotot — nem nyúl a kliphez. Próbáld ki: mozgasd a karaktert, és nézd, hogy a state magától vált (és vele a klip), <strong>átvezetésekkel</strong>:</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — játszható karakter (state a fizikából)</span></div>
+    <div class="pg-body">
+      <canvas id="charCanvas" width="360" height="200" style="width:500px" tabindex="0"></canvas>
+      <div class="pg-side">
+        <div class="pg-controls">
+          <button class="wbtn" id="charLeft">◀ Balra</button>
+          <button class="wbtn" id="charRight">Jobbra ▶</button>
+          <button class="wbtn" id="charJump">Ugrás ⤴</button>
+          <button class="wbtn" id="charAtk">Támad ⚔</button>
+        </div>
+        <p style="margin-top:10px" class="stat" id="charState">állapot: Idle</p>
+        <div class="ctl-label">átvezetés-napló</div>
+        <div class="crumbs" id="charLog"></div>
+        <p style="margin-top:6px;font-size:13px">Kattints a vászonra a <span class="kbd">←</span> <span class="kbd">→</span> <span class="kbd">szóköz</span> <span class="kbd">J</span> billentyűkhöz is. A state-et a sebesség + talajon-lét adja — a klip követi.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/anim/character.rs — a vezérlő (állapot a fizikából)</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn drive_character_state(
+    mut q: Query&lt;(&amp;Velocity, &amp;Grounded, &amp;mut CharState), With&lt;Player&gt;&gt;,
+) {
+    for (vel, grounded, mut state) in &amp;mut q {
+        // a prioritásos állapotokat (Attack/Hurt) NEM írjuk felül itt:
+        if matches!(*state, CharState::Attack | CharState::Hurt) { continue; }
+
+        let next = if !grounded.0 {
+            if vel.0.y &gt; 0.0 { CharState::Jump } else { CharState::Fall }
+        } else if vel.0.x.abs() &gt; 10.0 {
+            CharState::Run
+        } else {
+            CharState::Idle
+        };
+
+        if *state != next { *state = next; }   // csak tényleges váltáskor írunk
+    }
+}</code></pre>
+  </div>
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — a vezérlő csak állapotot ír</div>
+    <p>Figyeld meg: a <code>drive_character_state</code> nem ismeri a <code>SpriteAnimator</code>-t, az atlaszt vagy a képkockákat. Csak a <code>CharState</code>-et állítja. Így a játéklogika (fizika → állapot) teljesen független az animáció lejátszásától — más rendszer (NPC-AI) ugyanezt a <code>CharState</code>-et más bemenetből számolja.</p>
+  </div>
+</section>
+
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Átvezetések</h2>
+  <p>Az átvezetés három dolgot jelent: <strong>(1)</strong> állapot-váltáskor a megfelelő klipre váltunk (és csak akkor!), <strong>(2)</strong> az <em>egyszer-lejátszós</em> (Once) állapotok a klip végén visszatérnek, <strong>(3)</strong> a <em>prioritás</em> eldönti, mi írhat felül mit. Kattints a csúcsokra — figyeld a megengedett átmeneteket és az auto-visszatérést:</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — átvezetés-gráf (prioritás &amp; auto-return)</span></div>
+    <div class="pg-body">
+      <canvas id="fsmCanvas" width="384" height="232" style="width:520px"></canvas>
+      <div class="pg-side">
+        <p>Kattints egy állapotra a váltáshoz. Az <span style="color:var(--lava)">Attack</span>/<span style="color:var(--dirt)">Hurt</span> prioritásos: bárhonnan elérhető, és a klip végén <strong>magától visszatér</strong>.</p>
+        <p style="margin-top:10px" class="stat" id="fsmLog">— válassz egy állapotot —</p>
+      </div>
+    </div>
+  </div>
+
+  <p>A kötés (állapot → klip) egyetlen rendszer, és a <code>Changed&lt;CharState&gt;</code> szűrő miatt <strong>csak váltáskor</strong> fut — pont ez akadályozza meg a „beragadt első kocka" bugot:</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/anim/character.rs — kötés + auto-return</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use super::clip::AnimLibrary;
+use super::player::SpriteAnimator;
+
+/// Állapot → klip. A `Changed` szűrő miatt CSAK állapot-váltáskor fut.
+fn apply_state_clip(
+    lib: Res&lt;AnimLibrary&gt;,
+    mut q: Query&lt;(&amp;CharState, &amp;mut SpriteAnimator), Changed&lt;CharState&gt;&gt;,
+) {
+    for (state, mut anim) in &amp;mut q {
+        let name = match state {
+            CharState::Idle =&gt; "hero_idle",
+            CharState::Run =&gt; "hero_run",
+            CharState::Jump =&gt; "hero_jump",
+            CharState::Fall =&gt; "hero_fall",
+            CharState::Attack =&gt; "hero_attack",
+            CharState::Hurt =&gt; "hero_hurt",
+        };
+        anim.play(lib.clips[name]);     // a play() őre miatt is biztonságos
+    }
+}
+
+/// Once-klip vége → a prioritásos állapot visszatér (a driver innen újraszámol).
+fn finish_oneshot(mut q: Query&lt;(&amp;mut CharState, &amp;SpriteAnimator)&gt;) {
+    for (mut state, anim) in &amp;mut q {
+        if matches!(*state, CharState::Attack | CharState::Hurt) &amp;&amp; anim.finished {
+            *state = CharState::Idle;   // a driver a következő frame-en korrigál
+        }
+    }
+}
+
+/// Prioritásos belépés (input/observer): felülírja az aktuális állapotot.
+fn start_attack(keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;, mut q: Query&lt;&amp;mut CharState, With&lt;Player&gt;&gt;) {
+    if keys.just_pressed(KeyCode::KeyJ) {
+        for mut s in &amp;mut q { *s = CharState::Attack; }
+    }
+}</code></pre>
+  </div>
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — Changed&lt;T&gt; szűrő</div>
+    <p>A <code>Query&lt;.., Changed&lt;CharState&gt;&gt;</code> csak azokat az entitásokat adja, amelyeknek a <code>CharState</code>-je az utolsó futás óta <em>változott</em>. Így a klip-váltás reagáló, nem pollozó: nem minden frame-ben fut, csak a tényleges átvezetéskor — pont ettől nem reseteli a fázist fölöslegesen.</p>
+  </div>
+</section>
+
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>Lockolás &amp; átvezető klipek</h2>
+  <p>Két finomítás, amitől az átvezetések profivá válnak:</p>
+  <h3>Lockolás — egy klip „kisajátítja" a karaktert</h3>
+  <p>Támadás közben a játékos ne tudjon csak úgy futásba váltani. A megoldás: a vezérlő hagyja békén a prioritásos állapotot (ezt már láttad a <code>matches!(... Attack | Hurt) { continue }</code> sorral). A lock = „amíg a Once-klip le nem játszódott, a driver nem nyúl az állapothoz". A mozgás-bemenetet pufferelheted, és a lock feloldásakor alkalmazod.</p>
+  <h3>Átvezető (in-between) klipek</h3>
+  <p>A „kemény" váltás (Idle→Jump azonnal) néha rángat. Tehetsz közé egy rövid <strong>átvezető klipet</strong>: pl. <code>jump_takeoff</code> (elrugaszkodás) az Idle és a Jump közé, vagy <code>land</code> a Fall és az Idle közé. Ez egy <code>Once</code>-klip, ami a végén a cél-állapotba lép — pont mint az Attack.</p>
+  <div class="diagram">
+    <div class="d-head">⊞ Átvezető klipek a kemény váltások helyett</div>
+    <pre>
+   kemény:   Idle ─────────────────► Jump            <span class="mu">(rángat)</span>
+   sima:     Idle ─► <span class="yl">Takeoff</span> ─(vége)─► Jump      <span class="mu">(elrugaszkodás-póz)</span>
+
+   kemény:   Fall ─────────────────► Idle
+   sima:     Fall ─► <span class="yl">Land</span> ─(vége)─► Idle         <span class="mu">(becsapódás-póz, kis squash)</span></pre>
+    <div class="d-cap">A <span class="yl">Takeoff</span>/<span class="yl">Land</span> ugyanaz a minta, mint az Attack: <code>Once</code>-klip, ami a <code>finished</code> jelre a cél-állapotba lép. A 2D-ben nincs valódi blend (a kockák diszkrétek) — az átvezető klip helyettesíti a crossfade-et.</div>
+  </div>
+  <div class="note">
+    <div class="n-tag">▲ 2D ≠ 3D blend</div>
+    Csontvázas 3D-ben az átmenet <em>blend</em> (két póz keverése, <code>AnimationGraph</code>). 2D sprite-nál a kockák diszkrétek, nem keverhetők — helyette <strong>átvezető klipet</strong> teszel be, vagy a frame-anim fölé <strong>transzformációt</strong> raksz (squash, dőlés) a folytonosság érzetéért.
+  </div>
+</section>
+
+<section id="ch8">
+  <div class="ch-eyebrow">8. fejezet</div>
+  <h2>Irány &amp; juice-réteg</h2>
+  <p>Két dolog, ami a frame-animáció <em>fölé</em> kerül, és nem igényel új kockát:</p>
+  <h3>Irány — tükrözés, nem külön klip</h3>
+  <p>Balra nézéshez ne rajzolj külön klipet: tükrözd a sprite-ot. A <code>Sprite.flip_x</code> a sebesség előjeléből.</p>
+  <h3>Juice — transzformáció a frame-anim tetején</h3>
+  <p>Landoláskor egy kis <code>scale</code>-squash, találatkor fehér tint, ugráskor enyhe dőlés — ezek transzformációk a meglévő klip fölött (lásd a <a href="bevy-sprite-anim-vs-transform-tutorial.html">transzformációs tutorialt</a>). Együtt élővé teszik a diszkrét kockákat.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/anim/character.rs — irány + landoló squash</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">/// Irány: a vízszintes sebesség előjele tükrözi a sprite-ot.
+fn face_direction(mut q: Query&lt;(&amp;Velocity, &amp;mut Sprite)&gt;) {
+    for (vel, mut sprite) in &amp;mut q {
+        if vel.0.x.abs() &gt; 1.0 {
+            sprite.flip_x = vel.0.x &lt; 0.0;
+        }
+    }
+}
+
+/// Juice: a frame-anim FÖLÉ tett transzformáció (itt: landoló squash).
+/// A landolás-eseményre indul egy rövid, csillapodó scale-rezgés.
+fn land_squash(time: Res&lt;Time&gt;, mut q: Query&lt;(&amp;mut Transform, &amp;mut LandSquash)&gt;) {
+    for (mut tf, mut s) in &amp;mut q {
+        s.timer.tick(time.delta());
+        let k = (1.0 - s.timer.fraction()) * (s.timer.fraction() * 22.0).sin() * 0.3;
+        tf.scale = Vec3::new(1.0 + k, 1.0 - k, 1.0);   // térfogat-tartó
+    }
+}
+
+#[derive(Component)] struct LandSquash { timer: Timer }</code></pre>
+  </div>
+  <div class="note">
+    <div class="n-tag">▲ Rétegek, nem helyettesítés</div>
+    A <code>flip_x</code> és a <code>scale</code>-juice <strong>nem</strong> avatkozik a klip-lejátszásba — a <code>SpriteAnimator</code> továbbra is az indexet lépteti, a <code>Sprite</code>/<code>Transform</code> mezők meg külön réteget tesznek rá. Tiszta felelősség-megosztás.
+  </div>
+</section>
+
+<!-- III. RÉSZ -->
+<div class="part-divider"><span class="pd-label">█ III. rész — NPC · Tile · UI</span></div>
+
+<section id="ch9">
+  <div class="ch-eyebrow">9. fejezet</div>
+  <h2>NPC-animáció</h2>
+  <p>A jó hír: az NPC-hez <strong>semmi újat</strong> nem kell. Ugyanaz a <code>CharState</code>, ugyanaz a <code>SpriteAnimator</code>, ugyanaz az <code>apply_state_clip</code> és <code>advance_animation</code> — egyetlen dolog más: a <strong>vezérlő</strong>. A karaktert input hajtja, az NPC-t az AI. Ennyi.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/anim/npc.rs — ugyanaz a gép, más vezérlő</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use super::character::{CharState, Velocity};
+
+#[derive(Component)] pub struct Npc;
+
+/// Az NPC ugyanazt a CharState-et használja — csak a bemenet AI, nem input.
+fn drive_npc_state(mut q: Query&lt;(&amp;Velocity, &amp;mut CharState), With&lt;Npc&gt;&gt;) {
+    for (vel, mut state) in &amp;mut q {
+        if matches!(*state, CharState::Attack | CharState::Hurt) { continue; }
+        let next = if vel.0.x.abs() &gt; 5.0 { CharState::Run } else { CharState::Idle };
+        if *state != next { *state = next; }
+    }
+}</code></pre>
+  </div>
+  <p>Sok NPC-nél egy gond van: ha mind <strong>egyszerre</strong> spawnol, az idle-animációjuk <em>szinkronban</em> jár — gépiesen lüktet az egész tömeg. A trükk: spawnkor adj minden NPC-nek véletlen <strong>fázis-eltolást</strong>. Kapcsold át, és nézd a különbséget:</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — NPC-tömeg &amp; fázis-eltolás</span></div>
+    <div class="pg-body">
+      <canvas id="npcCanvas" width="384" height="160" style="width:520px"></canvas>
+      <div class="pg-side">
+        <div class="pg-controls"><button class="wbtn active" id="npcPhase">Fázis-eltolás: BE</button></div>
+        <p style="margin-top:10px" class="stat" id="npcStat">változatos (élethű)</p>
+        <p style="margin-top:8px;font-size:13px">Eltolás <strong>nélkül</strong> az egész tömeg egyszerre pattan — gépies. Egy kis véletlen kezdő-fázis, és máris él a csapat.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/anim/npc.rs — fázis-eltolás spawnkor</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use std::time::Duration;
+use super::clip::AnimLibrary;
+use super::player::SpriteAnimator;
+
+fn spawn_npcs(mut commands: Commands, lib: Res&lt;AnimLibrary&gt;) {
+    for i in 0..20 {
+        let mut anim = SpriteAnimator::new(lib.clips["slime_idle"]);
+        // KULCS: véletlen kezdő-fázis, hogy ne szinkronban lüktessenek
+        let offset = (i as f32 * 0.137).fract() * 0.6;       // 0..0.6 s, szórt
+        anim.timer.set_elapsed(Duration::from_secs_f32(offset));
+
+        commands.spawn((
+            Npc, CharState::Idle, Velocity(Vec2::ZERO), anim,
+            // Sprite::from_atlas_image(...),
+            Transform::from_xyz(-200.0 + i as f32 * 22.0, 0.0, 0.0),
+        ));
+    }
+}</code></pre>
+  </div>
+</section>
+
+<section id="ch10">
+  <div class="ch-eyebrow">10. fejezet</div>
+  <h2>Tile-animáció</h2>
+  <p>Animált csempék (víz, láva, fáklya, virág) <strong>ezrével</strong> lehetnek a pályán. Ha mindegyikre teszel egy <code>Timer</code>-t, az pazarlás. A bevált minta: <strong>egyetlen globális óra</strong>, és a képkockát <em>számítjuk</em> belőle — nincs per-tile állapot, nincs ezernyi <code>Timer</code>.</p>
+  <p>A demó egy csempe-rács, mind <strong>egy</strong> órából animálva. Kapcsold a fázis-eltolást: nélküle minden víz/fáklya egyszerre lép (rács-hatás), vele természetes:</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — ezer csempe, egy óra</span></div>
+    <div class="pg-body">
+      <canvas id="tileCanvas" width="364" height="208" style="width:500px"></canvas>
+      <div class="pg-side">
+        <div class="pg-controls"><button class="wbtn active" id="tilePhase">Fázis-eltolás: BE</button></div>
+        <p style="margin-top:10px" class="stat" id="tileStat">offset-tel: hullámzik</p>
+        <p style="margin-top:8px;font-size:13px">Víz (csillámlás), fáklya (lobogás), virág (ringás) — mind a <code>(elapsed · fps) % n</code> képletből, egyetlen rendszerből.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/anim/tiles.rs — egy óra, akárhány csempe</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+#[derive(Component)]
+pub struct AnimatedTile {
+    pub frames: &amp;'static [usize],
+    pub fps: f32,
+    pub offset: f32,        // fázis-eltolás a változatosságért
+}
+
+/// EGY rendszer, EGY óra, akárhány csempe — NINCS per-tile Timer.
+fn animate_tiles(time: Res&lt;Time&gt;, mut q: Query&lt;(&amp;AnimatedTile, &amp;mut Sprite)&gt;) {
+    let now = time.elapsed_secs();
+    for (tile, mut sprite) in &amp;mut q {
+        let n = tile.frames.len();
+        // a képkockát SZÁMÍTJUK az időből, nem léptetjük:
+        let i = (((now + tile.offset) * tile.fps) as usize) % n;
+        if let Some(atlas) = &amp;mut sprite.texture_atlas {
+            atlas.index = tile.frames[i];
+        }
+    }
+}</code></pre>
+  </div>
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy / crate — bevy_ecs_tilemap AnimatedTile</div>
+    <p>Ha a <code>bevy_ecs_tilemap</code> crate-et használod, van beépített <code>AnimatedTile { start, end, speed }</code> komponense, ami pont ezt csinálja a chunk-renderelőbe építve (GPU-barát, sok ezer csempére). A saját kézi verzió jó néhány száz csempéig és tanulásra; nagy tilemaphoz a crate skálázódik.</p>
+  </div>
+</section>
+
+<section id="ch11">
+  <div class="ch-eyebrow">11. fejezet</div>
+  <h2>UI-animáció</h2>
+  <p>A UI más műfaj: itt <strong>nincsenek képkockák</strong>. Egy gomb-pop, egy panel-becsúszás, egy élet-csík — ezek egy <em>tulajdonság</em> (méret, pozíció, szín, scale) <strong>interpolációi</strong> idő szerint. És itt lép be az <a href="https://easings.net/" target="_blank" rel="noopener">easings.net</a>: az easing az, ami a mozgást nem gépiessé teszi.</p>
+  <div class="bevy-box">
+    <div class="tag">◆ Az easing lényege (easings.net)</div>
+    <p>Az easing egy függvény, ami egy <strong>normalizált időt</strong> alakít át görbített haladássá:</p>
+    <pre style="font-family:'IBM Plex Mono';font-size:13px;color:#cfdbd5;line-height:1.5;margin:6px 0 10px;background:var(--code-bg);border:1px solid #2a4a52;padding:10px 12px;overflow-x:auto">t:         0.0 ───────────────► 1.0
+easing(t): 0.0 ──görbe szerint──► 1.0</pre>
+    <p>Vagyis nem közvetlenül „animációt" kapsz, hanem egy <strong>értéket, amivel interpolálsz</strong>:</p>
+    <pre style="font-family:'IBM Plex Mono';font-size:13.5px;color:#a5e87d;line-height:1.5;margin:6px 0 6px;background:var(--code-bg);border:1px solid #2a4a52;padding:10px 12px;overflow-x:auto">current = start + (target - start) * easing(t)</pre>
+    <p>Az easing függvény az animáció <strong>sebességváltozását</strong> írja le — hogy ne lineárisan, gépiesen induljon és álljon meg a mozgás. Bevyben ezt az <code>EaseFunction</code> + <code>EasingCurve</code> adja (ami pont a fenti képletet számolja).</p>
+  </div>
+
+  <p>Válassz easinget, és nézd, ahogy ugyanaz a UI-elem máshogy „érződik" — pop túllövéssel (BackOut), rugósan (ElasticOut), pattanva (BounceOut):</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — UI-animáció easinggel</span></div>
+    <div class="pg-body">
+      <canvas id="uiCanvas" width="384" height="210" style="width:520px"></canvas>
+      <div class="pg-side">
+        <div class="ctl-label">easing (a pop &amp; panel)</div>
+        <div class="pg-controls" id="uiEaseChips"></div>
+        <div class="pg-controls" style="margin-top:8px">
+          <button class="wbtn" id="uiPop">Kártya-pop</button>
+          <button class="wbtn" id="uiDamage">−20 élet</button>
+          <button class="wbtn" id="uiToast">Toast</button>
+        </div>
+        <p style="margin-top:10px" class="stat" id="uiStat">easing: BackOut</p>
+        <p style="margin-top:6px;font-size:13px">A gomb-pop, a panel-becsúszás, a toast — mind <code>current = start + (target−start)·easing(t)</code>. Az élet-csík folytonos lerp-pel közelít.</p>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>easings.net</th><th>Bevy <code>EaseFunction</code></th><th>Mire</th></tr>
+    <tr><td><code>easeOutCubic</code></td><td><code>CubicOut</code></td><td>panel-becsúszás, általános „kifutás"</td></tr>
+    <tr><td><code>easeOutBack</code></td><td><code>BackOut</code></td><td>pop túllövéssel (gomb, kártya megjelenés)</td></tr>
+    <tr><td><code>easeOutElastic</code></td><td><code>ElasticOut</code></td><td>rugós, figyelemfelkeltő (jutalom, level-up)</td></tr>
+    <tr><td><code>easeOutBounce</code></td><td><code>BounceOut</code></td><td>pattanó becsapódás (leeső ikon)</td></tr>
+    <tr><td><code>easeInOutQuad</code></td><td><code>QuadraticInOut</code></td><td>sima oda-vissza (lélegző UI, kamera)</td></tr>
+  </table>
+  <p class="mono" style="font-size:12.5px;color:var(--muted)">Megj.: a Bevy a szó-sorrendet megfordítja: <code>easeOutCubic</code> → <code>EaseFunction::CubicOut</code>. A teljes katalógus: <a href="https://easings.net/" target="_blank" rel="noopener">easings.net</a>.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/ui/anim.rs — tween easinggel + élet-csík lerp</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+/// Általános UI-pop: a Transform.scale-t interpolálja 0→1-ig, easinggel.
+/// (UI-node Transformján a scale és rotation érvényesül; a translation-t a layout adja.)
+#[derive(Component)]
+struct UiPop { timer: Timer, ease: EaseFunction }
+
+fn animate_ui_pop(time: Res&lt;Time&gt;, mut q: Query&lt;(&amp;mut Transform, &amp;mut UiPop)&gt;) {
+    for (mut tf, mut pop) in &amp;mut q {
+        pop.timer.tick(time.delta());
+        let t = pop.timer.fraction();                 // normalizált idő 0→1
+        // easings.net-képlet Bevyben: EasingCurve = start→target az ease szerint.
+        // belül pontosan ezt számolja: start + (target - start) * ease(t)
+        let scale = EasingCurve::new(0.0, 1.0, pop.ease).sample_clamped(t);
+        tf.scale = Vec3::splat(scale);
+    }
+}
+
+/// Gomb hover/press: cél-scale az interakcióból (élesben tweenelve, ne ugorva).
+fn button_feedback(
+    mut q: Query&lt;(&amp;Interaction, &amp;mut Transform), (Changed&lt;Interaction&gt;, With&lt;Button&gt;)&gt;,
+) {
+    for (interaction, mut tf) in &amp;mut q {
+        let target = match interaction {
+            Interaction::Hovered =&gt; 1.08,
+            Interaction::Pressed =&gt; 0.94,
+            Interaction::None =&gt; 1.0,
+        };
+        tf.scale = Vec3::splat(target);
+    }
+}
+
+/// Élet-csík: a Node.width-et FOLYTONOSAN közelíti a cél felé (exponenciális lerp).
+fn animate_health_bar(
+    time: Res&lt;Time&gt;,
+    health: Res&lt;PlayerHealth&gt;,
+    mut q: Query&lt;&amp;mut Node, With&lt;HealthBarFill&gt;&gt;,
+) {
+    for mut node in &amp;mut q {
+        let target = health.fraction() * 100.0;
+        if let Val::Percent(w) = node.width {
+            let nw = w + (target - w) * (8.0 * time.delta_secs()).min(1.0);
+            node.width = Val::Percent(nw);          // simán „lecsúszik" a sebzésnél
+        }
+    }
+}</code></pre>
+  </div>
+  <div class="note">
+    <div class="n-tag">▲ Fix-idejű tween vs folytonos lerp</div>
+    Két mintát látsz: a <strong>fix-idejű tween</strong> (Timer 0→1 + easing) a megjelenésekre/pop-okra; a <strong>folytonos lerp</strong> (minden frame közelítünk a cél felé) az élet-csíkra, kamerára, követésre — ahol a cél menet közben is változhat. Mindkettő ugyanazt a lerp-magot használja, csak más a „t".
+  </div>
+</section>
+
+<!-- IV. RÉSZ -->
+<div class="part-divider"><span class="pd-label">█ IV. rész — Összerakás</span></div>
+
+<section id="ch12">
+  <div class="ch-eyebrow">12. fejezet</div>
+  <h2>Animációs események</h2>
+  <p>Sokszor egy <em>konkrét képkockán</em> kell történnie valaminek: a 3. futó-kockán lépészaj, a támadás 2–4. kockáján aktív a hitbox. Ezt úgy oldjuk meg, hogy figyeljük, mikor <strong>lép be</strong> az animáció egy megjelölt képkockába, és olyankor eseményt küldünk.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/anim/events.rs — képkocka-eseményt küld</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use super::player::SpriteAnimator;
+
+#[derive(Event)] struct FootstepEvent(Entity);
+#[derive(Event)] struct HitboxActive(Entity);
+
+#[derive(Component)]
+struct FrameTriggers {
+    footstep_frames: Vec&lt;usize&gt;,
+    hitbox_frames: Vec&lt;usize&gt;,
+    last_frame: usize,
+}
+
+/// Eseményt küld, amikor az animáció BELÉP egy megjelölt képkockába.
+fn emit_frame_events(
+    mut q: Query&lt;(Entity, &amp;SpriteAnimator, &amp;mut FrameTriggers)&gt;,
+    mut footsteps: EventWriter&lt;FootstepEvent&gt;,
+    mut hits: EventWriter&lt;HitboxActive&gt;,
+) {
+    for (e, anim, mut tr) in &amp;mut q {
+        if anim.frame == tr.last_frame { continue; }   // csak képkocka-VÁLTÁSKOR
+        tr.last_frame = anim.frame;
+        if tr.footstep_frames.contains(&amp;anim.frame) { footsteps.write(FootstepEvent(e)); }
+        if tr.hitbox_frames.contains(&amp;anim.frame)   { hits.write(HitboxActive(e)); }
+    }
+}</code></pre>
+  </div>
+  <div class="note">
+    <div class="n-tag">▲ A „belépés" a lényeg, nem a „benne van"</div>
+    A <code>last_frame</code> eltárolásával csak akkor sül el az esemény, amikor a kocka <em>megváltozik</em> az adott indexre — nem minden frame-ben, amíg azon a kockán áll. Így egy lépészaj egyszer szól lépésenként, nem 8×.
+  </div>
+</section>
+
+<section id="ch13">
+  <div class="ch-eyebrow">13. fejezet</div>
+  <h2>Az AnimationPlugin</h2>
+  <p>Most összeáll a kép. Egyetlen plugin regisztrálja a klip-könyvtárat és a rendszereket — <strong>határozott sorrendben</strong>: előbb a vezérlők döntenek, aztán a kötés választ klipet, végül a közös lejátszó léptet. A <code>.chain()</code> garantálja a sorrendet.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/anim/mod.rs — az AnimationPlugin</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+pub struct AnimationPlugin;
+
+impl Plugin for AnimationPlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app.init_resource::&lt;AnimLibrary&gt;()
+            .add_event::&lt;FootstepEvent&gt;()
+            .add_event::&lt;HitboxActive&gt;()
+            .add_systems(Startup, build_clip_library)
+            .add_systems(Update, (
+                // 1) VEZÉRLŐK — eldöntik az állapotot (entitás-típusonként):
+                (drive_character_state, drive_npc_state, start_attack),
+                // 2) KÖTÉS — állapot → klip (Changed), + Once-auto-return:
+                (apply_state_clip, finish_oneshot),
+                // 3) LEJÁTSZÁS — közös, MINDENKIRE:
+                (advance_animation, animate_tiles),
+                // 4) ESEMÉNYEK + juice-réteg:
+                (emit_frame_events, face_direction, land_squash),
+            ).chain());
+    }
+}</code></pre>
+  </div>
+  <div class="diagram">
+    <div class="d-head">⊞ A file-elrendezés</div>
+    <pre>
+  src/anim/
+  ├─ <span class="gr">mod.rs</span>          AnimationPlugin (a 4 fázis bekötése)
+  ├─ <span class="wa">clip.rs</span>         AnimClip · LoopMode · AnimLibrary   <span class="mu">(1. réteg: adat)</span>
+  ├─ <span class="wa">player.rs</span>       SpriteAnimator · advance_animation  <span class="mu">(2. réteg: közös lejátszó)</span>
+  ├─ <span class="di">character.rs</span>    CharState · drive_* · apply_state_clip · finish_oneshot
+  ├─ <span class="di">npc.rs</span>          Npc · drive_npc_state · spawn (fázis-offset)   <span class="mu">(3. réteg: vezérlők)</span>
+  ├─ tiles.rs        AnimatedTile · animate_tiles
+  └─ events.rs       FrameTriggers · emit_frame_events
+  src/ui/
+  └─ anim.rs         UI-tween easinggel (EaseFunction) — KÜLÖN a sprite-tól</pre>
+    <div class="d-cap">A sprite-animáció (clip/player/driver) egy csomag; a UI-animáció külön, mert az tween, nem képkocka. Az <code>AnimationPlugin</code> a <code>main</code>-ben egyetlen sor.</div>
+  </div>
+</section>
+
+<section id="ch14">
+  <div class="ch-eyebrow">14. fejezet</div>
+  <h2>Teljesítmény &amp; merre tovább?</h2>
+  <h3>Buktatók (a tutorialból)</h3>
+  <ul>
+    <li><strong>Ne reseteld a fázist minden frame-ben.</strong> A <code>play()</code> „ugyanaz a klip? → return" őre + a <code>Changed&lt;CharState&gt;</code> szűrő együtt biztosítja, hogy a klip csak <em>váltáskor</em> váltson.</li>
+    <li><strong>Tile: egy óra, ne ezer Timer.</strong> A képkockát számítsd az időből (<code>(elapsed·fps) % n</code>); fázis-offsettel adj változatosságot.</li>
+    <li><strong>Tömeg: fázis-eltolás.</strong> Sok NPC-nek véletlen kezdő-fázis, különben gépiesen szinkronban lüktet.</li>
+    <li><strong>Takarítás.</strong> Az animált entitásokat <code>DespawnOnExit(State)</code>-tel vagy markerrel takarítsd jelenet-váltáskor (lásd a scene-váltás tutorialt).</li>
+  </ul>
+  <h3>Merre tovább?</h3>
+  <ul>
+    <li><strong>Easing katalógus — <a href="https://easings.net/" target="_blank" rel="noopener">easings.net</a>.</strong> A teljes görbe-készlet vizuálisan; mindegyikhez van <code>EaseFunction</code> párja Bevyben (<code>EasingCurve</code>-on mintázva).</li>
+    <li><strong><code>bevy_tweening</code>.</strong> Láncolt / ismétlő / oda-vissza tweenekhez (UI és transzformáció) — megspórolja a kézi <code>Timer</code>-t.</li>
+    <li><strong><code>bevy_ecs_tilemap</code> AnimatedTile.</strong> Nagy, GPU-gyorsított animált tilemaphoz.</li>
+    <li><strong>Aseprite-import.</strong> A <code>bevy_aseprite_ultra</code>-féle crate-ek beolvassák a tagelt animációkat és layoutot — a klip-könyvtárad az eszközből jön.</li>
+    <li><strong>3D ≠ 2D.</strong> Csontvázas 3D-ben az <code>AnimationGraph</code> + <code>AnimationPlayer</code> <em>valódi blendet</em> ad (pózok keverése). A 2D sprite itteni mintája diszkrét kockás — más állat, de a vezérlő/állapotgép réteg ugyanúgy érvényes.</li>
+  </ul>
+  <div class="bevy-box">
+    <div class="tag">⚙ Az igazi tanulság</div>
+    <p>Válaszd szét a három réteget: a <strong>klip</strong> az adat, a <strong>lejátszó</strong> közös, a <strong>vezérlő</strong> dönt. Egyetlen gép hajtja a karaktert, az NPC-t és a tile-t — csak a vezérlő más; a UI pedig <strong>easing-tween</strong> (<code>current = start + (target−start)·easing(t)</code>), nem képkocka. Az átvezetés egy állapotgép, ahol a Once-klipek a végükön visszatérnek és a prioritás dönti el, mi írhat felül mit. Ha ez a négy a helyén van, a futás→ugrás→esés→land tisztán, rángás nélkül vált. Jó kódolást! ▸▸</p>
+  </div>
+</section>
+
+<footer>
+  <p class="pix">ANIMÁCIÓK — állapotgép, átvezetések, NPC · tile · UI Bevy 0.18-ban</p>
+  <p>A dual-grid sorozat átfogó animációs darabja. A demók procedurálisan, valós időben futnak (HTML canvas): ugyanaz a klip/lejátszó/vezérlő szétválasztás, állapotgép-átvezetés, fázis-offset és easing-tween, amit a Rust kód is megvalósít. Az easing-szemlélet az <a href="https://easings.net/" target="_blank" rel="noopener">easings.net</a> nyomán. Kódrészletek a 0.18-as API-ra: <code>Sprite</code>+<code>TextureAtlas.index</code>, <code>Timer</code>, <code>Changed&lt;T&gt;</code>, <code>EaseFunction</code>/<code>EasingCurve</code>, <code>EventWriter</code>, <code>Plugin</code>+<code>.chain()</code>.</p>
+</footer>
+
+</div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var TAU=Math.PI*2;
+var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* =====================================================================
+   EASING (easings.net — t:0→1 ⇒ görbített haladás 0→1)
+   ===================================================================== */
+var EASE={
+  Linear:function(t){ return t; },
+  CubicOut:function(t){ return 1-Math.pow(1-t,3); },
+  QuadraticInOut:function(t){ return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2; },
+  BackOut:function(t){ var c1=1.70158,c3=c1+1; return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2); },
+  ElasticOut:function(t){ var c4=TAU/3; return t===0?0:t===1?1:Math.pow(2,-10*t)*Math.sin((t*10-0.75)*c4)+1; },
+  BounceOut:function(t){ var n1=7.5625,d1=2.75; if(t<1/d1)return n1*t*t; if(t<2/d1){t-=1.5/d1;return n1*t*t+0.75;} if(t<2.5/d1){t-=2.25/d1;return n1*t*t+0.9375;} t-=2.625/d1; return n1*t*t+0.984375; }
+};
+function lerp(a,b,t){ return a+(b-a)*t; }
+
+/* =====================================================================
+   RAJZ-SEGÉDEK (procedurális pixelart, kép-asset nélkül)
+   ===================================================================== */
+function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function limb(ctx,x0,y0,x1,y1,w,col){ ctx.strokeStyle=col; ctx.lineWidth=w; ctx.lineCap="round"; ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke(); }
+function swordLite(ctx,px,py,angle,len){ ctx.save(); ctx.translate(px,py); ctx.rotate(angle);
+  ctx.strokeStyle="#d8b25e"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-4,0); ctx.lineTo(4,0); ctx.stroke();
+  ctx.strokeStyle="#e6edf3"; ctx.lineWidth=3; ctx.lineCap="round"; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-len); ctx.stroke();
+  ctx.restore(); }
+function trailLite(ctx,px,py,a0,a1,len){ var n=8; ctx.beginPath(); for(var i=0;i<n;i++){ var t=i/(n-1),a=a0+(a1-a0)*t,x=px+len*Math.sin(a),y=py-len*Math.cos(a); if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);} ctx.strokeStyle="rgba(170,225,255,.4)"; ctx.lineWidth=3; ctx.lineCap="round"; ctx.stroke(); }
+
+/* oldalnézeti chibi karakter, állapot szerinti pózzal */
+function drawHero(ctx,cx,fy,u,state,ph,flip){
+  var C={skin:"#e8b487",tunic:"#5aa64a",tunicDk:"#3f7a2e",limb:"#cf9a6a",limbDk:"#9a6e43",pants:"#39456a",boot:"#22202e",hair:"#5a3a2a"};
+  ctx.fillStyle="rgba(0,0,0,.28)"; ctx.beginPath(); ctx.ellipse(cx,fy,6.5*u,2*u,0,0,TAU); ctx.fill();
+  ctx.save(); ctx.translate(cx,fy); if(flip) ctx.scale(-1,1);
+  var hipY=-7*u, shY=-11.5*u, headY=-14.3*u, headR=2.3*u, legLen=7*u, armLen=4.7*u, lw=Math.max(2,u*0.95);
+  var fA=0,bA=0,faA=0,baA=0,lean=0,sx=1,sy=1,sword=null,flash=false;
+  if(state==="idle"){ var br=Math.sin(ph*TAU); shY+=br*0.4; headY+=br*0.4; fA=0.1;bA=-0.1;faA=0.16;baA=-0.16; }
+  else if(state==="run"){ var s=Math.sin(ph*TAU); fA=s*0.85;bA=-s*0.85;faA=-s*0.7;baA=s*0.7;lean=0.13; hipY-=Math.abs(Math.sin(ph*2*TAU))*0.9*u; }
+  else if(state==="jump"){ fA=0.55;bA=1.0;faA=-1.05;baA=-1.3;legLen=4.7*u;lean=-0.08; }
+  else if(state==="fall"){ fA=0.75;bA=-0.75;faA=-1.3;baA=1.3;lean=0.04; }
+  else if(state==="land"){ sx=1.35;sy=0.72;fA=0.62;bA=-0.62;faA=0.45;baA=-0.45;legLen=5.6*u; }
+  else if(state==="attack"){ fA=0.32;bA=-0.5;lean=0.16; sword=Math.min(1,ph); }
+  else if(state==="hurt"){ lean=-0.26;fA=-0.3;bA=0.42;faA=-0.85;baA=1.0; flash=(Math.floor(ph*10)%2===0); }
+  ctx.scale(sx,sy); ctx.rotate(lean);
+  function pt(a,len,oy){ return [Math.sin(a)*len, oy+Math.cos(a)*len]; }
+  // hátsó láb + kar
+  var bf=pt(bA,legLen,hipY); limb(ctx,0,hipY,bf[0],bf[1],lw,C.pants);
+  ctx.fillStyle=C.boot; ctx.fillRect(bf[0]-1.4*u,bf[1]-0.9*u,2.8*u,1.3*u);
+  var bh=pt(baA,armLen,shY); limb(ctx,0,shY,bh[0],bh[1],lw,C.limbDk);
+  // törzs
+  ctx.fillStyle=C.tunic; roundRect(ctx,-2.4*u,shY,4.8*u,(hipY-shY)+1.5*u,1.6*u); ctx.fill();
+  ctx.fillStyle=C.tunicDk; ctx.fillRect(-2.4*u,hipY-0.4*u,4.8*u,1.2*u);
+  // első láb
+  var ff=pt(fA,legLen,hipY); limb(ctx,0,hipY,ff[0],ff[1],lw,C.pants);
+  ctx.fillStyle=C.boot; ctx.fillRect(ff[0]-1.4*u,ff[1]-0.9*u,2.8*u,1.3*u);
+  // fej
+  ctx.fillStyle=C.skin; ctx.beginPath(); ctx.arc(0,headY,headR,0,TAU); ctx.fill();
+  ctx.fillStyle=C.hair; ctx.beginPath(); ctx.arc(0,headY,headR,Math.PI*1.02,Math.PI*2.15); ctx.fill();
+  ctx.fillStyle="#2a2030"; ctx.fillRect(headR*0.35,headY-0.3*u,0.9*u,0.9*u);
+  // első kar (+ kard)
+  var fh=pt(faA,armLen,shY); limb(ctx,0,shY,fh[0],fh[1],lw,C.limb);
+  if(sword!==null){
+    var ang=lerp(-2.0,0.95,EASE.BackOut(sword));
+    var hx=Math.sin(0.55)*armLen, hy=shY+Math.cos(0.55)*armLen;
+    if(sword<0.95) trailLite(ctx,hx,hy,-2.0,ang,5.8*u);
+    swordLite(ctx,hx,hy,ang,6.5*u);
+  }
+  if(flash){ ctx.fillStyle="rgba(255,120,110,.5)"; roundRect(ctx,-2.6*u,headY-headR,5.2*u,(hipY-headY)+headR+1.5*u,1.6*u); ctx.fill(); }
+  ctx.restore();
+}
+
+/* pattogó slime (NPC) */
+function drawSlime(ctx,cx,fy,r,ph,col){
+  var t=ph-Math.floor(ph), hop=Math.sin(t*Math.PI), lift=hop*r*0.95;
+  var sq=Math.max(0,1-hop*6)*0.28, rx=r*(1+sq), ry=r*(1-sq);
+  ctx.fillStyle="rgba(0,0,0,"+(0.30-hop*0.18)+")"; ctx.beginPath(); ctx.ellipse(cx,fy+1,rx*0.95,3,0,0,TAU); ctx.fill();
+  var cy=fy-ry-lift;
+  ctx.fillStyle=col; ctx.beginPath(); ctx.ellipse(cx,cy,rx,ry,0,0,TAU); ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,.22)"; ctx.beginPath(); ctx.ellipse(cx-rx*0.3,cy-ry*0.35,rx*0.3,ry*0.26,0,0,TAU); ctx.fill();
+  ctx.fillStyle="#10180f"; ctx.fillRect(cx-rx*0.34,cy-ry*0.12,2,3); ctx.fillRect(cx+rx*0.18,cy-ry*0.12,2,3);
+}
+
+/* animált csempék */
+function tileWater(ctx,x,y,s,p){ ctx.fillStyle="#36798c"; ctx.fillRect(x,y,s,s);
+  for(var r=0;r<s;r+=5){ var yy=y+((r+p*14)%s); ctx.fillStyle=(Math.floor((r+p*14)/s)%2)?"#6cc8d9":"#2c6675"; ctx.fillRect(x+2,yy,s-4,2);} }
+function tileTorch(ctx,x,y,s,p){ ctx.fillStyle="#16210f"; ctx.fillRect(x,y,s,s); var cx=x+s/2;
+  ctx.fillStyle="#6a4a2a"; ctx.fillRect(cx-2,y+s*0.5,4,s*0.5);
+  var f=Math.sin(p*TAU)*0.5+0.5, w=s*0.2*(0.8+f*0.5), h=s*0.38*(0.7+f*0.6), wob=Math.sin(p*9)*1.5;
+  ctx.fillStyle="#ff7a3c"; ctx.beginPath(); ctx.ellipse(cx+wob,y+s*0.4,w,h,0,0,TAU); ctx.fill();
+  ctx.fillStyle="#f0c040"; ctx.beginPath(); ctx.ellipse(cx,y+s*0.42,w*0.55,h*0.6,0,0,TAU); ctx.fill();
+  ctx.fillStyle="#fff3b0"; ctx.beginPath(); ctx.ellipse(cx,y+s*0.46,w*0.25,h*0.32,0,0,TAU); ctx.fill(); }
+function tileFlower(ctx,x,y,s,p){ ctx.fillStyle="#3f7a2e"; ctx.fillRect(x,y,s,s); var cx=x+s/2, sway=Math.sin(p*TAU)*3;
+  ctx.strokeStyle="#2f6e3c"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(cx,y+s-2); ctx.quadraticCurveTo(cx+sway,y+s*0.55,cx+sway,y+s*0.36); ctx.stroke();
+  var fx=cx+sway, fyy=y+s*0.3;
+  ctx.fillStyle="#e85a8a"; for(var k=0;k<5;k++){ var a=k/5*TAU+p*0.6; ctx.beginPath(); ctx.ellipse(fx+Math.cos(a)*3,fyy+Math.sin(a)*3,2.1,2.1,0,0,TAU); ctx.fill(); }
+  ctx.fillStyle="#f0d24a"; ctx.beginPath(); ctx.arc(fx,fyy,2,0,TAU); ctx.fill(); }
+
+function groundStrip(ctx,w,h,gy){ ctx.fillStyle="#0e160f"; ctx.fillRect(0,0,w,h);
+  ctx.fillStyle="#1a2a17"; ctx.fillRect(0,gy,w,h-gy); ctx.fillStyle="#4e8f33"; ctx.fillRect(0,gy,w,3);
+  ctx.fillStyle="#3f7a2e"; for(var x=0;x<w;x+=5){ ctx.fillRect(x+((x*7)%3),gy+3,2,2); } }
+
+/* =====================================================================
+   HERO — auto állapot-körjárat átvezetésekkel
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("heroAnim"); if(!cv) return; var ctx=cv.getContext("2d");
+  var W=cv.width,H=cv.height, gy=H-34, u=3.0;
+  var SEQ=[["idle",1.3],["run",1.6],["jump",0.5],["fall",0.6],["land",0.45],["run",1.2],["attack",0.5],["idle",1.0]];
+  var idx=0, st=SEQ[0][0], hold=0, ph=0, x=W*0.5;
+  var NAME={idle:"Idle",run:"Run",jump:"Jump",fall:"Fall",land:"Land",attack:"Attack",hurt:"Hurt"};
+  function frame(dt){
+    hold+=dt; ph+= dt*(st==="run"?2.2:st==="attack"?2.0:st==="idle"?1.0:1.6);
+    if(hold>=SEQ[idx][1]){ hold=0; ph=0; idx=(idx+1)%SEQ.length; st=SEQ[idx][0]; }
+    // vízszintes mozgás run alatt
+    if(st==="run") x+=Math.cos(0)*0; // helyben fut (háttér nélkül)
+    groundStrip(ctx,W,H,gy);
+    drawHero(ctx,W*0.5,gy+1,u,st,ph,false);
+    // állapot-címke
+    ctx.fillStyle="rgba(8,11,8,.8)"; ctx.fillRect(0,0,W,22);
+    ctx.fillStyle="#a5e87d"; ctx.font='bold 12px "Courier New",monospace'; ctx.textAlign="left"; ctx.textBaseline="middle";
+    ctx.fillText("ÁLLAPOT: "+NAME[st]+"   (átvezetés-körjárat)",8,12);
+  }
+  if(reduceMotion){ frame(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   KLIP-LEJÁTSZÓ — Loop / Once / PingPong + fps
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("clipCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var W=cv.width,H=cv.height, N=6, first=0, last=N-1;
+  var mode="Loop", fps=8, frame=0, dir=1, finished=false, acc=0;
+  var fpsEl=document.getElementById("clipFpsVal"), statEl=document.getElementById("clipStat");
+  // mini "sprite" képkockák: egy figura, kockánként más póz (run-szerű)
+  function drawFrame(ctx,x,y,s,i,active){
+    ctx.fillStyle=active?"#16241a":"#0e160f"; ctx.fillRect(x,y,s,s);
+    ctx.strokeStyle=active?"#a5e87d":"#2d3b2c"; ctx.lineWidth=active?2:1; ctx.strokeRect(x+0.5,y+0.5,s-1,s-1);
+    // figura
+    var u=s/22, cx=x+s/2, fyy=y+s*0.8, ph=i/N;
+    drawHero(ctx,cx,fyy,u,"run",ph,false);
+    ctx.fillStyle=active?"#a5e87d":"#6d7c64"; ctx.font='8px "Courier New",monospace'; ctx.textAlign="center"; ctx.textBaseline="alphabetic";
+    ctx.fillText(i,x+s/2,y+s-2);
+  }
+  function step(){
+    if(mode==="Loop"){ frame=frame>=last?first:frame+1; }
+    else if(mode==="Once"){ if(frame<last) frame++; else finished=true; }
+    else { if(frame===last)dir=-1; else if(frame===first)dir=1; frame+=dir; }
+  }
+  function frameFn(dt){
+    if(!(mode==="Once"&&finished)){ acc+=dt; var spf=1/fps; while(acc>=spf){ acc-=spf; step(); } }
+    ctx.fillStyle="#0b110c"; ctx.fillRect(0,0,W,H);
+    var s=Math.min(58,(W-20)/N - 4), x0=(W-(s+4)*N)/2, y0=18;
+    for(var i=0;i<N;i++){ drawFrame(ctx,x0+i*(s+4),y0,s,i,i===frame); }
+    ctx.fillStyle="#9caa90"; ctx.font='10px "Courier New",monospace'; ctx.textAlign="center"; ctx.textBaseline="alphabetic";
+    ctx.fillText("klip: first="+first+"  last="+last+"  mode="+mode+(finished?"  ✓ vége":""), W/2, H-10);
+    statEl.textContent="frame "+frame+" / "+last;
+  }
+  Array.prototype.forEach.call(cv.parentNode.querySelectorAll("[data-mode]"),function(b){ b.addEventListener("click",function(){
+    mode=b.getAttribute("data-mode"); frame=first; dir=1; finished=false; acc=0;
+    Array.prototype.forEach.call(cv.parentNode.querySelectorAll("[data-mode]"),function(x){ x.classList.toggle("active",x===b); }); }); });
+  var fpsR=document.getElementById("clipFps"); fpsR.addEventListener("input",function(){ fps=+fpsR.value; fpsEl.textContent=fps; });
+  if(reduceMotion){ frameFn(0); return; }
+  var lastT=null; (function loop(now){ if(lastT===null)lastT=now; var dt=Math.min(.05,(now-lastT)/1000); lastT=now; frameFn(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   JÁTSZHATÓ KARAKTER — state a fizikából, átvezetésekkel
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("charCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var W=cv.width,H=cv.height, gy=H-26, u=3.0;
+  var x=W*0.5, h=0, vx=0, vy=0, grounded=true, facing=false;
+  var SPEED=120, JUMP=320, G=900;
+  var left=false,right=false, attackT=-1, landT=-1, prevGround=true;
+  var state="idle", prevState="idle", ph=0;
+  var stEl=document.getElementById("charState"), logEl=document.getElementById("charLog");
+  var NAME={idle:"Idle",run:"Run",jump:"Jump",fall:"Fall",land:"Land",attack:"Attack"};
+  var hist=[];
+  function pushLog(s){ hist.push(s); if(hist.length>5)hist.shift();
+    logEl.innerHTML=hist.map(function(z,i){ return "<span class='crumb"+(i===hist.length-1?" cur":"")+"'>"+NAME[z]+"</span>"+(i<hist.length-1?"<span class='crumb arr'>▸</span>":""); }).join(""); }
+  function decide(){
+    if(attackT>=0) return "attack";
+    if(landT>=0) return "land";
+    if(!grounded) return vy>0?"jump":"fall";
+    if(Math.abs(vx)>12) return "run";
+    return "idle";
+  }
+  function frame(dt){
+    // input → sebesség
+    var tvx=((right?1:0)-(left?1:0))*SPEED;
+    vx += (tvx-vx)*Math.min(1,dt*18);
+    if(Math.abs(vx)>5) facing = vx<0;
+    x=Math.max(28,Math.min(W-28,x+vx*dt));
+    // függőleges
+    h+=vy*dt; vy-=G*dt;
+    if(h<=0){ h=0; if(!grounded && vy<-150){ landT=0; } grounded=true; vy=0; }
+    grounded = h<=0.001;
+    // időzítők
+    if(attackT>=0){ attackT+=dt; if(attackT>0.4) attackT=-1; }
+    if(landT>=0){ landT+=dt; if(landT>0.18) landT=-1; }
+    // állapot
+    state=decide();
+    if(state!==prevState){ ph=0; prevState=state; pushLog(state); }
+    ph += dt*(state==="run"?Math.max(1.2,Math.abs(vx)/26):state==="attack"?2.5:state==="land"?5.5:1.5);
+    var drawPh = state==="attack"?Math.min(1,attackT/0.4):state==="land"?Math.min(1,landT/0.18):ph;
+    // render
+    groundStrip(ctx,W,H,gy);
+    drawHero(ctx,x,gy-h,u,state,drawPh,facing);
+    stEl.textContent="állapot: "+NAME[state]+(grounded?"":"  (levegőben)");
+  }
+  // gombok
+  function hold(id,set){ var b=document.getElementById(id);
+    b.addEventListener("pointerdown",function(e){e.preventDefault(); set(true);});
+    ["pointerup","pointerleave"].forEach(function(ev){ b.addEventListener(ev,function(){ set(false); }); }); }
+  hold("charLeft",function(v){left=v;}); hold("charRight",function(v){right=v;});
+  document.getElementById("charJump").addEventListener("click",function(){ if(grounded){ vy=JUMP; grounded=false; } });
+  document.getElementById("charAtk").addEventListener("click",function(){ if(attackT<0) attackT=0; });
+  // billentyűzet
+  cv.addEventListener("keydown",function(e){
+    if(e.code==="ArrowLeft")left=true; else if(e.code==="ArrowRight")right=true;
+    else if(e.code==="Space"){ if(grounded){vy=JUMP;grounded=false;} } else if(e.code==="KeyJ"){ if(attackT<0)attackT=0; }
+    if(["ArrowLeft","ArrowRight","Space"].indexOf(e.code)>=0)e.preventDefault(); });
+  cv.addEventListener("keyup",function(e){ if(e.code==="ArrowLeft")left=false; else if(e.code==="ArrowRight")right=false; });
+  cv.addEventListener("pointerdown",function(){ cv.focus(); });
+  pushLog("idle");
+  if(reduceMotion){ frame(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   ÁTVEZETÉS-GRÁF — prioritás & auto-return
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("fsmCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var nodes={ idle:{x:78,y:54,l:"Idle",c:"#7ecb52"}, run:{x:208,y:54,l:"Run",c:"#7ecb52"},
+              jump:{x:320,y:70,l:"Jump",c:"#6cc8d9"}, fall:{x:320,y:150,l:"Fall",c:"#6cc8d9"},
+              attack:{x:96,y:165,l:"Attack",c:"#ff7a3c"}, hurt:{x:214,y:188,l:"Hurt",c:"#c99c66"} };
+  var edges=[["idle","run"],["run","idle"],["run","jump"],["jump","fall"],["fall","idle"],["fall","run"],
+             ["idle","attack"],["run","attack"],["attack","idle"],["idle","hurt"],["hurt","idle"]];
+  var NW=80,NH=34, cur="idle", logEl=document.getElementById("fsmLog"), ret=-1;
+  function nodeAt(mx,my){ for(var k in nodes){ var n=nodes[k]; if(mx>=n.x-NW/2&&mx<=n.x+NW/2&&my>=n.y-NH/2&&my<=n.y+NH/2)return k; } return null; }
+  function arrow(a,b,hot){ var A=nodes[a],B=nodes[b],dx=B.x-A.x,dy=B.y-A.y,d=Math.hypot(dx,dy); dx/=d;dy/=d;
+    var sx=A.x+dx*(NW/2+3),sy=A.y+dy*(NH/2+3),ex=B.x-dx*(NW/2+7),ey=B.y-dy*(NH/2+7);
+    ctx.strokeStyle=hot?"#a5e87d":"#33402f"; ctx.lineWidth=hot?2.5:1.5; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey); ctx.stroke();
+    var a1=Math.atan2(ey-sy,ex-sx); ctx.fillStyle=hot?"#a5e87d":"#33402f"; ctx.beginPath(); ctx.moveTo(ex,ey);
+    ctx.lineTo(ex-7*Math.cos(a1-0.4),ey-7*Math.sin(a1-0.4)); ctx.lineTo(ex-7*Math.cos(a1+0.4),ey-7*Math.sin(a1+0.4)); ctx.fill(); }
+  function draw(){ ctx.fillStyle="#0b110c"; ctx.fillRect(0,0,cv.width,cv.height);
+    edges.forEach(function(e){ arrow(e[0],e[1], e[0]===cur); });
+    for(var k in nodes){ var n=nodes[k], act=(k===cur);
+      ctx.fillStyle=act?n.c:"#1a241b"; ctx.fillRect(n.x-NW/2,n.y-NH/2,NW,NH);
+      ctx.strokeStyle=act?"#fff":n.c; ctx.lineWidth=act?3:2; ctx.strokeRect(n.x-NW/2,n.y-NH/2,NW,NH);
+      ctx.fillStyle=act?"#10180f":n.c; ctx.font='bold 13px "Courier New",monospace'; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText(n.l,n.x,n.y);
+      if((k==="attack"||k==="hurt")){ ctx.fillStyle=act?"#10180f":"#6d7c64"; ctx.font='8px "Courier New",monospace'; ctx.fillText("1×→Idle",n.x,n.y+NH/2-6); } }
+  }
+  function go(k,reason){ if(k===cur)return; logEl.innerHTML="OnExit(<b style='color:#ff7a3c'>"+nodes[cur].l+"</b>) → OnEnter(<b style='color:#a5e87d'>"+nodes[k].l+"</b>)"+(reason?"  · "+reason:""); cur=k; draw();
+    if(k==="attack"||k==="hurt"){ ret=0; } else ret=-1; }
+  cv.style.cursor="pointer";
+  cv.addEventListener("click",function(e){ var r=cv.getBoundingClientRect(); var mx=(e.clientX-r.left)*(cv.width/r.width),my=(e.clientY-r.top)*(cv.height/r.height); var k=nodeAt(mx,my); if(k)go(k); });
+  draw();
+  if(reduceMotion) return;
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now;
+    if(ret>=0){ ret+=dt; if(ret>0.9){ ret=-1; go("idle","klip vége"); } } requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   NPC-TÖMEG — fázis-eltolás
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("npcCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var W=cv.width,H=cv.height, gy=H-22, n=8, phase=true;
+  var cols=["#7ecb52","#6cc8d9","#c99c66","#a98bff","#e85a8a","#7ecb52","#6cc8d9","#c99c66"];
+  var statEl=document.getElementById("npcStat");
+  function frame(dt){
+    groundStrip(ctx,W,H,gy);
+    var now=performance.now()/1000, sp=1.6;
+    for(var i=0;i<n;i++){ var off=phase?(i*0.137*7%1):0; var p=now*sp+off;
+      var x=30+i*((W-60)/(n-1));
+      drawSlime(ctx,x,gy,11,p,cols[i]); }
+    ctx.fillStyle="rgba(8,11,8,.8)"; ctx.fillRect(0,0,W,20);
+    ctx.fillStyle=phase?"#a5e87d":"#ff7a3c"; ctx.font='bold 11px "Courier New",monospace'; ctx.textAlign="left"; ctx.textBaseline="middle";
+    ctx.fillText(phase?"fázis-eltolás BE — élethű":"fázis-eltolás KI — gépies szinkron",8,11);
+  }
+  var b=document.getElementById("npcPhase");
+  b.addEventListener("click",function(){ phase=!phase; b.classList.toggle("active",phase); b.textContent="Fázis-eltolás: "+(phase?"BE":"KI");
+    statEl.textContent=phase?"változatos (élethű)":"mind egyszerre pattan (gépies)"; });
+  if(reduceMotion){ frame(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   TILE-RÁCS — egy óra, fázis-offset
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("tileCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var W=cv.width,H=cv.height, TS=28, cols=Math.floor(W/TS), rows=Math.floor(H/TS), phase=true;
+  var statEl=document.getElementById("tileStat");
+  function tileGrass(x,y){ ctx.fillStyle="#4e8f33"; ctx.fillRect(x,y,TS,TS); ctx.fillStyle="#3f7a2e"; for(var i=0;i<4;i++){ctx.fillRect(x+((i*7)%TS),y+((i*11)%TS),2,2);} }
+  function type(gx,gy){ if(gy>=rows-3) return "water"; if(gy===0 && gx%5===2) return "torch"; if((gx*7+gy*5)%4===0) return "flower"; return "grass"; }
+  function frame(){
+    var now=performance.now()/1000;
+    for(var gy=0;gy<rows;gy++)for(var gx=0;gx<cols;gx++){
+      var x=gx*TS,y=gy*TS, t=type(gx,gy), off=phase?((gx*0.13+gy*0.21)%1):0;
+      if(t==="water"){ tileWater(ctx,x,y,TS,now*0.7+off); }
+      else if(t==="torch"){ tileGrass(x,y); tileTorch(ctx,x,y,TS,now*1.4+off); }
+      else if(t==="flower"){ tileGrass(x,y); tileFlower(ctx,x,y,TS,now*0.5+off); }
+      else tileGrass(x,y);
+    }
+  }
+  var b=document.getElementById("tilePhase");
+  b.addEventListener("click",function(){ phase=!phase; b.classList.toggle("active",phase); b.textContent="Fázis-eltolás: "+(phase?"BE":"KI");
+    statEl.textContent=phase?"offset-tel: hullámzik":"offset nélkül: rács-szinkron"; });
+  if(reduceMotion){ frame(); return; }
+  (function loop(){ frame(); requestAnimationFrame(loop); })();
+})();
+
+/* =====================================================================
+   UI-ANIMÁCIÓ — easing-tween (easings.net)
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("uiCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var W=cv.width,H=cv.height, sel="BackOut";
+  var cardT=1, panelClock=0, hp=1, hpTarget=1, toastT=2, toastActive=false;
+  var statEl=document.getElementById("uiStat");
+  function panel(x,y,w,h,title,fill){ ctx.fillStyle=fill||"#1a241b"; ctx.fillRect(x,y,w,h); ctx.strokeStyle="#41543e"; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle="#a5e87d"; ctx.font='bold 10px "Courier New",monospace'; ctx.textAlign="left"; ctx.textBaseline="middle"; ctx.fillText(title,x+8,y+12); }
+  function frame(dt){
+    ctx.fillStyle="#0b110c"; ctx.fillRect(0,0,W,H);
+    // PANEL — becsúszik balról + fade, ciklikusan, a választott easinggel
+    panelClock=(panelClock+dt)%3.4; var pp=panelClock, pt;
+    if(pp<0.7) pt=EASE[sel](pp/0.7); else if(pp<2.7) pt=1; else pt=1-EASE.CubicOut((pp-2.7)/0.7);
+    var px=lerp(-130,14,pt);
+    ctx.globalAlpha=Math.max(0,Math.min(1,pt)); panel(px,44,120,96,"PANEL");
+    ctx.fillStyle="#9caa90"; ctx.font='9px "Courier New",monospace';
+    ctx.fillText("becsúszás",px+8,70); ctx.fillText(sel,px+8,84); ctx.globalAlpha=1;
+    // KÁRTYA-POP — scale 0→1 a választott easinggel
+    cardT=Math.min(1.0001,cardT+dt/0.5); var cs=EASE[sel](Math.min(1,cardT));
+    var cw=120,ch=70,ccx=270,ccy=92;
+    ctx.save(); ctx.translate(ccx,ccy); ctx.scale(cs,cs); ctx.translate(-ccx,-ccy);
+    panel(ccx-cw/2,ccy-ch/2,cw,ch,"KÁRTYA","#16241a");
+    ctx.fillStyle="#e9e3cd"; ctx.font='9px "Courier New",monospace'; ctx.fillText("scale 0→1",ccx-cw/2+8,ccy+8); ctx.restore();
+    // ÉLET-CSÍK — folytonos lerp a cél felé
+    hpTarget=Math.min(1,hpTarget+dt*0.06); hp+=(hpTarget-hp)*Math.min(1,dt*8);
+    var bx=14,by=180,bw=200,bh=16;
+    ctx.fillStyle="#2a201e"; ctx.fillRect(bx,by,bw,bh);
+    ctx.fillStyle=hp>0.3?"#7ecb52":"#ff7a3c"; ctx.fillRect(bx,by,bw*hp,bh);
+    ctx.strokeStyle="#41543e"; ctx.lineWidth=2; ctx.strokeRect(bx,by,bw,bh);
+    ctx.fillStyle="#e9e3cd"; ctx.font='9px "Courier New",monospace'; ctx.textAlign="left"; ctx.textBaseline="middle"; ctx.fillText("HP "+Math.round(hp*100), bx+bw+8, by+bh/2);
+    // TOAST — becsúszik fentről BackOut-tal
+    if(toastActive){ toastT=Math.min(1.4,toastT+dt); }
+    var ty, ta=1;
+    if(toastT<0.4){ ty=lerp(-26,12,EASE.BackOut(toastT/0.4)); }
+    else if(toastT<1.1){ ty=12; } else { ty=lerp(12,-26,EASE.CubicOut(Math.min(1,(toastT-1.1)/0.3))); if(toastT>=1.4)toastActive=false; }
+    if(toastActive){ var tw=150,tx=(W-tw)/2; ctx.fillStyle="#3a2e44"; ctx.fillRect(tx,ty,tw,22); ctx.strokeStyle="#a98bff"; ctx.lineWidth=2; ctx.strokeRect(tx,ty,tw,22);
+      ctx.fillStyle="#d8a0e8"; ctx.font='bold 10px "Courier New",monospace'; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("✦ +1 SZINT!",W/2,ty+11); }
+  }
+  // easing chips
+  var host=document.getElementById("uiEaseChips");
+  ["Linear","CubicOut","BackOut","ElasticOut","BounceOut"].forEach(function(name){
+    var b=document.createElement("button"); b.className="wbtn"+(name==="BackOut"?" active":""); b.textContent=name;
+    b.addEventListener("click",function(){ sel=name; statEl.textContent="easing: "+name; cardT=0; panelClock=0;
+      Array.prototype.forEach.call(host.children,function(z){ z.classList.toggle("active",z===b); }); });
+    host.appendChild(b); });
+  document.getElementById("uiPop").addEventListener("click",function(){ cardT=0; });
+  document.getElementById("uiDamage").addEventListener("click",function(){ hpTarget=Math.max(0,hpTarget-0.2); });
+  document.getElementById("uiToast").addEventListener("click",function(){ toastT=0; toastActive=true; });
+  if(reduceMotion){ frame(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   Rust szintaxis-kiemelő
+   ===================================================================== */
+var KW=/\b(?:fn|let|mut|use|struct|enum|impl|const|pub|return|if|else|for|in|while|loop|match|as|mod|crate|self|Self|true|false|move|ref|static|dyn|where|continue|break|name|version|edition|default)\b/;
+var TOKEN=new RegExp("(\\/\\/[^\\n]*)"+"|(#!?\\[[^\\]]*\\])"+"|(\"(?:[^\"\\\\]|\\\\.)*\")"+"|([A-Za-z_][A-Za-z0-9_]*!)"+"|("+KW.source.slice(2,-2)+")"+"|(\\b[A-Z][A-Za-z0-9_]*\\b)"+"|(\\b\\d[\\d_]*(?:\\.\\d+)?\\b)","g");
+var CLS=[null,"c","m","s","m","k","t","n"];
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+document.querySelectorAll("pre code").forEach(function(code){ var src=code.textContent,out="",last=0,m; TOKEN.lastIndex=0;
+  while((m=TOKEN.exec(src))){ out+=esc(src.slice(last,m.index));
+    for(var gi=1;gi<=7;gi++) if(m[gi]!==undefined){ out+='<span class="'+CLS[gi]+'">'+esc(m[gi])+"</span>"; break; }
+    last=m.index+m[0].length; } out+=esc(src.slice(last)); code.innerHTML=out; });
+
+/* másolás gombok */
+document.querySelectorAll(".copy-btn").forEach(function(btn){ btn.addEventListener("click",function(){
+  var code=btn.closest(".code").querySelector("pre"), txt=code.textContent;
+  function done(){ btn.textContent="✓ másolva"; setTimeout(function(){btn.textContent="másolás";},1500); }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done); }
+  else{ var ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); done(); } }); });
+
+/* scrollspy + mobil menü */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){ var pos=window.scrollY+140,active=0; for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i;
+  links.forEach(function(a,i){a.classList.toggle("active",i===active);}); }
+window.addEventListener("scroll",spy,{passive:true}); spy();
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>

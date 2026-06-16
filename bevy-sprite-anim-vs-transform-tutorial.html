@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sprite animáció vs sprite transzformáció — mikor melyik? · Bevy 0.18 tutorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13; --bg-deep:#0b110c; --panel:#1a241b; --panel-2:#162017;
+  --ink:#e9e3cd; --muted:#9caa90;
+  --grass:#7ecb52; --grass-hi:#a5e87d; --grass-dk:#4e8f33;
+  --dirt:#c99c66; --dirt-dk:#9a6e43; --water:#6cc8d9; --stone:#9aa0aa;
+  --concrete:#cacac3; --lava:#ff7a3c; --ice:#bfe0f0;
+  --line:#2d3b2c; --line-hi:#41543e; --code-bg:#0c120d; --shadow:rgba(0,0,0,.45);
+  --kw:#ff9d5c; --ty:#8fd8e8; --fnc:#a5e87d; --str:#e8c878; --cmt:#6d7c64; --mac:#d8a0e8; --num:#f0b8a0;
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px)}
+::selection{background:var(--grass-dk);color:#fff}
+
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--bg-deep);border-right:3px solid var(--line);overflow-y:auto;z-index:30;padding:22px 0 40px}
+.sidebar::-webkit-scrollbar{width:8px}.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px}
+.logo .title{font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15}
+.logo .sub{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em}
+.logo .badge{display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;box-shadow:2px 2px 0 var(--shadow)}
+.logo .badge.pro{background:var(--lava);color:#1a0d06;margin-left:6px}
+.nav-part{font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);padding:16px 20px 6px;text-transform:uppercase}
+.nav a{display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;font-size:14px;position:relative;border-left:4px solid transparent;transition:color .12s,background .12s}
+.nav a::before{content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);transition:opacity .12s,left .12s}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{color:var(--grass-hi);background:rgba(126,203,82,.10);border-left-color:var(--grass);font-weight:600}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;background:var(--grass);color:#10180f;border:none;padding:8px 14px;box-shadow:3px 3px 0 var(--shadow);text-decoration:none;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+.menu-toggle{display:none;position:fixed;top:14px;left:14px;z-index:40;font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;background:var(--panel);color:var(--ink);border:3px solid var(--line);box-shadow:3px 3px 0 var(--shadow)}
+
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-family:"Pixelify Sans";font-weight:700;font-size:clamp(34px,5.2vw,54px);line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px}
+.hero h1 .g{color:var(--grass-hi)}.hero h1 .d{color:var(--dirt)}.hero h1 .l{color:var(--lava)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{border:3px solid var(--line);background:var(--bg-deep);padding:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow)}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6}
+.hero-strip .cap b{color:var(--grass)}
+
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);text-transform:uppercase}
+.ch-eyebrow{font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);text-transform:uppercase;margin-bottom:8px}
+h2{font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);margin:34px 0 12px}
+p{margin-bottom:14px}p+p{margin-top:2px}
+strong{color:#fff}em{color:var(--dirt)}a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}li{margin-bottom:7px}
+code:not(pre code){font-family:"IBM Plex Mono";font-size:.86em;background:var(--code-bg);color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+
+.code{margin:22px 0;border:3px solid var(--line);background:var(--code-bg);box-shadow:4px 4px 0 var(--shadow)}
+.code-head{display:flex;justify-content:space-between;align-items:center;background:var(--panel);border-bottom:3px solid var(--line);padding:7px 12px}
+.code-head .fname{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--dirt);letter-spacing:.05em}
+.copy-btn{font-family:"Pixelify Sans";font-size:12.5px;cursor:pointer;background:transparent;color:var(--muted);border:2px solid var(--line-hi);padding:2px 9px;transition:all .1s}
+.copy-btn:hover{color:var(--grass-hi);border-color:var(--grass)}
+.code pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13.5px;line-height:1.62}
+.code pre::-webkit-scrollbar{height:8px}.code pre::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.k{color:var(--kw)}.t{color:var(--ty)}.f{color:var(--fnc)}.s{color:var(--str)}.c{color:var(--cmt);font-style:italic}.m{color:var(--mac)}.n{color:var(--num)}
+
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--grass)}.diagram pre .di{color:var(--dirt)}.diagram pre .wa{color:var(--water)}.diagram pre .st{color:var(--stone)}.diagram pre .lv{color:var(--lava)}.diagram pre .mu{color:var(--muted)}.diagram pre .yl{color:#e8d24a}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+
+.bevy-box{margin:24px 0;border:3px solid #2a4a52;background:#0d181b;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.bevy-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.bevy-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.bevy-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.bevy-box ul{font-size:15px;color:#cfdbd5}
+
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--grass);margin-bottom:4px}
+.note.warn .n-tag{color:var(--dirt)}
+
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+
+.playground{margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);border-bottom:3px solid var(--grass-dk);padding:10px 14px}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em}
+.playground .pg-body{padding:16px;display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#000;touch-action:none;max-width:100%}
+.playground .pg-side{flex:1;min-width:230px;font-size:14px;color:var(--muted)}
+.pg-controls{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+.stat{font-family:"IBM Plex Mono";font-size:13px;color:var(--grass-hi)}
+.slider-row{display:flex;align-items:center;gap:10px;margin:6px 0;font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted)}
+.slider-row input[type=range]{flex:1;accent-color:var(--grass)}
+.slider-row .val{color:var(--grass-hi);min-width:64px;text-align:right}
+.wbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:4px 11px;transition:all .1s}
+.wbtn:hover{color:var(--ink)}
+.wbtn.active{background:var(--water);color:var(--bg-deep);border-color:var(--water)}
+.crumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0;font-family:"IBM Plex Mono";font-size:12px}
+.crumb{background:var(--panel);border:2px solid var(--line-hi);color:var(--muted);padding:2px 9px}
+.crumb.cur{background:var(--grass);color:#10180f;border-color:var(--grass);font-weight:600}
+.crumb.arr{border:none;background:none;color:var(--dirt);padding:0 1px}
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--dirt);letter-spacing:.06em;margin:12px 0 2px;text-transform:uppercase}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}.menu-toggle{display:block}.main{margin-left:0}.wrap{padding:0 20px 100px}.hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">SPRITE<br>MOZGÁS</div>
+    <div class="sub">frame-anim vs transzformáció · juice · Rust</div>
+    <span class="badge">BEVY 0.18</span><span class="badge pro">JUICE</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I. rész — A döntés</div>
+    <a href="#ch1">1 · Két fajta „mozgás”</a>
+    <a href="#ch2">2 · A döntési szabály</a>
+    <a href="#ch3">3 · A kard csapás esete</a>
+    <a href="#ch4">4 · Easing — a feel kulcsa</a>
+    <div class="nav-part">II. rész — A workflow</div>
+    <a href="#ch5">5 · Transzformációs eszköztár</a>
+    <a href="#ch6">6 · Pivot: mi körül forogjon?</a>
+    <a href="#ch7">7 · A tween-minta</a>
+    <a href="#ch8">8 · Squash &amp; stretch (juice)</a>
+    <a href="#ch9">9 · Mikor KELL frame-anim?</a>
+    <a href="#ch10">10 · Hibrid megközelítés</a>
+    <div class="nav-part">III. rész — Implementáció</div>
+    <a href="#ch11">11 · Frame-animáció kóddal</a>
+    <a href="#ch12">12 · Kard csapás kóddal</a>
+    <a href="#ch13">13 · Effektek: squash · bob · shake</a>
+    <a href="#ch14">14 · Összefoglaló &amp; merre tovább</a>
+  </nav>
+  <div class="dl-box">
+    <p>A vezérelv: <span class="mono">ha csak a pozíció / forgatás / méret változik, az <strong>transzformáció</strong>; ha a sziluett / a pixelek változnak, az <strong>frame-animáció</strong>.</span></p>
+    <a class="btn secondary" href="#ch3">A kard csapás demó ▸</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// folytatás-tutorial · sprite-mozgás technikák + juice workflow · magyar nyelven</div>
+  <h1>Animáljak, vagy csak <span class="g">transzformáljak</span>?</h1>
+  <p class="lead">Egy kard csapás, egy ugrás, egy lebegő érme — ezekhez sokszor <strong>nem kell</strong> képkockáról képkockára rajzolt animáció. Elég <strong>egyetlen sprite</strong> + egy <code>Transform</code> (forgatás, méret, eltolás) + egy kis easing. De mikor elég ez, és mikor <em>muszáj</em> frame-animáció? Megnézzük a döntési szabályt, a bevált workflow-t (pivot, tween, easing), és élő demókon érzed meg a különbséget.</p>
+  <div class="hero-strip">
+    <canvas id="heroAnim" width="336" height="196" style="width:540px;height:315px"></canvas>
+    <div class="cap">↑ Élő minta: a lovag <b>egyetlen kard-sprite-ot</b> forgat egy ívben (transzformáció + easing), közben <b>lebeg</b> (sin-hullám), az érme pedig a <b>scale.x</b> oszcillálásával „pörög”. Nulla extra rajzolt képkocka.</div>
+  </div>
+</header>
+
+<!-- I. RÉSZ -->
+<div class="part-divider"><span class="pd-label">█ I. rész — A döntés</span></div>
+
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>Két fajta „mozgás”</h2>
+  <p>Amikor egy sprite „megmozdul” a képernyőn, az kétféleképpen történhet — és ez a két dolog gyökeresen különbözik:</p>
+  <ul>
+    <li><strong>Frame-animáció.</strong> Időről időre <em>kicseréljük a képet</em>: a sprite egy atlasz több képkockája közt vált (<code>TextureAtlas.index</code> 0→1→2…). A mozgást a <strong>megrajzolt</strong> képkockák adják — a járás-ciklus, a robbanás. A pixelek maguk változnak.</li>
+    <li><strong>Transzformáció.</strong> A kép <em>ugyanaz marad</em>, de a <code>Transform</code>-ját (vagy a <code>Sprite</code> mezőit) változtatjuk időben kóddal: elforgatjuk, átméretezzük, eltoljuk. A mozgást a <strong>matek</strong> adja, nem új art.</li>
+  </ul>
+  <div class="diagram">
+    <div class="d-head">⊞ Frame-anim vs transzformáció</div>
+    <pre>
+  <span class="lv">FRAME-ANIM</span>  rajzolt képkockák, az index váltakozik:
+     [▣0] [▣1] [▣2] [▣3]   →  a PIXELEK változnak     <span class="mu">(art-költség: N kép)</span>
+
+  <span class="gr">TRANSZFORM</span>  egy sprite, a Transform változik időben:
+     [▣] rotate ↻ · scale ⤢ · translate ↔   →  a HELYZET/MÉRET   <span class="mu">(art-költség: 1 kép)</span></pre>
+    <div class="d-cap">A frame-anim a rajzolóé; a transzformáció a programozóé. Ugyanaz a látszat (egy „animált” kard), két teljesen más munkafolyamat és költség.</div>
+  </div>
+  <p>A kérdés tehát nem az, hogy „melyik a jobb” — hanem az, hogy <strong>az adott effekthez melyik a megfelelő</strong>. Erre van egy egyszerű, megbízható szabály.</p>
+</section>
+
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>A döntési szabály</h2>
+  <p>Egyetlen kérdést tegyél fel az effektről:</p>
+  <div class="note">
+    <div class="n-tag">◆ A szabály</div>
+    <strong>Változik a sziluett / változnak a pixelek?</strong> Ha <em>csak</em> a pozíció, a forgatás vagy a méret változik (a kép mint merev test mozog) → <strong>transzformáció</strong>. Ha a forma, a tartalom, a sziluett változik (lábak lépnek, láng lobog) → <strong>frame-animáció</strong>.
+  </div>
+  <p>Próbáld ki: válassz egy use-case-t, és nézd, melyik ágra fut — és miért.</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — döntési folyamatábra</span></div>
+    <div class="pg-body">
+      <canvas id="flowCanvas" width="384" height="232" style="width:520px"></canvas>
+      <div class="pg-side">
+        <div class="ctl-label">use-case</div>
+        <div class="pg-controls" id="flowChips"></div>
+        <p style="margin-top:12px" class="stat" id="flowStat">— válassz egy use-case-t —</p>
+        <p style="margin-top:10px;font-size:13px">A <span style="color:var(--grass-hi)">zöld</span> ág a transzformáció, a <span style="color:var(--lava)">narancs</span> a frame-anim. Sok gyakori effekt a zöld ágra esik — ezért éri meg a transzformációs eszköztárat ismerni.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>A kard csapás esete</h2>
+  <p>A klasszikus példa: egy <strong>kard csapás</strong>. A penge alakja nem változik — csak <em>elfordul</em> egy ívben. Tehát a szabály szerint: <strong>transzformáció</strong>. Egyetlen kard-sprite, amit a markolata körül forgatunk egy ívben, egy kis easinggel — és kész a csapás, nulla rajzolt képkocka.</p>
+  <p>Bal oldalt a transzformációs verzió (1 sprite, sima ív + ívnyom), jobb oldalt a frame-animációs (6 megrajzolt póz, lépkedve). Nyomd meg a <strong>⚔ Csapás</strong>-t — egyszerre indul mindkettő:</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — kard csapás: transzformáció vs frame-anim</span></div>
+    <div class="pg-body">
+      <canvas id="swingCanvas" width="384" height="220" style="width:520px"></canvas>
+      <div class="pg-side">
+        <div class="pg-controls">
+          <button class="wbtn active" id="swingGo">⚔ Csapás</button>
+          <button class="wbtn" id="swingLoop">⟳ Auto</button>
+        </div>
+        <div class="ctl-label">pivot (a transzform-verzióé)</div>
+        <div class="pg-controls">
+          <button class="wbtn active" data-piv="hilt">markolat ✓</button>
+          <button class="wbtn" data-piv="center">közép ✗</button>
+        </div>
+        <p style="margin-top:10px;font-size:13px"><span style="color:var(--grass-hi)">bal:</span> 1 sprite + ~6 sor kód — a sebesség/ív szám-állítással hangolható.<br><span style="color:var(--lava)">jobb:</span> 6 megrajzolt képkocka — a simasághoz több kell, módosítani = újrarajzolni.</p>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    <div class="n-tag">▲ Miért a transzformáció nyer itt</div>
+    A csapás <em>íve</em>, sebessége, „svungja” mind <strong>szám</strong> — kódból azonnal hangolható, és minden fegyverre újrahasználható ugyanaz a rendszer. Frame-animmal minden fegyverhez új képkocka-sor kellene. A merev-test mozgásnál a transzformáció kevesebb art, több kontroll.
+  </div>
+</section>
+
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>Easing — a feel kulcsa</h2>
+  <p>A lineáris mozgás (állandó sebesség) <em>robotikus</em>. Ami a transzformációt élővé teszi, az az <strong>easing</strong>: a haladás (0→1) nem egyenletes, hanem gyorsul/lassul, túllő, visszarugózik. Egy kard csapás <code>BackOut</code>-tal vagy <code>ElasticOut</code>-tal kap „svungot”; egy UI-pop <code>BounceOut</code>-tal pattan.</p>
+  <p>Válassz egy easing-görbét, és nézd egyszerre a <strong>görbét</strong> és az általa hajtott <strong>csapást</strong>:</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — easing-görbék</span></div>
+    <div class="pg-body">
+      <canvas id="easeCanvas" width="384" height="190" style="width:520px"></canvas>
+      <div class="pg-side">
+        <div class="ctl-label">easing-függvény</div>
+        <div class="pg-controls" id="easeChips"></div>
+        <p style="margin-top:12px" class="stat" id="easeStat">Linear</p>
+        <p style="margin-top:10px;font-size:13px">A görbe vízszintes tengelye az <em>idő</em> (0→1), a függőleges a <em>haladás</em>. Ahol meredek, ott gyors; a görbe „túlnyúlása” 1 fölé = túllövés/overshoot.</p>
+      </div>
+    </div>
+  </div>
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — EaseFunction</div>
+    <p>A Bevynek van beépített <code>EaseFunction</code> enuma (<code>CubicOut</code>, <code>BackOut</code>, <code>ElasticOut</code>, <code>BounceOut</code>…), amit egy <code>EasingCurve</code>-on át mintázol. Élesben ezt (vagy a <code>bevy_tweening</code> crate-et) használd, ne kézzel írd a görbéket. A 12. fejezetben a képletet is megmutatjuk, hogy lásd, mi történik a motorháztető alatt.</p>
+  </div>
+</section>
+
+<!-- II. RÉSZ -->
+<div class="part-divider"><span class="pd-label">█ II. rész — A workflow</span></div>
+
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Transzformációs eszköztár</h2>
+  <p>A transzformáció három alapművelete — <strong>eltolás</strong>, <strong>forgatás</strong>, <strong>méretezés</strong> (plusz a <code>Sprite</code> tükrözése) — meglepően sok játék-effektet lefed. Kattints, és nézd, melyik mit „csinál”:</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — mit fed le egy transzformáció?</span></div>
+    <div class="pg-body">
+      <canvas id="toolCanvas" width="300" height="200" style="width:400px"></canvas>
+      <div class="pg-side">
+        <div class="ctl-label">művelet</div>
+        <div class="pg-controls" id="toolChips"></div>
+        <p style="margin-top:12px" class="stat" id="toolStat">—</p>
+        <p style="margin-top:10px;font-size:13px">Mind <strong>egyetlen</strong> sprite-on, kód-vezérelt <code>Transform</code>-mal. Nulla rajzolt képkocka.</p>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Effekt</th><th>Transzformáció</th><th>Mező</th></tr>
+    <tr><td>kard csapás, ajtó, kapcsoló</td><td>forgatás (ív + easing)</td><td><code>rotation.z</code></td></tr>
+    <tr><td>ugrás / landolás, találat-punch</td><td>squash &amp; stretch</td><td><code>scale</code></td></tr>
+    <tr><td>lebegő pickup, parázs, légzés</td><td>eltolás (sin-hullám)</td><td><code>translation.y</code></td></tr>
+    <tr><td>érme/gem „pörgés”</td><td>scale.x oszcillál (ál-3D)</td><td><code>scale.x</code></td></tr>
+    <tr><td>knockback, képernyőrázás</td><td>csillapodó offset</td><td><code>translation</code></td></tr>
+    <tr><td>irányváltás (balra/jobbra néz)</td><td>tükrözés</td><td><code>Sprite.flip_x</code></td></tr>
+    <tr><td>lövedék</td><td>forgatás a sebesség irányába + eltolás</td><td><code>rotation</code>+<code>translation</code></td></tr>
+  </table>
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — Transform vs Sprite mezők</div>
+    <p>A <code>Transform</code> (<code>translation: Vec3</code>, <code>rotation: Quat</code>, <code>scale: Vec3</code>) a térbeli elhelyezés — ezt animáljuk a legtöbb effekthez. A <code>Sprite</code> saját mezői (<code>flip_x</code>, <code>flip_y</code>, <code>color</code>, <code>custom_size</code>) a megjelenítést hangolják: a <code>color</code> pl. egy találat-villanáshoz (fehérre tint), a <code>flip_x</code> az irányváltáshoz.</p>
+  </div>
+</section>
+
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Pivot: mi körül forogjon?</h2>
+  <p>A forgatás buktatója: a <code>Transform</code> a saját <strong>origója</strong> körül forog — ami alapból a sprite <em>közepe</em>. Egy kard viszont a <strong>markolatánál</strong> forog, nem középen! Ha középen forgatod, a penge „lebeg” és rosszul néz ki (próbáld ki a 3. fejezet demójának <em>közép ✗</em> kapcsolójával).</p>
+  <div class="diagram">
+    <div class="d-head">⊞ A pivot-probléma</div>
+    <pre>
+   <span class="lv">KÖZÉP körül (✗)</span>            <span class="gr">MARKOLAT körül (✓)</span>
+        ╲   │   ╱                      │ ╱
+         ╲  │  ╱                       │╱
+      ────●────        a penge       ──●──  a markolat a pivot,
+         ╱  │  ╲       középen           a penge szépen ível
+        ╱   │   ╲      orbitál</pre>
+    <div class="d-cap">A megoldás: a forgatás origója kerüljön a markolathoz. Két bevett módszer — szülő-pivot entitás, vagy a sprite horgonya (anchor).</div>
+  </div>
+  <h3>1. módszer — szülő-pivot entitás (ajánlott)</h3>
+  <p>Spawnolj egy <strong>üres pivot-entitást</strong> a kéznél; a kard a <em>gyereke</em>, eltolva úgy, hogy a markolata essen a pivotba. Ezután a <strong>pivotot</strong> forgatod — a kard körülível. Ez tisztán kezeli a hierarchiát, és a játékoshoz is csatolható.</p>
+  <h3>2. módszer — a sprite horgonya (anchor)</h3>
+  <p>A <code>Sprite.anchor</code> eltolja, mi számít a sprite „közepének” a transzformációhoz. Egy <code>Anchor::BottomCenter</code> a markolatot teszi origóba — így egyetlen entitással is a markolatnál forog. Egyszerűbb, de kevésbé rugalmas, mint a szülő-pivot (nincs külön mozgatható csukló).</p>
+  <div class="note warn">
+    <div class="n-tag">⚠ A leggyakoribb forgatás-bug</div>
+    Ha valami „furcsán pörög” — orbitál ahelyett, hogy a helyén forogna —, szinte mindig a pivot a hibás. Először mindig azt ellenőrizd: a forgatás origója ott van-e, ahol a tengelynek lennie kell.
+  </div>
+</section>
+
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>A tween-minta</h2>
+  <p>A transzformációs effektek 90%-a ugyanarra a sablonra megy: <strong>egy <code>Timer</code></strong> méri a haladást, az <strong>easing</strong> görbíti, és a görbített értékkel <strong>interpolálunk</strong> egy kezdő- és végállapot között. Ezt hívjuk tween-nek (be<em>tween</em>ing).</p>
+  <div class="diagram">
+    <div class="d-head">⊞ A tween-minta</div>
+    <pre>
+   t = elapsed / duration        <span class="mu">// nyers haladás 0→1</span>
+   e = easing(t)                 <span class="mu">// görbített haladás</span>
+   érték = lerp(kezdő, vég, e)   <span class="mu">// az interpolált állapot</span>
+   transform.&lt;mező&gt; = érték        <span class="mu">// alkalmazzuk</span></pre>
+    <div class="d-cap">Ugyanez a négy sor hajt egy kard-ívet (szög), egy squash-t (scale), egy bobbot (pozíció). Csak a „mező” és a kezdő/vég érték más.</div>
+  </div>
+  <p>Ezért éri meg <strong>egy</strong> jól megírt tween-rendszer (vagy a <code>bevy_tweening</code> crate): minden transzformációs effektet ráhúzol. A 12–13. fejezetben pontosan ezt a mintát kódoljuk — előbb kézzel, hogy lásd a csontvázát.</p>
+  <div class="note">
+    <div class="n-tag">▲ Kézzel vagy crate?</div>
+    Tanulni / pár effektre: írd meg kézzel (<code>Timer</code> + easing-képlet), átlátható. Sok effekttől / komplex láncoktól (egymás utáni tweenek, ismétlés, oda-vissza): a <code>bevy_tweening</code> megspórolja a boilerplate-et. A minta ugyanaz; csak ki írja meg.
+  </div>
+</section>
+
+<section id="ch8">
+  <div class="ch-eyebrow">8. fejezet</div>
+  <h2>Squash &amp; stretch (juice)</h2>
+  <p>A „juice” az a sok apró visszajelzés, amitől egy játék <em>érződik</em>. A legolcsóbb és leghatásosabb a <strong>squash &amp; stretch</strong>: ugrásnál a karakter <em>megnyúlik</em> (scale.y↑, scale.x↓), landolásnál <em>belapul</em> (scale.y↓, scale.x↑). Tisztán <code>scale</code> — nulla art. Kapcsold ki/be, és érezd a különbséget:</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — squash &amp; stretch (nyers vs juicy)</span></div>
+    <div class="pg-body">
+      <canvas id="squashCanvas" width="360" height="200" style="width:500px"></canvas>
+      <div class="pg-side">
+        <p>Mindkét labda <strong>ugyanazt</strong> az ugró-ívet követi (azonos pozíció). A különbség csak a <code>scale</code> — és egy kis landoló-por.</p>
+        <div class="pg-controls">
+          <button class="wbtn active" id="squashJuice">Juice: BE</button>
+        </div>
+        <p style="margin-top:10px" class="stat" id="squashStat">bal: nyers · jobb: juicy</p>
+        <p style="margin-top:8px;font-size:13px">A térfogat-tartás trükk: ha <code>scale.x</code>-et nyújtod, <code>scale.y</code>-t lapítsd (és fordítva) — így nem „hízik” a sprite.</p>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    <div class="n-tag">▲ A juice-listája (mind transzformáció)</div>
+    Találat → rövid scale-punch + fehér tint. Knockback → csillapodó eltolás. Gomb-katt → scale-pop. Spawn → 0-ról felskálázás. Ezek mind a tween-mintára mennek, és együtt <em>drámaian</em> emelik a játékérzetet — rajzolt képkocka nélkül.
+  </div>
+</section>
+
+<section id="ch9">
+  <div class="ch-eyebrow">9. fejezet</div>
+  <h2>Mikor KELL frame-anim?</h2>
+  <p>A transzformáció erős, de nem mindenható. Amint a <strong>sziluett</strong> vagy a <strong>pixelek</strong> változnak, transzformációval nem lehet csalni — kell a rajzolt képkocka:</p>
+  <table>
+    <tr><th>Use-case</th><th>Miért nem megy transzformációval?</th></tr>
+    <tr><td><strong>Járás / futás ciklus</strong></td><td>a végtagok artikulálnak — a sziluett képkockánként más</td></tr>
+    <tr><td><strong>Robbanás, tűz, füst, víz</strong></td><td>a forma és a szín teljesen átalakul, nem merev test</td></tr>
+    <tr><td><strong>Arckifejezés, pislogás</strong></td><td>a pixelek lokálisan változnak, nincs „mozgatható” rész</td></tr>
+    <tr><td><strong>Anticipációs támadás-pózok</strong></td><td>a test átrendeződik (hátrahúz → kicsap), nem csak elfordul</td></tr>
+    <tr><td><strong>Ruha, haj, köpeny lobogás</strong></td><td>szabad alakváltozás, amit nem ír le egy transzform</td></tr>
+  </table>
+  <p>Az árulkodó jel: ha az effektet <em>nem</em> tudod leírni „toldd el / forgasd el / méretezd” utasításokkal — ha „rajzold át” kell hozzá —, az frame-anim.</p>
+</section>
+
+<section id="ch10">
+  <div class="ch-eyebrow">10. fejezet</div>
+  <h2>Hibrid megközelítés</h2>
+  <p>A profi workflow ritkán „vagy-vagy” — inkább <strong>réteg</strong>: kevés frame-anim a sziluett-változásra, ráhúzva transzformációkat a juice-ra. Így a legtöbb hatást a legkevesebb arttal éred el.</p>
+  <div class="diagram">
+    <div class="d-head">⊞ Hibrid: kard-támadás karakterrel</div>
+    <pre>
+  <span class="lv">frame-anim</span>   2–3 póz: alaphelyzet → kicsapás → követés   <span class="mu">(a sziluett)</span>
+      +
+  <span class="gr">transzform</span>   a kard-sprite íves forgatása (markolat-pivot)  <span class="mu">(a csapás)</span>
+      +
+  <span class="gr">transzform</span>   a karakter rövid előre-dőlése (rotation) + screen-shake
+      +
+  <span class="gr">transzform</span>   találatkor az ellenfél squash-punch + fehér tint
+                                              <span class="yl">= gazdag csapás, 2–3 rajzolt kép</span></pre>
+    <div class="d-cap">A nehéz részt (a karakter testének átrendeződése) kevés képkocka adja; minden „svungot”, ütést, rázást a transzformációk tesznek rá. Ez a bevált arány.</div>
+  </div>
+  <div class="note">
+    <div class="n-tag">▲ A gyakorlati sorrend</div>
+    Először tedd működővé az effektet a <em>legolcsóbban</em> (csak transzformáció). Csak ott tegyél bele frame-animot, ahol a sziluett-változás miatt <em>muszáj</em>. A juice-t (squash, shake, tint) a végén, transzformációval szórd rá. Így nem rajzolsz felesleges képkockákat.
+  </div>
+</section>
+
+<!-- III. RÉSZ -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Implementáció (Bevy 0.18)</span></div>
+
+<section id="ch11">
+  <div class="ch-eyebrow">11. fejezet</div>
+  <h2>Frame-animáció kóddal</h2>
+  <p>A klasszikus minta: egy <code>TextureAtlas</code> képkockái közt lépkedünk egy <code>Timer</code> ütemére. Ez kell a sziluett-változós effektekhez (járás, robbanás).</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/anim/frame.rs — atlasz-index a Timer ütemére</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+#[derive(Component)]
+struct AnimationIndices { first: usize, last: usize }
+
+#[derive(Component, Deref, DerefMut)]
+struct AnimationTimer(Timer);
+
+fn setup(
+    mut commands: Commands,
+    assets: Res&lt;AssetServer&gt;,
+    mut layouts: ResMut&lt;Assets&lt;TextureAtlasLayout&gt;&gt;,
+) {
+    commands.spawn(Camera2d);
+
+    let texture = assets.load("hero_walk.png");
+    // 6 képkocka egy sorban, egyenként 16×16:
+    let layout = TextureAtlasLayout::from_grid(UVec2::splat(16), 6, 1, None, None);
+    let layout = layouts.add(layout);
+
+    commands.spawn((
+        Sprite::from_atlas_image(texture, TextureAtlas { layout, index: 0 }),
+        AnimationIndices { first: 0, last: 5 },
+        AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+    ));
+}
+
+fn animate(
+    time: Res&lt;Time&gt;,
+    mut q: Query&lt;(&amp;AnimationIndices, &amp;mut AnimationTimer, &amp;mut Sprite)&gt;,
+) {
+    for (indices, mut timer, mut sprite) in &amp;mut q {
+        timer.tick(time.delta());
+        if timer.just_finished() {
+            if let Some(atlas) = &amp;mut sprite.texture_atlas {
+                atlas.index = if atlas.index &gt;= indices.last {
+                    indices.first            // körbeér → vissza az elejére
+                } else {
+                    atlas.index + 1
+                };
+            }
+        }
+    }
+}</code></pre>
+  </div>
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — Sprite + TextureAtlas</div>
+    <p>0.18-ban a <code>Sprite</code> tartja a <code>texture_atlas: Option&lt;TextureAtlas&gt;</code>-t. A <code>Sprite::from_atlas_image(image, atlas)</code> köti össze a textúrát a layouttal; az <code>atlas.index</code> választja ki az aktuális képkockát. A layout (<code>TextureAtlasLayout</code>) mondja meg, hol vannak a képkockák a képen — a <code>from_grid</code> szabályos rácshoz.</p>
+  </div>
+</section>
+
+<section id="ch12">
+  <div class="ch-eyebrow">12. fejezet</div>
+  <h2>Kard csapás kóddal</h2>
+  <p>Most a transzformációs verzió. A pivot egy üres entitás a kéznél; a kard a gyereke, a markolatánál csatolva. A <code>SwingArc</code> egy <code>Timer</code>-rel méri a haladást, az easing görbíti, és a görbített haladással interpoláljuk a szöget — pontosan a 7. fejezet tween-mintája.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/anim/swing.rs — íves forgatás markolat-pivottal</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+#[derive(Component)]
+struct SwingArc {
+    timer: Timer,
+    from: f32,   // kezdő szög (radián)
+    to: f32,     // vég szög
+}
+
+// BackOut easing — túllövéssel ad „svungot”. Verzió-független képlet;
+// élesben használd a beépített EaseFunction-t vagy a bevy_tweening-et.
+fn ease_back_out(t: f32) -&gt; f32 {
+    let c1 = 1.70158;
+    let c3 = c1 + 1.0;
+    1.0 + c3 * (t - 1.0).powi(3) + c1 * (t - 1.0).powi(2)
+}
+
+fn spawn_sword(mut commands: Commands, assets: Res&lt;AssetServer&gt;) {
+    // a PIVOT a kéznél (a karakterhez képest); ezt forgatjuk:
+    commands
+        .spawn((
+            Transform::from_xyz(10.0, 0.0, 0.0),
+            Visibility::default(),
+            SwingArc {
+                timer: Timer::from_seconds(0.32, TimerMode::Once),
+                from: -2.1,   // hátralendítve
+                to: 0.8,      // kicsapva
+            },
+        ))
+        .with_children(|p| {
+            // a kard a markolatánál csatlakozik: fölfelé eltolva,
+            // így a pivot a markolat, nem a penge közepe.
+            p.spawn((
+                Sprite::from_image(assets.load("sword.png")),
+                Transform::from_xyz(0.0, 14.0, 0.0),
+            ));
+        });
+}
+
+fn swing_sword(time: Res&lt;Time&gt;, mut q: Query&lt;(&amp;mut Transform, &amp;mut SwingArc)&gt;) {
+    for (mut tf, mut arc) in &amp;mut q {
+        if arc.timer.finished() { continue; }
+        arc.timer.tick(time.delta());
+        let dur = arc.timer.duration().as_secs_f32();
+        let t = (arc.timer.elapsed_secs() / dur).clamp(0.0, 1.0);
+        let eased = ease_back_out(t);
+        let angle = arc.from + (arc.to - arc.from) * eased;  // lerp
+        tf.rotation = Quat::from_rotation_z(angle);          // a PIVOT forog
+    }
+}</code></pre>
+  </div>
+  <div class="note">
+    <div class="n-tag">▲ A markolat-pivot a lényeg</div>
+    A penge-sprite a pivot <em>gyereke</em>, <code>+14</code>-gyel fölfelé tolva. Amikor a pivot <code>rotation.z</code>-jét állítjuk, a kard a markolata körül ível — nem a közepe körül orbitál. (Egyentitásos alternatíva: <code>Sprite.anchor = Anchor::BottomCenter</code>.)
+  </div>
+</section>
+
+<section id="ch13">
+  <div class="ch-eyebrow">13. fejezet</div>
+  <h2>Effektek: squash · bob · shake</h2>
+  <p>Ugyanaz a tween-minta három másik mezőn. Mind külön kis rendszer, mind egyetlen sprite-on, nulla art:</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/anim/juice.rs — squash &amp; stretch, lebegés, rázás</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+// --- Squash &amp; stretch landoláskor (csillapodó, térfogat-tartó) ---
+#[derive(Component)]
+struct Squash { timer: Timer }
+
+fn squash(time: Res&lt;Time&gt;, mut q: Query&lt;(&amp;mut Transform, &amp;mut Squash)&gt;) {
+    for (mut tf, mut s) in &amp;mut q {
+        s.timer.tick(time.delta());
+        let t = s.timer.fraction();                 // 0 → 1
+        let k = (1.0 - t) * (t * 22.0).sin() * 0.35; // erős kezdet, lecseng
+        // amennyit lapul x-ben, annyit nyúlik y-ban → nem „hízik”:
+        tf.scale = Vec3::new(1.0 + k, 1.0 - k, 1.0);
+    }
+}
+
+// --- Lebegés (pickup, parázs): sin-hullám a pozícióban ---
+#[derive(Component)]
+struct Floating { base_y: f32, amplitude: f32, speed: f32 }
+
+fn bob(time: Res&lt;Time&gt;, mut q: Query&lt;(&amp;mut Transform, &amp;Floating)&gt;) {
+    for (mut tf, f) in &amp;mut q {
+        tf.translation.y = f.base_y
+            + (time.elapsed_secs() * f.speed).sin() * f.amplitude;
+    }
+}
+
+// --- Találat/robbanás képernyőrázás: csillapodó offset ---
+#[derive(Component)]
+struct Shake { timer: Timer, strength: f32 }
+
+fn shake(time: Res&lt;Time&gt;, mut q: Query&lt;(&amp;mut Transform, &amp;mut Shake)&gt;) {
+    for (mut tf, mut s) in &amp;mut q {
+        s.timer.tick(time.delta());
+        let amp = s.strength * (1.0 - s.timer.fraction());   // csillapodás
+        // egyszerű pszeudo-random offset (élesben: rand crate):
+        let now = time.elapsed_secs();
+        let rx = ((now * 57.0).sin() * 43758.5).fract() - 0.5;
+        let ry = ((now * 91.0).sin() * 24634.6).fract() - 0.5;
+        tf.translation = Vec3::new(rx * 2.0 * amp, ry * 2.0 * amp, tf.translation.z);
+    }
+}</code></pre>
+  </div>
+  <p>Ezek külön komponensek, így bármely entitásra rátehetők, és <code>run_if</code> / observer indíthatja őket (pl. landolás-eseményre a <code>Squash</code>, találatra a <code>Shake</code>).</p>
+</section>
+
+<section id="ch14">
+  <div class="ch-eyebrow">14. fejezet</div>
+  <h2>Összefoglaló &amp; merre tovább?</h2>
+  <p>A teljes döntés egyetlen táblában:</p>
+  <table>
+    <tr><th>Kérdés / jel</th><th>Eszköz</th></tr>
+    <tr><td>Csak a pozíció / forgatás / méret változik (merev test)</td><td><strong>Transzformáció</strong> + easing</td></tr>
+    <tr><td>A sziluett / a pixelek / a szín változik</td><td><strong>Frame-animáció</strong> (atlasz-index)</td></tr>
+    <tr><td>„Toldd / forgasd / méretezd” le tudom írni</td><td><strong>Transzformáció</strong></td></tr>
+    <tr><td>„Rajzold át” kell hozzá</td><td><strong>Frame-animáció</strong></td></tr>
+    <tr><td>Nagy hatás, kevés art (csapás + juice)</td><td><strong>Hibrid</strong>: kevés frame + sok transzform</td></tr>
+  </table>
+  <h3>Merre tovább?</h3>
+  <ul>
+    <li><strong><code>bevy_tweening</code>.</strong> Egymásba láncolt / ismétlő / oda-vissza tweenekhez ez megspórolja a kézi <code>Timer</code>-boilerplate-et. Ugyanaz a minta, kevesebb kód.</li>
+    <li><strong>Beépített <code>EaseFunction</code> + <code>EasingCurve</code>.</strong> A kézzel írt görbe helyett a Bevy görbe-API-ja: <code>EaseFunction::BackOut</code>-ot egy <code>EasingCurve</code>-on mintázol — és kombinálható a Bevy <code>Curve</code> traitjével.</li>
+    <li><strong>Animációs állapotgép.</strong> Idle / walk / attack mint <code>States</code> vagy komponens-enum; a frame-anim a sziluett-állapotot adja, a transzformációk rárakódnak. (Lásd a scene-váltás tutorial state-mintáját.)</li>
+    <li><strong>Részecskerendszer robbanáshoz.</strong> A robbanás/füst sokszor jobb <em>részecskékkel</em> (sok kis transzformált sprite), mint egyetlen nagy frame-sorral — harmadik út a kettő közt.</li>
+    <li><strong>Aseprite-import.</strong> Frame-animhoz a képkockákat eszközből (Aseprite) hozod; a <code>bevy_aseprite_ultra</code>-féle crate-ek a layoutot és a tagelt animációkat is beolvassák.</li>
+  </ul>
+  <div class="bevy-box">
+    <div class="tag">⚙ Az igazi tanulság</div>
+    <p>Ne rajzolj képkockát olyasmihez, amit egy <code>Transform</code> + easing elintéz. Tedd fel a kérdést — <strong>változik a sziluett, vagy csak a helyzet/méret?</strong> —, és a válasz megmondja az eszközt. A kard csapás, az ugrás, a lebegés, a rázás mind transzformáció; a járás-ciklus és a robbanás frame-anim; a profi munka pedig a kettő rétegzése: kevés rajzolt kép, sok olcsó juice rajta. Jó kódolást! ▸▸</p>
+  </div>
+</section>
+
+<footer>
+  <p class="pix">SPRITE MOZGÁS — frame-animáció vs transzformáció &amp; a juice-workflow Bevy 0.18-ban</p>
+  <p>A dual-grid sorozat folytatása a <em>sprite-mozgás technikák</em> felé. A demók procedurálisan, valós időben futnak (HTML canvas): ugyanaz a tween-minta (Timer → easing → lerp), easing-görbék és squash &amp; stretch, amit a Rust kód is megvalósít. A kódrészletek a 0.18-as API-ra épülnek: <code>Sprite::from_atlas_image</code>, <code>TextureAtlas.index</code>, <code>Timer</code>, <code>Transform</code> (<code>rotation</code>/<code>scale</code>/<code>translation</code>), <code>Quat::from_rotation_z</code>, gyerek-pivot, <code>EaseFunction</code>.</p>
+</footer>
+
+</div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var TAU=Math.PI*2;
+var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* =====================================================================
+   EASING-FÜGGVÉNYEK (a Rust EaseFunction megfelelői)
+   ===================================================================== */
+var EASE={
+  Linear:function(t){ return t; },
+  CubicOut:function(t){ return 1-Math.pow(1-t,3); },
+  BackOut:function(t){ var c1=1.70158,c3=c1+1; return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2); },
+  ElasticOut:function(t){ var c4=TAU/3; return t===0?0:t===1?1:Math.pow(2,-10*t)*Math.sin((t*10-0.75)*c4)+1; },
+  BounceOut:function(t){ var n1=7.5625,d1=2.75; if(t<1/d1)return n1*t*t; if(t<2/d1){t-=1.5/d1;return n1*t*t+0.75;} if(t<2.5/d1){t-=2.25/d1;return n1*t*t+0.9375;} t-=2.625/d1; return n1*t*t+0.984375; }
+};
+
+/* =====================================================================
+   PROCEDURÁLIS PIXELART RAJZ-SEGÉDEK (kép-asset nélkül)
+   ===================================================================== */
+function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+function drawKnight(ctx,cx,fy,u,sq){
+  sq=sq||{sx:1,sy:1};
+  ctx.save();
+  ctx.translate(cx,fy); ctx.scale(sq.sx,sq.sy); ctx.translate(-cx,-fy);
+  ctx.fillStyle="rgba(0,0,0,.28)"; ctx.beginPath(); ctx.ellipse(cx,fy,7*u,2.2*u,0,0,TAU); ctx.fill();
+  var bodyH=9*u, bodyW=7*u, bx=cx-bodyW/2, by=fy-bodyH;
+  ctx.fillStyle="#3a4a55"; ctx.fillRect(cx-2.6*u,fy-2*u,2.2*u,2*u); ctx.fillRect(cx+0.4*u,fy-2*u,2.2*u,2*u);
+  ctx.fillStyle="#2a343c"; ctx.fillRect(cx-2.9*u,fy-0.9*u,2.8*u,1*u); ctx.fillRect(cx+0.1*u,fy-0.9*u,2.8*u,1*u);
+  var g=ctx.createLinearGradient(bx,0,bx+bodyW,0); g.addColorStop(0,"#46647d"); g.addColorStop(.5,"#6f97b8"); g.addColorStop(1,"#3f5c75");
+  ctx.fillStyle=g; roundRect(ctx,bx,by,bodyW,bodyH-1.5*u,2*u); ctx.fill();
+  ctx.fillStyle="#caa15a"; ctx.fillRect(bx,by+bodyH-4*u,bodyW,1.3*u);
+  var hr=3.2*u, hy=by-hr*0.2;
+  ctx.fillStyle="#8aa6bd"; ctx.beginPath(); ctx.arc(cx,hy,hr,Math.PI,0); ctx.fill();
+  ctx.fillStyle="#e8b487"; ctx.fillRect(cx-2.2*u,hy,4.4*u,3*u);
+  ctx.fillStyle="#2a343c"; ctx.fillRect(cx-2.2*u,hy+0.9*u,4.4*u,1*u);
+  ctx.fillStyle="#d6604f"; ctx.fillRect(cx-0.6*u,hy-hr-1.3*u,1.2*u,1.9*u);
+  ctx.restore();
+}
+
+function drawSword(ctx,px,py,angle,len,mode){
+  ctx.save(); ctx.translate(px,py); ctx.rotate(angle);
+  var off=(mode==='center')?len*0.5:0;
+  ctx.fillStyle="#5a3a2a"; ctx.fillRect(-1.6,off,3.2,7);
+  ctx.fillStyle="#caa15a"; ctx.beginPath(); ctx.arc(0,off+8,2,0,TAU); ctx.fill();
+  ctx.fillStyle="#d8b25e"; ctx.fillRect(-7,off-2,14,3);
+  var w=4.6, top=off-len;
+  var grd=ctx.createLinearGradient(-w/2,0,w/2,0);
+  grd.addColorStop(0,"#7d838c"); grd.addColorStop(.45,"#eef3f8"); grd.addColorStop(.6,"#c8cfd7"); grd.addColorStop(1,"#6b7079");
+  ctx.fillStyle=grd; ctx.beginPath();
+  ctx.moveTo(-w/2,off-2); ctx.lineTo(w/2,off-2); ctx.lineTo(w/2,top+7); ctx.lineTo(0,top); ctx.lineTo(-w/2,top+7); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle="rgba(255,255,255,.55)"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-w/2+1,off-3); ctx.lineTo(-w/2+1,top+8); ctx.stroke();
+  ctx.restore();
+}
+function drawTrail(ctx,px,py,a0,a1,len){
+  var n=12; ctx.beginPath();
+  for(var i=0;i<n;i++){ var t=i/(n-1), a=a0+(a1-a0)*t; var x=px+len*Math.sin(a), y=py-len*Math.cos(a); if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y); }
+  ctx.strokeStyle="rgba(170,225,255,.40)"; ctx.lineWidth=3.5; ctx.lineCap="round"; ctx.lineJoin="round"; ctx.stroke();
+}
+function drawCoin(ctx,cx,cy,r,spin){
+  var w=Math.abs(Math.cos(spin))*r;
+  if(w<1.5){ ctx.fillStyle="#9a6e20"; ctx.fillRect(cx-1.5,cy-r,3,2*r); return; }
+  var face=Math.cos(spin)>=0;
+  ctx.fillStyle=face?"#f0c040":"#d89a2a"; ctx.beginPath(); ctx.ellipse(cx,cy,w,r,0,0,TAU); ctx.fill();
+  ctx.strokeStyle="#9a6e20"; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.fillStyle=face?"#fbe08a":"#e8b84a"; ctx.beginPath(); ctx.ellipse(cx,cy,w*0.6,r*0.6,0,0,TAU); ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,.6)"; ctx.fillRect(cx-Math.max(1,w*0.18),cy-r*0.5,Math.max(1,w*0.14),r*0.55);
+}
+function groundStrip(ctx,w,h,gy){
+  ctx.fillStyle="#0e160f"; ctx.fillRect(0,0,w,h);
+  ctx.fillStyle="#1a2a17"; ctx.fillRect(0,gy,w,h-gy);
+  ctx.fillStyle="#4e8f33"; ctx.fillRect(0,gy,w,3);
+  ctx.fillStyle="#3f7a2e"; for(var x=0;x<w;x+=5){ ctx.fillRect(x+((x*7)%3),gy+3,2,2); }
+}
+
+/* =====================================================================
+   HERO — kard-ív + lebegés + érme-pörgés (mind transzformáció)
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("heroAnim"); if(!cv) return; var ctx=cv.getContext("2d");
+  var W=cv.width,H=cv.height, gy=H-34, u=3.1;
+  var cx=W*0.40, restA=-1.95, swing={t:1,active:false}, cd=0;
+  var coinX=W*0.78, coinSpin=0;
+  function frame(dt){
+    cd+=dt; if(cd>2.3 && !swing.active){ cd=0; swing.active=true; swing.t=0; }
+    if(swing.active){ swing.t+=dt/0.36; if(swing.t>=1){ swing.t=1; swing.active=false; } }
+    var bob=Math.sin(performance.now()/1000*2.0)*2.0;
+    var fy=gy+1-bob, kcx=cx;          // a lovag finoman lebeg (sin)
+    groundStrip(ctx,W,H,gy);
+    // érme — scale.x oszcillál + lebeg
+    var coinBob=Math.sin(performance.now()/1000*2.6)*4;
+    coinSpin+=dt*4.2;
+    ctx.fillStyle="rgba(0,0,0,.25)"; ctx.beginPath(); ctx.ellipse(coinX,gy+1,7,2.2,0,0,TAU); ctx.fill();
+    drawCoin(ctx,coinX,gy-16+coinBob,9,coinSpin);
+    // lovag
+    drawKnight(ctx,kcx,fy,u,{sx:1,sy:1});
+    // kéz-pivot a test jobb oldalán
+    var px=kcx+6.5*u, py=fy-7*u;
+    var a = swing.active ? (restA + (0.85-restA)*EASE.BackOut(swing.t)) : restA;
+    if(swing.active && swing.t<0.92){ drawTrail(ctx,px,py,restA,a,42); }
+    drawSword(ctx,px,py,a,46,"hilt");
+    // felirat
+    ctx.fillStyle="rgba(8,11,8,.8)"; ctx.fillRect(0,0,W,20);
+    ctx.fillStyle="#a5e87d"; ctx.font='bold 11px "Courier New",monospace'; ctx.textAlign="left"; ctx.textBaseline="middle";
+    ctx.fillText("TRANSZFORMÁCIÓ — 1 sprite/elem, 0 extra képkocka",8,11);
+  }
+  if(reduceMotion){ frame(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   DÖNTÉSI FOLYAMATÁBRA
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("flowCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var W=cv.width,H=cv.height;
+  var top={x:W/2,y:30,w:150,h:30}, dia={x:W/2,y:96,r:46};
+  var bT={x:90,y:188,w:150,h:38}, bF={x:W-90,y:188,w:150,h:38};
+  var CASES=[
+    {k:"kard csapás",s:"T",r:"csak forgatás (ív)"},
+    {k:"járás-ciklus",s:"F",r:"a végtagok artikulálnak"},
+    {k:"érme-pörgés",s:"T",r:"scale.x oszcillál (ál-3D)"},
+    {k:"robbanás",s:"F",r:"a forma+szín átalakul"},
+    {k:"lebegő tárgy",s:"T",r:"translate.y sin-hullám"},
+    {k:"ugrás-land",s:"T",r:"squash & stretch (scale)"},
+    {k:"ajtó-nyitás",s:"T",r:"forgatás (rotation.z)"},
+    {k:"arckifejezés",s:"F",r:"a pixelek lokálisan változnak"}
+  ];
+  var cur=null, tok=1; // token haladás 0..1 (1 = kész)
+  function box(b,label,col,active){
+    ctx.fillStyle=active?col:"#1a241b"; ctx.fillRect(b.x-b.w/2,b.y-b.h/2,b.w,b.h);
+    ctx.strokeStyle=active?col:"#41543e"; ctx.lineWidth=active?3:2; ctx.strokeRect(b.x-b.w/2,b.y-b.h/2,b.w,b.h);
+    ctx.fillStyle=active?"#0b110c":"#9caa90"; ctx.font='bold 12px "Courier New",monospace'; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(label,b.x,b.y);
+  }
+  function diamond(active){
+    ctx.save(); ctx.translate(dia.x,dia.y); ctx.rotate(Math.PI/4);
+    ctx.fillStyle="#162017"; ctx.fillRect(-dia.r*0.72,-dia.r*0.72,dia.r*1.44,dia.r*1.44);
+    ctx.strokeStyle=active?"#6cc8d9":"#41543e"; ctx.lineWidth=2; ctx.strokeRect(-dia.r*0.72,-dia.r*0.72,dia.r*1.44,dia.r*1.44);
+    ctx.restore();
+    ctx.fillStyle="#cfdbd5"; ctx.font='11px "Courier New",monospace'; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText("sziluett",dia.x,dia.y-7); ctx.fillText("változik?",dia.x,dia.y+7);
+  }
+  function line(x0,y0,x1,y1,col,lw){ ctx.strokeStyle=col; ctx.lineWidth=lw||2; ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke(); }
+  function draw(){
+    ctx.fillStyle="#0b110c"; ctx.fillRect(0,0,W,H);
+    var side=cur?cur.s:null;
+    // élek
+    line(top.x,top.y+top.h/2,dia.x,dia.y-dia.r,"#41543e");
+    line(dia.x-dia.r*0.6,dia.y+dia.r*0.6,bT.x,bT.y-bT.h/2, side==="T"?"#7ecb52":"#41543e", side==="T"?3:2);
+    line(dia.x+dia.r*0.6,dia.y+dia.r*0.6,bF.x,bF.y-bF.h/2, side==="F"?"#ff7a3c":"#41543e", side==="F"?3:2);
+    // NEM / IGEN feliratok
+    ctx.font='10px "Courier New",monospace'; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillStyle=side==="T"?"#a5e87d":"#6d7c64"; ctx.fillText("NEM",dia.x-58,dia.y+40);
+    ctx.fillStyle=side==="F"?"#ff9d5c":"#6d7c64"; ctx.fillText("IGEN",dia.x+58,dia.y+40);
+    box(top,cur?cur.k:"effekt","#6cc8d9",!!cur);
+    diamond(!!cur);
+    box(bT,"TRANSZFORMÁCIÓ","#7ecb52",side==="T");
+    box(bF,"FRAME-ANIM","#ff7a3c",side==="F");
+    // token a célhoz
+    if(cur && tok<1){
+      var path=[{x:top.x,y:top.y},{x:dia.x,y:dia.y},{x:(side==="T"?bT.x:bF.x),y:(side==="T"?bT.y:bF.y)}];
+      var seg=tok*2, i=Math.min(1,Math.floor(seg)), f=seg-i;
+      var a=path[i], b=path[i+1]; var x=a.x+(b.x-a.x)*f, y=a.y+(b.y-a.y)*f;
+      ctx.fillStyle=side==="T"?"#a5e87d":"#ff9d5c"; ctx.beginPath(); ctx.arc(x,y,5,0,TAU); ctx.fill();
+    }
+  }
+  // chips
+  var host=document.getElementById("flowChips"), statEl=document.getElementById("flowStat");
+  CASES.forEach(function(c){ var b=document.createElement("button"); b.className="wbtn"; b.textContent=c.k;
+    b.addEventListener("click",function(){ cur=c; tok=0;
+      Array.prototype.forEach.call(host.children,function(x){ x.classList.toggle("active",x===b); });
+      statEl.innerHTML="→ <b style='color:"+(c.s==="T"?"#a5e87d":"#ff9d5c")+"'>"+(c.s==="T"?"TRANSZFORMÁCIÓ":"FRAME-ANIM")+"</b> · "+c.r;
+    }); host.appendChild(b); });
+  function frame(dt){ if(cur&&tok<1){ tok=Math.min(1,tok+dt*1.3); } draw(); }
+  if(reduceMotion){ draw(); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   KARD CSAPÁS — transzformáció vs frame-anim (egymás mellett)
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("swingCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var W=cv.width,H=cv.height, fromA=-2.2, toA=0.7, DUR=0.46;
+  var lhx=96, rhx=288, hy=152;
+  var t=1, playing=false, loop=false, pivot="hilt", restDelay=0;
+  function miniSword(ctx,cx,cy,a){ drawSword(ctx,cx,cy,a,15,"hilt"); }
+  function trigger(){ t=0; playing=true; }
+  function frame(dt){
+    if(playing){ t+=dt/DUR; if(t>=1){ t=1; playing=false; restDelay=0; } }
+    else if(loop){ restDelay+=dt; if(restDelay>0.5){ trigger(); } }
+    ctx.fillStyle="#0b110c"; ctx.fillRect(0,0,W,H);
+    // divider
+    ctx.strokeStyle="#2d3b2c"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(W/2,26); ctx.lineTo(W/2,H-6); ctx.stroke();
+    // labels
+    ctx.font='bold 12px "Courier New",monospace'; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillStyle="#a5e87d"; ctx.fillText("TRANSZFORMÁCIÓ",W*0.25,14);
+    ctx.fillStyle="#ff9d5c"; ctx.fillText("FRAME-ANIM (6 kép)",W*0.75,14);
+    // LEFT: smooth eased
+    var aL=fromA+(toA-fromA)*EASE.BackOut(t);
+    if(playing && t<0.95) drawTrail(ctx,lhx,hy,fromA,aL,58);
+    drawSword(ctx,lhx,hy,aL,62,pivot);
+    ctx.fillStyle=pivot==="hilt"?"#a5e87d":"#ff7a3c"; ctx.beginPath(); ctx.arc(lhx,hy,3,0,TAU); ctx.fill();
+    ctx.fillStyle="#9caa90"; ctx.font='10px "Courier New",monospace';
+    ctx.fillText("1 sprite · sima ív · easing",W*0.25,H-12);
+    // RIGHT: stepped 6 frames
+    var fr=Math.min(5,Math.floor(t*6));
+    var aR=fromA+(toA-fromA)*(fr/5);
+    drawSword(ctx,rhx,hy,aR,62,"hilt");
+    // filmstrip
+    var n=6, cw=24, x0=W/2+ (W/2-n*cw)/2, fy=H-30;
+    for(var i=0;i<n;i++){ var on=(i===fr&&(playing||t<1));
+      ctx.strokeStyle=on?"#ff9d5c":"#41543e"; ctx.lineWidth=on?2:1; ctx.strokeRect(x0+i*cw,fy-14,cw-3,26);
+      var ai=fromA+(toA-fromA)*(i/5); miniSword(ctx,x0+i*cw+(cw-3)/2,fy+4,ai); }
+  }
+  document.getElementById("swingGo").addEventListener("click",function(){ loop=false; document.getElementById("swingLoop").classList.remove("active"); trigger(); });
+  var lb=document.getElementById("swingLoop");
+  lb.addEventListener("click",function(){ loop=!loop; lb.classList.toggle("active",loop); if(loop&&!playing) trigger(); });
+  Array.prototype.forEach.call(cv.parentNode.querySelectorAll("[data-piv]"),function(b){ b.addEventListener("click",function(){
+    pivot=b.getAttribute("data-piv"); Array.prototype.forEach.call(cv.parentNode.querySelectorAll("[data-piv]"),function(x){ x.classList.toggle("active",x===b); }); }); });
+  if(reduceMotion){ t=0.6; frame(0); return; }
+  var last=null; (function loop2(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop2); })(performance.now());
+})();
+
+/* =====================================================================
+   EASING-GÖRBÉK — görbe + általa hajtott csapás
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("easeCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var W=cv.width,H=cv.height;
+  var ox=30, oy=H-26, pw=120, ph=H-56;          // görbe-doboz
+  var sel="Linear", t=0, dir=1, hold=0;
+  var hx=290, hy=H-26;                           // kard pivot
+  function frame(dt){
+    // idő: 0→1, tart, vissza 0
+    if(dir===1){ t+=dt/0.95; if(t>=1){ t=1; dir=0; hold=0; } }
+    else if(dir===0){ hold+=dt; if(hold>0.5){ dir=2; } }
+    else { t-=dt/0.6; if(t<=0){ t=0; dir=1; } }
+    ctx.fillStyle="#0b110c"; ctx.fillRect(0,0,W,H);
+    // tengelyek + rács
+    ctx.strokeStyle="#2d3b2c"; ctx.lineWidth=1;
+    for(var i=0;i<=4;i++){ var gx=ox+pw*i/4, gyy=oy-ph*i/4;
+      ctx.beginPath(); ctx.moveTo(ox,gyy); ctx.lineTo(ox+pw,gyy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(gx,oy); ctx.lineTo(gx,oy-ph); ctx.stroke(); }
+    ctx.strokeStyle="#41543e"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(ox,oy); ctx.lineTo(ox,oy-ph); ctx.moveTo(ox,oy); ctx.lineTo(ox+pw,oy); ctx.stroke();
+    ctx.fillStyle="#6d7c64"; ctx.font='9px "Courier New",monospace'; ctx.textAlign="center";
+    ctx.fillText("idő →",ox+pw/2,oy+12); ctx.save(); ctx.translate(ox-14,oy-ph/2); ctx.rotate(-Math.PI/2); ctx.fillText("haladás",0,0); ctx.restore();
+    // görbe (a haladás túlléphet 1-et → kicsúszhat a dobozból, az az overshoot)
+    var fn=EASE[sel]; ctx.strokeStyle="#6cc8d9"; ctx.lineWidth=2.5; ctx.beginPath();
+    for(var s=0;s<=60;s++){ var tt=s/60, v=fn(tt); var X=ox+pw*tt, Y=oy-ph*v; if(s===0)ctx.moveTo(X,Y); else ctx.lineTo(X,Y); }
+    ctx.stroke();
+    // mozgó pont a görbén
+    var ev=fn(t); ctx.fillStyle="#a5e87d"; ctx.beginPath(); ctx.arc(ox+pw*t,oy-ph*ev,4,0,TAU); ctx.fill();
+    // jobb: a csapás ezzel az easinggel
+    ctx.strokeStyle="#2d3b2c"; ctx.beginPath(); ctx.moveTo(W/2+10,26); ctx.lineTo(W/2+10,H-6); ctx.stroke();
+    var a=-1.8+(0.6-(-1.8))*ev;
+    if(dir!==2 && t>0.02 && t<0.98) drawTrail(ctx,hx,hy,-1.8,a,52);
+    drawSword(ctx,hx,hy,a,56,"hilt");
+    ctx.fillStyle="#a5e87d"; ctx.beginPath(); ctx.arc(hx,hy,3,0,TAU); ctx.fill();
+  }
+  var host=document.getElementById("easeChips"), statEl=document.getElementById("easeStat");
+  ["Linear","CubicOut","BackOut","ElasticOut","BounceOut"].forEach(function(name){
+    var b=document.createElement("button"); b.className="wbtn"+(name==="Linear"?" active":""); b.textContent=name;
+    b.addEventListener("click",function(){ sel=name; t=0; dir=1; statEl.textContent=name;
+      Array.prototype.forEach.call(host.children,function(x){ x.classList.toggle("active",x===b); }); });
+    host.appendChild(b); });
+  if(reduceMotion){ t=0.7; dir=2; frame(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   TRANSZFORMÁCIÓS ESZKÖZTÁR — egy sprite, sokféle effekt
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("toolCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var W=cv.width,H=cv.height, cx=W/2, gy=H-40, S=40;
+  var sel="Translate", clock=0, shakeT=0, flipT=0, flip=false;
+  var DESC={
+    Translate:"translation.y += sin  →  LEBEGÉS",
+    Rotate:"rotation.z = sin  →  BILLEGÉS / csapás",
+    Scale:"scale (x↑ y↓)  →  SQUASH & STRETCH",
+    Flip:"Sprite.flip_x = !flip_x  →  IRÁNYVÁLTÁS",
+    Shake:"translation += rand · decay  →  RÁZÁS"
+  };
+  function drawCrate(ctx,x,y,s,fl){ ctx.save(); ctx.translate(x,y); if(fl)ctx.scale(-1,1);
+    ctx.fillStyle="rgba(0,0,0,.25)"; ctx.beginPath(); ctx.ellipse(0,s*0.6,s*0.5,s*0.14,0,0,TAU); ctx.fill();
+    ctx.fillStyle="#8a5a2a"; ctx.fillRect(-s/2,-s/2,s,s);
+    ctx.fillStyle="#a06a30"; ctx.fillRect(-s/2,-s/2,s,4);
+    ctx.strokeStyle="#5a3a1a"; ctx.lineWidth=2; ctx.strokeRect(-s/2,-s/2,s,s);
+    ctx.beginPath(); ctx.moveTo(-s/2,-s/2); ctx.lineTo(s/2,s/2); ctx.moveTo(s/2,-s/2); ctx.lineTo(-s/2,s/2); ctx.stroke();
+    ctx.fillStyle="#f0d27a"; ctx.fillRect(s*0.14,-s*0.08,s*0.2,s*0.16);  // irány-jel
+    ctx.restore(); }
+  function frame(dt){
+    clock+=dt;
+    ctx.fillStyle="#0b110c"; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle="#1a2a17"; ctx.fillRect(0,gy+S*0.6,W,H); ctx.fillStyle="#4e8f33"; ctx.fillRect(0,gy+S*0.6,W,2);
+    var x=cx,y=gy, fl=false, rot=0, sx=1, sy=1;
+    if(sel==="Translate"){ y=gy-10+Math.sin(clock*3)*12; }
+    else if(sel==="Rotate"){ rot=Math.sin(clock*3)*0.5; }
+    else if(sel==="Scale"){ var k=Math.sin(clock*4)*0.28; sx=1+k; sy=1-k; }
+    else if(sel==="Flip"){ flipT+=dt; if(flipT>0.7){ flipT=0; flip=!flip; } fl=flip; x=cx+Math.sin(clock*3)*10; }
+    else if(sel==="Shake"){ shakeT+=dt; if(shakeT>1.1) shakeT=0; var amp=10*(1-shakeT/1.1); x=cx+(Math.random()-0.5)*2*amp; y=gy+(Math.random()-0.5)*2*amp; }
+    ctx.save(); ctx.translate(x,y); ctx.rotate(rot); ctx.scale(sx,sy); ctx.translate(-x,-y);
+    drawCrate(ctx,x,y,S,fl);
+    ctx.restore();
+  }
+  var host=document.getElementById("toolChips"), statEl=document.getElementById("toolStat");
+  ["Translate","Rotate","Scale","Flip","Shake"].forEach(function(name){
+    var b=document.createElement("button"); b.className="wbtn"+(name==="Translate"?" active":""); b.textContent=name;
+    b.addEventListener("click",function(){ sel=name; statEl.textContent=DESC[name];
+      Array.prototype.forEach.call(host.children,function(x){ x.classList.toggle("active",x===b); }); });
+    host.appendChild(b); });
+  statEl.textContent=DESC.Translate;
+  if(reduceMotion){ frame(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   SQUASH & STRETCH — nyers vs juicy
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("squashCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var W=cv.width,H=cv.height, gy=H-30, apex=96, R=15, T=1.15;
+  var juice=true, clock=0, lastP=0, dustL=[];
+  function ball(x,p,doJuice){
+    var hf=Math.sin(p*Math.PI);              // 0 talajon, 1 csúcson
+    var y=gy-apex*hf;
+    var sx=1,sy=1;
+    if(doJuice){
+      if(hf>0.12){ var st=Math.abs(Math.cos(p*Math.PI))*0.34; sy=1+st; sx=1-st; }  // nyúlás a levegőben
+      else { var amt=(1-hf/0.12)*0.40; sy=1-amt; sx=1+amt; }                        // lapulás a talajnál
+    }
+    // árnyék (kisebb+halványabb, ha magasan)
+    var sh=1-hf*0.6; ctx.fillStyle="rgba(0,0,0,"+(0.30*sh)+")";
+    ctx.beginPath(); ctx.ellipse(x,gy+2,R*1.1*sh,3.4*sh,0,0,TAU); ctx.fill();
+    // labda
+    ctx.fillStyle=doJuice?"#7ecb52":"#9aa0aa";
+    ctx.beginPath(); ctx.ellipse(x,y-R*sy+R,R*sx,R*sy,0,0,TAU); ctx.fill();
+    ctx.fillStyle="rgba(255,255,255,.25)"; ctx.beginPath(); ctx.ellipse(x-R*0.3,y-R*sy*1.2+R,R*0.32*sx,R*0.32*sy,0,0,TAU); ctx.fill();
+  }
+  function spawnDust(x){ for(var i=0;i<6;i++){ dustL.push({x:x,y:gy,vx:(Math.random()-0.5)*60,vy:-Math.random()*30-8,life:0.4}); } }
+  function frame(dt){
+    clock+=dt; var p=(clock%T)/T;
+    // landolás-detektálás (p átfordul 1→0)
+    if(p<lastP){ if(juice) spawnDust(W*0.68); }
+    lastP=p;
+    ctx.fillStyle="#0b110c"; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle="#1a2a17"; ctx.fillRect(0,gy,W,H-gy); ctx.fillStyle="#4e8f33"; ctx.fillRect(0,gy,W,2);
+    // por
+    for(var i=dustL.length-1;i>=0;i--){ var d=dustL[i]; d.life-=dt; if(d.life<=0){ dustL.splice(i,1); continue; }
+      d.x+=d.vx*dt; d.y+=d.vy*dt; d.vy+=140*dt;
+      ctx.fillStyle="rgba(180,170,140,"+(d.life/0.4*0.6)+")"; ctx.fillRect(d.x|0,d.y|0,3,3); }
+    ball(W*0.32,p,false);
+    ball(W*0.68,p,juice);
+    ctx.fillStyle="#9aa0aa"; ctx.font='bold 11px "Courier New",monospace'; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText("nyers",W*0.32,18); ctx.fillStyle=juice?"#a5e87d":"#9aa0aa"; ctx.fillText(juice?"juicy":"(juice ki)",W*0.68,18);
+  }
+  var jb=document.getElementById("squashJuice"), statEl=document.getElementById("squashStat");
+  jb.addEventListener("click",function(){ juice=!juice; jb.classList.toggle("active",juice); jb.textContent="Juice: "+(juice?"BE":"KI");
+    statEl.textContent=juice?"bal: nyers · jobb: juicy":"mindkettő nyers — érzed, mennyivel laposabb?"; });
+  if(reduceMotion){ frame(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   Rust szintaxis-kiemelő
+   ===================================================================== */
+var KW=/\b(?:fn|let|mut|use|struct|enum|impl|const|pub|return|if|else|for|in|while|loop|match|as|mod|crate|self|Self|true|false|move|ref|static|dyn|where|continue|break|name|version|edition|default)\b/;
+var TOKEN=new RegExp("(\\/\\/[^\\n]*)"+"|(#!?\\[[^\\]]*\\])"+"|(\"(?:[^\"\\\\]|\\\\.)*\")"+"|([A-Za-z_][A-Za-z0-9_]*!)"+"|("+KW.source.slice(2,-2)+")"+"|(\\b[A-Z][A-Za-z0-9_]*\\b)"+"|(\\b\\d[\\d_]*(?:\\.\\d+)?\\b)","g");
+var CLS=[null,"c","m","s","m","k","t","n"];
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+document.querySelectorAll("pre code").forEach(function(code){ var src=code.textContent,out="",last=0,m; TOKEN.lastIndex=0;
+  while((m=TOKEN.exec(src))){ out+=esc(src.slice(last,m.index));
+    for(var gi=1;gi<=7;gi++) if(m[gi]!==undefined){ out+='<span class="'+CLS[gi]+'">'+esc(m[gi])+"</span>"; break; }
+    last=m.index+m[0].length; } out+=esc(src.slice(last)); code.innerHTML=out; });
+
+/* másolás gombok */
+document.querySelectorAll(".copy-btn").forEach(function(btn){ btn.addEventListener("click",function(){
+  var code=btn.closest(".code").querySelector("pre"), txt=code.textContent;
+  function done(){ btn.textContent="✓ másolva"; setTimeout(function(){btn.textContent="másolás";},1500); }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done); }
+  else{ var ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); done(); } }); });
+
+/* scrollspy + mobil menü */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){ var pos=window.scrollY+140,active=0; for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i;
+  links.forEach(function(a,i){a.classList.toggle("active",i===active);}); }
+window.addEventListener("scroll",spy,{passive:true}); spy();
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>In-game tile editor Bevyben: állapotok, pluginok, közös adatmodell · Bevy 0.18 tutorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13; --bg-deep:#0b110c; --panel:#1a241b; --panel-2:#162017;
+  --ink:#e9e3cd; --muted:#9caa90;
+  --grass:#7ecb52; --grass-hi:#a5e87d; --grass-dk:#4e8f33;
+  --dirt:#c99c66; --dirt-dk:#9a6e43; --water:#6cc8d9; --stone:#9aa0aa;
+  --concrete:#cacac3; --lava:#ff7a3c; --ice:#bfe0f0;
+  --line:#2d3b2c; --line-hi:#41543e; --code-bg:#0c120d; --shadow:rgba(0,0,0,.45);
+  --kw:#ff9d5c; --ty:#8fd8e8; --fnc:#a5e87d; --str:#e8c878; --cmt:#6d7c64; --mac:#d8a0e8; --num:#f0b8a0;
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px)}
+::selection{background:var(--grass-dk);color:#fff}
+
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--bg-deep);border-right:3px solid var(--line);overflow-y:auto;z-index:30;padding:22px 0 40px}
+.sidebar::-webkit-scrollbar{width:8px}.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px}
+.logo .title{font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15}
+.logo .sub{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em}
+.logo .badge{display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;box-shadow:2px 2px 0 var(--shadow)}
+.logo .badge.pro{background:var(--lava);color:#1a0d06;margin-left:6px}
+.nav-part{font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);padding:16px 20px 6px;text-transform:uppercase}
+.nav a{display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;font-size:14px;position:relative;border-left:4px solid transparent;transition:color .12s,background .12s}
+.nav a::before{content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);transition:opacity .12s,left .12s}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{color:var(--grass-hi);background:rgba(126,203,82,.10);border-left-color:var(--grass);font-weight:600}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;background:var(--grass);color:#10180f;border:none;padding:8px 14px;box-shadow:3px 3px 0 var(--shadow);text-decoration:none;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+.menu-toggle{display:none;position:fixed;top:14px;left:14px;z-index:40;font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;background:var(--panel);color:var(--ink);border:3px solid var(--line);box-shadow:3px 3px 0 var(--shadow)}
+
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-family:"Pixelify Sans";font-weight:700;font-size:clamp(34px,5.2vw,54px);line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px}
+.hero h1 .g{color:var(--grass-hi)}.hero h1 .d{color:var(--dirt)}.hero h1 .l{color:var(--lava)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{border:3px solid var(--line);background:var(--bg-deep);padding:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow)}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6}
+.hero-strip .cap b{color:var(--grass)}
+
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);text-transform:uppercase}
+.ch-eyebrow{font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);text-transform:uppercase;margin-bottom:8px}
+h2{font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);margin:34px 0 12px}
+p{margin-bottom:14px}p+p{margin-top:2px}
+strong{color:#fff}em{color:var(--dirt)}a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}li{margin-bottom:7px}
+code:not(pre code){font-family:"IBM Plex Mono";font-size:.86em;background:var(--code-bg);color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+
+.code{margin:22px 0;border:3px solid var(--line);background:var(--code-bg);box-shadow:4px 4px 0 var(--shadow)}
+.code-head{display:flex;justify-content:space-between;align-items:center;background:var(--panel);border-bottom:3px solid var(--line);padding:7px 12px}
+.code-head .fname{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--dirt);letter-spacing:.05em}
+.copy-btn{font-family:"Pixelify Sans";font-size:12.5px;cursor:pointer;background:transparent;color:var(--muted);border:2px solid var(--line-hi);padding:2px 9px;transition:all .1s}
+.copy-btn:hover{color:var(--grass-hi);border-color:var(--grass)}
+.code pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13.5px;line-height:1.62}
+.code pre::-webkit-scrollbar{height:8px}.code pre::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.k{color:var(--kw)}.t{color:var(--ty)}.f{color:var(--fnc)}.s{color:var(--str)}.c{color:var(--cmt);font-style:italic}.m{color:var(--mac)}.n{color:var(--num)}
+
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--grass)}.diagram pre .di{color:var(--dirt)}.diagram pre .wa{color:var(--water)}.diagram pre .st{color:var(--stone)}.diagram pre .lv{color:var(--lava)}.diagram pre .mu{color:var(--muted)}.diagram pre .yl{color:#e8d24a}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+
+.bevy-box{margin:24px 0;border:3px solid #2a4a52;background:#0d181b;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.bevy-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.bevy-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.bevy-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.bevy-box ul{font-size:15px;color:#cfdbd5}
+
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--grass);margin-bottom:4px}
+.note.warn .n-tag{color:var(--dirt)}
+
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+
+.playground{margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);border-bottom:3px solid var(--grass-dk);padding:10px 14px}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em}
+.playground .pg-body{padding:16px;display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#000;touch-action:none;max-width:100%}
+.playground .pg-side{flex:1;min-width:230px;font-size:14px;color:var(--muted)}
+.pg-controls{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+.stat{font-family:"IBM Plex Mono";font-size:13px;color:var(--grass-hi)}
+.slider-row{display:flex;align-items:center;gap:10px;margin:6px 0;font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted)}
+.slider-row input[type=range]{flex:1;accent-color:var(--grass)}
+.slider-row .val{color:var(--grass-hi);min-width:64px;text-align:right}
+.wbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:4px 11px;transition:all .1s}
+.wbtn:hover{color:var(--ink)}
+.wbtn.active{background:var(--water);color:var(--bg-deep);border-color:var(--water)}
+.crumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0;font-family:"IBM Plex Mono";font-size:12px}
+.crumb{background:var(--panel);border:2px solid var(--line-hi);color:var(--muted);padding:2px 9px}
+.crumb.cur{background:var(--grass);color:#10180f;border-color:var(--grass);font-weight:600}
+.crumb.arr{border:none;background:none;color:var(--dirt);padding:0 1px}
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--dirt);letter-spacing:.06em;margin:12px 0 2px;text-transform:uppercase}
+
+/* --- kiegészítés: tile-paletta + mód-chip demók --- */
+.pal{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
+.pswatch{width:32px;height:32px;border:2px solid var(--line-hi);background:#000;cursor:pointer;image-rendering:pixelated;padding:0;line-height:0;display:block}
+.pswatch.sel{border-color:var(--grass);box-shadow:0 0 0 2px rgba(126,203,82,.45)}
+.pal-label{font-family:"Pixelify Sans";font-size:11.5px;letter-spacing:.06em;color:var(--dirt);width:100%;margin:8px 0 1px;text-transform:uppercase}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin:3px 0 6px}
+.chip{font-family:"IBM Plex Mono";font-size:11.5px;padding:2px 8px;border:2px solid var(--line-hi);color:var(--muted);background:var(--panel);transition:all .15s}
+.chip.on{border-color:var(--grass);color:var(--grass-hi);background:rgba(126,203,82,.12)}
+.chip.off{opacity:.38}
+.grp-label{font-family:"Pixelify Sans";font-size:12px;letter-spacing:.06em;color:var(--dirt);margin:8px 0 1px;text-transform:uppercase}
+.mode-btn{font-family:"Pixelify Sans";font-size:15px;cursor:pointer;border:3px solid var(--line);padding:8px 14px;box-shadow:3px 3px 0 var(--shadow);transition:transform .08s}
+.mode-btn:active{transform:translate(2px,2px)}
+.mode-btn.game{background:var(--water);color:var(--bg-deep)}
+.mode-btn.editor{background:var(--lava);color:#1a0d06}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}.menu-toggle{display:block}.main{margin-left:0}.wrap{padding:0 20px 100px}.hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">IN-GAME<br>EDITOR</div>
+    <div class="sub">tile editor · állapotok · pluginok · Rust</div>
+    <span class="badge">BEVY 0.18</span><span class="badge pro">ARCH</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I. rész — Miért &amp; mit</div>
+    <a href="#ch1">1 · In-game vs külső editor</a>
+    <a href="#ch2">2 · Három kapcsoló: state · plugin · feature</a>
+    <a href="#ch3">3 · Az igazságforrás: LevelData</a>
+    <a href="#ch4">4 · Adat ⇄ vizuális: a dirty-sync</a>
+    <div class="nav-part">II. rész — Architektúra</div>
+    <a href="#ch5">5 · A modul-fa: game · editor · shared</a>
+    <a href="#ch6">6 · A függőségi szabály</a>
+    <a href="#ch7">7 · A négy réteg</a>
+    <div class="nav-part">III. rész — Implementáció</div>
+    <a href="#ch8">8 · AppMode + main.rs + feature flag</a>
+    <a href="#ch9">9 · A GamePlugin — mi fut editorban?</a>
+    <a href="#ch10">10 · Az EditorPlugin — setup/cleanup</a>
+    <a href="#ch11">11 · Mód-váltás: Ctrl+E</a>
+    <a href="#ch12">12 · EditorState + tile-lerakás</a>
+    <a href="#ch13">13 · Kamera · UI · input szeparáció</a>
+    <a href="#ch14">14 · Release &amp; merre tovább?</a>
+  </nav>
+  <div class="dl-box">
+    <p>A vezérelv: <span class="mono">ne az editor legyen a játék része, hanem a játék és az editor legyen két plugin ugyanarra a közös <strong>LevelData</strong>-ra építve.</span></p>
+    <a class="btn secondary" href="#ch1">Próbáld ki az editort ▸</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// folytatás-tutorial · in-game tile editor architektúra · magyar nyelven</div>
+  <h1>Saját pálya-editor — <span class="g">a játékon belül</span>, <span class="d">tisztán</span> elválasztva</h1>
+  <p class="lead">Pixelart top-down játéknál a legjobb editor a <strong>játékon belül</strong> van: ugyanabban a render-pipeline-ban szerkeszted a pályát, ahogy a játékos látni fogja. De hogyan teszed ezt be úgy, hogy <strong>ne keveredjen</strong> a játékkóddal, egy gombbal váltható legyen, és <strong>release-ben ne is legyen ott</strong>? Három ortogonális kapcsoló a válasz — <strong>state · plugin · feature flag</strong> —, plusz egy közös adatmodell: a <strong>LevelData</strong>.</p>
+  <div class="hero-strip">
+    <canvas id="heroEditor" width="336" height="196" style="width:540px;height:315px"></canvas>
+    <div class="cap">↑ Élő minta: ugyanaz a pálya <b>editor módban</b> (rács, paletta, kurzor) és <b>játék módban</b> (tiszta kép, sétáló karakter) — a render <b>azonos</b>. A váltás: <span class="kbd">Ctrl</span>+<span class="kbd">E</span>.</div>
+  </div>
+</header>
+
+<!-- I. RÉSZ -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Miért &amp; mit</span></div>
+
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>In-game vs külső editor</h2>
+  <p>A kérdés egyszerű: csináljak saját pálya-editort a játékon belül, vagy használjak külsőt (pl. Tiled)? Top-down pixelart játéknál a saját, <strong>beépített</strong> editornak van egy döntő előnye: <strong>szerkesztés közben pontosan azt látod, amit a játékos is fog</strong>. Ugyanaz a kamera, zoom, pixel-perfect renderelés, ugyanazok a fények, árnyékok, shaderek — a végleges kinézetben.</p>
+  <p>Próbáld ki: fess a palettával, kapcsold be a <em>collision</em>-réteget, majd nyomj <strong>▶ Play</strong>-t — a rács és a kurzor eltűnik, és pontosan a játékbeli képet kapod. Ez ugyanaz a <code>LevelData</code>, ugyanaz a render.</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — mini in-game tile editor</span></div>
+    <div class="pg-body">
+      <canvas id="meCanvas" width="392" height="252" style="width:520px"></canvas>
+      <div class="pg-side">
+        <div class="pal-label">Terep-réteg</div>
+        <div class="pal" id="palTerrain"></div>
+        <div class="pal-label">Objektum-réteg</div>
+        <div class="pal" id="palObject"></div>
+        <div class="pg-controls">
+          <button class="wbtn active" id="meGrid">▦ Rács</button>
+          <button class="wbtn" id="meColl">⚠ Collision</button>
+          <button class="wbtn" id="mePlay">▶ Play</button>
+          <button class="wbtn" id="meClear">Törlés</button>
+        </div>
+        <p style="margin-top:10px" class="stat" id="meStat">kijelölt: Fű · réteg: terep</p>
+        <p style="margin-top:6px;font-size:13px">Bal-katt (húzva is): fest · jobb-katt: radíroz. A <strong>collision</strong> a nem-járható csempéket pirossal jelöli — pont, ahogy a játék is számolja.</p>
+      </div>
+    </div>
+  </div>
+
+  <p>Egy csempe ugyanis top-down játékban nem csak <em>grafika</em>. Egyetlen tile gyakran egyszerre hordoz:</p>
+  <div class="diagram">
+    <div class="d-head">⊞ Mit jelent EGY csempe?</div>
+    <pre>
+   <span class="gr">grafika</span>  +  <span class="lv">collision</span>  +  <span class="wa">gameplay-szabály</span>  +  <span class="di">layer</span>  +  <span class="yl">interakció</span>
+   (sprite)    (járható?)     (sebzés? lassít?)      (föld/   (ajtó, kapcsoló,
+                                                      tető)    trigger-zóna)</pre>
+    <div class="d-cap">Külső editorban (Tiled) ezek egy része kezelhető, de mindig van egy <strong>absztrakciós réteg</strong> az editor és a játék között — export/import, eltérő tile-fogalom. Saját in-game editorban pont azt szerkeszted, amit a motor használ.</div>
+  </div>
+  <p>A hátrány viszont valós: <strong>egy editor önmagában is fejlesztési projekt</strong> (UI, mentés/betöltés, undo/redo, layer-kezelés, paletta, selection, brush, fill, copy-paste). Ezért a jó kompromisszum elsőre egy <em>minimális</em> in-game editor:</p>
+  <ul>
+    <li>csempe-választás palettából · bal-katt: lerak · jobb-katt: töröl</li>
+    <li>layer-váltás · collision-overlay kapcsoló · rács</li>
+    <li>mentés/betöltés saját formátumba (JSON) · <span class="kbd">Ctrl</span>+<span class="kbd">E</span> a játék/editor váltás</li>
+  </ul>
+  <div class="note">
+    <div class="n-tag">▲ A legfontosabb architekturális döntés</div>
+    A pálya <strong>formátuma legyen független az editortól</strong>. A játék ugyanazt a <code>level.json</code>-t töltse be, amit az editor ment. Így a belső és egy esetleges külső editor is <em>ugyanarra</em> a formátumra dolgozhat — és pont ez visz át a következő fejezetekre: mi az a közös formátum, és hogyan ül rá a kódszervezés.
+  </div>
+</section>
+
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>Három kapcsoló: state · plugin · feature</h2>
+  <p>A célod három, látszólag ellentmondó dolog egyszerre: az editor (1) <strong>legyen ott</strong> és élőben kapcsolható, (2) <strong>ne keveredjen</strong> a játékkóddal, (3) <strong>release-ben ne zavarjon</strong>. A trükk: ne egy eszközzel próbáld megoldni mindhármat, hanem <strong>három független kapcsolóval</strong>, amelyek mindegyike a maga problémáját intézi.</p>
+  <div class="diagram">
+    <div class="d-head">⊞ A három ortogonális kapcsoló</div>
+    <pre>
+  <span class="yl">STATE</span>     AppMode::Game / Editor   →  mi fut <span class="mu">MOST</span>?      (futásidő)
+  <span class="gr">PLUGIN</span>    GamePlugin / EditorPlugin →  HOL van a kód?     (szervezés)
+  <span class="wa">FEATURE</span>   #[cfg(feature = "editor")] →  benne van a buildben? (fordítás)</pre>
+    <div class="d-cap">A <strong>state</strong> dönti el, mely rendszerek futnak; a <strong>plugin</strong> tartja egy helyen az editor kódját; a <strong>feature flag</strong> dönti el, hogy a release binárisba egyáltalán belekerül-e. Külön tengelyek — együtt adják ki, amit szeretnél.</p></div>
+  </div>
+  <p>A fő kapcsoló egy <code>State</code>: játszunk vagy szerkesztünk. Érdemes <strong>nem</strong> egyetlen óriás állapotba zsúfolni mindent — a játék belső állapota (loading, pause) <em>külön</em> géppé válik, így az editor nem borítja szét a menü/pause logikát.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/app_state.rs — két, független állapotgép</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+/// A FŐ kapcsoló: játszunk vagy szerkesztünk?
+#[derive(States, Default, Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum AppMode {
+    #[default]
+    Game,
+    Editor,
+}
+
+/// A játék BELSŐ állapota — ehhez az editor nem nyúl.
+#[derive(States, Default, Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum GameState {
+    #[default]
+    Loading,
+    Playing,
+    Paused,
+}</code></pre>
+  </div>
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — States, NextState, in_state</div>
+    <p>Az <code>init_state::&lt;AppMode&gt;()</code> létrehozza az állapotgépet a <code>#[default]</code> változattal indulva. Az aktuálisat a <code>Res&lt;State&lt;AppMode&gt;&gt;</code> (<code>.get()</code>), a váltást a <code>ResMut&lt;NextState&lt;AppMode&gt;&gt;</code> (<code>.set(..)</code>) adja. A <code>run_if(in_state(AppMode::Editor))</code> egy rendszert <em>csak</em> abban a módban enged futni. Két külön <code>States</code> nyugodtan élhet egymás mellett — ortogonális tengelyek.</p>
+  </div>
+</section>
+
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>Az igazságforrás: <code>LevelData</code></h2>
+  <p>Ez a tutorial legfontosabb mondata. <strong>Ne</strong> így gondolkodj: „az editor módosítja a tile-sprite entitásokat, a játék meg majd kiolvassa belőlük”. Hanem így: van egy közös <strong><code>LevelData</code></strong>; az <strong>editor azt módosítja</strong>, a <strong>játék abból renderel</strong> és épít collisiont, a <strong>mentés azt szerializálja</strong>. A fenti játszótér editora pontosan ezt a struktúrát írja.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/shared/level_data.rs — a közös adatmodell</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+/// Egy csempe azonosítója az atlaszban.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct TileId(pub u32);
+
+/// Egy réteg: csempék + ütközik-e a réteg.
+pub struct TileLayer {
+    pub name: String,
+    pub tiles: Vec&lt;Option&lt;TileId&gt;&gt;,   // None = üres cella
+    pub collision: bool,
+}
+
+/// Egy elhelyezett objektum (spawn, ajtó, láda, NPC, trigger-zóna).
+pub struct LevelObject {
+    pub id: String,
+    pub position: IVec2,
+    pub kind: ObjectKind,
+}
+
+pub enum ObjectKind { PlayerSpawn, Door, Chest, Npc, TriggerZone }
+
+/// A teljes pálya — EZ az igazságforrás.
+pub struct LevelData {
+    pub width: u32,
+    pub height: u32,
+    pub layers: Vec&lt;TileLayer&gt;,
+    pub objects: Vec&lt;LevelObject&gt;,
+}
+
+impl LevelData {
+    pub fn set_tile(&amp;mut self, layer: usize, x: u32, y: u32, tile: Option&lt;TileId&gt;) {
+        let i = (y * self.width + x) as usize;
+        self.layers[layer].tiles[i] = tile;
+    }
+    pub fn get_tile(&amp;self, layer: usize, x: u32, y: u32) -&gt; Option&lt;TileId&gt; {
+        self.layers[layer].tiles[(y * self.width + x) as usize]
+    }
+}
+
+/// A betöltött pálya resource-ként. A `dirty` jelzi: újra kell rajzolni a vizuált.
+#[derive(Resource)]
+pub struct CurrentLevel {
+    pub data: LevelData,
+    pub dirty: bool,
+}</code></pre>
+  </div>
+  <p>Ez a <code>shared/</code> rétegben él, és <strong>se a game, se az editor belső logikájától nem függ</strong>. Mindkét oldal ezt használja:</p>
+  <div class="diagram">
+    <div class="d-head">⊞ Ki mit csinál a LevelData-val?</div>
+    <pre>
+  <span class="gr">game/map.rs</span>         → LevelData alapján <span class="gr">spawnol / renderel</span>
+  <span class="gr">game/collision.rs</span>   → LevelData alapján <span class="lv">collision-map</span>
+  <span class="di">editor/brush.rs</span>      → LevelData <span class="di">módosítása</span> (lerak/töröl)
+  <span class="wa">shared/save_load.rs</span> → LevelData <span class="wa">mentése / betöltése</span> (level.json)</pre>
+    <div class="d-cap">Ez garantálja, hogy amit editorban látsz, az <strong>ugyanaz</strong>, amit a játék használ — mert nincs két külön „igazság”, csak egy.</div>
+  </div>
+  <div class="note">
+    <div class="n-tag">▲ Formátum &gt; editor</div>
+    Mivel az editor nem birtokolja a formátumot (csak <em>egy</em> a <code>LevelData</code> íróiból), később akár külső szerkesztőt is használhatsz ugyanarra a <code>level.json</code>-ra — vagy generálhatsz pályát kóddal. Az adat a központ, az editor csak egy ráírt eszköz.
+  </div>
+</section>
+
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>Adat ⇄ vizuális: a dirty-sync</h2>
+  <p>Ha a <code>LevelData</code> az igazság, akkor a képernyőn látható csempe-entitások csak a <strong>vizuális tükörképe</strong>. A folyam <em>egyirányú</em>: az editor a <strong>adatot</strong> írja, egy rendszer pedig a vizuált <strong>az adathoz igazítja</strong> — de csak akkor, ha tényleg változott (<code>dirty</code>). Így nem rajzolunk újra fölöslegesen minden frame-ben.</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — LevelData → vizuál (dirty-sync)</span></div>
+    <div class="pg-body">
+      <canvas id="syncCanvas" width="440" height="150" style="width:560px"></canvas>
+      <div class="pg-side">
+        <p>Bal oldalt a <strong>LevelData</strong> (az igazság), jobb oldalt a <strong>renderelt</strong> csempék. Az editor írja az adatot → a cella <strong>dirty</strong> lesz (sárga keret) → a <code>sync_tilemap_visuals</code> átmásolja a vizuálba és törli a dirty-jelet.</p>
+        <div class="pg-controls">
+          <button class="wbtn" id="syncPlace">Editor lerak egy tile-t</button>
+          <button class="wbtn active" id="syncAuto">Auto ⟳</button>
+        </div>
+        <p style="margin-top:10px" class="stat" id="syncStat">dirty cellák: 0</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">src/game/map.rs — a vizuál az adatot követi</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use crate::shared::level_data::CurrentLevel;
+
+#[derive(Component)]
+struct TileSprite;     // marker: ez egy vizuális csempe-entitás
+
+/// A LevelData a forrás; ez tükrözi vizuálisan — CSAK ha változott.
+fn sync_tilemap_visuals(
+    mut level: ResMut&lt;CurrentLevel&gt;,
+    mut commands: Commands,
+    old: Query&lt;Entity, With&lt;TileSprite&gt;&gt;,
+    // assets: a TileId → atlasz-index leképezés...
+) {
+    if !level.dirty {
+        return;                       // nincs változás → nincs munka
+    }
+
+    // EGYSZERŰ verzió: töröld és építsd újra az egész tilemapet
+    for e in &amp;old {
+        commands.entity(e).despawn();
+    }
+    for (li, layer) in level.data.layers.iter().enumerate() {
+        for (i, cell) in layer.tiles.iter().enumerate() {
+            let Some(tile) = cell else { continue };   // None = üres
+            let x = (i as u32 % level.data.width) as f32;
+            let y = (i as u32 / level.data.width) as f32;
+            commands.spawn((
+                TileSprite,
+                // Sprite::from_atlas_image(...) a tile.0 indexszel,
+                Transform::from_xyz(x * 16.0, y * 16.0, li as f32),
+            ));
+            let _ = tile;
+        }
+    }
+
+    level.dirty = false;              // elvégeztük → tiszta
+}</code></pre>
+  </div>
+  <div class="note warn">
+    <div class="n-tag">⚠ Kezdj az egyszerűvel, optimalizálj később</div>
+    A teljes újrarajzolás elsőre tökéletes. Ha lassú lesz, vezess be <em>dirty cellákat</em>: egy <code>DirtyTiles { cells: Vec&lt;(u32, u32, usize)&gt; }</code> erőforrásba gyűjtöd a megváltozott <code>(x, y, layer)</code> hármasokat, és a sync csak azokat frissíti. A <code>Res::is_changed()</code> is segít — de a saját <code>dirty</code> flag explicitebb, és pont a fenti demó logikája.
+  </div>
+</section>
+
+<!-- II. RÉSZ -->
+<div class="part-divider"><span class="pd-label">█ II. rész — Architektúra (file/plugin)</span></div>
+
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>A modul-fa: game · editor · shared</h2>
+  <p>A kód három fő mappára oszlik, és ez a felosztás a teljes architektúra gerince: <strong><code>game/</code></strong> = a játék futtatása, <strong><code>editor/</code></strong> = szerkesztő eszközök, <strong><code>shared/</code></strong> = a közös adatmodell, amit mindkettő használ.</p>
+  <div class="diagram">
+    <div class="d-head">⊞ A projekt fa</div>
+    <pre>
+  src/
+  ├─ <span class="yl">main.rs</span>            App + DefaultPlugins + <span class="gr">GamePlugin</span> (+ EditorPlugin feature mögött)
+  ├─ <span class="yl">app_state.rs</span>       AppMode · GameState
+  │
+  ├─ <span class="wa">shared/</span>            KÖZÖS — nem függ se game-től, se editortól
+  │  ├─ mod.rs
+  │  ├─ <span class="wa">level_data.rs</span>     LevelData · TileId · TileLayer · LevelObject · CurrentLevel
+  │  ├─ tile_defs.rs      csempe-definíciók (járható? atlasz-index?)
+  │  └─ save_load.rs      level.json mentés/betöltés
+  │
+  ├─ <span class="gr">game/</span>              A JÁTÉK
+  │  ├─ plugin.rs         GamePlugin
+  │  ├─ player.rs         camera.rs  enemy.rs  interaction.rs
+  │  ├─ map.rs            LevelData → sprite-ok (sync_tilemap_visuals)
+  │  └─ collision.rs      LevelData → collision-map
+  │
+  └─ <span class="di">editor/</span>            A SZERKESZTŐ (feature mögött)
+     ├─ <span class="di">plugin.rs</span>        EditorPlugin · EditorOnly · toggle_editor_mode
+     ├─ state.rs          EditorState · EditorTool
+     ├─ input.rs  brush.rs  palette.rs
+     ├─ ui.rs             editor UI gyökér
+     └─ overlays.rs       rács · collision-overlay · kurzor</pre>
+    <div class="d-cap">A <code>shared</code> a közepén áll, a <code>game</code> és az <code>editor</code> köré szerveződik. Az editor egy új csempe-eszköze egyetlen fájl változása — a játékhoz hozzá sem kell nyúlni.</div>
+  </div>
+  <p>A vezérelv egy mondatban: <strong>az editor ne manipulálja közvetlenül a játék belső logikáját.</strong> Inkább legyen egy közös <code>LevelData</code>, amit az editor módosít, a game pedig renderel és használ. A találkozási pont az <em>adat</em>, nem a kód.</p>
+</section>
+
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>A függőségi szabály</h2>
+  <p>A modul-fa csak akkor véd meg a spagettitől, ha betartasz egy szigorú <strong>függőségi irányt</strong>. Kattints a rétegekre — látod, ki mit importálhat, és mi <strong>tilos</strong>:</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — függőségi gráf</span></div>
+    <div class="pg-body">
+      <canvas id="depCanvas" width="360" height="220" style="width:440px"></canvas>
+      <div class="pg-side">
+        <p>Kattints egy rétegre. A <span style="color:var(--grass-hi)">zöld nyíl</span> a megengedett függőség, a <span style="color:var(--lava)">piros ✗</span> a tiltott.</p>
+        <p style="margin-top:10px" class="stat" id="depLog">— válassz egy réteget —</p>
+        <p style="margin-top:10px;font-size:13px">A <code>shared</code> senkitől nem függ. A <code>game</code> és az <code>editor</code> is használhatja a <code>shared</code>-et, de <strong>egymást soha</strong>.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A megengedett irányok</div>
+    <pre>
+   <span class="gr">game</span>  ───►  <span class="wa">shared</span>  ◄───  <span class="di">editor</span>        ✔ megengedett
+   <span class="gr">game</span>  ──✗──  <span class="di">editor</span>                       ✘ TILOS
+   <span class="di">editor</span> ──✗──► <span class="gr">game</span> belső rendszerei         ✘ TILOS</pre>
+    <div class="d-cap">A <code>game</code> ne importáljon az <code>editor</code>-ból, és az <code>editor</code> se piszkálja közvetlenül a <code>game</code> rendszereit. Ha kommunikálniuk kell, az a <code>shared</code> adatmodellen át történik.</div>
+  </div>
+  <div class="note warn">
+    <div class="n-tag">⚠ Miért pont ez az irány?</div>
+    Mert ez teszi lehetővé, hogy a <code>game</code> az <code>editor</code> <strong>nélkül is</strong> leforduljon és fusson (release build). Ha a <code>game</code> bárhol importálna az <code>editor</code>-ból, a feature flag mögé rejtett editor kihúzná a talajt a játék alól. A „shared befelé, semmi kifelé” szabály a feltétele a 8. fejezet feature-flagjének.
+  </div>
+</section>
+
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>A négy réteg</h2>
+  <p>Másik nézőpontból ugyanez négy <em>funkcionális</em> rétegre bomlik. Ez segít eldönteni, egy új rendszer hová kerül — és főleg: <strong>mi fut mindkét módban</strong>.</p>
+  <div class="diagram">
+    <div class="d-head">⊞ A négy réteg</div>
+    <pre>
+  1. <span class="wa">DATA</span>          LevelData · TileId · ObjectKind · map-formátum
+  2. <span class="gr">RUNTIME</span>       render · collision · gameplay · player · enemies
+  3. <span class="di">EDITOR</span>        tools · UI · overlays · brush · palette
+  4. <span class="yl">PERSISTENCE</span>   save/load JSON · asset-betöltés</pre>
+    <div class="d-cap">A <span class="wa">DATA</span> és a <span class="yl">PERSISTENCE</span> közös. A <span class="gr">RUNTIME</span>-ból a <em>render</em> rész közös (editorban is látni akarod a pályát!), a <em>gameplay</em> rész csak játék módban fut. Az <span class="di">EDITOR</span> réteg csak editor módban.</div>
+  </div>
+  <table>
+    <tr><th>Réteg</th><th>Tartalom</th><th>Mikor fut?</th></tr>
+    <tr><td><strong>Data</strong></td><td><code>LevelData</code>, <code>TileId</code>, formátum</td><td>passzív adat — mindig elérhető</td></tr>
+    <tr><td><strong>Runtime · render</strong></td><td><code>sync_tilemap_visuals</code>, <code>render_objects</code>, animált csempék</td><td><strong>mindkét módban</strong> (a végleges kép)</td></tr>
+    <tr><td><strong>Runtime · gameplay</strong></td><td><code>player_input</code>, <code>movement</code>, <code>enemy_ai</code>, <code>interaction</code></td><td>csak <code>AppMode::Game</code></td></tr>
+    <tr><td><strong>Editor</strong></td><td>brush, paletta, overlay, kurzor, editor-UI</td><td>csak <code>AppMode::Editor</code></td></tr>
+    <tr><td><strong>Persistence</strong></td><td><code>level.json</code> mentés/betöltés, asset-loading</td><td>kérésre (mentés-gomb, pálya-betöltés)</td></tr>
+  </table>
+  <p>Ez a táblázat a következő rész teljes implementációs terve: pontosan ezt fogjuk <code>run_if(in_state(..))</code>-szal a megfelelő módhoz kötni.</p>
+</section>
+
+<!-- III. RÉSZ -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Implementáció</span></div>
+
+<section id="ch8">
+  <div class="ch-eyebrow">8. fejezet</div>
+  <h2>AppMode + main.rs + feature flag</h2>
+  <p>A <code>main</code> rövid marad: a beépített pluginok mellé a <code>GamePlugin</code> <em>mindig</em> bekerül, az <code>EditorPlugin</code> viszont <strong>csak az <code>editor</code> feature mögött</strong>. Ez a harmadik kapcsoló: fordításidőben dönti el, benne van-e az editor a binárisban.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/main.rs — a belépési pont</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+
+mod app_state;
+mod shared;
+mod game;
+#[cfg(feature = "editor")]
+mod editor;
+
+use app_state::AppMode;
+use game::GamePlugin;
+#[cfg(feature = "editor")]
+use editor::EditorPlugin;
+
+fn main() {
+    let mut app = App::new();
+
+    app.add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .init_state::&lt;AppMode&gt;()       // a FŐ kapcsoló állapotgépe
+        .add_plugins(GamePlugin);       // a játék MINDIG bekerül
+
+    // az editor CSAK akkor fordul a buildbe, ha kéred:
+    #[cfg(feature = "editor")]
+    app.add_plugins(EditorPlugin);
+
+    app.run();
+}</code></pre>
+  </div>
+  <div class="code">
+    <div class="code-head"><span class="fname">Cargo.toml — a feature definíciója</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">[features]
+default = []
+editor = []</code></pre>
+  </div>
+  <div class="diagram">
+    <div class="d-head">⊞ Buildek</div>
+    <pre>
+  cargo run --features editor          <span class="mu"># fejlesztés: Ctrl+E él, editor benne</span>
+  cargo build --release                <span class="mu"># release JÁTÉK: editor SEHOL</span>
+  cargo build --release --features editor   <span class="mu"># belső teszt-build editorral</span></pre>
+    <div class="d-cap">Release-ben az <code>ImagePlugin::default_nearest()</code> adja a pixel-perfect (nearest) skálázást — ugyanaz a render editorban és játékban.</div>
+  </div>
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy / Cargo fogalom — feature flag</div>
+    <p>A <code>#[cfg(feature = "editor")]</code> attribútum a Rust feltételes fordítása: a mögötte álló <code>mod</code>/<code>use</code>/sor <em>csak</em> akkor kerül a buildbe, ha a feature aktív. Így az editor kódja, függőségei és binárismérete a release játékból teljesen kimaradnak — miközben a forrásban végig ott van.</p>
+  </div>
+</section>
+
+<section id="ch9">
+  <div class="ch-eyebrow">9. fejezet</div>
+  <h2>A GamePlugin — mi fut editorban?</h2>
+  <p>A <code>GamePlugin</code> a 7. fejezet táblázatát kódolja: a <strong>gameplay</strong> rendszerek <code>run_if(in_state(AppMode::Game))</code>, a <strong>render</strong> rendszerek viszont <em>feltétel nélkül</em> futnak — mert editorban is a végleges pályát akarod látni.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/game/plugin.rs</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use crate::app_state::AppMode;
+
+pub struct GamePlugin;
+
+impl Plugin for GamePlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app
+            .add_systems(Startup, setup_game)
+            // CSAK játék módban: a tényleges gameplay
+            .add_systems(
+                Update,
+                (
+                    player_input,
+                    player_movement,
+                    camera_follow_player,
+                    enemy_ai,
+                    interaction,
+                )
+                    .run_if(in_state(AppMode::Game)),
+            )
+            // MINDKÉT módban: a pálya megjelenítése
+            .add_systems(
+                Update,
+                (
+                    sync_tilemap_visuals,   // LevelData → sprite-ok
+                    render_objects,
+                    update_animated_tiles,
+                ),
+            );
+    }
+}
+
+fn setup_game() {}
+fn player_input() {}
+fn player_movement() {}
+fn camera_follow_player() {}
+fn enemy_ai() {}
+fn interaction() {}
+fn sync_tilemap_visuals() {}
+fn render_objects() {}
+fn update_animated_tiles() {}</code></pre>
+  </div>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — mi fut melyik módban?</span></div>
+    <div class="pg-body">
+      <canvas id="modeCanvas" width="240" height="150" style="width:320px"></canvas>
+      <div class="pg-side">
+        <div class="pg-controls"><button class="mode-btn game" id="modeBtn">MOST: Game — Ctrl+E</button></div>
+        <div class="grp-label">csak Game (run_if)</div>
+        <div class="chips" id="grpGame"></div>
+        <div class="grp-label">közös render (mindig)</div>
+        <div class="chips" id="grpShared"></div>
+        <div class="grp-label">csak Editor (run_if)</div>
+        <div class="chips" id="grpEditor"></div>
+      </div>
+    </div>
+  </div>
+
+  <p>Amit <strong>semmiképp ne</strong> csinálj: a módváltást 40 rendszerbe szétszórt <code>if editor_mode { … } else { … }</code> ágakkal kezelni. Ez gyorsan karbantarthatatlan.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">anti-minta vs. minta</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">// ROSSZ — szétszórt elágazás 40 rendszerben:
+fn some_system(/* ... */) {
+    if editor_mode {
+        // editor-ág
+    } else {
+        // játék-ág
+    }
+}
+
+// JÓ — a STATE dönti el, mi fusson; a rendszer egyetlen dolgot csinál:
+app.add_systems(Update, player_input.run_if(in_state(AppMode::Game)));
+app.add_systems(Update, editor_brush.run_if(in_state(AppMode::Editor)));</code></pre>
+  </div>
+</section>
+
+<section id="ch10">
+  <div class="ch-eyebrow">10. fejezet</div>
+  <h2>Az EditorPlugin — setup/cleanup</h2>
+  <p>Az <code>EditorPlugin</code> minden editor-viselkedést egy helyen tart. A belépéskor (<code>OnEnter</code>) felépíti az editor UI-t és overlayeket, kilépéskor (<code>OnExit</code>) eltakarítja őket. Az editor-specifikus entitások egy <code>EditorOnly</code> markert kapnak — így a takarítás egyszerű.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/editor/mod.rs</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">pub mod plugin;
+pub mod state;
+pub mod input;
+pub mod brush;
+pub mod ui;
+pub mod overlays;
+
+pub use plugin::EditorPlugin;</code></pre>
+  </div>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/editor/plugin.rs</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use crate::app_state::AppMode;
+use super::state::EditorState;
+
+pub struct EditorPlugin;
+
+impl Plugin for EditorPlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app
+            .init_resource::&lt;EditorState&gt;()
+            // a kapcsoló MINDIG fut (de csak az `editor` feature-rel fordul be):
+            .add_systems(Update, toggle_editor_mode)
+            // belépés/kilépés: az editor-réteg fel- és leépítése
+            .add_systems(OnEnter(AppMode::Editor), setup_editor)
+            .add_systems(OnExit(AppMode::Editor), cleanup_editor)
+            // CSAK editor módban: az eszközök
+            .add_systems(
+                Update,
+                (
+                    editor_camera_controls,
+                    editor_mouse_input,
+                    editor_brush_system,
+                    editor_palette_ui,
+                    editor_overlay_system,
+                    editor_save_shortcut,
+                )
+                    .run_if(in_state(AppMode::Editor)),
+            );
+    }
+}
+
+/// Minden editor-specifikus entitás (UI, rács, kurzor) ezt kapja.
+#[derive(Component)]
+pub struct EditorOnly;
+
+fn setup_editor(mut commands: Commands) {
+    // editor UI-gyökér, rács-overlay, csempe-kurzor, paletta...
+    commands.spawn((EditorOnly, Name::new("Editor Root")));
+}
+
+fn cleanup_editor(mut commands: Commands, q: Query&lt;Entity, With&lt;EditorOnly&gt;&gt;) {
+    for e in &amp;q {
+        commands.entity(e).despawn();   // 0.18: a leszármazottakkal együtt
+    }
+}
+
+// (a többi rendszer üres váza — a következő fejezetekben töltjük meg)
+fn toggle_editor_mode() {}
+fn editor_camera_controls() {}
+fn editor_mouse_input() {}
+fn editor_brush_system() {}
+fn editor_palette_ui() {}
+fn editor_overlay_system() {}
+fn editor_save_shortcut() {}</code></pre>
+  </div>
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — OnEnter / OnExit (+ DespawnOnExit)</div>
+    <p>Az <code>OnEnter(state)</code> egyszer fut belépéskor (setup), az <code>OnExit(state)</code> egyszer kilépéskor (teardown). Az <code>EditorOnly</code> markeres kézi takarítás explicit; alternatívaként a spawnolt entitásokra tehetsz <code>DespawnOnExit(AppMode::Editor)</code>-t, és akkor maguktól eltűnnek kilépéskor — ugyanaz az elv, mint a scene-eknél.</p>
+  </div>
+</section>
+
+<section id="ch11">
+  <div class="ch-eyebrow">11. fejezet</div>
+  <h2>Mód-váltás: <span class="kbd" style="font-size:15px">Ctrl</span>+<span class="kbd" style="font-size:15px">E</span></h2>
+  <p>A váltás egyetlen kis rendszer: figyeli a <code>Ctrl+E</code>-t, és átállítja a <code>NextState&lt;AppMode&gt;</code>-ot. Ez a rendszer <em>mindig</em> fut (nincs <code>run_if</code>), hiszen mindkét irányba kell — de mivel az <code>EditorPlugin</code>-ban él, a feature flag mögött a release-ből kimarad.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/editor/plugin.rs — a kapcsoló</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use crate::app_state::AppMode;
+
+fn toggle_editor_mode(
+    keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    mode: Res&lt;State&lt;AppMode&gt;&gt;,
+    mut next: ResMut&lt;NextState&lt;AppMode&gt;&gt;,
+) {
+    let ctrl = keys.pressed(KeyCode::ControlLeft)
+        || keys.pressed(KeyCode::ControlRight);
+
+    if ctrl &amp;&amp; keys.just_pressed(KeyCode::KeyE) {
+        next.set(match mode.get() {
+            AppMode::Game =&gt; AppMode::Editor,
+            AppMode::Editor =&gt; AppMode::Game,
+        });
+    }
+}</code></pre>
+  </div>
+  <div class="note">
+    <div class="n-tag">▲ Ez az egyetlen „mindig fut” editor-darab</div>
+    Minden más editor-rendszer <code>run_if(in_state(AppMode::Editor))</code> mögött van. A <code>toggle_editor_mode</code> a kivétel — de mivel az egész <code>EditorPlugin</code> a <code>#[cfg(feature = "editor")]</code> mögött kerül be, release-ben ez a sor sem létezik. A játékos nem tud véletlenül editorba kapcsolni.
+  </div>
+</section>
+
+<section id="ch12">
+  <div class="ch-eyebrow">12. fejezet</div>
+  <h2>EditorState + tile-lerakás</h2>
+  <p>Az editor állapotát egy <code>EditorState</code> resource hordozza: melyik réteg aktív, melyik csempe van kijelölve, melyik eszköz, és a kapcsolók (rács, collision). A 4. fejezet szerint az ecset <strong>a <code>LevelData</code>-t írja</strong>, és <code>dirty</code>-re állítja — a vizuál onnantól magától követi.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/editor/state.rs</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use crate::shared::level_data::TileId;
+
+#[derive(Resource)]
+pub struct EditorState {
+    pub active_layer: usize,
+    pub selected_tile: Option&lt;TileId&gt;,
+    pub tool: EditorTool,
+    pub show_collision: bool,
+    pub show_grid: bool,
+}
+
+impl Default for EditorState {
+    fn default() -&gt; Self {
+        Self {
+            active_layer: 0,
+            selected_tile: Some(TileId(1)),
+            tool: EditorTool::Brush,
+            show_collision: true,
+            show_grid: true,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EditorTool { Brush, Eraser, Fill, Select, ObjectPlace }</code></pre>
+  </div>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/editor/brush.rs — egér → cella → LevelData</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">use bevy::prelude::*;
+use crate::editor::state::{EditorState, EditorTool};
+use crate::shared::level_data::CurrentLevel;
+
+const TILE: f32 = 16.0;
+
+fn editor_brush_system(
+    windows: Query&lt;&amp;Window&gt;,
+    camera: Query&lt;(&amp;Camera, &amp;GlobalTransform)&gt;,
+    mouse: Res&lt;ButtonInput&lt;MouseButton&gt;&gt;,
+    editor: Res&lt;EditorState&gt;,
+    mut level: ResMut&lt;CurrentLevel&gt;,
+) {
+    let Ok(window) = windows.single() else { return };
+    let Some(cursor) = window.cursor_position() else { return };
+    let Ok((cam, cam_tf)) = camera.single() else { return };
+    let Ok(world) = cam.viewport_to_world_2d(cam_tf, cursor) else { return };
+
+    // világ-koordináta → rács-cella
+    let gx = (world.x / TILE).floor() as i32;
+    let gy = (world.y / TILE).floor() as i32;
+    if gx &lt; 0 || gy &lt; 0
+        || gx as u32 &gt;= level.data.width
+        || gy as u32 &gt;= level.data.height {
+        return;
+    }
+    let (x, y, layer) = (gx as u32, gy as u32, editor.active_layer);
+
+    // bal-katt: fest (radír esetén None) · jobb-katt: radíroz
+    if mouse.pressed(MouseButton::Left) {
+        let tile = match editor.tool {
+            EditorTool::Eraser =&gt; None,
+            _ =&gt; editor.selected_tile,
+        };
+        level.data.set_tile(layer, x, y, tile);
+        level.dirty = true;          // &lt;- innen a sync újraépíti a vizuált
+    } else if mouse.pressed(MouseButton::Right) {
+        level.data.set_tile(layer, x, y, None);
+        level.dirty = true;
+    }
+}</code></pre>
+  </div>
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — viewport_to_world_2d</div>
+    <p>A <code>Camera::viewport_to_world_2d(cam_tf, cursor)</code> a képernyő-pixelt világ-koordinátává alakítja (figyelembe véve a kamera pozícióját és zoomját). Innen az osztás <code>TILE</code>-lal + <code>floor()</code> adja a rács-cellát. A <code>single()</code> 0.18-ban <code>Result</code>-ot ad, ezért a <code>let Ok(..) = ... else { return }</code> minta.</p>
+  </div>
+</section>
+
+<section id="ch13">
+  <div class="ch-eyebrow">13. fejezet</div>
+  <h2>Kamera · UI · input szeparáció</h2>
+  <p>Három dolgot kell tisztán kettéválasztani a két mód közt — és mindháromra ugyanaz a recept: <strong>a state dönti el, melyik rendszer fut</strong>.</p>
+  <h3>Kamera — egy kamera, két vezérlő</h3>
+  <p>Pixelart top-down játéknál a legjobb: <em>ugyanaz</em> a <code>Camera2d</code>, csak más vezérli. Játék módban követi a játékost, editorban szabadon mozgatható.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">src/game/camera.rs &amp; src/editor/input.rs</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">// EGY kamera (a GamePlugin spawnolja):
+fn setup_camera(mut commands: Commands) {
+    commands.spawn((Camera2d, Msaa::Off));   // pixel-perfect: Msaa ki
+}
+
+// KÉT vezérlő — a state dönti el, melyik fut:
+fn camera_follow_player(/* ... */) { /* run_if(in_state(AppMode::Game)) */ }
+fn editor_camera_controls(/* ... */) { /* run_if(in_state(AppMode::Editor)) */ }</code></pre>
+  </div>
+  <h3>Input — a játékos sosem mozog editor közben</h3>
+  <div class="code">
+    <div class="code-head"><span class="fname">input szeparáció</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">app.add_systems(Update, player_input.run_if(in_state(AppMode::Game)));
+app.add_systems(Update, editor_mouse_input.run_if(in_state(AppMode::Editor)));</code></pre>
+  </div>
+  <h3>UI — külön gyökerek, nem keverednek</h3>
+  <p>Az editor UI-t <strong>ne</strong> a játék HUD-jába rakd. Két külön gyökér-node; az editoré <code>OnEnter</code>-kor épül, <code>OnExit</code>-kor (vagy az <code>EditorOnly</code> takarítással) eltűnik.</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">UI-gyökér szeparáció</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">#[derive(Component)] struct GameHudRoot;     // a játék HUD-ja
+#[derive(Component)] struct EditorUiRoot;    // a paletta, eszköztár
+
+fn setup_editor_ui(mut commands: Commands) {
+    commands.spawn((
+        EditorOnly,                 // takarításhoz
+        EditorUiRoot,
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            ..default()
+        },
+        GlobalZIndex(100),          // a HUD fölött, a fade alatt
+    ));
+    // ... a paletta + eszköztár ennek a gyereke
+}</code></pre>
+  </div>
+  <div class="note">
+    <div class="n-tag">▲ A közös minta</div>
+    Kamera, input, UI — mindhárom ugyanazt csinálja: a viselkedés két külön rendszer/entitás, és a <code>run_if(in_state(..))</code> illetve az <code>OnEnter/OnExit</code> kapcsolja őket. Sehol egy <code>if editor_mode</code>; a state a kapcsoló.
+  </div>
+</section>
+
+<section id="ch14">
+  <div class="ch-eyebrow">14. fejezet</div>
+  <h2>Release &amp; merre tovább?</h2>
+  <p>Az editor „benne van, de ne zavarjon” három, egyre erősebb szinten oldható meg — kombinálhatók:</p>
+  <div class="diagram">
+    <div class="d-head">⊞ Három szint az editor kihagyására</div>
+    <pre>
+  1. <span class="gr">Runtime kikapcsolás</span>   az editor bent van, de csak AppMode::Editor alatt fut
+                          <span class="mu">+ egyszerű   − a release binárisban is benne van</span>
+  2. <span class="wa">Feature flag</span>          #[cfg(feature = "editor")] — csak kérésre fordul be
+                          <span class="mu">+ a release-ből KIMARAD   ← ez az alap-megoldás</span>
+  3. <span class="di">Külön bináris</span>         src/bin/editor.rs — teljesen önálló editor-build
+                          <span class="mu">+ teljes izoláció   − nincs élő Ctrl+E váltás</span></pre>
+    <div class="d-cap">A te igényedhez — <em>élőben, billentyűvel váltható</em> — a <strong>2. (feature flag) + 1. (runtime state)</strong> párosa kell. A 3. akkor jön, ha az editor önálló alkalmazássá nő.</div>
+  </div>
+  <h3>Merre tovább?</h3>
+  <ul>
+    <li><strong>Undo/redo.</strong> Mivel minden szerkesztés a <code>LevelData</code>-n megy át, egy <em>parancs-verem</em> (<code>Vec&lt;EditCommand&gt;</code>) elég: minden ecsetvonás egy visszafordítható parancs. Az adat-központú modell ezt szinte ingyen adja.</li>
+    <li><strong>Eszközök.</strong> A <code>EditorTool</code> bővítése: <code>Fill</code> (floodfill), <code>Select</code> + copy-paste, <code>ObjectPlace</code> spawn/ajtó/láda lerakásra — mind a <code>LevelData</code>-t írja.</li>
+    <li><strong>Object-inspector.</strong> Kijelölt <code>LevelObject</code> mezőinek szerkesztése (trigger-zóna mérete, ajtó célja) egy oldalsó UI-panelen.</li>
+    <li><strong>Autosave &amp; hot-reload.</strong> A <code>dirty</code> flagre kötött mentés, és a <code>level.json</code> figyelése — szerkeszd kívülről is, a játék újratölti.</li>
+    <li><strong>GameState-integráció.</strong> A 2. fejezet <code>GameState</code> (Loading/Playing/Paused) most kapcsolódik be: a pálya-betöltés <code>Loading</code>, a pause overlay <code>Paused</code> — az editor ezekhez nem nyúl, külön tengely.</li>
+  </ul>
+  <div class="bevy-box">
+    <div class="tag">⚙ Az igazi tanulság</div>
+    <p>Ne az editor legyen a játék része, hanem a <strong>játék és az editor legyen két külön plugin ugyanarra a közös <code>LevelData</code> adatmodellre építve</strong>. Ha ez megvan, a három kapcsoló (state · plugin · feature) mindent megold: <span class="kbd">Ctrl</span>+<span class="kbd">E</span> élő váltás, tiszta kódszeparáció, release-ből kihagyható editor — és pontosan azt látod szerkesztés közben, amit a játékos. Jó kódolást! ▸▸</p>
+  </div>
+</section>
+
+<footer>
+  <p class="pix">IN-GAME TILE EDITOR — állapotok, pluginok &amp; közös adatmodell Bevy 0.18-ban</p>
+  <p>A dual-grid sorozat folytatása az <em>editor-architektúra</em> felé. A demók procedurálisan, valós időben futnak (HTML canvas): ugyanaz a <code>LevelData</code>-központú modell, dirty-sync és mód-szeparáció, amit a Rust kód is megvalósít. A kódrészletek a 0.18-as API-ra épülnek: <code>States</code>/<code>init_state</code>/<code>NextState</code>/<code>run_if(in_state)</code>, <code>OnEnter</code>/<code>OnExit</code>, <code>DespawnOnExit</code>, <code>Plugin</code>, <code>#[cfg(feature)]</code>, <code>viewport_to_world_2d</code>, <code>Camera2d</code>+<code>Msaa::Off</code>.</p>
+</footer>
+
+</div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var TAU=Math.PI*2;
+var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* =====================================================================
+   KÖZÖS TILE-ENGINE (procedurális pixelart, kép-asset nélkül)
+   ===================================================================== */
+var COL={
+  void:"#0b110c",
+  grass:"#4e8f33", grassHi:"#6fbf48", grassDk:"#3f7a2e",
+  path:"#c99c66",  pathHi:"#dab27e",  pathDk:"#9a6e43",
+  water:"#3f8fa3", waterHi:"#6cc8d9", waterDk:"#2c6675",
+  wall:"#737a84",  wallHi:"#9aa0aa",  wallDk:"#4a4f57"
+};
+var TNAME={"-1":"Radír",0:"Üres",1:"Fű",2:"Ösvény",3:"Víz",4:"Fal",5:"Fa",6:"Spawn",7:"Láda",8:"Ajtó"};
+function nz(a,b,k){ var v=Math.sin(a*127.1+b*311.7+k*74.7)*43758.5453; return v-Math.floor(v); }
+
+function drawTile(ctx,id,x,y,s,gx,gy){
+  ctx.imageSmoothingEnabled=false;
+  if(id===0||id==null){ ctx.fillStyle=COL.void; ctx.fillRect(x,y,s,s);
+    ctx.fillStyle="rgba(255,255,255,.025)"; ctx.fillRect(x,y,s,s); return; }
+  if(id===1){ ctx.fillStyle=COL.grass; ctx.fillRect(x,y,s,s);
+    var d=Math.max(2,(s/9)|0);
+    for(var i=0;i<5;i++){ var rx=(x+nz(gx,gy,i)*(s-d))|0, ry=(y+nz(gx,gy,i+9)*(s-d))|0;
+      ctx.fillStyle=(i%2)?COL.grassHi:COL.grassDk; ctx.fillRect(rx,ry,d,d);} return; }
+  if(id===2){ ctx.fillStyle=COL.path; ctx.fillRect(x,y,s,s);
+    for(var i=0;i<4;i++){ var rx=(x+nz(gx,gy,i+3)*(s-3))|0, ry=(y+nz(gx,gy,i+5)*(s-3))|0;
+      ctx.fillStyle=(i%2)?COL.pathHi:COL.pathDk; ctx.fillRect(rx,ry,3,3);} return; }
+  if(id===3){ ctx.fillStyle=COL.water; ctx.fillRect(x,y,s,s);
+    ctx.fillStyle=COL.waterDk; for(var r=3;r<s;r+=4){ ctx.fillRect(x,y+r,s,1);}
+    ctx.fillStyle=COL.waterHi; var wy=2+((nz(gx,gy,1)*(s-6))|0); ctx.fillRect(x+2,y+wy,s-6,1); return; }
+  if(id===4){ ctx.fillStyle=COL.wall; ctx.fillRect(x,y,s,s);
+    ctx.fillStyle=COL.wallHi; ctx.fillRect(x,y,s,Math.max(1,(s/10)|0));
+    ctx.fillStyle=COL.wallDk; var bh=(s/2)|0;
+    ctx.fillRect(x,y+bh,s,1); ctx.fillRect(x+((s/2)|0),y,1,bh);
+    ctx.fillRect(x+((s/4)|0),y+bh,1,s-bh); ctx.fillRect(x+((3*s/4)|0),y+bh,1,s-bh); return; }
+}
+function drawDude(ctx,x,y,col,sc){ sc=sc||1;
+  ctx.fillStyle="rgba(0,0,0,.3)"; ctx.beginPath(); ctx.ellipse(x,y+6*sc,5*sc,2*sc,0,0,TAU); ctx.fill();
+  ctx.fillStyle=col; ctx.fillRect(x-3*sc,y-2*sc,6*sc,7*sc);
+  ctx.fillStyle="#e8b487"; ctx.fillRect(x-2*sc,y-7*sc,4*sc,5*sc);
+  ctx.fillStyle="#4a3322"; ctx.fillRect(x-2*sc,y-8*sc,4*sc,2*sc); }
+function drawObject(ctx,id,x,y,s){
+  var cx=x+s/2, cy=y+s/2, sc=s/30;
+  if(id===5){ // fa
+    ctx.fillStyle="rgba(0,0,0,.25)"; ctx.beginPath(); ctx.ellipse(cx,y+s-3,s*0.3,s*0.11,0,0,TAU); ctx.fill();
+    ctx.fillStyle="#5a3a2a"; ctx.fillRect(cx-s*0.07,cy,s*0.14,s*0.4);
+    ctx.fillStyle="#2f6e3c"; ctx.beginPath(); ctx.arc(cx,cy-s*0.04,s*0.3,0,TAU); ctx.fill();
+    ctx.fillStyle="#3f8a4c"; ctx.beginPath(); ctx.arc(cx-s*0.12,cy-s*0.02,s*0.15,0,TAU); ctx.fill();
+  } else if(id===6){ // player spawn
+    ctx.strokeStyle="#a5e87d"; ctx.lineWidth=2; ctx.setLineDash([3,3]);
+    ctx.strokeRect(x+2,y+2,s-4,s-4); ctx.setLineDash([]);
+    drawDude(ctx,cx,cy+s*0.12,"#6f8fd6",sc);
+  } else if(id===7){ // láda
+    ctx.fillStyle="rgba(0,0,0,.25)"; ctx.beginPath(); ctx.ellipse(cx,cy+s*0.26,s*0.3,s*0.09,0,0,TAU); ctx.fill();
+    ctx.fillStyle="#8a5a2a"; ctx.fillRect(cx-s*0.28,cy-s*0.06,s*0.56,s*0.32);
+    ctx.fillStyle="#caa15a"; ctx.fillRect(cx-s*0.28,cy-s*0.2,s*0.56,s*0.16);
+    ctx.fillStyle="#f0d27a"; ctx.fillRect(cx-2*sc,cy-s*0.1,4*sc,s*0.22);
+  } else if(id===8){ // ajtó
+    ctx.fillStyle="#2a2230"; ctx.fillRect(cx-s*0.27,cy-s*0.3,s*0.54,s*0.6);
+    ctx.fillStyle="#c98a4a"; ctx.fillRect(cx-s*0.2,cy-s*0.24,s*0.4,s*0.5);
+    ctx.fillStyle="#f0d27a"; ctx.fillRect(cx+s*0.06,cy-s*0.02,3*sc,3*sc);
+  }
+}
+function walkable(terr,obj){
+  if(terr===0||terr==null||terr===3||terr===4) return false; // üres/víz/fal
+  if(obj===5||obj===7) return false;                          // fa/láda blokkol
+  return true;
+}
+
+/* =====================================================================
+   HERO — ugyanaz a pálya editor- és játék-módban (auto-váltás)
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("heroEditor"); if(!cv) return; var ctx=cv.getContext("2d");
+  var cols=12, rows=7, TS=28;
+  var terr=new Array(cols*rows).fill(1), obj=new Array(cols*rows).fill(0);
+  function T(x,y,v){terr[y*cols+x]=v;} function O(x,y,v){obj[y*cols+x]=v;}
+  var x,y;
+  for(x=0;x<cols;x++){T(x,0,4);T(x,rows-1,4);} for(y=0;y<rows;y++){T(0,y,4);T(cols-1,y,4);}
+  for(x=1;x<cols-1;x++) T(x,3,2);                 // ösvény
+  T(9,1,3);T(10,1,3);T(9,2,3);T(10,2,3);          // tó
+  O(2,2,5);O(3,5,5);O(8,5,5);                      // fák
+  O(5,2,7);                                        // láda
+  O(2,4,6);                                        // spawn
+  O(10,4,8);                                       // ajtó
+  function render(editorMode,cursor,dude){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    for(y=0;y<rows;y++)for(x=0;x<cols;x++){
+      drawTile(ctx,terr[y*cols+x],x*TS,y*TS,TS,x,y);
+      var o=obj[y*cols+x]; if(o) drawObject(ctx,o,x*TS,y*TS,TS);
+    }
+    if(editorMode){
+      ctx.strokeStyle="rgba(126,203,82,.22)"; ctx.lineWidth=1;
+      for(x=0;x<=cols;x++){ctx.beginPath();ctx.moveTo(x*TS,0);ctx.lineTo(x*TS,rows*TS);ctx.stroke();}
+      for(y=0;y<=rows;y++){ctx.beginPath();ctx.moveTo(0,y*TS);ctx.lineTo(cols*TS,y*TS);ctx.stroke();}
+      // kurzor
+      ctx.strokeStyle="#a5e87d"; ctx.lineWidth=2; ctx.strokeRect(cursor.x*TS+1,cursor.y*TS+1,TS-2,TS-2);
+      ctx.fillStyle="rgba(126,203,82,.18)"; ctx.fillRect(cursor.x*TS,cursor.y*TS,TS,TS);
+    } else if(dude){
+      drawDude(ctx,dude.px*TS+TS/2,dude.py*TS+TS*0.6,"#e0d24a",sc(TS));
+    }
+    // sarok-címke
+    ctx.fillStyle="rgba(8,11,8,.82)"; ctx.fillRect(0,0,editorMode?168:150,22);
+    ctx.fillStyle=editorMode?"#ff7a3c":"#6cc8d9"; ctx.font='bold 12px "Courier New",monospace';
+    ctx.textAlign="left"; ctx.textBaseline="middle";
+    ctx.fillText(editorMode?"✎ EDITOR (Ctrl+E)":"▶ JÁTÉK MÓD",8,12);
+  }
+  function sc(ts){ return ts/26; }
+  // állapot
+  var editorMode=true, t=0, cursor={x:5,y:4}, cTarget={x:5,y:4}, cTimer=0;
+  var dude={px:2,py:4,tx:2,ty:4}, dTimer=0;
+  function freeCell(){ var fx,fy,tries=0; do{ fx=1+(Math.random()*(cols-2)|0); fy=1+(Math.random()*(rows-2)|0); tries++; }while(!walkable(terr[fy*cols+fx],obj[fy*cols+fx])&&tries<40); return {x:fx,y:fy}; }
+  function frame(dt){
+    t+=dt; if(t>2.8){ t=0; editorMode=!editorMode; }
+    if(editorMode){
+      cTimer+=dt; if(cTimer>0.7){ cTimer=0; cTarget=freeCell(); }
+      cursor.x+=(cTarget.x-cursor.x)*Math.min(1,dt*8);
+      cursor.y+=(cTarget.y-cursor.y)*Math.min(1,dt*8);
+    } else {
+      dTimer+=dt; if(dTimer>0.5){ dTimer=0; var n=neighbour(dude.tx,dude.ty); dude.tx=n.x; dude.ty=n.y; }
+      dude.px+=(dude.tx-dude.px)*Math.min(1,dt*6);
+      dude.py+=(dude.ty-dude.py)*Math.min(1,dt*6);
+    }
+    render(editorMode,{x:Math.round(cursor.x),y:Math.round(cursor.y)},dude);
+  }
+  function neighbour(cx,cy){ var dirs=[[1,0],[-1,0],[0,1],[0,-1]]; for(var k=dirs.length-1;k>0;k--){var j=Math.random()*(k+1)|0;var tmp=dirs[k];dirs[k]=dirs[j];dirs[j]=tmp;}
+    for(var i=0;i<dirs.length;i++){ var nx=cx+dirs[i][0], ny=cy+dirs[i][1]; if(nx>=0&&ny>=0&&nx<cols&&ny<rows&&walkable(terr[ny*cols+nx],obj[ny*cols+nx])) return {x:nx,y:ny}; } return {x:cx,y:cy}; }
+  if(reduceMotion){ render(true,{x:5,y:4},dude); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   MINI IN-GAME EDITOR (interaktív)
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("meCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var cols=14, rows=9, TS=28;
+  var terr=new Array(cols*rows).fill(1), obj=new Array(cols*rows).fill(0);
+  // pár kezdő-elem, hogy ne legyen üres
+  obj[2*cols+2]=5; obj[2*cols+3]=5; obj[6*cols+10]=5;
+  terr[4*cols+7]=2; terr[5*cols+7]=2; terr[6*cols+7]=2;
+  var sel=4, showGrid=true, showColl=false, play=false, hover=null;
+  var painting=false, paintBtn=0;
+  var dude={px:1,py:1,tx:1,ty:1}, dTimer=0;
+
+  function activeLayer(){ return sel>=5?1:0; }
+  function statText(){ return "kijelölt: "+TNAME[sel]+" · réteg: "+(activeLayer()===1?"objektum":"terep"); }
+  var statEl=document.getElementById("meStat");
+
+  function applyAt(x,y,erase){
+    if(x<0||y<0||x>=cols||y>=rows) return;
+    if(erase || sel===-1){
+      if(obj[y*cols+x]) obj[y*cols+x]=0; else terr[y*cols+x]=0;   // None = üres
+    } else if(sel>=5){
+      obj[y*cols+x]=sel;
+    } else {
+      terr[y*cols+x]=sel;
+    }
+  }
+  function cellFromEvent(ev){ var r=cv.getBoundingClientRect();
+    var mx=(ev.clientX-r.left)*(cv.width/r.width), my=(ev.clientY-r.top)*(cv.height/r.height);
+    return {x:Math.floor(mx/TS), y:Math.floor(my/TS)}; }
+
+  cv.addEventListener("contextmenu",function(e){e.preventDefault();});
+  cv.addEventListener("pointerdown",function(e){ if(play)return; e.preventDefault();
+    painting=true; paintBtn=e.button; var c=cellFromEvent(e); applyAt(c.x,c.y,e.button===2); });
+  cv.addEventListener("pointermove",function(e){ var c=cellFromEvent(e); hover=c;
+    if(painting&&!play) applyAt(c.x,c.y,paintBtn===2); });
+  window.addEventListener("pointerup",function(){ painting=false; });
+  cv.addEventListener("pointerleave",function(){ hover=null; });
+
+  function neighbour(cx,cy){ var dirs=[[1,0],[-1,0],[0,1],[0,-1]]; for(var k=dirs.length-1;k>0;k--){var j=Math.random()*(k+1)|0;var tmp=dirs[k];dirs[k]=dirs[j];dirs[j]=tmp;}
+    for(var i=0;i<dirs.length;i++){ var nx=cx+dirs[i][0], ny=cy+dirs[i][1]; if(nx>=0&&ny>=0&&nx<cols&&ny<rows&&walkable(terr[ny*cols+nx],obj[ny*cols+nx])) return {x:nx,y:ny}; } return {x:cx,y:cy}; }
+  function spawnDude(){ for(var i=0;i<terr.length;i++){ if(obj[i]===6){ dude.px=dude.tx=i%cols; dude.py=dude.ty=(i/cols)|0; return; } }
+    for(var i=0;i<terr.length;i++){ if(walkable(terr[i],obj[i])){ dude.px=dude.tx=i%cols; dude.py=dude.ty=(i/cols)|0; return; } } }
+
+  function render(dt){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    var x,y;
+    for(y=0;y<rows;y++)for(x=0;x<cols;x++){
+      drawTile(ctx,terr[y*cols+x],x*TS,y*TS,TS,x,y);
+      var o=obj[y*cols+x]; if(o) drawObject(ctx,o,x*TS,y*TS,TS);
+    }
+    if(showColl){ for(y=0;y<rows;y++)for(x=0;x<cols;x++){ if(!walkable(terr[y*cols+x],obj[y*cols+x])){
+      ctx.fillStyle="rgba(255,80,60,.30)"; ctx.fillRect(x*TS,y*TS,TS,TS); } } }
+    if(showGrid&&!play){ ctx.strokeStyle="rgba(126,203,82,.16)"; ctx.lineWidth=1;
+      for(x=0;x<=cols;x++){ctx.beginPath();ctx.moveTo(x*TS,0);ctx.lineTo(x*TS,rows*TS);ctx.stroke();}
+      for(y=0;y<=rows;y++){ctx.beginPath();ctx.moveTo(0,y*TS);ctx.lineTo(cols*TS,y*TS);ctx.stroke();} }
+    if(!play && hover && hover.x>=0 && hover.y>=0 && hover.x<cols && hover.y<rows){
+      ctx.fillStyle="rgba(126,203,82,.18)"; ctx.fillRect(hover.x*TS,hover.y*TS,TS,TS);
+      ctx.strokeStyle="#a5e87d"; ctx.lineWidth=2; ctx.strokeRect(hover.x*TS+1,hover.y*TS+1,TS-2,TS-2); }
+    if(play){
+      dTimer+=dt; if(dTimer>0.45){ dTimer=0; var n=neighbour(dude.tx,dude.ty); dude.tx=n.x; dude.ty=n.y; }
+      dude.px+=(dude.tx-dude.px)*Math.min(1,dt*6); dude.py+=(dude.ty-dude.py)*Math.min(1,dt*6);
+      drawDude(ctx,dude.px*TS+TS/2,dude.py*TS+TS*0.6,"#e0d24a",TS/26);
+      ctx.fillStyle="rgba(8,11,8,.82)"; ctx.fillRect(0,0,150,20);
+      ctx.fillStyle="#6cc8d9"; ctx.font='bold 11px "Courier New",monospace'; ctx.textAlign="left"; ctx.textBaseline="middle";
+      ctx.fillText("▶ JÁTÉK NÉZET",7,11);
+    }
+  }
+
+  // paletta-swatch építés
+  function swatch(parent,id){ var c=document.createElement("canvas"); c.width=30;c.height=30;
+    c.className="pswatch"+(id===sel?" sel":""); c.title=TNAME[id]; c.setAttribute("data-id",id);
+    var g=c.getContext("2d");
+    if(id===-1){ g.fillStyle="#1a241b"; g.fillRect(0,0,30,30);
+      g.fillStyle="#2d3b2c"; for(var yy=0;yy<30;yy+=6)for(var xx=(yy/6%2?6:0);xx<30;xx+=12)g.fillRect(xx,yy,6,6);
+      g.fillStyle="#e9e3cd"; g.font='15px "Courier New"'; g.textAlign="center"; g.textBaseline="middle"; g.fillText("⌫",15,16);
+    } else if(id>=5){ drawTile(g,1,0,0,30,id,id*2); drawObject(g,id,0,0,30); }
+    else { drawTile(g,id,0,0,30,id*3,id*7); }
+    c.addEventListener("click",function(){ sel=id;
+      document.querySelectorAll("#meCanvas").length;
+      Array.prototype.forEach.call(document.querySelectorAll("#palTerrain .pswatch, #palObject .pswatch"),function(s){ s.classList.toggle("sel", +s.getAttribute("data-id")===sel); });
+      statEl.textContent=statText(); });
+    parent.appendChild(c); }
+  var pt=document.getElementById("palTerrain"), po=document.getElementById("palObject");
+  [1,2,3,4,-1].forEach(function(id){ swatch(pt,id); });
+  [5,6,7,8].forEach(function(id){ swatch(po,id); });
+  statEl.textContent=statText();
+
+  // gombok
+  var bGrid=document.getElementById("meGrid"), bColl=document.getElementById("meColl"),
+      bPlay=document.getElementById("mePlay"), bClear=document.getElementById("meClear");
+  bGrid.addEventListener("click",function(){ showGrid=!showGrid; bGrid.classList.toggle("active",showGrid); });
+  bColl.addEventListener("click",function(){ showColl=!showColl; bColl.classList.toggle("active",showColl); });
+  bPlay.addEventListener("click",function(){ play=!play; if(play) spawnDude();
+    bPlay.classList.toggle("active",play); bPlay.textContent=play?"✎ Edit":"▶ Play"; });
+  bClear.addEventListener("click",function(){ terr.fill(1); obj.fill(0); });
+
+  if(reduceMotion){ render(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; render(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   DIRTY-SYNC — LevelData (igazság) → vizuál
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("syncCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var gc=7, gr=4, TS=24, gap=78;
+  var leftX=8, rightX=leftX+gc*TS+gap, topY=34;
+  var data=new Array(gc*gr), vis=new Array(gc*gr);
+  for(var i=0;i<data.length;i++){ var v=1+(nz(i,i*2,1)*4|0); data[i]=v; vis[i]=v; }
+  var dirty={}, pulse=0, auto=true, editTimer=0, syncTimer=-1;
+  var statEl=document.getElementById("syncStat");
+
+  function placeRandom(){ var c=Math.random()*data.length|0; var v; do{ v=1+(Math.random()*4|0);}while(v===data[c]); data[c]=v; dirty[c]=1; syncTimer=0.45; }
+  function syncNow(){ for(var k in dirty){ vis[+k]=data[+k]; } dirty={}; }
+
+  function grid(ox,oy,arr,markDirty){
+    for(var y=0;y<gr;y++)for(var x=0;x<gc;x++){ var idx=y*gc+x;
+      drawTile(ctx,arr[idx],ox+x*TS,oy+y*TS,TS,x+ (markDirty?0:50),y);
+      if(markDirty&&dirty[idx]){ ctx.strokeStyle="rgba(232,210,74,"+(0.55+0.45*Math.sin(pulse*6))+")";
+        ctx.lineWidth=2; ctx.strokeRect(ox+x*TS+1,oy+y*TS+1,TS-2,TS-2); }
+    }
+    ctx.strokeStyle="#41543e"; ctx.lineWidth=1; ctx.strokeRect(ox,oy,gc*TS,gr*TS);
+  }
+  function frame(dt){
+    pulse+=dt;
+    if(auto){ editTimer+=dt; if(editTimer>1.2){ editTimer=0; placeRandom(); } }
+    if(syncTimer>=0){ syncTimer-=dt; if(syncTimer<0){ syncNow(); } }
+    ctx.clearRect(0,0,cv.width,cv.height);
+    // címkék
+    ctx.fillStyle="#9caa90"; ctx.font='11px "Courier New",monospace'; ctx.textAlign="left"; ctx.textBaseline="alphabetic";
+    ctx.fillText("LevelData (igazság)",leftX,22);
+    ctx.fillText("Tile entities (vizuál)",rightX,22);
+    grid(leftX,topY,data,true);
+    grid(rightX,topY,vis,false);
+    // nyíl
+    var ay=topY+gr*TS/2, ax0=leftX+gc*TS+8, ax1=rightX-8;
+    ctx.strokeStyle=syncTimer>=0?"#e8d24a":"#41543e"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(ax0,ay); ctx.lineTo(ax1-6,ay); ctx.stroke();
+    ctx.fillStyle=syncTimer>=0?"#e8d24a":"#41543e"; ctx.beginPath();
+    ctx.moveTo(ax1,ay); ctx.lineTo(ax1-8,ay-5); ctx.lineTo(ax1-8,ay+5); ctx.fill();
+    ctx.fillStyle=syncTimer>=0?"#e8d24a":"#6d7c64"; ctx.font='9px "Courier New",monospace'; ctx.textAlign="center";
+    ctx.fillText("sync_tilemap",((ax0+ax1)/2)|0,ay-8); ctx.fillText("_visuals()",((ax0+ax1)/2)|0,ay+16);
+    var n=0; for(var k in dirty) n++;
+    statEl.textContent="dirty cellák: "+n+(syncTimer>=0?"  →  sync indul…":"");
+  }
+  document.getElementById("syncPlace").addEventListener("click",placeRandom);
+  var ab=document.getElementById("syncAuto");
+  ab.addEventListener("click",function(){ auto=!auto; ab.classList.toggle("active",auto); });
+  if(reduceMotion){ frame(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   FÜGGŐSÉGI GRÁF — shared <- game, shared <- editor, game X editor
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("depCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var nodes={ game:{x:78,y:48,label:"game",col:"#7ecb52"},
+              editor:{x:282,y:48,label:"editor",col:"#c99c66"},
+              shared:{x:180,y:168,label:"shared",col:"#6cc8d9"} };
+  var NW=104,NH=44, sel=null, logEl=document.getElementById("depLog");
+  function box(k){ var n=nodes[k], act=(sel===k), dim=(sel&&sel!==k&&!(sel==="shared")&&k!=="shared"&&!(sel!=="shared"&&k==="shared"));
+    // dim editort, ha game van kijelölve és fordítva
+    var faded=false;
+    if(sel==="game"&&k==="editor") faded=true;
+    if(sel==="editor"&&k==="game") faded=true;
+    ctx.globalAlpha=faded?0.3:1;
+    ctx.fillStyle=act?n.col:"#1a241b"; ctx.fillRect(n.x-NW/2,n.y-NH/2,NW,NH);
+    ctx.strokeStyle=act?"#fff":n.col; ctx.lineWidth=act?3:2; ctx.strokeRect(n.x-NW/2,n.y-NH/2,NW,NH);
+    ctx.fillStyle=act?"#10180f":n.col; ctx.font='bold 15px "Courier New",monospace'; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(n.label+"/",n.x,n.y);
+    ctx.globalAlpha=1;
+  }
+  function arrow(a,b,col){ var A=nodes[a],B=nodes[b]; var dx=B.x-A.x,dy=B.y-A.y,d=Math.hypot(dx,dy); dx/=d;dy/=d;
+    var sx=A.x+dx*(NW/2+2), sy=A.y+dy*(NH/2+2), ex=B.x-dx*(NW/2+6), ey=B.y-dy*(NH/2+6);
+    ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey); ctx.stroke();
+    var a1=Math.atan2(ey-sy,ex-sx); ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(ex,ey);
+    ctx.lineTo(ex-8*Math.cos(a1-0.4),ey-8*Math.sin(a1-0.4)); ctx.lineTo(ex-8*Math.cos(a1+0.4),ey-8*Math.sin(a1+0.4)); ctx.fill(); }
+  function draw(){ ctx.fillStyle="#0b110c"; ctx.fillRect(0,0,cv.width,cv.height);
+    // megengedett nyilak
+    arrow("game","shared", sel==="game"?"#a5e87d":"#3f6e3a");
+    arrow("editor","shared", sel==="editor"?"#dab27e":"#6e5a3a");
+    // tiltott él game—editor
+    var A=nodes.game,B=nodes.editor; ctx.strokeStyle="#ff7a3c"; ctx.lineWidth=2; ctx.setLineDash([6,5]);
+    ctx.beginPath(); ctx.moveTo(A.x+NW/2,A.y); ctx.lineTo(B.x-NW/2,B.y); ctx.stroke(); ctx.setLineDash([]);
+    var mx=(A.x+B.x)/2, my=A.y; ctx.fillStyle="#ff7a3c"; ctx.font='bold 16px "Courier New",monospace'; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText("✗",mx,my);
+    for(var k in nodes) box(k);
+  }
+  cv.style.cursor="pointer";
+  function nodeAt(mx,my){ for(var k in nodes){ var n=nodes[k]; if(mx>=n.x-NW/2&&mx<=n.x+NW/2&&my>=n.y-NH/2&&my<=n.y+NH/2) return k; } return null; }
+  cv.addEventListener("click",function(e){ var r=cv.getBoundingClientRect();
+    var mx=(e.clientX-r.left)*(cv.width/r.width), my=(e.clientY-r.top)*(cv.height/r.height);
+    var k=nodeAt(mx,my); sel=k; draw();
+    if(k==="game") logEl.innerHTML="<b style='color:#a5e87d'>game</b> használhatja: <b>shared</b>. Editort: <b style='color:#ff7a3c'>SOHA</b>.";
+    else if(k==="editor") logEl.innerHTML="<b style='color:#dab27e'>editor</b> használhatja: <b>shared</b>. Game-et: <b style='color:#ff7a3c'>SOHA</b>.";
+    else if(k==="shared") logEl.innerHTML="<b style='color:#6cc8d9'>shared</b> függősége: <b>semmi</b>. Ő a közös mag.";
+  });
+  draw();
+})();
+
+/* =====================================================================
+   MÓD-VÁLTÁS — mi fut melyik módban?
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("modeCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var cols=8, rows=5, TS=30;
+  var terr=new Array(cols*rows).fill(1), obj=new Array(cols*rows).fill(0);
+  terr[2*cols+1]=2;terr[2*cols+2]=2;terr[2*cols+3]=2;terr[2*cols+4]=2; terr[1*cols+6]=3;terr[1*cols+7]=3;
+  obj[0*cols+0]=5; obj[4*cols+7]=7; obj[3*cols+2]=6;
+  var editorMode=false, dude={px:2,py:3,tx:2,ty:3}, dTimer=0, hover={x:4,y:2}, hTimer=0;
+  var btn=document.getElementById("modeBtn");
+
+  var GROUPS={ game:["player_input","movement","enemy_ai","interaction"],
+               shared:["sync_tilemap","render_objects","animate_tiles"],
+               editor:["editor_input","brush","palette_ui","overlays"] };
+  function buildChips(host,arr){ arr.forEach(function(name){ var c=document.createElement("span"); c.className="chip"; c.textContent=name; c.setAttribute("data-n",name); host.appendChild(c); }); }
+  buildChips(document.getElementById("grpGame"),GROUPS.game);
+  buildChips(document.getElementById("grpShared"),GROUPS.shared);
+  buildChips(document.getElementById("grpEditor"),GROUPS.editor);
+  function updateChips(){
+    Array.prototype.forEach.call(document.querySelectorAll("#grpGame .chip"),function(c){ c.className="chip "+(editorMode?"off":"on"); });
+    Array.prototype.forEach.call(document.querySelectorAll("#grpShared .chip"),function(c){ c.className="chip on"; });
+    Array.prototype.forEach.call(document.querySelectorAll("#grpEditor .chip"),function(c){ c.className="chip "+(editorMode?"on":"off"); });
+    btn.textContent="MOST: "+(editorMode?"Editor":"Game")+" — Ctrl+E";
+    btn.className="mode-btn "+(editorMode?"editor":"game");
+  }
+  function neighbour(cx,cy){ var dirs=[[1,0],[-1,0],[0,1],[0,-1]]; for(var k=dirs.length-1;k>0;k--){var j=Math.random()*(k+1)|0;var tmp=dirs[k];dirs[k]=dirs[j];dirs[j]=tmp;}
+    for(var i=0;i<dirs.length;i++){ var nx=cx+dirs[i][0], ny=cy+dirs[i][1]; if(nx>=0&&ny>=0&&nx<cols&&ny<rows&&walkable(terr[ny*cols+nx],obj[ny*cols+nx])) return {x:nx,y:ny}; } return {x:cx,y:cy}; }
+  function frame(dt){
+    ctx.clearRect(0,0,cv.width,cv.height); var x,y;
+    for(y=0;y<rows;y++)for(x=0;x<cols;x++){ drawTile(ctx,terr[y*cols+x],x*TS,y*TS,TS,x,y); var o=obj[y*cols+x]; if(o)drawObject(ctx,o,x*TS,y*TS,TS); }
+    if(editorMode){
+      ctx.strokeStyle="rgba(126,203,82,.18)"; ctx.lineWidth=1;
+      for(x=0;x<=cols;x++){ctx.beginPath();ctx.moveTo(x*TS,0);ctx.lineTo(x*TS,rows*TS);ctx.stroke();}
+      for(y=0;y<=rows;y++){ctx.beginPath();ctx.moveTo(0,y*TS);ctx.lineTo(cols*TS,y*TS);ctx.stroke();}
+      hTimer+=dt; if(hTimer>0.8){ hTimer=0; hover={x:Math.random()*cols|0,y:Math.random()*rows|0}; }
+      ctx.fillStyle="rgba(255,122,60,.2)"; ctx.fillRect(hover.x*TS,hover.y*TS,TS,TS);
+      ctx.strokeStyle="#ff7a3c"; ctx.lineWidth=2; ctx.strokeRect(hover.x*TS+1,hover.y*TS+1,TS-2,TS-2);
+    } else {
+      dTimer+=dt; if(dTimer>0.5){ dTimer=0; var n=neighbour(dude.tx,dude.ty); dude.tx=n.x; dude.ty=n.y; }
+      dude.px+=(dude.tx-dude.px)*Math.min(1,dt*6); dude.py+=(dude.ty-dude.py)*Math.min(1,dt*6);
+      drawDude(ctx,dude.px*TS+TS/2,dude.py*TS+TS*0.6,"#e0d24a",TS/26);
+    }
+  }
+  btn.addEventListener("click",function(){ editorMode=!editorMode; updateChips(); });
+  updateChips();
+  if(reduceMotion){ frame(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; frame(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   Rust szintaxis-kiemelő
+   ===================================================================== */
+var KW=/\b(?:fn|let|mut|use|struct|enum|impl|const|pub|return|if|else|for|in|while|loop|match|as|mod|crate|self|Self|true|false|move|ref|static|dyn|where|name|version|edition|default)\b/;
+var TOKEN=new RegExp("(\\/\\/[^\\n]*)"+"|(#!?\\[[^\\]]*\\])"+"|(\"(?:[^\"\\\\]|\\\\.)*\")"+"|([A-Za-z_][A-Za-z0-9_]*!)"+"|("+KW.source.slice(2,-2)+")"+"|(\\b[A-Z][A-Za-z0-9_]*\\b)"+"|(\\b\\d[\\d_]*(?:\\.\\d+)?\\b)","g");
+var CLS=[null,"c","m","s","m","k","t","n"];
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+document.querySelectorAll("pre code").forEach(function(code){ var src=code.textContent,out="",last=0,m; TOKEN.lastIndex=0;
+  while((m=TOKEN.exec(src))){ out+=esc(src.slice(last,m.index));
+    for(var gi=1;gi<=7;gi++) if(m[gi]!==undefined){ out+='<span class="'+CLS[gi]+'">'+esc(m[gi])+"</span>"; break; }
+    last=m.index+m[0].length; } out+=esc(src.slice(last)); code.innerHTML=out; });
+
+/* másolás gombok */
+document.querySelectorAll(".copy-btn").forEach(function(btn){ btn.addEventListener("click",function(){
+  var code=btn.closest(".code").querySelector("pre"), txt=code.textContent;
+  function done(){ btn.textContent="✓ másolva"; setTimeout(function(){btn.textContent="másolás";},1500); }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done); }
+  else{ var ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); done(); } }); });
+
+/* scrollspy + mobil menü */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){ var pos=window.scrollY+140,active=0; for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i;
+  links.forEach(function(a,i){a.classList.toggle("active",i===active);}); }
+window.addEventListener("scroll",spy,{passive:true}); spy();
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>
