@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bevy időzítés — Time, delta_secs és FixedUpdate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#10101a; --panel:#1a1a28; --panel2:#21212f; --code-bg:#14141f;
+    --ink:#e3e3ec; --muted:#8b8b9e; --border:#2c2c40;
+    --cyan:#56d4c4; --amber:#f2c14e; --pink:#ec6a9c; --green:#8ce99a; --red:#ff6b6b; --violet:#a78bfa;
+    --kw:#ec6a9c; --ty:#56d4c4; --str:#8ce99a; --com:#6b6b80; --mac:#f2c14e; --num:#f4a259;
+    --sidebar-w:260px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    background-image:radial-gradient(var(--border) 1px, transparent 1px);
+    background-size:22px 22px;
+    color:var(--ink);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--cyan);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ---- layout ---- */
+  .shell{display:flex;max-width:1400px;margin:0 auto}
+  .sidebar{
+    width:var(--sidebar-w);flex:0 0 var(--sidebar-w);
+    position:sticky;top:0;height:100vh;overflow-y:auto;
+    padding:28px 18px;border-right:2px solid var(--border);
+    background:linear-gradient(180deg,var(--panel) 0%,var(--bg) 100%);
+  }
+  .sidebar h2{
+    font-family:"Pixelify Sans",sans-serif;font-size:18px;font-weight:700;
+    color:var(--amber);letter-spacing:.5px;margin-bottom:4px;
+  }
+  .sidebar .sub{font-size:11px;color:var(--muted);font-family:"JetBrains Mono",monospace;margin-bottom:20px}
+  .nav a{
+    display:block;color:var(--muted);font-size:13.5px;padding:7px 10px;
+    border-left:3px solid transparent;border-radius:0 4px 4px 0;transition:all .12s;
+    text-decoration:none;
+  }
+  .nav a .num{font-family:"JetBrains Mono",monospace;color:var(--border);font-size:11px;margin-right:8px}
+  .nav a:hover{color:var(--ink);background:var(--panel2);text-decoration:none}
+  .nav a.active{color:var(--ink);border-left-color:var(--pink);background:var(--panel2)}
+  .nav a.active .num{color:var(--pink)}
+
+  .main{flex:1 1 auto;min-width:0;padding:48px 56px 120px}
+
+  /* ---- hero ---- */
+  .hero{margin-bottom:56px;border:2px solid var(--border);background:var(--panel);
+    padding:38px 36px;position:relative;box-shadow:6px 6px 0 rgba(0,0,0,.35)}
+  .hero .eyebrow{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--pink);
+    letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+  .hero h1{font-family:"Pixelify Sans",sans-serif;font-size:42px;font-weight:700;
+    line-height:1.1;color:var(--ink);margin-bottom:16px}
+  .hero h1 .hl{color:var(--amber)}
+  .hero p{color:var(--muted);font-size:16px;max-width:640px}
+  .hero .chips{margin-top:22px;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font-family:"JetBrains Mono",monospace;font-size:11.5px;padding:4px 10px;
+    border:1px solid var(--border);background:var(--code-bg);color:var(--cyan);border-radius:3px}
+
+  /* ---- sections ---- */
+  section{margin-bottom:54px;scroll-margin-top:24px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;
+    padding-bottom:12px;border-bottom:2px solid var(--border)}
+  .sec-head .idx{font-family:"Pixelify Sans",sans-serif;font-size:26px;color:var(--pink);
+    flex:0 0 auto}
+  .sec-head h2{font-family:"Pixelify Sans",sans-serif;font-size:27px;font-weight:700;color:var(--ink)}
+  h3{font-family:"Pixelify Sans",sans-serif;font-size:19px;color:var(--amber);
+    margin:26px 0 12px}
+  p{margin:0 0 14px}
+  .main p{font-size:15.5px}
+  ul,ol{margin:0 0 16px 22px}
+  li{margin-bottom:7px;font-size:15.5px}
+  strong{color:var(--ink);font-weight:600}
+  code.inl{font-family:"JetBrains Mono",monospace;font-size:13px;background:var(--code-bg);
+    border:1px solid var(--border);padding:1.5px 6px;border-radius:3px;color:var(--cyan)}
+
+  /* ---- code blocks ---- */
+  pre{background:var(--code-bg);border:1px solid var(--border);border-left:3px solid var(--cyan);
+    padding:16px 18px;overflow-x:auto;margin:0 0 18px;border-radius:0 4px 4px 0;
+    box-shadow:3px 3px 0 rgba(0,0,0,.25)}
+  pre code{font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1.6;color:var(--ink);white-space:pre}
+  .k{color:var(--kw)} .t{color:var(--ty)} .s{color:var(--str)}
+  .c{color:var(--com);font-style:italic} .m{color:var(--mac)} .n{color:var(--num)}
+
+  /* ---- callouts ---- */
+  .box{border:1px solid var(--border);border-left:4px solid var(--cyan);background:var(--panel);
+    padding:14px 18px;margin:0 0 18px;border-radius:0 4px 4px 0}
+  .box.tip{border-left-color:var(--green)} .box.tip .lbl{color:var(--green)}
+  .box.warn{border-left-color:var(--red)} .box.warn .lbl{color:var(--red)}
+  .box.note{border-left-color:var(--violet)} .box.note .lbl{color:var(--violet)}
+  .box .lbl{font-family:"JetBrains Mono",monospace;font-size:11px;text-transform:uppercase;
+    letter-spacing:1.5px;color:var(--cyan);display:block;margin-bottom:6px}
+  .box p:last-child{margin-bottom:0}
+
+  /* ---- table ---- */
+  .tbl-wrap{overflow-x:auto;margin:0 0 18px}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:480px}
+  th,td{border:1px solid var(--border);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);font-family:"Pixelify Sans",sans-serif;color:var(--amber);font-weight:700}
+  td:first-child{font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--cyan);white-space:nowrap}
+  tr:nth-child(even) td{background:rgba(255,255,255,.012)}
+
+  /* ---- demos ---- */
+  .demo{border:2px solid var(--border);background:var(--panel);padding:18px;margin:0 0 20px;
+    border-radius:4px;box-shadow:4px 4px 0 rgba(0,0,0,.3)}
+  .demo .dh{font-family:"Pixelify Sans",sans-serif;color:var(--amber);font-size:15px;margin-bottom:4px}
+  .demo .dd{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .demo canvas{display:block;width:100%;background:var(--code-bg);border:1px solid var(--border);
+    border-radius:3px;image-rendering:pixelated}
+  .ctrls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px;
+    font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--muted)}
+  .ctrls label{display:flex;align-items:center;gap:8px}
+  .ctrls input[type=range]{accent-color:var(--pink);width:160px}
+  .ctrls .val{color:var(--cyan);min-width:64px;display:inline-block}
+  .ctrls button{font-family:"JetBrains Mono",monospace;font-size:12px;background:var(--panel2);
+    color:var(--ink);border:1px solid var(--border);padding:6px 12px;border-radius:3px;cursor:pointer}
+  .ctrls button:hover{border-color:var(--pink);color:var(--pink)}
+  .readout{display:flex;gap:22px;flex-wrap:wrap;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:12.5px}
+  .readout b{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:400}
+  .readout span{color:var(--cyan);font-size:17px}
+
+  /* ---- tldr ---- */
+  .tldr{border:2px dashed var(--pink);background:var(--panel);padding:24px 28px;border-radius:4px}
+  .tldr h3{margin-top:0;color:var(--pink)}
+  .tldr ul{list-style:none;margin-left:0}
+  .tldr li{padding-left:26px;position:relative}
+  .tldr li::before{content:"▸";position:absolute;left:0;color:var(--amber)}
+
+  footer{margin-top:60px;padding-top:24px;border-top:2px solid var(--border);
+    color:var(--muted);font-size:12.5px;font-family:"JetBrains Mono",monospace;text-align:center}
+
+  /* ---- responsive ---- */
+  .menu-btn{display:none}
+  @media(max-width:920px){
+    .sidebar{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:transform .2s;
+      box-shadow:8px 0 24px rgba(0,0,0,.5)}
+    .sidebar.open{transform:translateX(0)}
+    .main{padding:64px 22px 100px}
+    .hero{padding:26px 22px} .hero h1{font-size:30px}
+    .sec-head h2{font-size:21px} .sec-head .idx{font-size:20px}
+    .menu-btn{display:flex;position:fixed;top:14px;left:14px;z-index:50;
+      font-family:"Pixelify Sans",sans-serif;background:var(--pink);color:#10101a;border:none;
+      padding:8px 14px;border-radius:4px;cursor:pointer;font-size:15px;box-shadow:3px 3px 0 rgba(0,0,0,.4)}
+  }
+</style>
+</head>
+<body>
+<button class="menu-btn" id="menuBtn">☰ menü</button>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <h2>BEVY · IDŐZÍTÉS</h2>
+    <div class="sub">// Time · delta · FixedUpdate</div>
+    <nav class="nav" id="nav">
+      <a href="#intro"><span class="num">00</span>Miért számít az idő?</a>
+      <a href="#clocks"><span class="num">01</span>A Time óra-rendszer</a>
+      <a href="#delta"><span class="num">02</span>Update + delta_secs</a>
+      <a href="#fixed"><span class="num">03</span>FixedUpdate</a>
+      <a href="#which"><span class="num">04</span>Mikor melyiket?</a>
+      <a href="#generic"><span class="num">05</span>A generikus Time</a>
+      <a href="#interp"><span class="num">06</span>Interpoláció</a>
+      <a href="#input"><span class="num">07</span>Input + FixedUpdate</a>
+      <a href="#manip"><span class="num">08</span>Idő-manipuláció</a>
+      <a href="#timers"><span class="num">09</span>Timer és Stopwatch</a>
+      <a href="#config"><span class="num">10</span>FixedUpdate hangolás</a>
+      <a href="#tips"><span class="num">11</span>Tippek & buktatók</a>
+      <a href="#full"><span class="num">12</span>Komplett minta</a>
+      <a href="#tldr"><span class="num">13</span>TL;DR</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="hero">
+      <div class="eyebrow">Bevy 0.18 · Rust · gyakorlati útmutató</div>
+      <h1>Időzítés Bevyben:<br><span class="hl">Time</span>, <span class="hl">delta_secs()</span> és <span class="hl">FixedUpdate</span></h1>
+      <p>Minden, amit a frame-független mozgásról, a fix időlépésről, az interpolációról és a klasszikus buktatókról tudni érdemes — két interaktív demóval, amik a böngészőben mutatják meg, mi történik valójában.</p>
+      <div class="chips">
+        <span class="chip">Time&lt;Real&gt;</span>
+        <span class="chip">Time&lt;Virtual&gt;</span>
+        <span class="chip">Time&lt;Fixed&gt;</span>
+        <span class="chip">overstep_fraction()</span>
+        <span class="chip">Timer · Stopwatch</span>
+      </div>
+    </header>
+
+    <!-- 00 -->
+    <section id="intro">
+      <div class="sec-head"><span class="idx">00</span><h2>Miért számít az idő?</h2></div>
+      <p>Egy játék fő ciklusa nem fut állandó sebességgel. Egy gyengébb gépen 30, egy 144 Hz-es monitoron 144 frame készülhet másodpercenként. Ha minden frame-ben ugyanannyit lépsz, akkor a mozgás sebessége a hardvertől függ — a karakter háromszor gyorsabb lesz egy erős gépen.</p>
+      <p>A megoldás, hogy a mozgást <strong>idővel</strong> skálázod, nem frame-mel. Két alapeszközöd van rá, és nem egymás alternatívái:</p>
+      <ul>
+        <li><strong><code class="inl">Time::delta_secs()</code> az <code class="inl">Update</code>-ben</strong> — változó időlépés, frame-enként egyszer. A sebességet megszorzod a delta idővel, és kész a frame-független mozgás.</li>
+        <li><strong><code class="inl">FixedUpdate</code></strong> — fix időlépés, egy frame alatt akár nullaszor vagy többször is lefut. Determinisztikus, stabil szimulációhoz.</li>
+      </ul>
+      <div class="box note"><span class="lbl">Verzió</span><p>A tutorial Bevy <strong>0.18</strong>-ra készült. A metódusnevek (<code class="inl">delta_secs()</code>, <code class="inl">elapsed_secs()</code>) a 0.15 óta érvényesek — régebbi kódban <code class="inl">delta_seconds()</code> szerepelhet.</p></div>
+    </section>
+
+    <!-- 01 -->
+    <section id="clocks">
+      <div class="sec-head"><span class="idx">01</span><h2>A Time óra-rendszer</h2></div>
+      <p>Bevyben nem egy óra van, hanem három, mind <code class="inl">Time&lt;T&gt;</code> resource formában. Mindegyik mást mér:</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Óra</th><th>Mit mér</th><th>Pause / lassítás hat rá?</th></tr></thead>
+        <tbody>
+          <tr><td>Time&lt;Real&gt;</td><td>A valós, fali óra ideje. A nyers eltelt idő.</td><td>Nem. Mindig pörög.</td></tr>
+          <tr><td>Time&lt;Virtual&gt;</td><td>A „játékidő". A Real-ből származik, de szüneteltethető és skálázható.</td><td>Igen.</td></tr>
+          <tr><td>Time&lt;Fixed&gt;</td><td>Fix lépésközű idő. A Virtual időt fogyasztja egy akkumulátorból.</td><td>Igen (a Virtual-on keresztül).</td></tr>
+        </tbody>
+      </table></div>
+      <p>A lánc: a <code class="inl">Real</code> idő hajtja a <code class="inl">Virtual</code> időt (skálázva, vágva, esetleg megállítva), a <code class="inl">Virtual</code> pedig táplálja a <code class="inl">Fixed</code> akkumulátort. Ezért elég a <code class="inl">Virtual</code>-t megállítanod ahhoz, hogy az egész szimuláció megálljon — a fizika is.</p>
+      <pre><code class="rust">// A három órát explicit típussal kéred le:
+fn debug_clocks(real: Res&lt;Time&lt;Real&gt;&gt;, virt: Res&lt;Time&lt;Virtual&gt;&gt;) {
+    info!("valós dt: {}", real.delta_secs());   // mindig pörög
+    info!("játék dt: {}", virt.delta_secs());   // 0, ha szünetel
+}</code></pre>
+    </section>
+
+    <!-- 02 -->
+    <section id="delta">
+      <div class="sec-head"><span class="idx">02</span><h2>Update + delta_secs()</h2></div>
+      <p>Az <code class="inl">Update</code> schedule frame-enként pontosan egyszer fut. A <code class="inl">delta_secs()</code> az előző frame óta eltelt másodperceket adja vissza <code class="inl">f32</code>-ként. Az aranyszabály: <strong>amit mozgatsz, szorozd meg a delta idővel.</strong></p>
+      <pre><code class="rust">// ROSSZ — FPS-függő. 144 Hz-en 2,4x gyorsabb, mint 60 Hz-en.
+fn move_naiv(mut q: Query&lt;&amp;mut Transform, With&lt;Player&gt;&gt;) {
+    for mut t in &amp;mut q {
+        t.translation.x += 4.0;
+    }
+}
+
+// JÓ — frame-független. Mindig 200 px/másodperc, akármilyen FPS-en.
+fn move_jo(time: Res&lt;Time&gt;, mut q: Query&lt;&amp;mut Transform, With&lt;Player&gt;&gt;) {
+    let speed = 200.0; // px / másodperc
+    for mut t in &amp;mut q {
+        t.translation.x += speed * time.delta_secs();
+    }
+}</code></pre>
+      <p>A mértékegység gondolkodás segít: a sebesség <em>px/másodperc</em>, a delta <em>másodperc</em>, a szorzat <em>px</em> — pont egy frame-nyi elmozdulás. Ez független attól, hány frame van egy másodpercben.</p>
+
+      <div class="demo">
+        <div class="dh">▶ Demó: FPS-független mozgás</div>
+        <div class="dd">Mindkét négyzet ugyanazt a célt akarja elérni. A felső naívan lép (px/frame), az alsó delta idővel skáláz (px/s). Húzd lejjebb az FPS-t, és nézd, mi történik.</div>
+        <canvas id="deltaCanvas" width="700" height="200"></canvas>
+        <div class="ctrls">
+          <label>Szimulált FPS:
+            <input type="range" id="fpsSlider" min="8" max="144" value="60">
+            <span class="val" id="fpsVal">60 Hz</span>
+          </label>
+          <button id="deltaReset">↻ újraindít</button>
+        </div>
+        <div class="readout">
+          <div><b>Naív sebesség</b><span id="naivSpeed">—</span></div>
+          <div><b>Delta sebesség</b><span id="deltaSpeed">—</span></div>
+          <div><b>Cél</b><span>200 px/s</span></div>
+        </div>
+      </div>
+      <div class="box tip"><span class="lbl">Tipp</span><p>A delta nulla lehet az első frame-ben vagy szünet alatt. Ha osztasz vele (pl. sebesség becsléshez), mindig védd le: <code class="inl">if dt &gt; 0.0 { ... }</code>.</p></div>
+    </section>
+
+    <!-- 03 -->
+    <section id="fixed">
+      <div class="sec-head"><span class="idx">03</span><h2>FixedUpdate</h2></div>
+      <p>A <code class="inl">FixedUpdate</code> nem frame-enként fut, hanem <strong>fix időközönként</strong> — alapból 64-szer másodpercenként (64 Hz). Bevy egy akkumulátorban gyűjti az eltelt időt, és amíg az akkumulátorban van legalább egy fix lépésnyi idő, lefuttatja a <code class="inl">FixedUpdate</code>-et és levon belőle egy lépést.</p>
+      <p>Ennek a következménye, hogy <strong>egy renderelt frame alatt a FixedUpdate lefuthat nullaszor, egyszer, vagy többször is</strong>:</p>
+      <ul>
+        <li>Gyors frame (pl. 144 Hz): néha 0 fix lépés (még nem gyűlt össze elég idő).</li>
+        <li>Normál frame: 1 fix lépés.</li>
+        <li>Lassú/akadó frame: 2-3 fix lépés egyszerre, hogy „behozza" a lemaradást.</li>
+      </ul>
+      <pre><code class="rust">// FixedUpdate-ben futó rendszer. Itt a delta MINDIG ugyanaz (a fix lépésköz).
+fn apply_gravity(time: Res&lt;Time&gt;, mut q: Query&lt;&amp;mut Velocity&gt;) {
+    let g = -9.81;
+    for mut v in &amp;mut q {
+        v.0.y += g * time.delta_secs(); // delta = 1/64 s, állandó
+    }
+}
+
+app.add_systems(FixedUpdate, apply_gravity);</code></pre>
+      <div class="box note"><span class="lbl">Miért szorzunk delta-val, ha úgyis fix?</span><p>Mert így <strong>hordozható</strong> marad: ha később 64 Hz-ről 128 Hz-re váltasz, a kód egy sor változtatás nélkül helyes marad. A delta a fizikában a „mindig fix" érték, de attól még a képletbe tartozik.</p></div>
+
+      <div class="demo">
+        <div class="dh">▶ Demó: FixedUpdate akkumulátor</div>
+        <div class="dd">A változó hosszúságú frame-ek időt töltenek az akkumulátorba (kék sáv). Amikor eléri a fix lépésköz küszöbét, egy fix lépés „elsül" (rózsaszín villanás) és levon egy adagot. Növeld a jittert, és látod, ahogy egy frame alatt 0 vagy 2 lépés is történik.</div>
+        <canvas id="fixedCanvas" width="700" height="220"></canvas>
+        <div class="ctrls">
+          <label>Átlagos FPS:
+            <input type="range" id="fixFpsSlider" min="20" max="160" value="60">
+            <span class="val" id="fixFpsVal">60 Hz</span>
+          </label>
+          <label>Jitter:
+            <input type="range" id="jitterSlider" min="0" max="100" value="35">
+            <span class="val" id="jitterVal">35%</span>
+          </label>
+          <button id="fixedReset">↻ nulláz</button>
+        </div>
+        <div class="readout">
+          <div><b>Render frame-ek</b><span id="frameCount">0</span></div>
+          <div><b>Fix lépések</b><span id="stepCount">0</span></div>
+          <div><b>Utolsó frame</b><span id="lastSteps">0 lépés</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 -->
+    <section id="which">
+      <div class="sec-head"><span class="idx">04</span><h2>Mikor melyiket?</h2></div>
+      <p>A döntés magja: <strong>kell-e determinizmus és stabilitás, vagy elég, hogy simán nézzen ki?</strong></p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Feladat</th><th>Hova</th><th>Miért</th></tr></thead>
+        <tbody>
+          <tr><td>Kamera-követés</td><td>Update</td><td>Vizuális, simának kell lennie minden frame-ben.</td></tr>
+          <tr><td>Animáció időzítés</td><td>Update</td><td>Kozmetikai, nem érzékeny a lépésközre.</td></tr>
+          <tr><td>Egyszerű mozgás (no fizika)</td><td>Update</td><td>delta-val frame-független, és egyszerűbb.</td></tr>
+          <tr><td>Fizika, ütközés</td><td>FixedUpdate</td><td>Az integráció pontossága a stabil lépésköztől függ.</td></tr>
+          <tr><td>Gravitáció, erők</td><td>FixedUpdate</td><td>Determinisztikus, reprodukálható.</td></tr>
+          <tr><td>Hálózat / rollback</td><td>FixedUpdate</td><td>Minden klienen ugyanúgy kell lefutnia.</td></tr>
+          <tr><td>AI döntési logika</td><td>FixedUpdate</td><td>Stabil ütemezés, kiszámítható viselkedés.</td></tr>
+          <tr><td>UI, gombnyomás-reakció</td><td>Update</td><td>Azonnali visszajelzés, input edge-ek itt élnek.</td></tr>
+        </tbody>
+      </table></div>
+      <div class="box tip"><span class="lbl">Pixel-art top-down esetre</span><p>Ha nincs komoly fizika, a játékos mozgását nyugodtan csináld <code class="inl">Update</code>-ben delta-val — bőven elég sima. Ha viszont <code class="inl">avian2d</code>-t használsz, az alapból <code class="inl">FixedUpdate</code>-ben fut, így a mozgásod is oda való, különben a fizika és a karakter eltérő ütemben halad, és bizonytalan ütközések lesznek.</p></div>
+    </section>
+
+    <!-- 05 -->
+    <section id="generic">
+      <div class="sec-head"><span class="idx">05</span><h2>A generikus Time automatikus feloldása</h2></div>
+      <p>Itt egy kulcsfontosságú apróság, amit sokan félreértenek. A típus nélküli <code class="inl">Res&lt;Time&gt;</code> nem egy negyedik óra — ez egy <strong>kontextusfüggő mutató</strong> a megfelelő órára:</p>
+      <ul>
+        <li><code class="inl">Update</code>-ben a <code class="inl">Res&lt;Time&gt;</code> a <code class="inl">Time&lt;Virtual&gt;</code> értékét adja.</li>
+        <li><code class="inl">FixedUpdate</code>-ben ugyanaz a <code class="inl">Res&lt;Time&gt;</code> a <code class="inl">Time&lt;Fixed&gt;</code> értékét adja.</li>
+      </ul>
+      <p>Ez azt jelenti, hogy <strong>ugyanazt a <code class="inl">time.delta_secs()</code> hívást használhatod mindkét helyen</strong>, és mindig a helyes delta jön vissza. Ezért szoktuk a rendszerekben a generikus <code class="inl">Res&lt;Time&gt;</code>-ot kérni — a rendszer attól lesz „hordozható" a két schedule között.</p>
+      <pre><code class="rust">// Ugyanaz a rendszer mindkét schedule-ben helyesen viselkedik:
+fn integrate(time: Res&lt;Time&gt;, mut q: Query&lt;(&amp;mut Transform, &amp;Velocity)&gt;) {
+    for (mut t, v) in &amp;mut q {
+        t.translation += v.0 * time.delta_secs();
+    }
+}
+
+// Update-ben: delta = változó frame-idő (Virtual)
+// FixedUpdate-ben: delta = fix lépésköz (Fixed)</code></pre>
+      <div class="box warn"><span class="lbl">Vigyázz</span><p>Csak akkor kérj explicit <code class="inl">Res&lt;Time&lt;Fixed&gt;&gt;</code>-t, ha tényleg a fix óra speciális adataira van szükséged (pl. <code class="inl">overstep_fraction()</code>). Ha az <code class="inl">Update</code>-ben kérsz <code class="inl">Time&lt;Fixed&gt;</code>-et, a frissítés ütemén kívüli, „beragadt" deltákat kaphatsz.</p></div>
+    </section>
+
+    <!-- 06 -->
+    <section id="interp">
+      <div class="sec-head"><span class="idx">06</span><h2>Interpoláció: sima render fix lépéseknél</h2></div>
+      <p>Probléma: ha a fizika 64 Hz-en fut, de a monitor 144 Hz-en renderel, akkor a fizikai pozíció „ugrál" — több frame ugyanazt a pozíciót mutatja, aztán egyet ugrik. Ez látható remegés (jitter) lehet, főleg kamera-követésnél.</p>
+      <p>Megoldás: tárold a <strong>előző</strong> és a <strong>jelenlegi</strong> fizikai pozíciót, és a render frame-ben interpolálj közöttük. Az interpolációs tényezőt a <code class="inl">Time&lt;Fixed&gt;::overstep_fraction()</code> adja — ez egy 0..1 érték, ami megmondja, „mennyire vagyunk benne" a következő fix lépésben.</p>
+      <pre><code class="rust">#[derive(Component)]
+struct Physical { previous: Vec3, current: Vec3 }
+
+// FixedUpdate: a fizika lépteti a logikai pozíciót, és eltolja previous-t
+fn step_physics(mut q: Query&lt;(&amp;mut Physical, &amp;Velocity)&gt;, time: Res&lt;Time&gt;) {
+    for (mut p, v) in &amp;mut q {
+        p.previous = p.current;
+        p.current += v.0 * time.delta_secs();
+    }
+}
+
+// Update: a renderelt Transform interpolál a két logikai pozíció között
+fn interpolate(
+    fixed: Res&lt;Time&lt;Fixed&gt;&gt;,
+    mut q: Query&lt;(&amp;mut Transform, &amp;Physical)&gt;,
+) {
+    let alpha = fixed.overstep_fraction();
+    for (mut t, p) in &amp;mut q {
+        t.translation = p.previous.lerp(p.current, alpha);
+    }
+}
+
+app.add_systems(FixedUpdate, step_physics)
+   .add_systems(Update, interpolate);</code></pre>
+      <div class="box note"><span class="lbl">Mikor érdemes?</span><p>Csak akkor építsd be, ha tényleg látsz remegést, vagy ha pontos determinizmus + sima kép is kell. Egyszerűbb játéknál (és ha a mozgás úgyis Update-ben van) felesleges bonyolítás.</p></div>
+    </section>
+
+    <!-- 07 -->
+    <section id="input">
+      <div class="sec-head"><span class="idx">07</span><h2>Input + FixedUpdate — a klasszikus buktató</h2></div>
+      <p>Ez talán a leggyakoribb hiba. A <code class="inl">ButtonInput</code> él-detektálása (<code class="inl">just_pressed</code>, <code class="inl">just_released</code>) <strong>frame-enként</strong> resetelődik, az <code class="inl">Update</code> ütemében. Ha közvetlenül <code class="inl">FixedUpdate</code>-ben olvasod:</p>
+      <ul>
+        <li><strong>Lemaradhat</strong> egy gombnyomás, ha a FixedUpdate épp 0-szor fut abban a frame-ben.</li>
+        <li><strong>Duplázódhat</strong>, ha a FixedUpdate kétszer fut, mire a flag törlődik.</li>
+      </ul>
+      <p>A megoldás: az input él-eseményeit az <code class="inl">Update</code>-ben olvasd be egy bufferbe, és a <code class="inl">FixedUpdate</code>-ben azt a buffert fogyaszd el.</p>
+      <pre><code class="rust">#[derive(Resource, Default)]
+struct InputBuffer { jump_queued: bool }
+
+// Update: itt megbízható az él-detektálás
+fn read_input(keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;, mut buf: ResMut&lt;InputBuffer&gt;) {
+    if keys.just_pressed(KeyCode::Space) {
+        buf.jump_queued = true; // bufferbe rakjuk
+    }
+}
+
+// FixedUpdate: itt használjuk fel, pontosan egyszer
+fn apply_jump(mut buf: ResMut&lt;InputBuffer&gt;, mut q: Query&lt;&amp;mut Velocity, With&lt;Player&gt;&gt;) {
+    if buf.jump_queued {
+        for mut v in &amp;mut q { v.0.y = 300.0; }
+        buf.jump_queued = false; // elfogyasztva
+    }
+}
+
+app.init_resource::&lt;InputBuffer&gt;()
+   .add_systems(Update, read_input)
+   .add_systems(FixedUpdate, apply_jump);</code></pre>
+      <div class="box tip"><span class="lbl">Tipp</span><p>A folyamatos állapot (<code class="inl">keys.pressed(...)</code>, pl. tartott irány) viszont biztonságosan olvasható <code class="inl">FixedUpdate</code>-ben is — az nem reseteldik él alapján, hanem a gomb aktuális állapotát tükrözi.</p></div>
+    </section>
+
+    <!-- 08 -->
+    <section id="manip">
+      <div class="sec-head"><span class="idx">08</span><h2>Idő-manipuláció: pause, lassítás, gyorsítás</h2></div>
+      <p>A <code class="inl">Time&lt;Virtual&gt;</code> az, amit szabadon manipulálhatsz. Mivel a <code class="inl">Fixed</code> óra ebből táplálkozik, ha megállítod a Virtual-t, a fizika is megáll — de az <code class="inl">Update</code> és a <code class="inl">Time&lt;Real&gt;</code> tovább pörög, így a szünet-menü UI-ja működik.</p>
+      <pre><code class="rust">// Pause / unpause (pl. ESC-re)
+fn toggle_pause(keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;, mut time: ResMut&lt;Time&lt;Virtual&gt;&gt;) {
+    if keys.just_pressed(KeyCode::Escape) {
+        if time.is_paused() { time.unpause(); } else { time.pause(); }
+    }
+}
+
+// Lassítás (slow-mo) és gyorsítás
+fn set_speed(mut time: ResMut&lt;Time&lt;Virtual&gt;&gt;) {
+    time.set_relative_speed(0.5); // fél sebesség — bullet time
+    // time.set_relative_speed(2.0); // dupla sebesség
+}</code></pre>
+      <div class="box warn"><span class="lbl">Fontos</span><p>A szünet-menü UI-ja és a „valódi" időt igénylő dolgok (FPS-mérés, teljesítmény, valós idejű timeout) a <code class="inl">Time&lt;Real&gt;</code>-t használják — különben a szünet alatt befagynának.</p></div>
+    </section>
+
+    <!-- 09 -->
+    <section id="timers">
+      <div class="sec-head"><span class="idx">09</span><h2>Timer és Stopwatch</h2></div>
+      <p>A nyers delta jó a mozgáshoz, de eseményekhez (cooldown, spawn-időzítő, ideiglenes effekt) a <code class="inl">Timer</code> és a <code class="inl">Stopwatch</code> kényelmesebb. Mindkettőt <code class="inl">tick(delta)</code>-kal lépteted.</p>
+      <h3>Timer — visszaszámláló, ismétlődhet</h3>
+      <pre><code class="rust">#[derive(Component)]
+struct AttackCooldown(Timer);
+
+// pl. 0.8 mp-es cooldown, egyszeri
+// AttackCooldown(Timer::from_seconds(0.8, TimerMode::Once))
+
+fn tick_cooldown(time: Res&lt;Time&gt;, mut q: Query&lt;&amp;mut AttackCooldown&gt;) {
+    for mut cd in &amp;mut q {
+        cd.0.tick(time.delta());
+        if cd.0.finished() {
+            // kész, lehet újra támadni
+        }
+    }
+}</code></pre>
+      <h3>Ismétlődő timer — pl. ellenség-spawn</h3>
+      <pre><code class="rust">#[derive(Resource)]
+struct SpawnTimer(Timer);
+
+// SpawnTimer(Timer::from_seconds(2.0, TimerMode::Repeating))
+
+fn spawn_enemies(time: Res&lt;Time&gt;, mut timer: ResMut&lt;SpawnTimer&gt;, mut commands: Commands) {
+    timer.0.tick(time.delta());
+    if timer.0.just_finished() {
+        commands.spawn(/* enemy bundle */);
+    }
+}</code></pre>
+      <div class="box tip"><span class="lbl">Hasznos metódusok</span><p><code class="inl">just_finished()</code> — pont ebben a tickben fejeződött be (él). <code class="inl">finished()</code> — már lejárt. <code class="inl">fraction()</code> — 0..1 haladás (jó UI sávhoz). <code class="inl">reset()</code> — újraindít. A <code class="inl">Stopwatch</code> ezzel szemben csak felfelé számol, nincs célideje — eltelt időt mérsz vele.</p></div>
+    </section>
+
+    <!-- 10 -->
+    <section id="config">
+      <div class="sec-head"><span class="idx">10</span><h2>FixedUpdate hangolása</h2></div>
+      <p>A fix lépésközt egy resource beszúrásával állítod. Alap a 64 Hz, de pl. retro-érzethez vagy hálózathoz más is jó lehet.</p>
+      <pre><code class="rust">// Fix ráta beállítása indításkor
+app.insert_resource(Time::&lt;Fixed&gt;::from_hz(60.0));
+// vagy: Time::&lt;Fixed&gt;::from_seconds(1.0 / 50.0)</code></pre>
+      <h3>A „halálspirál" (spiral of death)</h3>
+      <p>Ha egy frame túl sokáig tart (pl. nagy GC-szünet, betöltés), sok fix lépés gyűlik fel. Ezek lefuttatása megint sok időt vesz, ami még több lépést halmoz — a játék befagyhat. A védelem: a <code class="inl">Time&lt;Virtual&gt;</code> egy frame alatt felvehető maximális deltáját korlátozod.</p>
+      <pre><code class="rust">fn clamp_frame_time(mut time: ResMut&lt;Time&lt;Virtual&gt;&gt;) {
+    // egy frame max 0.25 mp-nyi időt adhat tovább — efölött "lassul",
+    // de nem fagy be a fix lépések lavinájától
+    time.set_max_delta(std::time::Duration::from_millis(250));
+}</code></pre>
+      <div class="box note"><span class="lbl">Mi a kompromisszum?</span><p>A vágott idő azt jelenti, hogy egy hatalmas akadás után a játék kicsit „lassított felvételben" hozza be a lemaradást, ahelyett hogy hirtelen nagyot ugrana vagy befagyna. Ez szinte mindig a kívánt viselkedés.</p></div>
+    </section>
+
+    <!-- 11 -->
+    <section id="tips">
+      <div class="sec-head"><span class="idx">11</span><h2>Gyakorlati tippek & buktatók</h2></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>A rendszereidben kérj generikus <code class="inl">Res&lt;Time&gt;</code>-ot, hacsak nincs konkrét okod a típusos órára. Így a rendszer mindkét schedule-ben helyesen viselkedik.</p></div>
+      <div class="box warn"><span class="lbl">Ne</span><p>Ne olvass <code class="inl">just_pressed</code> él-eseményt közvetlenül <code class="inl">FixedUpdate</code>-ben — bufferelj az <code class="inl">Update</code>-ben (lásd 07).</p></div>
+      <div class="box warn"><span class="lbl">Ne</span><p>Ne tegyél render-simaságot <code class="inl">FixedUpdate</code>-be, és determinisztikus fizikát ne tegyél <code class="inl">Update</code>-be. A két cél keverése okozza a legtöbb remegést és bugot.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>Oszd ketté: szimuláció <code class="inl">FixedUpdate</code>-ben, megjelenítés <code class="inl">Update</code>-ben. Ha kamerád egy FixedUpdate-ben mozgatott testet követ, az interpoláció (06) megszünteti a remegést.</p></div>
+      <div class="box warn"><span class="lbl">Vigyázz</span><p>A delta lehet 0 (első frame, szünet). Osztás előtt mindig ellenőrizd. A nagyon nagy delta (akadás) is gond lehet — ezt a <code class="inl">set_max_delta</code> kezeli.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>Cooldownhoz, spawnhoz, ideiglenes effekthez használj <code class="inl">Timer</code>-t a kézi delta-számolgatás helyett — olvashatóbb és kevésbé hibázható.</p></div>
+      <div class="box note"><span class="lbl">Debug</span><p>FPS-mérésre, profilozásra, valós idejű timeoutra mindig <code class="inl">Time&lt;Real&gt;</code>-t használj, hogy a pause és a slow-mo ne torzítsa.</p></div>
+    </section>
+
+    <!-- 12 -->
+    <section id="full">
+      <div class="sec-head"><span class="idx">12</span><h2>Komplett minta — összerakva</h2></div>
+      <p>Egy minimál, de helyesen szétválasztott váz: input bufferelés, fizika fix lépésközön, és (egyszerű esetben) közvetlen Update-mozgás. Ez a csontváz skálázható egy igazi pixel-art top-down játékká.</p>
+      <pre><code class="rust">use bevy::prelude::*;
+
+#[derive(Component)] struct Player;
+#[derive(Component)] struct Velocity(Vec3);
+#[derive(Resource, Default)] struct InputBuffer { jump: bool }
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .insert_resource(Time::&lt;Fixed&gt;::from_hz(64.0))
+        .init_resource::&lt;InputBuffer&gt;()
+        // --- Update: input + sima vizuál ---
+        .add_systems(Update, (read_input, camera_follow))
+        // --- FixedUpdate: determinisztikus szimuláció ---
+        .add_systems(FixedUpdate, (apply_jump, apply_gravity, integrate).chain())
+        .run();
+}
+
+// Update: megbízható él-detektálás, bufferbe
+fn read_input(keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;, mut buf: ResMut&lt;InputBuffer&gt;) {
+    if keys.just_pressed(KeyCode::Space) { buf.jump = true; }
+}
+
+// FixedUpdate: a bufferből, pontosan egyszer
+fn apply_jump(mut buf: ResMut&lt;InputBuffer&gt;, mut q: Query&lt;&amp;mut Velocity, With&lt;Player&gt;&gt;) {
+    if buf.jump {
+        for mut v in &amp;mut q { v.0.y = 320.0; }
+        buf.jump = false;
+    }
+}
+
+// FixedUpdate: stabil lépésköz → stabil fizika
+fn apply_gravity(time: Res&lt;Time&gt;, mut q: Query&lt;&amp;mut Velocity&gt;) {
+    for mut v in &amp;mut q { v.0.y += -980.0 * time.delta_secs(); }
+}
+
+fn integrate(time: Res&lt;Time&gt;, mut q: Query&lt;(&amp;mut Transform, &amp;Velocity)&gt;) {
+    for (mut t, v) in &amp;mut q { t.translation += v.0 * time.delta_secs(); }
+}
+
+// Update: a kamera simán követ minden render frame-ben
+fn camera_follow(/* ... */) { /* delta-alapú lerp a játékos felé */ }</code></pre>
+    </section>
+
+    <!-- 13 -->
+    <section id="tldr">
+      <div class="sec-head"><span class="idx">13</span><h2>TL;DR</h2></div>
+      <div class="tldr">
+        <h3>A lényeg egy kártyán</h3>
+        <ul>
+          <li><strong>Mozgás Update-ben:</strong> mindig <code class="inl">* time.delta_secs()</code> — különben FPS-függő.</li>
+          <li><strong>FixedUpdate:</strong> fix lépésköz, frame-enként 0..n lefutás, determinisztikus fizikához.</li>
+          <li><strong>Generikus <code class="inl">Res&lt;Time&gt;</code></strong> automatikusan a helyes órát adja: Update → Virtual, FixedUpdate → Fixed.</li>
+          <li><strong>Három óra:</strong> Real (sosem áll meg), Virtual (pause/slow-mo), Fixed (a Virtual-ból táplálkozik).</li>
+          <li><strong>Input él (just_pressed):</strong> Update-ben olvasd, bufferbe, FixedUpdate-ben fogyaszd.</li>
+          <li><strong>Remegés fix lépésnél?</strong> Interpolálj <code class="inl">overstep_fraction()</code>-nel.</li>
+          <li><strong>Pause:</strong> állítsd meg a <code class="inl">Time&lt;Virtual&gt;</code>-t — a fizika is megáll, az UI nem.</li>
+          <li><strong>Befagyás akadásnál?</strong> <code class="inl">set_max_delta</code> a halálspirál ellen.</li>
+          <li><strong>Pixel-art top-down:</strong> nincs fizika → Update+delta elég; van avian2d → FixedUpdate.</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer>
+      Bevy 0.18 · Időzítési útmutató · egyetlen fájlos HTML · készült offline használatra
+    </footer>
+  </main>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- Rust szintaxiskiemelő (textContent-en dolgozik) ---------- */
+function highlightRust(src){
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  var token = /(\/\/[^\n]*)|("(?:[^"\\]|\\.)*")|(\b(?:fn|let|mut|for|in|if|else|match|struct|enum|impl|trait|pub|use|mod|return|self|Self|as|where|move|loop|while|break|continue|const|static|ref|dyn|crate|true|false|use)\b)|(\b[A-Z][A-Za-z0-9_]*\b)|(\b[a-z_][A-Za-z0-9_]*!)|(\b\d[\d_]*\.?\d*(?:f32|f64|u32|i32|usize)?\b)/g;
+  var out="", last=0, m;
+  while((m=token.exec(src))!==null){
+    out += esc(src.slice(last, m.index));
+    var text = esc(m[0]);
+    if(m[1]) out += '<span class="c">'+text+'</span>';
+    else if(m[2]) out += '<span class="s">'+text+'</span>';
+    else if(m[3]) out += '<span class="k">'+text+'</span>';
+    else if(m[4]) out += '<span class="t">'+text+'</span>';
+    else if(m[5]) out += '<span class="m">'+text+'</span>';
+    else if(m[6]) out += '<span class="n">'+text+'</span>';
+    last = token.lastIndex;
+  }
+  out += esc(src.slice(last));
+  return out;
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+  /* kiemelés */
+  document.querySelectorAll("pre code.rust").forEach(function(el){
+    el.innerHTML = highlightRust(el.textContent);
+  });
+
+  /* scrollspy */
+  var links = Array.prototype.slice.call(document.querySelectorAll("#nav a"));
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute("href").slice(1)] = a; });
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){
+        links.forEach(function(a){ a.classList.remove("active"); });
+        var act = map[e.target.id];
+        if(act) act.classList.add("active");
+      }
+    });
+  }, { rootMargin: "-20% 0px -70% 0px" });
+  document.querySelectorAll("section").forEach(function(s){ obs.observe(s); });
+
+  /* mobil menü */
+  var btn = document.getElementById("menuBtn");
+  var sb = document.getElementById("sidebar");
+  if(btn){
+    btn.addEventListener("click", function(){ sb.classList.toggle("open"); });
+    document.querySelectorAll("#nav a").forEach(function(a){
+      a.addEventListener("click", function(){ sb.classList.remove("open"); });
+    });
+  }
+
+  initDeltaDemo();
+  initFixedDemo();
+});
+
+/* ---------- DEMO 1: FPS-független mozgás ---------- */
+function initDeltaDemo(){
+  var cv = document.getElementById("deltaCanvas");
+  if(!cv) return;
+  var ctx = cv.getContext("2d");
+  var W = cv.width, H = cv.height;
+  var fpsSlider = document.getElementById("fpsSlider");
+  var fpsVal = document.getElementById("fpsVal");
+  var naivOut = document.getElementById("naivSpeed");
+  var deltaOut = document.getElementById("deltaSpeed");
+  var resetBtn = document.getElementById("deltaReset");
+
+  var targetSpeed = 200; // px/s, cél
+  var trackLen = W - 80;
+  var naivX, deltaX, simAcc, lastReal, naivStartTime, deltaStartTime;
+  var css = getComputedStyle(document.documentElement);
+  var cAmber = css.getPropertyValue("--amber").trim() || "#f2c14e";
+  var cCyan = css.getPropertyValue("--cyan").trim() || "#56d4c4";
+  var cMuted = css.getPropertyValue("--muted").trim() || "#8b8b9e";
+  var cBorder = css.getPropertyValue("--border").trim() || "#2c2c40";
+
+  function reset(){
+    naivX = 0; deltaX = 0; simAcc = 0;
+    lastReal = performance.now();
+    naivStartTime = null; deltaStartTime = null;
+  }
+  reset();
+
+  function fps(){ return parseInt(fpsSlider.value, 10); }
+  fpsSlider.addEventListener("input", function(){ fpsVal.textContent = fps() + " Hz"; });
+  resetBtn.addEventListener("click", reset);
+
+  // naív lépés: a 60 Hz-re kalibrált px/frame. Alacsonyabb FPS-en lassabb lesz.
+  function naivStepPerFrame(){ return targetSpeed / 60.0; }
+
+  function loop(now){
+    var realDt = (now - lastReal) / 1000;
+    lastReal = now;
+    if(realDt > 0.25) realDt = 0.25;
+
+    var stepDt = 1.0 / fps();
+    simAcc += realDt;
+    // szimulált frame-ek a választott FPS-en
+    while(simAcc >= stepDt){
+      simAcc -= stepDt;
+      // naív: fix px/frame, FPS-től függ a tényleges sebesség
+      naivX += naivStepPerFrame();
+      // delta-alapú: px/s * a frame ideje => mindig 200 px/s
+      deltaX += targetSpeed * stepDt;
+    }
+
+    // mért sebességek (px/s)
+    var nowS = now / 1000;
+    if(naivX > 0 && naivStartTime === null) naivStartTime = nowS - stepDt;
+    if(deltaX > 0 && deltaStartTime === null) deltaStartTime = nowS - stepDt;
+    var naivMeasured = (naivStartTime !== null && nowS > naivStartTime) ? naivX / (nowS - naivStartTime) : 0;
+    var deltaMeasured = (deltaStartTime !== null && nowS > deltaStartTime) ? deltaX / (nowS - deltaStartTime) : 0;
+
+    if(naivX >= trackLen || deltaX >= trackLen){
+      // egy kör vége -> mérjük majd újra
+      if(naivX >= trackLen){ naivX = 0; naivStartTime = null; }
+      if(deltaX >= trackLen){ deltaX = 0; deltaStartTime = null; }
+    }
+
+    draw(naivMeasured, deltaMeasured);
+    naivOut.textContent = Math.round(naivMeasured) + " px/s";
+    deltaOut.textContent = Math.round(deltaMeasured) + " px/s";
+    requestAnimationFrame(loop);
+  }
+
+  function track(y, label, color){
+    ctx.strokeStyle = cBorder; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(40, y); ctx.lineTo(40 + trackLen, y); ctx.stroke();
+    // célvonal
+    ctx.strokeStyle = cMuted; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.moveTo(40 + trackLen, y - 18); ctx.lineTo(40 + trackLen, y + 18); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = cMuted; ctx.font = '11px "JetBrains Mono", monospace';
+    ctx.fillText(label, 40, y - 24);
+  }
+
+  function sprite(x, y, color){
+    ctx.fillStyle = color;
+    ctx.fillRect(40 + x - 7, y - 7, 14, 14);
+    ctx.fillStyle = "#10101a";
+    ctx.fillRect(40 + x - 3, y - 3, 6, 6);
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    track(70, "NAIV  ( += px / frame )", cAmber);
+    sprite(naivX, 70, cAmber);
+    track(140, "DELTA ( += px/s * dt )", cCyan);
+    sprite(deltaX, 140, cCyan);
+  }
+
+  fpsVal.textContent = fps() + " Hz";
+  requestAnimationFrame(loop);
+}
+
+/* ---------- DEMO 2: FixedUpdate akkumulátor ---------- */
+function initFixedDemo(){
+  var cv = document.getElementById("fixedCanvas");
+  if(!cv) return;
+  var ctx = cv.getContext("2d");
+  var W = cv.width, H = cv.height;
+  var fpsSlider = document.getElementById("fixFpsSlider");
+  var fpsVal = document.getElementById("fixFpsVal");
+  var jitterSlider = document.getElementById("jitterSlider");
+  var jitterVal = document.getElementById("jitterVal");
+  var frameOut = document.getElementById("frameCount");
+  var stepOut = document.getElementById("stepCount");
+  var lastOut = document.getElementById("lastSteps");
+  var resetBtn = document.getElementById("fixedReset");
+
+  var FIXED_HZ = 64;
+  var fixedStep = 1.0 / FIXED_HZ; // mp
+  var accumulator, frames, steps, flash, lastReal, simClock, nextFrameAt, lastStepCount;
+
+  var css = getComputedStyle(document.documentElement);
+  var cPink = css.getPropertyValue("--pink").trim() || "#ec6a9c";
+  var cCyan = css.getPropertyValue("--cyan").trim() || "#56d4c4";
+  var cMuted = css.getPropertyValue("--muted").trim() || "#8b8b9e";
+  var cBorder = css.getPropertyValue("--border").trim() || "#2c2c40";
+  var cAmber = css.getPropertyValue("--amber").trim() || "#f2c14e";
+
+  function reset(){
+    accumulator = 0; frames = 0; steps = 0; flash = 0;
+    lastReal = performance.now(); simClock = 0; nextFrameAt = 0; lastStepCount = 0;
+  }
+  reset();
+  resetBtn.addEventListener("click", reset);
+
+  function fps(){ return parseInt(fpsSlider.value, 10); }
+  function jitter(){ return parseInt(jitterSlider.value, 10) / 100; }
+  fpsSlider.addEventListener("input", function(){ fpsVal.textContent = fps() + " Hz"; });
+  jitterSlider.addEventListener("input", function(){ jitterVal.textContent = jitterSlider.value + "%"; });
+
+  function loop(now){
+    var realDt = (now - lastReal) / 1000;
+    lastReal = now;
+    if(realDt > 0.1) realDt = 0.1;
+    simClock += realDt;
+    if(flash > 0) flash -= realDt * 3;
+    if(flash < 0) flash = 0;
+
+    // szimulált render frame-ek érkeznek, jitterrel
+    while(simClock >= nextFrameAt){
+      var base = 1.0 / fps();
+      var j = (Math.random() * 2 - 1) * jitter() * base;
+      var frameDt = Math.max(0.001, base + j);
+      nextFrameAt += frameDt;
+      frames++;
+      // ez a render frame ennyi időt ad az akkumulátornak
+      accumulator += frameDt;
+      var stepsThisFrame = 0;
+      while(accumulator >= fixedStep){
+        accumulator -= fixedStep;
+        steps++; stepsThisFrame++;
+      }
+      lastStepCount = stepsThisFrame;
+      if(stepsThisFrame > 0) flash = 1.0;
+    }
+
+    draw();
+    frameOut.textContent = frames;
+    stepOut.textContent = steps;
+    lastOut.textContent = lastStepCount + (lastStepCount === 1 ? " lépés" : " lépés");
+    requestAnimationFrame(loop);
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    var pad = 40;
+    var barW = W - pad*2;
+    var barY = 70, barH = 46;
+
+    // küszöb-vonal (egy fix lépés)
+    var fill = Math.min(accumulator / fixedStep, 2); // 0..2 mértékben mutatjuk
+
+    // keret
+    ctx.strokeStyle = cBorder; ctx.lineWidth = 2;
+    ctx.strokeRect(pad, barY, barW, barH);
+
+    // egy lépés szélessége a sávon (a teljes sáv = 2 lépés kapacitás)
+    var stepWidthPx = barW / 2;
+    // küszöb jelölő
+    ctx.strokeStyle = cAmber; ctx.setLineDash([5,5]); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(pad + stepWidthPx, barY - 10); ctx.lineTo(pad + stepWidthPx, barY + barH + 10); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = cAmber; ctx.font = '11px "JetBrains Mono", monospace';
+    ctx.fillText("1 fix lépés küszöb (1/64 s)", pad + stepWidthPx + 8, barY - 14);
+
+    // akkumulátor kitöltés
+    var fillPx = Math.min(fill, 2) * stepWidthPx;
+    ctx.fillStyle = cCyan;
+    ctx.fillRect(pad + 2, barY + 2, Math.max(0, fillPx - 2), barH - 4);
+
+    // villanás, ha most lépett
+    if(flash > 0){
+      ctx.fillStyle = "rgba(236,106,156," + (flash * 0.55) + ")";
+      ctx.fillRect(pad, barY, barW, barH);
+    }
+
+    // címkék
+    ctx.fillStyle = cMuted; ctx.font = '12px "JetBrains Mono", monospace';
+    ctx.fillText("AKKUMULÁTOR", pad, barY - 14);
+
+    // alsó magyarázat
+    ctx.fillStyle = cMuted; ctx.font = '12px "IBM Plex Sans", sans-serif';
+    var msg;
+    if(lastStepCount === 0) msg = "Ez a frame túl gyors volt — 0 fix lépés (az idő gyűlik).";
+    else if(lastStepCount === 1) msg = "Normál ütem — 1 fix lépés ebben a frame-ben.";
+    else msg = lastStepCount + " fix lépés egy frame alatt — a szimuláció behozza a lemaradást.";
+    ctx.fillText(msg, pad, barY + barH + 46);
+
+    // utolsó frame lépésszám vizualizáció pöttyökkel
+    ctx.fillStyle = cPink;
+    for(var i=0;i<lastStepCount;i++){
+      ctx.fillRect(pad + i*22, barY + barH + 62, 16, 16);
+    }
+  }
+
+  fpsVal.textContent = fps() + " Hz";
+  jitterVal.textContent = jitterSlider.value + "%";
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
