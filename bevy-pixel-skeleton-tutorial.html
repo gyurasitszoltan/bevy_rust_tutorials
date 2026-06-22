@@ -58,6 +58,8 @@ nav.toc a{
   border-left:3px solid transparent; font-size:14.5px;
 }
 nav.toc a:hover{color:var(--ink); background:var(--panel); border-left-color:var(--grass)}
+nav.toc a.active{color:var(--ink); background:var(--panel); border-left-color:var(--grass); font-weight:600}
+nav.toc a.active .n{color:var(--grass-dark,var(--grass))}
 nav.toc a .n{font-family:var(--pix); font-size:9px; color:var(--grass); min-width:22px}
 
 /* ---------- hero ---------- */
@@ -1404,6 +1406,34 @@ function copyCode(btn){
     setTimeout(()=>{ btn.textContent = t; }, 1400);
   });
 }
+</script>
+<!-- sidebar scroll-spy (aktív fejezet kiemelése) -->
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('nav.toc a[href^="#"]'));
+  var map=links.map(function(a){
+    var el=document.getElementById(decodeURIComponent(a.getAttribute('href').slice(1)));
+    return el?{a:a,el:el}:null;
+  }).filter(Boolean);
+  if(!map.length) return;
+  var cur=null;
+  function spy(){
+    var y=120, best=map[0];
+    for(var i=0;i<map.length;i++){
+      if(map[i].el.getBoundingClientRect().top - y <= 0) best=map[i];
+    }
+    if(best!==cur){
+      cur=best;
+      links.forEach(function(a){ a.classList.remove('active'); });
+      best.a.classList.add('active');
+    }
+  }
+  var ticking=false;
+  function onScroll(){ if(!ticking){ requestAnimationFrame(function(){ spy(); ticking=false; }); ticking=true; } }
+  window.addEventListener('scroll',onScroll,{passive:true});
+  window.addEventListener('resize',onScroll,{passive:true});
+  spy();
+})();
 </script>
 </body>
 </html>
