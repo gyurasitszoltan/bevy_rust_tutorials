@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PixelOver — Drawing: a rajzeszköz (pixel-festés, darabolás) magyarul</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13; --bg-deep:#0b110c; --panel:#1a241b; --panel-2:#162017;
+  --ink:#e9e3cd; --muted:#9caa90; --grass:#7ecb52; --grass-hi:#a5e87d; --grass-dk:#4e8f33;
+  --dirt:#c99c66; --dirt-dk:#9a6e43; --water:#6cc8d9; --stone:#9aa0aa; --concrete:#cacac3;
+  --lava:#ff7a3c; --ice:#bfe0f0; --line:#2d3b2c; --line-hi:#41543e; --shadow:rgba(0,0,0,.45);
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px)}
+::selection{background:var(--grass-dk);color:#fff}
+
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--bg-deep);border-right:3px solid var(--line);overflow-y:auto;z-index:30;padding:22px 0 40px}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px}
+.logo .title{font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15}
+.logo .sub{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em}
+.logo .badge{display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;box-shadow:2px 2px 0 var(--shadow)}
+.logo .badge.alt{background:var(--grass);color:#10180f;margin-left:6px}
+.nav-part{font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);padding:16px 20px 6px;text-transform:uppercase}
+.nav a{display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;font-size:14px;position:relative;border-left:4px solid transparent;transition:color .12s,background .12s}
+.nav a::before{content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);transition:opacity .12s,left .12s}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{color:var(--grass-hi);background:rgba(126,203,82,.10);border-left-color:var(--grass);font-weight:600}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;background:var(--grass);color:#10180f;border:none;padding:8px 14px;box-shadow:3px 3px 0 var(--shadow);text-decoration:none;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+.menu-toggle{display:none;position:fixed;top:14px;left:14px;z-index:40;font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;background:var(--panel);color:var(--ink);border:3px solid var(--line);box-shadow:3px 3px 0 var(--shadow)}
+
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-family:"Pixelify Sans";font-weight:700;font-size:clamp(32px,5vw,52px);line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px}
+.hero h1 .g{color:var(--grass-hi)}.hero h1 .d{color:var(--dirt)}.hero h1 .w{color:var(--water)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{border:3px solid var(--line);background:var(--bg-deep);padding:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow)}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0;border:2px solid var(--line);background:#0c120d}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6;flex:1;min-width:220px}
+.hero-strip .cap b{color:var(--grass)}
+
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);text-transform:uppercase}
+.ch-eyebrow{font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);text-transform:uppercase;margin-bottom:8px}
+h2{font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);margin:34px 0 12px}
+p{margin-bottom:14px}p+p{margin-top:2px}
+strong{color:#fff}em{color:var(--dirt)}a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}li{margin-bottom:7px}
+code:not(pre code){font-family:"IBM Plex Mono";font-size:.86em;background:#0c120d;color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+.ui{font-family:"IBM Plex Mono";font-size:.86em;background:#0d181b;color:var(--water);padding:2px 7px;border:1px solid #2a4a52;white-space:nowrap;font-weight:500}
+
+ol.steps{list-style:none;margin:20px 0;counter-reset:st}
+ol.steps>li{counter-increment:st;position:relative;padding:4px 0 14px 52px;margin-bottom:6px;border-left:3px solid var(--line);margin-left:16px}
+ol.steps>li::before{content:counter(st);position:absolute;left:-19px;top:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-family:"Pixelify Sans";font-size:17px;color:#10180f;background:var(--grass);box-shadow:2px 2px 0 var(--shadow)}
+ol.steps>li:last-child{border-left-color:transparent}
+
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--grass)}.diagram pre .di{color:var(--dirt)}.diagram pre .wa{color:var(--water)}.diagram pre .st{color:var(--stone)}.diagram pre .lv{color:var(--lava)}.diagram pre .mu{color:var(--muted)}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+
+.info-box{margin:24px 0;border:3px solid #2a4a52;background:#0d181b;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.info-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.info-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}.info-box p:last-child{margin-bottom:0}
+.info-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.info-box ul{font-size:15px;color:#cfdbd5}
+
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--grass);margin-bottom:4px}
+.note.warn .n-tag{color:var(--dirt)}
+
+.shot{margin:24px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.shot img{display:block;width:100%;height:auto;image-rendering:auto}
+.shot .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.55;padding:9px 13px;border-top:2px dashed var(--line-hi)}
+.shot .cap b{color:var(--grass)}
+.shot.small{max-width:340px}
+.shot-row{display:flex;gap:16px;flex-wrap:wrap;margin:24px 0}
+.shot-row .shot{flex:1;min-width:230px;margin:0}
+
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}.on{color:var(--grass-hi);font-weight:600}.off{color:var(--dirt)}
+
+.playground{margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);border-bottom:3px solid var(--grass-dk);padding:10px 14px}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em}
+.playground .pg-tag{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted)}
+.playground .pg-body{padding:16px;display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#0c120d;touch-action:none;max-width:100%;cursor:crosshair}
+.playground .pg-side{flex:1;min-width:240px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:1.9}
+
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--dirt);letter-spacing:.06em;margin:14px 0 4px;text-transform:uppercase}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0}
+.tbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:5px 12px;transition:all .1s}
+.tbtn:hover{color:var(--ink)}
+.tbtn.active{background:var(--grass);color:#10180f;border-color:var(--grass);font-weight:600}
+.tbtn.wa.active{background:var(--water);color:#06181c;border-color:var(--water)}
+input[type=range]{width:100%;accent-color:var(--grass);margin:6px 0 2px;cursor:pointer}
+.rng-val{font-family:"IBM Plex Mono";font-size:13px;color:var(--grass-hi)}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+.pal-grid{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}
+.psw{width:26px;height:26px;border:2px solid var(--line-hi);cursor:pointer;position:relative}
+.psw.pri{outline:3px solid #fff;outline-offset:-3px}
+.psw.sec::after{content:"";position:absolute;right:1px;bottom:1px;width:8px;height:8px;border:2px solid var(--water)}
+.swinfo{display:flex;gap:14px;align-items:center;font-family:"IBM Plex Mono";font-size:12px;color:var(--muted);margin-top:6px}
+.swbox{width:20px;height:20px;border:2px solid var(--line-hi);display:inline-block;vertical-align:-5px;margin-right:4px}
+
+footer{margin-top:90px;border-top:3px solid var(--line);padding-top:24px;font-size:13.5px;color:var(--muted)}
+footer .pix{font-family:"Pixelify Sans";color:var(--grass);font-size:15px}
+footer a{color:var(--water)}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}
+  .menu-toggle{display:block}
+  .main{margin-left:0}
+  .wrap{padding:0 20px 100px}
+  .hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;background:linear-gradient(90deg,#7ecb52,#a5e87d);box-shadow:0 0 10px rgba(126,203,82,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">PIXELOVER<br>DRAWING</div>
+    <div class="sub">rajzeszköz · ceruza · darabolás</div>
+    <span class="badge">PixelOver</span><span class="badge alt">TOOLS</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I · Rajzolás</div>
+    <a href="#ch1">1 · Mire jó a rajzeszköz?</a>
+    <a href="#ch2">2 · Rétegre vs. képre</a>
+    <a href="#ch3">3 · A rajzeszközök</a>
+    <div class="nav-part">II · Színek</div>
+    <a href="#ch4">4 · Színek és gyorsgombok</a>
+    <div class="nav-part">III · Darabolás</div>
+    <a href="#ch5">5 · Darabolás objektumokká</a>
+    <a href="#ch6">6 · Összefoglaló &amp; tovább</a>
+  </nav>
+  <div class="dl-box">
+    <p>A daraboláshoz remek pár: a csont-animáció. Lásd:</p>
+    <a class="btn secondary" href="pixelover-bones-animation-tutorial.html">← Csont-animáció</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// utolsó „shader &amp; tools” lecke · magyar nyelven · a hivatalos „Drawing” alapján</div>
+  <h1>Drawing — a <span class="g">rajzeszköz</span>: <span class="w">fess</span>, <span class="d">javíts</span>, darabolj</h1>
+  <p class="lead">A PixelOver nem csak <em>átalakít</em> — közvetlenül <strong>rajzolni</strong> is tudsz benne: ceruza, radír, vödör (kitöltés), pipetta és kijelölő eszközök. Festhetsz egy rétegre vagy egy képre, retusálhatsz egy importált sprite-ot, és — ami a csont-animációhoz kulcsfontosságú — <strong>kijelöléssel feldarabolhatsz</strong> egy képet külön objektumokra. Ebben a leckében végigvesszük a teljes rajz-eszköztárat — egy működő, élő pixel-festő demóval.</p>
+  <div class="hero-strip">
+    <canvas id="heroCanvas" width="96" height="96" style="width:192px;height:192px"></canvas>
+    <div class="cap" id="heroCap">↑ Élő minta: a ceruza pixelről pixelre „megrajzol” egy kis gombát, majd elölről. Ezt a fajta közvetlen pixel-festést kapod a rajzeszközzel.</div>
+  </div>
+</header>
+
+<!-- ================= I. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Rajzolás</span></div>
+
+<!-- ====== 1 ====== -->
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>Mire jó a rajzeszköz?</h2>
+
+  <p>A <strong>Drawing</strong> (rajz) eszközzel közvetlenül a vászonra festesz pixeleket. Háromféle dolgon használhatod:</p>
+  <table>
+    <tr><th>Cél</th><th>Mit jelent</th></tr>
+    <tr><td><strong>Réteg (Layer)</strong></td><td>A teljes rétegre rajzolsz — a benne lévő <em>összes</em> objektum fölé/közé. Új pixel-tartalmat hozol létre a semmiből.</td></tr>
+    <tr><td><strong>2D kép (Image)</strong></td><td>Egy importált kép tartalmát szerkeszted (retus, javítás, hozzárajzolás).</td></tr>
+    <tr><td><strong>Animált 2D kép</strong></td><td>Egy animált kép képkockáit szerkeszted.</td></tr>
+  </table>
+
+  <p>A bekapcsolása egyszerű: jelöld ki a célt a <strong>Scene</strong> fában, majd válaszd a felső eszköztárból a <span class="ui">Drawing</span> (ceruza) eszközt.</p>
+
+  <div class="shot small">
+    <img src="assets/pixelover/drawing_tool_layer.png" alt="A Drawing eszköz kiválasztva egy réteghez: a Shader Layer kijelölve, a ceruza ikon aktív, és megjelenik a rajz-eszköztár">
+    <div class="cap">A <b>Shader Layer</b> kijelölve, a <b>Drawing</b> eszköz (ceruza) aktív. Megjelenik a rajz-aleszközök sora — és festhetsz.</div>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▸ Rétegre rajzolva</div>
+    Ha egy rétegre rajzolsz, a rajz a réteg <strong>minden</strong> objektumára érvényes. A rajz és az objektumok takarási sorrendjét a réteg <em>Z elevation</em> (Z-magasság) tulajdonságával állíthatod.
+  </div>
+</section>
+
+<!-- ====== 2 ====== -->
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>Rétegre vs. képre rajzolás</h2>
+
+  <p>A kettő között egy fontos különbség van. <strong>Képre rajzolva a kép tartalmát módosítod közvetlenül</strong> — vagyis a rajzod a kép <em>része</em> lesz, és minden transzformáció (forgatás, méretezés, nyírás) <strong>együtt hat rá</strong> is.</p>
+
+  <div class="shot-row">
+    <div class="shot"><img src="assets/pixelover/drawing_on_image.png" alt="Rajz egy importált sprite képre"><div class="cap">Rajz egyenesen egy importált képre.</div></div>
+    <div class="shot"><img src="assets/pixelover/drawing_on_image_rotated.png" alt="Ugyanaz a kép elforgatva — a rárajzolt forma is elfordul és átmintázódik"><div class="cap">A képet <b>elforgatva</b> a rárajzolt forma is fordul — és átmintázódhat (resampling).</div></div>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">▲ Transzformációs csapda</div>
+    Forgatott/skálázott képre rajzolva a pixelek <strong>nem feltétlenül illeszkednek</strong> tökéletesen, mert a kép átmintázáson (interpoláción) megy át. Tipp: rajzolj <em>transzformáció előtt</em>, vagy ha tiszta pixeleket akarsz, rajzolj inkább egy <strong>rétegre</strong>. (A pixel-skálázó algoritmusokról: <a href="https://en.wikipedia.org/wiki/Pixel-art_scaling_algorithms" target="_blank" rel="noopener">Wikipedia</a>.)
+  </div>
+</section>
+
+<!-- ====== 3 ====== -->
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>A rajzeszközök</h2>
+
+  <p>A Drawing eszköz bekapcsolása után megjelenik az <strong>aleszközök</strong> sora. A legfontosabbak:</p>
+  <table>
+    <tr><th>Eszköz</th><th>Mit csinál</th></tr>
+    <tr><td><strong>Pencil</strong> (ceruza)</td><td>Pixeleket fest az elsődleges színnel. A pixel-art alap-eszköze.</td></tr>
+    <tr><td><strong>Eraser</strong> (radír)</td><td>Töröl (átlátszóvá tesz) pixeleket.</td></tr>
+    <tr><td><strong>Bucket</strong> (vödör)</td><td>Kitöltés: az összefüggő, azonos színű foltot átszínezi egy kattintással.</td></tr>
+    <tr><td><strong>Color picker</strong> (pipetta)</td><td>Felveszi a kattintott pixel színét elsődlegesnek.</td></tr>
+    <tr><td><strong>Selection / Lasso / Magic wand</strong></td><td>Kijelölő eszközök (téglalap, szabadkézi, varázspálca) — a daraboláshoz (5. fejezet).</td></tr>
+  </table>
+
+  <p>A kijelölt eszköz beállításai a <strong>fő nézet alján</strong> jelennek meg: elsődleges ⇄ másodlagos szín, a kefe <code>Shape</code>-je (Circle/Square), a <code>Size</code> (méret px-ben) és a <code>Pixel perfect</code> kapcsoló.</p>
+
+  <div class="shot">
+    <img src="assets/pixelover/selected_tool_settings.png" alt="A rajz-aleszközök sora felül, és az eszköz beállításai a nézet alján: elsődleges/másodlagos szín, Shape Circle, Size 10px, Pixel perfect On">
+    <div class="cap">Fent az aleszközök (kijelölés, lasszó, varázspálca, ceruza, radír, pipetta, vödör…), lent a beállítások: <b>elsődleges ⇄ másodlagos szín</b>, <code>Shape: Circle</code>, <code>Size: 10 px</code>, <code>Pixel perfect: On</code>.</div>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▸ Tipp: „No effects” nézet</div>
+    Rajzoláskor (főleg ceruzával) érdemes a vászon alatti <span class="ui">Preview</span> legördülőt <strong>No effects</strong>-re váltani. Így a valódi, nyers pixeleket látod, és nem lassít a valós idejű shader.
+  </div>
+  <div class="shot small">
+    <img src="assets/pixelover/no_effects_view.png" alt="A Preview legördülő: No effects / Preview / Normal buffer / Depth buffer">
+    <div class="cap">A <b>Preview</b> legördülő: <code>No effects</code> (nyers pixelek) · <code>Preview</code> (shaderrel) · <code>Normal buffer</code> · <code>Depth buffer</code>.</div>
+  </div>
+
+  <!-- DEMÓ A -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Pixel-festő</span>
+      <span class="pg-tag">bal = elsődleges · jobb = másodlagos</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="paintCanvas" width="242" height="242" style="width:242px;height:242px"></canvas>
+      <div class="pg-side">
+        <p>Egy működő mini rajzeszköz. <strong>Bal egér</strong> = elsődleges szín, <strong>jobb egér</strong> = másodlagos. Válassz eszközt és színt!</p>
+        <div class="ctl-label">Eszköz</div>
+        <div class="btn-row">
+          <button class="tbtn active" data-ptool="pencil">✏ Ceruza</button>
+          <button class="tbtn" data-ptool="eraser">⌫ Radír</button>
+          <button class="tbtn" data-ptool="bucket">🪣 Vödör</button>
+          <button class="tbtn" data-ptool="picker">⛏ Pipetta</button>
+        </div>
+        <div class="ctl-label">Paletta <span style="font-weight:400;text-transform:none;color:var(--muted)">(jobb katt = másodlagos)</span></div>
+        <div class="pal-grid" id="palGrid"></div>
+        <div class="swinfo"><span><span class="swbox" id="swPri"></span>elsődleges</span><span><span class="swbox" id="swSec"></span>másodlagos</span></div>
+        <div class="ctl-label">Méret <span class="rng-val" id="pSizeVal">1</span></div>
+        <input type="range" id="pSize" min="1" max="4" value="1">
+        <div class="btn-row" style="margin-top:10px"><button class="tbtn" id="pClear">Törlés (üres lap)</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= II. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ II. rész — Színek</span></div>
+
+<!-- ====== 4 ====== -->
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>Színek és gyorsgombok</h2>
+
+  <p>A bal oldali panelen kezeled a rajz színeit és pár kényelmi gombot:</p>
+  <ul>
+    <li><strong>Elsődleges szín (Primary)</strong> — a <em>bal</em> kattintással fest.</li>
+    <li><strong>Másodlagos szín (Secondary)</strong> — a <em>jobb</em> kattintással fest. (Két szín kéznél = gyors váltás.)</li>
+    <li><strong>Key gomb</strong> — animációs kulcsot készít az aktuális rajzból (animált rajzhoz).</li>
+    <li><strong>Legördülő</strong> — más eszközt rendelhetsz a jobb kattintáshoz.</li>
+  </ul>
+
+  <p>A beállítások két helyen élnek: a <strong>Project settings</strong> (csak az aktuális projektre) és a <strong>Global settings</strong> (alapértelmezés az új projektekhez). A rajz-gyorsbillentyűk a <span class="ui">Drawing Subtool</span> szekcióban vannak.</p>
+
+  <div class="shot small">
+    <img src="assets/pixelover/drawing_tool_project_settings.png" alt="A beállítások Drawing szekciója: Colors, Selection, Magic wand tool, Pencil tool, Eraser tool, Color picker tool, Bucket tool">
+    <div class="cap">A beállítások <b>Drawing</b> szekciója — eszközönként: <code>Colors</code>, <code>Selection</code>, <code>Magic wand</code>, <code>Pencil</code>, <code>Eraser</code>, <code>Color picker</code>, <code>Bucket</code>.</div>
+  </div>
+
+  <div class="info-box">
+    <div class="tag">▸ Próbáld ki fent!</div>
+    <p>A 3. fejezet pixel-festő demójában a paletta egy színére <strong>jobb kattintva</strong> állítod be a másodlagos színt, balra az elsődlegest — pont mint a PixelOverben. A vásznon a bal egér az elsődlegessel, a jobb a másodlagossal fest.</p>
+  </div>
+</section>
+
+<!-- ================= III. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Darabolás</span></div>
+
+<!-- ====== 5 ====== -->
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Rajz darabolása objektumokká</h2>
+
+  <p>Itt zárul be a kör a <a href="pixelover-bones-animation-tutorial.html">csont-animációval</a>: egy összefüggő képet a rajzeszközzel <strong>külön objektumokra</strong> bonthatsz — pont amire a riggeléshez szükség van. A módszer egy <em>kivágás–beillesztés</em>:</p>
+
+  <ol class="steps">
+    <li>Jelöld ki a darabolni kívánt <strong>képet</strong>, és válaszd a <span class="ui">Drawing</span> eszközt.</li>
+    <li>Válassz <strong>kijelölő eszközt</strong>: <span class="ui">Selection Shape</span> (téglalap), <span class="ui">Lasso</span> (szabadkézi) vagy <span class="ui">Magic Wand</span> (varázspálca).</li>
+    <li>Jelöld ki a kívánt részt, majd <span class="kbd">Ctrl</span>+<span class="kbd">X</span> — <strong>kivágás</strong>.</li>
+    <li>Válts vissza a <span class="ui">Transform</span> eszközre, jelöld ki a cél-objektumot (pl. a réteget), és <span class="kbd">Ctrl</span>+<span class="kbd">V</span> — <strong>beillesztés új objektumként</strong>.</li>
+  </ol>
+
+  <div class="shot-row">
+    <div class="shot"><img src="assets/pixelover/drawing_selection.png" alt="Lasszó-kijelölés egy sprite egy részén (a kar/kéz körül)"><div class="cap">Kijelölés (itt <b>lasszóval</b>) a sprite egy részén.</div></div>
+    <div class="shot"><img src="assets/pixelover/drawing_selection_to_object.png" alt="A kivágott rész új Selection objektumként a Scene fában, mozgatható"><div class="cap">A kivágott rész <b>új objektumként</b> (<code>Selection</code>) a fában — már külön mozgatható.</div></div>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▸ Visszafelé is megy</div>
+    Ugyanígy <em>fordítva</em> is működik: egy objektumot kimásolhatsz, és <strong>visszailleszthetsz egy rajzba</strong>. A darabolás után a részeket a csont-animáció lecke szerint riggelheted.
+  </div>
+
+  <!-- DEMÓ B -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Darabolás objektummá</span>
+      <span class="pg-tag">jelölj ki → vágd ki → mozgasd</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="splitCanvas" width="240" height="240" style="width:240px;height:240px"></canvas>
+      <div class="pg-side">
+        <p id="splitMsg">Húzz egy <strong>kijelölő téglalapot</strong> a rajz egy részére (pl. a fej köré).</p>
+        <div class="btn-row" style="margin-top:6px">
+          <button class="tbtn wa" id="splitCut">✂ Kivágás → objektum (Ctrl+X)</button>
+        </div>
+        <div class="btn-row" style="margin-top:6px">
+          <button class="tbtn" id="splitReset">Visszaállítás</button>
+        </div>
+        <p class="legend" style="margin-top:10px">Kivágás után a kijelölt darab <strong>külön objektum</strong> lesz — húzd arrébb az egérrel! Pontosan ez kell a riggeléshez.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 6 ====== -->
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Összefoglaló &amp; merre tovább?</h2>
+
+  <ol class="steps">
+    <li><strong>Cél</strong>: rajzolhatsz rétegre (tiszta pixelek) vagy képre (a tartalmát módosítod — vigyázz a transzformációkkal).</li>
+    <li><strong>Eszközök</strong>: Pencil, Eraser, Bucket, Color picker + kijelölők; a beállítások (szín, Shape, Size, Pixel perfect) a nézet alján.</li>
+    <li><strong>No effects</strong> nézet rajzoláshoz — nyers pixelek, gyorsabb.</li>
+    <li><strong>Színek</strong>: elsődleges (bal katt) / másodlagos (jobb katt); Project vs Global beállítások.</li>
+    <li><strong>Darabolás</strong>: kijelölés → <span class="kbd">Ctrl</span>+<span class="kbd">X</span> → Transform → <span class="kbd">Ctrl</span>+<span class="kbd">V</span> → új objektum (a csont-animációhoz).</li>
+  </ol>
+
+  <div class="info-box">
+    <div class="tag">▸ A teljes PixelOver-sorozat</div>
+    <ul>
+      <li><a href="pixelover-elso-lepesek-2d-tutorial.html">Első lépések 2D</a> · <a href="pixelover-szin-indexeles-tutorial.html">Szín-indexelés</a> · <a href="pixelover-color-cycling-tutorial.html">Color cycling</a> · <a href="pixelover-dithering-tutorial.html">Dithering</a></li>
+      <li><a href="pixelover-material-editing-tutorial.html">Material editing</a> · <a href="pixelover-particle-systems-tutorial.html">Particle systems</a> · <a href="pixelover-bones-animation-tutorial.html">Csont-animáció</a> · <strong>Drawing</strong> (itt vagy)</li>
+    </ul>
+  </div>
+
+  <p>Ezzel kész a „shader &amp; tools” kör! A rajzeszköz a hídelem: vele <strong>retusálhatsz</strong> egy importált képet, <strong>nulláról festhetsz</strong> egy rétegre, és — a legfontosabb — <strong>feldarabolhatsz</strong> egy rajzot a csont-animációhoz. A fenti demóban már festettél pixeleket és daraboltál objektumot — pont, amit a PixelOver rajzeszköze csinál.</p>
+
+  <footer>
+    <p class="pix">PixelOver — Drawing: a rajzeszköz</p>
+    <p>Tutorial magyarul, a hivatalos <a href="https://docs.pixelover.io/tutorials/drawing/" target="_blank" rel="noopener">docs.pixelover.io / Drawing</a> alapján. A képernyőképek a hivatalos dokumentációból származnak (a példa-sprite aamatniekss munkája); a pixel-festő és daraboló demók procedurális, élő eszközök ezen az oldalon.</p>
+  </footer>
+</section>
+
+</div><!-- /wrap -->
+</div><!-- /main -->
+
+<script>
+(function(){
+"use strict";
+var reduce=(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches);
+function makeBuf(w,h){ var c=document.createElement("canvas"); c.width=w; c.height=h; return c; }
+
+var PAL=["1a1c2c","5d275d","b13e53","ef7d57","ffcd75","a7f070","38b764","257179","3b5dc9","41a6f6","73eff7","f4f4f4","94b0c2","566c86","333c57","9a6e43"];
+function hexc(h){ return "#"+h; }
+
+/* sakktábla háttér (átlátszó jelző) */
+function checker(ctx,w,h,cell){ for(var y=0;y<h;y+=cell)for(var x=0;x<w;x+=cell){ ctx.fillStyle=((x/cell+y/cell)&1)?"#11161a":"#0c1014"; ctx.fillRect(x,y,cell,cell); } }
+
+/* =====================================================================
+   DEMÓ A — pixel-festő
+   ===================================================================== */
+var GA=22, CA=document.getElementById("paintCanvas"), cellA=CA.width/GA;
+var ax=CA.getContext("2d");
+var gridA=new Int16Array(GA*GA); for(var i=0;i<gridA.length;i++) gridA[i]=-1;
+var tool="pencil", pri=2, sec=11, brush=1;
+function renderA(){
+  checker(ax,CA.width,CA.height,cellA);
+  for(var y=0;y<GA;y++)for(var x=0;x<GA;x++){ var v=gridA[y*GA+x]; if(v<0)continue; ax.fillStyle=hexc(PAL[v]); ax.fillRect(x*cellA,y*cellA,cellA,cellA); }
+  ax.strokeStyle="rgba(255,255,255,.05)"; ax.lineWidth=1;
+  for(var k=0;k<=GA;k++){ ax.beginPath();ax.moveTo(k*cellA,0);ax.lineTo(k*cellA,CA.height);ax.stroke(); ax.beginPath();ax.moveTo(0,k*cellA);ax.lineTo(CA.width,k*cellA);ax.stroke(); }
+}
+function paintCells(cx,cy,val){ var r=brush-1; for(var dy=-r;dy<=r;dy++)for(var dx=-r;dx<=r;dx++){ var x=cx+dx,y=cy+dy; if(x>=0&&x<GA&&y>=0&&y<GA) gridA[y*GA+x]=val; } }
+function bucket(cx,cy,val){ var tgt=gridA[cy*GA+cx]; if(tgt===val)return; var st=[[cx,cy]]; while(st.length){ var p=st.pop(),x=p[0],y=p[1]; if(x<0||x>=GA||y<0||y>=GA)continue; if(gridA[y*GA+x]!==tgt)continue; gridA[y*GA+x]=val; st.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]); } }
+function cellOf(e,cv,G){ var r=cv.getBoundingClientRect(); return {cx:Math.floor((e.clientX-r.left)/(r.width/G)), cy:Math.floor((e.clientY-r.top)/(r.height/G))}; }
+function applyA(e){
+  var c=cellOf(e,CA,GA); if(c.cx<0||c.cx>=GA||c.cy<0||c.cy>=GA)return;
+  var right=(e.buttons===2)||(e.button===2);
+  var col=right?sec:pri;
+  if(tool==="pencil") paintCells(c.cx,c.cy,col);
+  else if(tool==="eraser") paintCells(c.cx,c.cy,-1);
+  else if(tool==="bucket") bucket(c.cx,c.cy, right?sec:pri);
+  else if(tool==="picker"){ var v=gridA[c.cy*GA+c.cx]; if(v>=0){ if(right)sec=v; else pri=v; refreshSw(); } }
+  renderA();
+}
+CA.addEventListener("contextmenu",function(e){e.preventDefault();});
+CA.addEventListener("pointerdown",function(e){ try{CA.setPointerCapture(e.pointerId);}catch(_){} applyA(e); });
+CA.addEventListener("pointermove",function(e){ if(e.buttons) applyA(e); });
+function refreshSw(){ document.getElementById("swPri").style.background=hexc(PAL[pri]); document.getElementById("swSec").style.background=hexc(PAL[sec]); document.querySelectorAll("#palGrid .psw").forEach(function(el,idx){ el.classList.toggle("pri",idx===pri); el.classList.toggle("sec",idx===sec); }); }
+(function(){
+  var pg=document.getElementById("palGrid");
+  PAL.forEach(function(h,idx){ var el=document.createElement("span"); el.className="psw"; el.style.background=hexc(h);
+    el.addEventListener("click",function(){ pri=idx; refreshSw(); });
+    el.addEventListener("contextmenu",function(e){ e.preventDefault(); sec=idx; refreshSw(); });
+    pg.appendChild(el); });
+  document.querySelectorAll("[data-ptool]").forEach(function(b){ b.addEventListener("click",function(){ document.querySelectorAll("[data-ptool]").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); tool=b.getAttribute("data-ptool"); }); });
+  var sz=document.getElementById("pSize"),sv=document.getElementById("pSizeVal"); sz.addEventListener("input",function(){ brush=+sz.value; sv.textContent=brush; });
+  document.getElementById("pClear").addEventListener("click",function(){ for(var k=0;k<gridA.length;k++)gridA[k]=-1; renderA(); });
+  refreshSw(); renderA();
+})();
+
+/* =====================================================================
+   DEMÓ B — darabolás objektummá
+   ===================================================================== */
+var GB=20, CB=document.getElementById("splitCanvas"), cellB=CB.width/GB, bx=CB.getContext("2d");
+var baseB=new Int16Array(GB*GB), gridB=new Int16Array(GB*GB);
+// egy egyszerű figura (fej + test) berajzolása
+(function(){
+  for(var k=0;k<baseB.length;k++)baseB[k]=-1;
+  function disc(cx,cy,r,col){ for(var y=0;y<GB;y++)for(var x=0;x<GB;x++){ var dx=x-cx,dy=y-cy; if(dx*dx+dy*dy<=r*r) baseB[y*GB+x]=col; } }
+  function rect(x0,y0,x1,y1,col){ for(var y=y0;y<=y1;y++)for(var x=x0;x<=x1;x++) if(x>=0&&x<GB&&y>=0&&y<GB) baseB[y*GB+x]=col; }
+  rect(6,9,13,16,3);        // test (narancs)
+  rect(7,16,8,18,1); rect(11,16,12,18,1); // lábak
+  disc(9.5,6,3.5,2);        // fej (piros)
+  baseB[5*GB+8]=11; baseB[5*GB+11]=11; // szemek
+  baseB[7*GB+9]=14; baseB[7*GB+10]=14; // csőr/száj
+  rect(9,9,10,9,12);        // gallér
+})();
+function resetB(){ for(var k=0;k<baseB.length;k++)gridB[k]=baseB[k]; floatObj=null; sel=null; mode="select"; setMsg("Húzz egy <strong>kijelölő téglalapot</strong> a rajz egy részére (pl. a fej köré)."); renderB(); }
+var sel=null, floatObj=null, mode="select", dragOff=null;
+function setMsg(h){ document.getElementById("splitMsg").innerHTML=h; }
+function renderB(){
+  checker(bx,CB.width,CB.height,cellB);
+  for(var y=0;y<GB;y++)for(var x=0;x<GB;x++){ var v=gridB[y*GB+x]; if(v<0)continue; bx.fillStyle=hexc(PAL[v]); bx.fillRect(x*cellB,y*cellB,cellB,cellB); }
+  // úszó objektum
+  if(floatObj){ for(var i=0;i<floatObj.cells.length;i++){ var c=floatObj.cells[i]; var px=(c.x+floatObj.ox)*cellB, py=(c.y+floatObj.oy)*cellB; bx.fillStyle=hexc(PAL[c.v]); bx.fillRect(px,py,cellB,cellB); }
+    // körvonal
+    bx.strokeStyle="#6cc8d9"; bx.lineWidth=2; bx.strokeRect((floatObj.minx+floatObj.ox)*cellB,(floatObj.miny+floatObj.oy)*cellB,(floatObj.w)*cellB,(floatObj.h)*cellB);
+  }
+  // kijelölő téglalap
+  if(sel&&mode==="select"){ var x0=Math.min(sel.x0,sel.x1),y0=Math.min(sel.y0,sel.y1),x1=Math.max(sel.x0,sel.x1),y1=Math.max(sel.y0,sel.y1);
+    bx.strokeStyle="#a5e87d"; bx.lineWidth=2; bx.setLineDash([5,4]); bx.strokeRect(x0*cellB,y0*cellB,(x1-x0+1)*cellB,(y1-y0+1)*cellB); bx.setLineDash([]); }
+}
+CB.addEventListener("contextmenu",function(e){e.preventDefault();});
+CB.addEventListener("pointerdown",function(e){ try{CB.setPointerCapture(e.pointerId);}catch(_){} var c=cellOf(e,CB,GB);
+  if(mode==="select"){ sel={x0:c.cx,y0:c.cy,x1:c.cx,y1:c.cy}; renderB(); }
+  else if(mode==="move"&&floatObj){ dragOff={x:c.cx-floatObj.ox, y:c.cy-floatObj.oy}; }
+});
+CB.addEventListener("pointermove",function(e){ if(!e.buttons)return; var c=cellOf(e,CB,GB);
+  if(mode==="select"&&sel){ sel.x1=Math.max(0,Math.min(GB-1,c.cx)); sel.y1=Math.max(0,Math.min(GB-1,c.cy)); renderB(); }
+  else if(mode==="move"&&floatObj&&dragOff){ floatObj.ox=c.cx-dragOff.x; floatObj.oy=c.cy-dragOff.y; renderB(); }
+});
+(function(){
+  document.getElementById("splitCut").addEventListener("click",function(){
+    if(mode==="move"){ return; }
+    if(!sel){ setMsg("Előbb húzz egy <strong>kijelölő téglalapot</strong> a rajzra!"); return; }
+    var x0=Math.min(sel.x0,sel.x1),y0=Math.min(sel.y0,sel.y1),x1=Math.max(sel.x0,sel.x1),y1=Math.max(sel.y0,sel.y1);
+    var cells=[],minx=99,miny=99,maxx=-9,maxy=-9;
+    for(var y=y0;y<=y1;y++)for(var x=x0;x<=x1;x++){ var v=gridB[y*GB+x]; if(v>=0){ cells.push({x:x,y:y,v:v}); gridB[y*GB+x]=-1; if(x<minx)minx=x;if(y<miny)miny=y;if(x>maxx)maxx=x;if(y>maxy)maxy=y; } }
+    if(!cells.length){ setMsg("Üres terület — jelölj ki egy <strong>rajzolt</strong> részt!"); renderB(); return; }
+    floatObj={cells:cells, ox:5, oy:-4, minx:minx,miny:miny,w:maxx-minx+1,h:maxy-miny+1}; sel=null; mode="move";
+    setMsg("✂ Kivágva! Ez most <strong>külön objektum</strong> — <strong>húzd</strong> arrébb az egérrel.");
+    renderB();
+  });
+  document.getElementById("splitReset").addEventListener("click",resetB);
+  resetB();
+})();
+
+/* =====================================================================
+   HERO — önmagát rajzoló gomba
+   ===================================================================== */
+var MS=[
+ "....oooo....",
+ "..oorrrroo..",
+ ".orwrrrrwro.",
+ ".orrrwwrrro.",
+ "orrwrrrrwrro",
+ "orrrrwwrrrro",
+ "orrrrrrrrrro",
+ ".oobbbbbboo.",
+ "...obddbo...",
+ "...obddbo...",
+ "...obbbbo...",
+ "....oooo...."
+];
+var MCOL={o:"#2a2a30",r:"#e0463a",w:"#f4f4f4",b:"#e8c89a",d:"#c0a070"};
+var HG=12, HC=document.getElementById("heroCanvas"), hcell=HC.width/HG, hx=HC.getContext("2d");
+var cellsList=[]; for(var yy=0;yy<HG;yy++)for(var xx=0;xx<HG;xx++){ var ch=MS[yy].charAt(xx); if(ch&&ch!==".") cellsList.push({x:xx,y:yy,c:MCOL[ch]}); }
+var heroN=0, heroPause=0;
+function drawHero(){
+  checker(hx,HC.width,HC.height,hcell);
+  for(var i=0;i<heroN&&i<cellsList.length;i++){ var c=cellsList[i]; hx.fillStyle=c.c; hx.fillRect(c.x*hcell,c.y*hcell,hcell,hcell); }
+  // ceruza-jelző az aktuális cellán
+  if(heroN<cellsList.length){ var p=cellsList[heroN]; hx.fillStyle="rgba(165,232,125,.9)"; hx.fillRect(p.x*hcell,p.y*hcell,hcell,hcell); }
+}
+function heroStep(){
+  if(heroPause>0){ heroPause--; if(heroPause===0){ heroN=0; } drawHero(); return; }
+  heroN+=1; if(heroN>=cellsList.length){ heroN=cellsList.length; heroPause=70; }
+  drawHero();
+}
+
+/* ===== közös hurok ===== */
+var running=false, frame=0;
+function tick(){ frame++; if(frame%3===0) heroStep(); if(!reduce) requestAnimationFrame(tick); else running=false; }
+function ensureLoop(){ if(!running){ running=true; requestAnimationFrame(tick); } }
+if(reduce){ heroN=cellsList.length; drawHero(); } else { drawHero(); ensureLoop(); }
+
+/* scrollspy + mobil menü */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){ var pos=window.scrollY+140,active=0; for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i; links.forEach(function(a,i){a.classList.toggle("active",i===active);}); }
+window.addEventListener("scroll",spy,{passive:true}); spy();
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>

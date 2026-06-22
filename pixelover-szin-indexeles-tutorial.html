@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PixelOver — Szín-indexelés mélységében · paletták, Match, color cycling (magyar)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13;
+  --bg-deep:#0b110c;
+  --panel:#1a241b;
+  --panel-2:#162017;
+  --ink:#e9e3cd;
+  --muted:#9caa90;
+  --grass:#7ecb52;
+  --grass-hi:#a5e87d;
+  --grass-dk:#4e8f33;
+  --dirt:#c99c66;
+  --dirt-dk:#9a6e43;
+  --water:#6cc8d9;
+  --stone:#9aa0aa;
+  --concrete:#cacac3;
+  --lava:#ff7a3c;
+  --ice:#bfe0f0;
+  --line:#2d3b2c;
+  --line-hi:#41543e;
+  --shadow:rgba(0,0,0,.45);
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  font-size:16.5px;
+  line-height:1.7;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px);
+}
+::selection{background:var(--grass-dk);color:#fff}
+
+/* ---------- SIDEBAR ---------- */
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);
+  background:var(--bg-deep);border-right:3px solid var(--line);
+  overflow-y:auto;z-index:30;padding:22px 0 40px;
+}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px}
+.logo .title{
+  font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;
+  color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15;
+}
+.logo .sub{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em}
+.logo .badge{
+  display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;
+  color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;box-shadow:2px 2px 0 var(--shadow);
+}
+.logo .badge.alt{background:var(--lava);color:#1a0d06;margin-left:6px}
+.nav-part{
+  font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);
+  padding:16px 20px 6px;text-transform:uppercase;
+}
+.nav a{
+  display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;
+  font-size:14px;position:relative;border-left:4px solid transparent;transition:color .12s,background .12s;
+}
+.nav a::before{content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);transition:opacity .12s,left .12s}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{color:var(--grass-hi);background:rgba(126,203,82,.10);border-left-color:var(--grass);font-weight:600}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{
+  display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;
+  background:var(--grass);color:#10180f;border:none;padding:8px 14px;
+  box-shadow:3px 3px 0 var(--shadow);text-decoration:none;transition:transform .08s,box-shadow .08s;
+}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+.btn.water{background:var(--water);color:#06181c}
+
+.menu-toggle{
+  display:none;position:fixed;top:14px;left:14px;z-index:40;
+  font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;
+  background:var(--panel);color:var(--ink);border:3px solid var(--line);box-shadow:3px 3px 0 var(--shadow);
+}
+
+/* ---------- FŐ TARTALOM ---------- */
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{
+  font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;
+  text-transform:uppercase;margin-bottom:14px;
+}
+.hero h1{
+  font-family:"Pixelify Sans";font-weight:700;font-size:clamp(32px,5vw,52px);
+  line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px;
+}
+.hero h1 .g{color:var(--grass-hi)}
+.hero h1 .d{color:var(--dirt)}
+.hero h1 .w{color:var(--water)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{
+  border:3px solid var(--line);background:var(--bg-deep);padding:14px;
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow);
+}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0;border:2px solid var(--line);background:#0c120d}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6;flex:1;min-width:220px}
+.hero-strip .cap b{color:var(--water)}
+
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{
+  font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);text-transform:uppercase;
+}
+.ch-eyebrow{
+  font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);
+  text-transform:uppercase;margin-bottom:8px;
+}
+h2{
+  font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;
+  color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px;
+}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);margin:34px 0 12px}
+p{margin-bottom:14px}
+p+p{margin-top:2px}
+strong{color:#fff}
+em{color:var(--dirt)}
+a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}
+li{margin-bottom:7px}
+code:not(pre code){
+  font-family:"IBM Plex Mono";font-size:.86em;background:#0c120d;
+  color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap;
+}
+.ui{
+  font-family:"IBM Plex Mono";font-size:.86em;background:#0d181b;
+  color:var(--water);padding:2px 7px;border:1px solid #2a4a52;white-space:nowrap;font-weight:500;
+}
+
+ol.steps{list-style:none;margin:20px 0;counter-reset:st}
+ol.steps>li{
+  counter-increment:st;position:relative;padding:4px 0 14px 52px;margin-bottom:6px;
+  border-left:3px solid var(--line);margin-left:16px;
+}
+ol.steps>li::before{
+  content:counter(st);position:absolute;left:-19px;top:0;width:34px;height:34px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:"Pixelify Sans";font-size:17px;color:#10180f;background:var(--grass);box-shadow:2px 2px 0 var(--shadow);
+}
+ol.steps>li:last-child{border-left-color:transparent}
+
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{
+  font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;
+  padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase;
+}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--grass)}
+.diagram pre .di{color:var(--dirt)}
+.diagram pre .wa{color:var(--water)}
+.diagram pre .st{color:var(--stone)}
+.diagram pre .lv{color:var(--lava)}
+.diagram pre .mu{color:var(--muted)}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+
+.info-box{margin:24px 0;border:3px solid #2a4a52;background:#0d181b;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.info-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.info-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.info-box p:last-child{margin-bottom:0}
+.info-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.info-box ul{font-size:15px;color:#cfdbd5}
+
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--grass);margin-bottom:4px}
+.note.warn .n-tag{color:var(--dirt)}
+
+.shot{margin:24px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.shot img{display:block;width:100%;height:auto;image-rendering:auto}
+.shot .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.55;padding:9px 13px;border-top:2px dashed var(--line-hi)}
+.shot .cap b{color:var(--grass)}
+.shot.small{max-width:420px}
+
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+.on{color:var(--grass-hi);font-weight:600}
+.off{color:var(--dirt)}
+
+.playground{margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
+  background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);border-bottom:3px solid var(--grass-dk);padding:10px 14px;
+}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em}
+.playground .pg-tag{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted)}
+.playground .pg-body{padding:16px;display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#0c120d;touch-action:none;max-width:100%}
+.playground .pg-side{flex:1;min-width:240px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:1.9}
+
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--dirt);letter-spacing:.06em;margin:14px 0 4px;text-transform:uppercase}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0}
+.tbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:5px 12px;transition:all .1s}
+.tbtn:hover{color:var(--ink)}
+.tbtn.active{background:var(--grass);color:#10180f;border-color:var(--grass);font-weight:600}
+.tbtn.wa.active{background:var(--water);color:#06181c;border-color:var(--water)}
+.tbtn.lv.active{background:var(--lava);color:#1a0d06;border-color:var(--lava)}
+input[type=range]{width:100%;accent-color:var(--grass);margin:6px 0 2px;cursor:pointer}
+.rng-val{font-family:"IBM Plex Mono";font-size:13px;color:var(--grass-hi)}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+
+/* paletta-csíkok */
+.pal-strip{display:flex;flex-wrap:wrap;gap:0;margin:8px 0 2px;border:2px solid var(--line)}
+.pal-sw{width:24px;height:24px;image-rendering:pixelated}
+.pal-empty{font-family:"IBM Plex Mono";font-size:12px;color:var(--muted);padding:4px 0}
+/* számozott (indexelt) swatchek */
+.pal-num{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 2px;align-items:center}
+.nsw{position:relative;width:34px;height:34px;border:2px solid var(--line);box-shadow:2px 2px 0 var(--shadow)}
+.nsw b{position:absolute;right:-2px;bottom:-2px;font-family:"IBM Plex Mono";font-size:9px;color:#fff;background:rgba(0,0,0,.62);padding:0 3px;line-height:1.3}
+.match-arrow{font-family:"Pixelify Sans";color:var(--water);font-size:13px;letter-spacing:.08em;margin:9px 0 5px}
+.diff-msg{font-family:"IBM Plex Mono";font-size:12.5px;margin-top:12px;padding:8px 11px;border:2px solid var(--line);line-height:1.5}
+.diff-msg.ok{border-left:6px solid var(--grass);color:var(--grass-hi)}
+.diff-msg.warn{border-left:6px solid var(--dirt);color:var(--dirt)}
+
+footer{margin-top:90px;border-top:3px solid var(--line);padding-top:24px;font-size:13.5px;color:var(--muted)}
+footer .pix{font-family:"Pixelify Sans";color:var(--grass);font-size:15px}
+footer a{color:var(--water)}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}
+  .menu-toggle{display:block}
+  .main{margin-left:0}
+  .wrap{padding:0 20px 100px}
+  .hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,#6cc8d9,#a5e87d);box-shadow:0 0 10px rgba(108,200,217,.6);
+  transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">PIXELOVER<br>INDEXELÉS</div>
+    <div class="sub">paletták · Match · color cycling</div>
+    <span class="badge">PixelOver</span><span class="badge alt">HALADÓ</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I · Az indexelés</div>
+    <a href="#ch1">1 · Mi az a szín-indexelés?</a>
+    <a href="#ch2">2 · Bekapcsolás + paletta</a>
+    <a href="#ch3">3 · Paletta generálása</a>
+    <a href="#ch4">4 · A paletta szerkesztése</a>
+    <div class="nav-part">II · Match indexation</div>
+    <a href="#ch5">5 · Csere index szerint</a>
+    <a href="#ch6">6 · Paletta-csere workflow</a>
+    <div class="nav-part">III · Animáció</div>
+    <a href="#ch7">7 · Color cycling</a>
+    <a href="#ch8">8 · Összefoglaló &amp; tovább</a>
+  </nav>
+  <div class="dl-box">
+    <p>Ez a haladó <em>indexelés</em>-lecke. Ha az alapok még újak, kezdd itt:</p>
+    <a class="btn secondary" href="pixelover-elso-lepesek-2d-tutorial.html">← Első lépések 2D</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// haladó tutorial · magyar nyelven · a hivatalos „How to use the indexation” alapján</div>
+  <h1>Szín-indexelés <span class="g">mélységében</span><br>paletták, <span class="w">Match</span>, <span class="d">color cycling</span></h1>
+  <p class="lead">Az <strong>indexelés (Indexation)</strong> a pixel art lelke: a képet rákényszeríti egy <em>fix palettára</em> úgy, hogy minden képpontot a paletta <strong>legközelebbi</strong> színére cserél. Ebben a leckében megtanulod palettát <strong>generálni</strong> és <strong>szerkeszteni</strong>, palettát <strong>index szerint cserélni</strong> (Match indexation), és a Shift-tel <strong>color cycling</strong> animációt készíteni — élő demókkal.</p>
+  <div class="hero-strip">
+    <canvas id="heroCanvas" width="112" height="150" style="width:224px;height:300px"></canvas>
+    <div class="cap" id="heroCap">↑ Élő minta: <b>color cycling</b> — egyetlen pixel sem mozog, csak a paletta indexei forognak körbe a Shift-tel. Pontosan ezt építjük fel a 7. fejezetben.</div>
+  </div>
+</header>
+
+<!-- ================= I. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Az indexelés</span></div>
+
+<!-- ====== 1 ====== -->
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>Mi az a szín-indexelés?</h2>
+
+  <p>Egy hagyományos kép több tízezer különböző színt tartalmaz (lágy átmenetek, árnyékolás, anti-aliasing). A „valódi” pixel art ezzel szemben <strong>kevés, jól megválasztott színből</strong> épül fel. Az <strong>indexelés</strong> hidalja át a kettőt: fogsz egy fix <em>palettát</em> (pl. 8 vagy 16 szín), és a PixelOver minden képpontot lecserél a palettán lévő <strong>hozzá legközelebbi</strong> színre.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Az indexelés egyetlen szabálya</div>
+<pre>
+  eredeti pixel színe        paletta (fix)                eredmény
+  <span class="di">RGB(203, 78, 64)</span>  ──►   <span class="mu">keresd a</span> <span class="wa">legközelebbi</span> <span class="mu">színt</span>  ──►   <span class="lv">paletta-szín #4</span>
+                              <span class="mu">(euklideszi táv. az RGB-ben)</span>
+
+  minden pixelre ugyanez fut le → a kép a paletta színeire „szűkül”
+</pre>
+    <div class="d-cap">Nincs varázslat: tisztán <b>legközelebbi-szín</b> keresés. Ez a tény végig fontos lesz — főleg a 4. fejezetben.</div>
+  </div>
+
+  <p>Miért éri meg? <strong>Egységes hangulat</strong> (minden kép ugyanazt a palettát használja), <strong>kicsi színszám</strong> (retró platformok, kis fájlméret), és a <strong>kézi pixel-art paletták</strong> (pl. Sweetie 16, PICO-8) profi, „összeállt” látványt adnak.</p>
+
+  <!-- DEMÓ A: indexelés + színszám -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Indexelés — színszám</span>
+      <span class="pg-tag">legközelebbi-szín, élőben</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="aCanvas" width="200" height="269" style="width:188px;height:253px"></canvas>
+      <div class="pg-side">
+        <p>Húzd a csúszkát: ennyi színre generálunk palettát a képből (median-cut), majd minden pixelt a legközelebbi paletta-színre cserélünk — pont, ahogy a PixelOver.</p>
+        <div class="ctl-label">Színek száma <span class="rng-val" id="aNVal">8</span></div>
+        <input type="range" id="aN" min="2" max="16" value="8">
+        <div class="ctl-label">A generált paletta</div>
+        <div class="pal-strip" id="aPal"></div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="tbtn active" data-aidx="on">Indexelve</button>
+          <button class="tbtn" data-aidx="off">Eredeti</button>
+        </div>
+        <p class="legend" style="margin-top:10px">Kevés színnél „poszteres”, sok színnél finomabb. Az <em>Eredeti</em> gombbal összeveted a nyers képpel.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 2 ====== -->
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>Bekapcsolás és paletta hozzáadása</h2>
+
+  <p>Az indexelés a <strong>Layer Shader</strong> panel (jobb oldal) <strong>Indexation</strong> szekciójában lakik. Két dolog kell hozzá:</p>
+  <ol class="steps">
+    <li>Kapcsold be: <span class="ui">Indexation ▸ Indexed: On</span>.</li>
+    <li>Adj hozzá egy <strong>palettát</strong> a <span class="ui">Palette</span> mező melletti <span class="ui">⋮</span> menüből.</li>
+  </ol>
+
+  <div class="shot small">
+    <img src="assets/pixelover/create_palette.png" alt="Az Indexation Palette ⋮ menüje: Create, Generate with adjustments, Open, Open Recent">
+    <div class="cap">A <b>Palette</b> ⋮ menüje. Itt <b>új palettát hozhatsz létre</b> (<code>Create</code>), <b>generálhatsz</b> a képből (<code>Generate with adjustments</code>), vagy meglévőt <b>nyithatsz</b> (<code>Open / Open Recent</code>).</div>
+  </div>
+
+  <p>A palettát háromféleképp kaphatod meg:</p>
+  <table>
+    <tr><th>Módszer</th><th>Mikor</th></tr>
+    <tr><td><strong>Kézzel</strong> (Create)</td><td>Ha pontosan tudod, milyen színeket akarsz, vagy nulláról építesz palettát.</td></tr>
+    <tr><td><strong>Képből / rétegből generálva</strong></td><td><span class="on">Kezdéshez ez a legjobb</span> — a kép saját színeiből áll elő reprezentatív paletta (lásd a 3. fejezet).</td></tr>
+    <tr><td><strong>Megnyitva fájlból</strong> (Open)</td><td>Kész pixel-art palettát töltesz be (pl. egy <code>.poshader</code>/paletta-fájlból, Sweetie 16 stb.).</td></tr>
+  </table>
+</section>
+
+<!-- ====== 3 ====== -->
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>Paletta generálása (ajánlott)</h2>
+
+  <p>A legbiztosabb kiindulás: hagyd, hogy a PixelOver a <strong>jelenlegi réteg színeiből</strong> generáljon palettát. Állítsd be a <strong>Generate size</strong> értéket (ennyi szín legyen), és a program kiválasztja a kép legjellemzőbb színeit.</p>
+
+  <div class="shot">
+    <img src="assets/pixelover/generated_palette.png" alt="Generált paletta: Indexed On, Palette swatchek, Generate size 8, Import & Manage gomb">
+    <div class="cap">A generált paletta. <code>Indexed: On</code>, a <b>Palette</b> melletti csík a 8 generált szín, alatta „<code>Generated from a layer or an image</code>”, a <code>Generate size</code> = <b>8</b>, és az <code>Import &amp; Manage</code> gomb a szerkesztőhöz.</div>
+  </div>
+
+  <div class="info-box">
+    <div class="tag">▸ Mit jelent a „Generate size”?</div>
+    <p>A cél-színszám. 8 szín tömör, poszteres pixel-art; 16–24 finomabb átmeneteket enged. A PixelOver a kép színeloszlása alapján választ — a fenti demóban (1. fejezet) ugyanezt a csúszkát tekergetted.</p>
+  </div>
+
+  <p>A <span class="ui">Import &amp; Manage</span> gomb nyitja meg a paletta-szerkesztőt, ahol a színeket sorba rendezheted, módosíthatod, törölheted vagy újakat adhatsz hozzá. Erről szól a következő fejezet.</p>
+</section>
+
+<!-- ====== 4 ====== -->
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>A paletta szerkesztése — sorrend vs. érték</h2>
+
+  <p>Itt van a fejezet, amit a legtöbben félreértenek. A paletta-szerkesztőben kétféle dolgot tehetsz, és a kettőnek <strong>gyökeresen más</strong> a hatása az indexelt képre:</p>
+
+  <table>
+    <tr><th>Művelet</th><th>Hatás a képre</th><th>Miért</th></tr>
+    <tr><td><strong>Sorrend</strong> megváltoztatása</td><td class="on">SEMMI</td><td>Az indexelés a <em>legközelebbi</em> színt keresi. A színkészlet ugyanaz marad, csak más a sorszámuk → a választás nem változik.</td></tr>
+    <tr><td><strong>Érték</strong> (szín) megváltoztatása</td><td class="off">VÁLTOZIK</td><td>Más színkészlet → egyes pixelekhez most más szín lesz a legközelebbi → átrendeződik a kép.</td></tr>
+  </table>
+
+  <div class="shot">
+    <img src="assets/pixelover/replace_color.png" alt="Egy paletta-szín szerkesztése a színválasztóval (R/G/B, HSV, hex), egy pink szín példája">
+    <div class="cap">Egy paletta-szín <b>értékének</b> szerkesztése: teljes színválasztó (R/G/B csúszkák, <code>HSV/Raw</code>, hex mező). A példában a <b>pink (#F100FF)</b> sosem lesz legközelebbi egyetlen pixelhez sem → egyszerűen <em>nem használt</em> szín marad.</div>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▸ „Nem használt” szín</div>
+    Ha egy palettaszín soha nem a legközelebbi egyik pixelhez sem, akkor nincs hatása — feleslegesen van a palettában. A szerkesztőben ezeket nyugodtan kitörölheted.
+  </div>
+
+  <!-- DEMÓ B: sorrend vs érték -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Sorrend vs. érték</span>
+      <span class="pg-tag">a kulcs-tanulság, bizonyítva</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="bCanvas" width="200" height="269" style="width:188px;height:253px"></canvas>
+      <div class="pg-side">
+        <p>8 színű, a képből generált paletta. Próbáld ki mindkét műveletet, és figyeld a <em>„megváltozott pixelek”</em> számlálót!</p>
+        <div class="ctl-label">A paletta (sorszámozva)</div>
+        <div class="pal-num" id="bPal"></div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="tbtn" id="bShuffle">Keverd a SORRENDET</button>
+          <button class="tbtn" id="bValue">Változtass egy ÉRTÉKET</button>
+        </div>
+        <div class="btn-row">
+          <button class="tbtn" id="bReset">Visszaállítás</button>
+        </div>
+        <div class="diff-msg ok" id="bMsg">Indíts egy műveletet a fenti gombokkal.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▸ A jó workflow</div>
+    Ha a színek <em>elhelyezése</em> már jó (a megfelelő területek a megfelelő index­hez tartoznak), de a színek maguk csúnyák, NE az értékeket pötyögtesd egyesével. Helyette használd a <strong>Match indexation</strong>-t — erről szól a II. rész.
+  </div>
+</section>
+
+<!-- ================= II. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ II. rész — Match indexation</span></div>
+
+<!-- ====== 5 ====== -->
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Match indexation — csere index szerint</h2>
+
+  <p>A <strong>Match indexation</strong> egészen máshogy működik, mint az indexelés. Nem a legközelebbi színt keresi — hanem a <strong>palettaindex alapján</strong> cserél. Vagyis: az indexelő paletta <em>i.</em> színe → a match paletta <em>i.</em> színére.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Indexation vs. Match indexation</div>
+<pre>
+  <span class="di">INDEXATION</span>     pixel színe  ─►  <span class="wa">legközelebbi</span> paletta-szín     <span class="mu">(érték-alapú)</span>
+
+  <span class="di">MATCH</span>          index #1     ─►  match-paletta #1
+                 index #2     ─►  match-paletta #2                <span class="mu">(index-alapú)</span>
+                 index #3     ─►  match-paletta #3
+                 <span class="mu">...</span>
+
+  <span class="mu">pl. ha indexelő #1 = piros és match #1 = kék → a piros pixelekből kék lesz</span>
+</pre>
+    <div class="d-cap">Az index-alapú csere megtartja a kép <b>színeloszlását</b>, csak „átfesti” — ezért tökéletes egy szebb paletta ráhúzására.</div>
+  </div>
+
+  <div class="shot">
+    <img src="assets/pixelover/match_color.png" alt="Match indexation: nyilak az indexelő paletta 1-2-3 indexeitől a match paletta 1-2-3 indexeihez">
+    <div class="cap">A nyilak mutatják a lényeget: az <b>indexelő paletta</b> #1/#2/#3 indexe a <b>Match Palette</b> azonos indexére képződik le. A kép színeloszlása marad, a látvány új.</div>
+  </div>
+
+  <!-- DEMÓ C: match re-skin -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Match — paletta-csere</span>
+      <span class="pg-tag">ugyanaz a kép, új bőr</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="cCanvas" width="200" height="269" style="width:188px;height:253px"></canvas>
+      <div class="pg-side">
+        <p>A bal oldali (indexelő) paletta fix. Válassz <strong>match palettát</strong>: a kép index szerint átfestődik — az eloszlás marad.</p>
+        <div class="ctl-label">Match paletta</div>
+        <div class="btn-row">
+          <button class="tbtn wa active" data-match="original">Eredeti</button>
+          <button class="tbtn wa" data-match="sweetie">Sweetie&nbsp;16</button>
+          <button class="tbtn wa" data-match="pico8">PICO-8</button>
+          <button class="tbtn wa" data-match="gameboy">Game Boy</button>
+          <button class="tbtn wa" data-match="pastel">Pasztell</button>
+        </div>
+        <div class="ctl-label">Indexelő paletta</div>
+        <div class="pal-num" id="cSrc"></div>
+        <div class="match-arrow">↓ &nbsp;index szerint &nbsp;↓</div>
+        <div class="ctl-label">Match paletta</div>
+        <div class="pal-num" id="cDst"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 6 ====== -->
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Workflow: paletta-csere lépésről lépésre</h2>
+
+  <p>Mivel a Match indexation <strong>index szerint</strong> cserél, a siker kulcsa, hogy a két paletta indexei <em>összepasszoljanak</em>. A hivatalos, bevált munkamenet három lépés:</p>
+
+  <h3>1. lépés — Rendezd sorba az eredeti palettát</h3>
+  <p>A paletta-szerkesztő rendező-menüjével (<span class="ui">Sort by Hue / Saturation / Red / Green / Blue</span>, vagy <span class="ui">Invert</span>) tedd áttekinthetővé az indexelő palettát — pl. világostól sötétig, vagy színárnyalat szerint.</p>
+  <div class="shot">
+    <img src="assets/pixelover/sort.png" alt="A paletta rendező-menüje: Invert, Sort by Hue, Sort by Saturation, Sort by Red/Green/Blue">
+    <div class="cap">A rendező-menü: <code>Sort by Hue / Saturation / Red / Green / Blue</code> és <code>Invert</code>. A rendezés <b>nem változtatja meg</b> a képet (lásd 4. fejezet!) — csak átláthatóbbá teszi a párosítást.</div>
+  </div>
+
+  <h3>2. lépés — Helyezd a match-színeket azonos pozícióba</h3>
+  <p>A match palettában <strong>fogd-és-vidd (drag &amp; drop)</strong> mozdulattal rendezd a színeket ugyanazokra a pozíciókra (indexekre), mint az eredetiben. Így a sötét az sötétre, a világos a világosra képződik — az átfestés koherens marad.</p>
+  <div class="shot">
+    <img src="assets/pixelover/place_color.png" alt="A match paletta sok színnel, a színek azonos pozícióba rendezve drag-and-drop-pal">
+    <div class="cap">A <b>Match Palette</b> (itt sok színnel) — a színeket az eredeti paletta indexeihez igazítva. A versenyautó már a match-paletta szerint kap új színeket.</div>
+  </div>
+
+  <h3>3. lépés — Töröld a felesleget</h3>
+  <p>Végül törölj minden olyan match-színt, ami nem párosul indexelő-színnel — a match palettának annyi színe legyen, mint az indexelőnek (itt 8).</p>
+  <div class="shot">
+    <img src="assets/pixelover/delete_others.png" alt="A match paletta visszaszűkítve 8 színre, a felesleges színek törölve">
+    <div class="cap">A match paletta visszaszűkítve a szükséges 8 színre. Lent már látszik a <code>Shift</code> paraméter is — ez lesz a 7. fejezet főszereplője.</div>
+  </div>
+
+  <div class="info-box">
+    <div class="tag">▸ Emlékeztető</div>
+    <p>A <strong>rendezés</strong> az indexelt képet nem rontja el (legközelebbi-szín, sorrend-független). A <strong>match</strong> viszont index-alapú — ott a sorrend a minden. Ezért rendezünk előbb, párosítunk utána.</p>
+  </div>
+</section>
+
+<!-- ================= III. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Animáció</span></div>
+
+<!-- ====== 7 ====== -->
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>Color cycling — Shift-tel</h2>
+
+  <p>A Match indexation panelen van egy <strong>Shift</strong> érték, ami <em>körbetolja</em> a match paletta színpozícióit. Ha a Shift-et folyamatosan léptetjük, a színek körbeforognak az indexeken — a kép <strong>animálódik</strong>, pedig egyetlen pixel sem mozdul. Ez a klasszikus <strong>color cycling</strong> (paletta-animáció): víz csordogál, láva folyik, fáklya lobog — szinte ingyen.</p>
+
+  <div class="shot small">
+    <img src="assets/pixelover/po_color_cycling_preview.gif" alt="Color cycling animáció: folyamatosan hullámzó kék víz, a Match paletta Shift értékét léptetve">
+    <div class="cap">A hivatalos előnézet: a kék árnyalatok körbeforognak a match palettán → <b>folyó víz</b> hatás. A <code>Shift</code> értéke lépteti a színpozíciókat.</div>
+  </div>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Hogyan animál a Shift?</div>
+<pre>
+  Shift = 0:   index ─►  match[ <span class="wa">index</span> ]
+  Shift = 1:   index ─►  match[ <span class="wa">(index + 1)</span> % N ]
+  Shift = 2:   index ─►  match[ <span class="wa">(index + 2)</span> % N ]   <span class="mu">... és így tovább, körbe</span>
+
+  <span class="mu">a paletta egy ciklikus „szalag”; a Shift körbeforgatja → folyás-illúzió</span>
+</pre>
+    <div class="d-cap">A trükk csak akkor néz ki „folyásnak”, ha a match-paletta egy <b>ciklikus átmenet</b> (sötét→világos→sötét), különben villog.</div>
+  </div>
+
+  <!-- DEMÓ D: color cycling -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Color cycling</span>
+      <span class="pg-tag">told a Shiftet, vagy játszd le</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="dCanvas" width="120" height="84" style="width:360px;height:252px"></canvas>
+      <div class="pg-side">
+        <p>Egy ciklikus „szalag”-palettára festett hullámminta. A Shift körbeforgatja a színeket — a pixelek helyben maradnak.</p>
+        <div class="ctl-label">Szalag (match paletta)</div>
+        <div class="btn-row">
+          <button class="tbtn wa active" data-ramp="water">Víz</button>
+          <button class="tbtn lv" data-ramp="lava">Láva</button>
+          <button class="tbtn" data-ramp="rainbow">Szivárvány</button>
+        </div>
+        <div class="pal-strip" id="dPal" style="margin-top:8px"></div>
+        <div class="ctl-label">Shift <span class="rng-val" id="dShiftVal">0</span></div>
+        <input type="range" id="dShift" min="0" max="11" value="0">
+        <div class="btn-row" style="margin-top:10px">
+          <button class="tbtn active" id="dPlay">⏸ Szünet</button>
+        </div>
+        <p class="legend" style="margin-top:8px">Állítsd meg a lejátszást, és told kézzel a Shiftet — látod, hogy csak a színek lépnek tovább a szalagon.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▸ Tipp</div>
+    A PixelOver letöltése mellé jár egy kész <em>color cycling</em> példaprojekt. A mélyebb részletekért lásd a hivatalos <strong>Color cycling</strong> leckét.
+  </div>
+</section>
+
+<!-- ====== 8 ====== -->
+<section id="ch8">
+  <div class="ch-eyebrow">8. fejezet</div>
+  <h2>Összefoglaló &amp; merre tovább?</h2>
+
+  <p>A teljes indexelési munkamenet egy lapon:</p>
+  <ol class="steps">
+    <li><strong>Bekapcsolás</strong>: <span class="ui">Indexation ▸ Indexed: On</span>, majd adj hozzá palettát.</li>
+    <li><strong>Generálás</strong>: <span class="ui">Generate size</span> beállítása, paletta a kép színeiből — minden pixel a legközelebbi színre.</li>
+    <li><strong>Szerkesztés</strong>: a <em>sorrend</em> nem számít, az <em>érték</em> igen. A nem használt színek törölhetők.</li>
+    <li><strong>Match</strong>: index-alapú átfestés egy szebb palettára — az eloszlás marad.</li>
+    <li><strong>Workflow</strong>: rendezd (Sort) → párosítsd drag&amp;drop-pal → töröld a felesleget.</li>
+    <li><strong>Color cycling</strong>: a <span class="ui">Shift</span> léptetésével ciklikus palettán folyás-animáció.</li>
+  </ol>
+
+  <div class="info-box">
+    <div class="tag">▸ Következő leckék</div>
+    <ul>
+      <li><strong>Color cycling</strong> — a paletta-animáció önálló, mélyebb tutorialja.</li>
+      <li><strong>Material editing</strong> — anyagok és effektek a shaderben.</li>
+      <li><strong>Dithering</strong> (a réteg-shaderben) — kevés színnel finomabb átmenetek, jól megfér az indexeléssel.</li>
+      <li>Az alapok: <a href="pixelover-elso-lepesek-2d-tutorial.html">Első lépések 2D</a>.</li>
+    </ul>
+  </div>
+
+  <p>A legfontosabb gondolat: az indexelés <strong>érték-alapú</strong> (legközelebbi szín, sorrend-független), a Match <strong>index-alapú</strong> (a sorrend a minden), a color cycling pedig nem más, mint a Match palettát körbeforgató <strong>Shift</strong>. Ha ez a három a fejedben összeáll, a paletták többé nem fognak meglepetést okozni.</p>
+
+  <footer>
+    <p class="pix">PixelOver — Szín-indexelés mélységében</p>
+    <p>Haladó tutorial magyarul, a hivatalos <a href="https://docs.pixelover.io/tutorials/use_indexation/" target="_blank" rel="noopener">docs.pixelover.io / How to use the indexation</a> alapján. A képernyőképek és a color cycling előnézet a hivatalos dokumentációból származnak. A demók a <code>sword_man.png</code> hivatalos példaképet használják.</p>
+  </footer>
+</section>
+
+</div><!-- /wrap -->
+</div><!-- /main -->
+
+<script>
+(function(){
+"use strict";
+var reduce = (window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches);
+
+/* ============ közös segéd ============ */
+function hx(h){ return [parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)]; }
+function clamp(v){ return v<0?0:v>255?255:v|0; }
+function lum(c){ return 0.299*c[0]+0.587*c[1]+0.114*c[2]; }
+function rgbStr(c){ return "rgb("+c[0]+","+c[1]+","+c[2]+")"; }
+
+function nearestColor(pal,r,g,b){ var bi=0,bd=1e12; for(var i=0;i<pal.length;i++){var p=pal[i],dr=r-p[0],dg=g-p[1],db=b-p[2],d=dr*dr+dg*dg+db*db; if(d<bd){bd=d;bi=i;}} return pal[bi]; }
+function nearestIdx(pal,r,g,b){ var bi=0,bd=1e12; for(var i=0;i<pal.length;i++){var p=pal[i],dr=r-p[0],dg=g-p[1],db=b-p[2],d=dr*dr+dg*dg+db*db; if(d<bd){bd=d;bi=i;}} return bi; }
+
+// HSV (hue-rotáláshoz)
+function rgb2hsv(r,g,b){ r/=255;g/=255;b/=255; var mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn,h=0; if(d){ if(mx===r)h=((g-b)/d)%6; else if(mx===g)h=(b-r)/d+2; else h=(r-g)/d+4; h*=60; if(h<0)h+=360; } return [h, mx?d/mx:0, mx]; }
+function hsv2rgb(h,s,v){ var c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c,r=0,g=0,b=0; if(h<60){r=c;g=x;} else if(h<120){r=x;g=c;} else if(h<180){g=c;b=x;} else if(h<240){g=x;b=c;} else if(h<300){r=x;b=c;} else {r=c;b=x;} return [clamp((r+m)*255),clamp((g+m)*255),clamp((b+m)*255)]; }
+function rotateHue(c,deg){ var h=rgb2hsv(c[0],c[1],c[2]); var nh=(h[0]+deg)%360; return hsv2rgb(nh, Math.max(0.55,h[1]), Math.max(0.5,h[2])); }
+
+/* median-cut kvantálás N színre */
+function medianCut(px, n){
+  if(px.length===0) return [[128,128,128]];
+  var boxes=[px.slice()];
+  while(boxes.length<n){
+    var bi=-1,brange=-1,baxis=0;
+    for(var i=0;i<boxes.length;i++){
+      var b=boxes[i]; if(b.length<2) continue;
+      var mn=[255,255,255],mx=[0,0,0],j,k;
+      for(j=0;j<b.length;j++) for(k=0;k<3;k++){ var v=b[j][k]; if(v<mn[k])mn[k]=v; if(v>mx[k])mx[k]=v; }
+      var rg=[mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2]];
+      var ax=(rg[0]>=rg[1]&&rg[0]>=rg[2])?0:(rg[1]>=rg[2]?1:2);
+      if(rg[ax]>brange){ brange=rg[ax]; bi=i; baxis=ax; }
+    }
+    if(bi<0) break;
+    var box=boxes[bi];
+    box.sort(function(a,b){return a[baxis]-b[baxis];});
+    var mid=box.length>>1;
+    boxes.splice(bi,1,box.slice(0,mid),box.slice(mid));
+  }
+  return boxes.map(function(b){ var s=[0,0,0],j; for(j=0;j<b.length;j++){s[0]+=b[j][0];s[1]+=b[j][1];s[2]+=b[j][2];} var m=b.length||1; return [Math.round(s[0]/m),Math.round(s[1]/m),Math.round(s[2]/m)]; });
+}
+
+/* cél-paletták a Match demóhoz */
+var TPAL = {
+  sweetie:["1a1c2c","5d275d","b13e53","ef7d57","ffcd75","a7f070","38b764","257179","29366f","3b5dc9","41a6f6","73eff7","f4f4f4","94b0c2","566c86","333c57"].map(hx),
+  pico8:["000000","1d2b53","7e2553","008751","ab5236","5f574f","c2c3c7","fff1e8","ff004d","ffa300","ffec27","00e436","29adff","83769c","ff77a8","ffccaa"].map(hx),
+  gameboy:["0f380f","306230","8bac0f","9bbc0f"].map(hx),
+  pastel:["22223b","4a4e69","6d6875","9a8c98","b5838d","e5989b","f2e9e4","ffd6a5"].map(hx)
+};
+// N színű match paletta egy célből, fényesség szerint rendezve, indexre illesztve
+function buildMatch(target, N){
+  var src=target.slice().sort(function(a,b){return lum(a)-lum(b);});
+  var out=[];
+  for(var i=0;i<N;i++){ var rank=(N===1)?0:Math.round(i/(N-1)*(src.length-1)); out.push(src[rank]); }
+  return out;
+}
+
+/* ============ forráskép → alacsony felbontású minta ============ */
+var WORK_W=200, WORK_H=269, PIXF=3;
+var LOWW=Math.round(WORK_W/PIXF), LOWH=Math.round(WORK_H/PIXF); // 67 x 90
+var work=document.createElement("canvas"); work.width=WORK_W; work.height=WORK_H;
+var wctx=work.getContext("2d");
+var lowSrc=document.createElement("canvas"); lowSrc.width=LOWW; lowSrc.height=LOWH;
+var lowCtx=lowSrc.getContext("2d");
+var paintBuf=document.createElement("canvas"); paintBuf.width=LOWW; paintBuf.height=LOWH;
+var pbCtx=paintBuf.getContext("2d");
+
+var imgReady=false, useFallback=false;
+var PIX=[], OPA=null, OPAQUE=[];        // PIX[p]=[r,g,b] vagy null; OPAQUE = csak a látható pixelek
+var P0=null, srcIdx=null;               // 8-színű alap-paletta + per-pixel index (B,C demókhoz)
+
+var IMG=new Image();
+IMG.onload=function(){ imgReady=true; rebuild(); };
+IMG.onerror=function(){ useFallback=true; imgReady=true; rebuild(); };
+IMG.src="assets/pixelover/sword_man.png";
+
+function drawFallback(ctx){
+  ctx.clearRect(0,0,WORK_W,WORK_H); var cx=WORK_W/2;
+  ctx.fillStyle="#b13e53"; ctx.beginPath(); ctx.moveTo(cx-58,120); ctx.lineTo(cx+58,120); ctx.lineTo(cx+34,232); ctx.lineTo(cx-34,232); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#22262e"; ctx.fillRect(cx-30,196,22,60); ctx.fillRect(cx+8,196,22,60);
+  ctx.fillStyle="#8a5a36"; ctx.fillRect(cx-34,250,28,14); ctx.fillRect(cx+6,250,28,14);
+  ctx.fillStyle="#eef0f4"; ctx.beginPath(); ctx.moveTo(cx-40,118); ctx.lineTo(cx+40,118); ctx.lineTo(cx+30,205); ctx.lineTo(cx-30,205); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#22262e"; ctx.fillRect(cx-56,120,18,70); ctx.fillRect(cx+38,120,18,70);
+  ctx.fillStyle="#eef0f4"; ctx.fillRect(cx-58,150,20,40); ctx.fillRect(cx+38,150,20,40);
+  ctx.fillStyle="#f0c79a"; ctx.beginPath(); ctx.arc(cx,92,26,0,7); ctx.fill();
+  ctx.fillStyle="#6e3b1e"; ctx.beginPath(); ctx.arc(cx,82,27,Math.PI,2*Math.PI); ctx.fill(); ctx.fillRect(cx+18,70,30,12);
+  ctx.fillStyle="#2b6fb0"; ctx.fillRect(cx-10,90,6,6); ctx.fillRect(cx+4,90,6,6);
+  ctx.strokeStyle="#9aa0aa"; ctx.lineWidth=6; ctx.beginPath(); ctx.moveTo(cx-2,168); ctx.lineTo(cx+78,236); ctx.stroke();
+  ctx.strokeStyle="#ffcd75"; ctx.lineWidth=6; ctx.beginPath(); ctx.moveTo(cx-14,160); ctx.lineTo(cx+14,176); ctx.stroke();
+}
+
+function buildWork(){
+  if(useFallback||!imgReady){ drawFallback(wctx); return; }
+  wctx.clearRect(0,0,WORK_W,WORK_H); wctx.imageSmoothingEnabled=true;
+  var iw=IMG.width,ih=IMG.height,s=Math.min(WORK_W/iw,WORK_H/ih),dw=iw*s,dh=ih*s;
+  wctx.drawImage(IMG,0,0,iw,ih,(WORK_W-dw)/2,(WORK_H-dh)/2,dw,dh);
+}
+
+function sampleLow(){
+  lowCtx.imageSmoothingEnabled=true; lowCtx.clearRect(0,0,LOWW,LOWH);
+  lowCtx.drawImage(work,0,0,WORK_W,WORK_H,0,0,LOWW,LOWH);
+  var d;
+  try{ d=lowCtx.getImageData(0,0,LOWW,LOWH).data; }
+  catch(e){ useFallback=true; drawFallback(wctx); lowCtx.clearRect(0,0,LOWW,LOWH); lowCtx.drawImage(work,0,0,WORK_W,WORK_H,0,0,LOWW,LOWH); d=lowCtx.getImageData(0,0,LOWW,LOWH).data; }
+  PIX=new Array(LOWW*LOWH); OPA=new Uint8Array(LOWW*LOWH); OPAQUE=[];
+  for(var p=0;p<LOWW*LOWH;p++){ var i=p*4; if(d[i+3]<100){ PIX[p]=null; OPA[p]=0; } else { var c=[d[i],d[i+1],d[i+2]]; PIX[p]=c; OPA[p]=1; OPAQUE.push(c); } }
+}
+
+// alacsony felbontású festés → kijelző (élesen felnagyítva)
+function paintLow(destCtx, DW, DH, colorOf){
+  var id=pbCtx.createImageData(LOWW,LOWH), d=id.data;
+  for(var p=0;p<LOWW*LOWH;p++){ var i=p*4; if(!OPA[p]){ d[i+3]=0; continue; } var c=colorOf(p); d[i]=c[0]; d[i+1]=c[1]; d[i+2]=c[2]; d[i+3]=255; }
+  pbCtx.putImageData(id,0,0);
+  destCtx.imageSmoothingEnabled=false; destCtx.clearRect(0,0,DW,DH);
+  destCtx.drawImage(paintBuf,0,0,LOWW,LOWH,0,0,DW,DH);
+}
+
+function swatchStrip(elId, pal){
+  var el=document.getElementById(elId); if(!el) return;
+  if(!pal||!pal.length){ el.innerHTML='<span class="pal-empty">—</span>'; return; }
+  var h=""; for(var i=0;i<pal.length;i++) h+='<span class="pal-sw" style="background:'+rgbStr(pal[i])+'"></span>';
+  el.innerHTML=h;
+}
+function numStrip(elId, pal){
+  var el=document.getElementById(elId); if(!el) return;
+  var h=""; for(var i=0;i<pal.length;i++) h+='<span class="nsw" style="background:'+rgbStr(pal[i])+'"><b>'+(i+1)+'</b></span>';
+  el.innerHTML=h;
+}
+
+/* ============ DEMÓ A — indexelés + színszám ============ */
+var aCanvas=document.getElementById("aCanvas"), actx=aCanvas&&aCanvas.getContext("2d");
+var aN=8, aIndexed=true;
+function renderA(){
+  if(!actx||!imgReady) return;
+  if(!aIndexed){ paintLow(actx,200,269,function(p){ return PIX[p]; }); swatchStrip("aPal", []); document.getElementById("aPal").innerHTML='<span class="pal-empty">— nyers kép, nincs indexelés —</span>'; return; }
+  var pal=medianCut(OPAQUE, aN).sort(function(a,b){return lum(a)-lum(b);});
+  paintLow(actx,200,269,function(p){ var c=PIX[p]; return nearestColor(pal,c[0],c[1],c[2]); });
+  swatchStrip("aPal", pal);
+}
+(function(){
+  var r=document.getElementById("aN"),v=document.getElementById("aNVal");
+  if(r) r.addEventListener("input",function(){ aN=+r.value; v.textContent=aN; renderA(); });
+  document.querySelectorAll("[data-aidx]").forEach(function(b){ b.addEventListener("click",function(){ document.querySelectorAll("[data-aidx]").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); aIndexed=b.getAttribute("data-aidx")==="on"; renderA(); }); });
+})();
+
+/* ============ DEMÓ B — sorrend vs érték ============ */
+var bCanvas=document.getElementById("bCanvas"), bctx=bCanvas&&bCanvas.getContext("2d");
+var baseColor=null, palB=null;
+function renderB(pal){ paintLow(bctx,200,269,function(p){ var c=PIX[p]; return nearestColor(pal,c[0],c[1],c[2]); }); numStrip("bPal",pal); }
+function diffVsBase(pal){
+  var cnt=0; for(var p=0;p<LOWW*LOWH;p++){ if(!OPA[p]) continue; var c=PIX[p]; var nc=nearestColor(pal,c[0],c[1],c[2]); var bc=baseColor[p]; if(nc[0]!==bc[0]||nc[1]!==bc[1]||nc[2]!==bc[2]) cnt++; } return cnt; }
+function msgB(cls,txt){ var m=document.getElementById("bMsg"); if(m){ m.className="diff-msg "+cls; m.innerHTML=txt; } }
+function initB(){
+  baseColor=new Array(LOWW*LOWH);
+  for(var p=0;p<LOWW*LOWH;p++){ if(!OPA[p]){ baseColor[p]=null; continue; } var c=PIX[p]; baseColor[p]=nearestColor(P0,c[0],c[1],c[2]); }
+  palB=P0.map(function(c){return c.slice();});
+  renderB(palB);
+}
+(function(){
+  var sh=document.getElementById("bShuffle"), va=document.getElementById("bValue"), rs=document.getElementById("bReset");
+  if(sh) sh.addEventListener("click",function(){
+    palB=P0.map(function(c){return c.slice();});
+    for(var i=palB.length-1;i>0;i--){ var j=(i*7+3)%(i+1); var t=palB[i]; palB[i]=palB[j]; palB[j]=t; } // determinisztikus keverés
+    var d=diffVsBase(palB); renderB(palB);
+    msgB("ok","SORRENDET kevertem → <b>"+d+"</b> pixel változott.<br>A színkészlet ugyanaz, csak a sorszámok mások — az indexelés a legközelebbi színt keresi, ezért a kép VÁLTOZATLAN.");
+  });
+  if(va) va.addEventListener("click",function(){
+    palB=P0.map(function(c){return c.slice();});
+    var k=Math.floor(palB.length/2); palB[k]=rotateHue(palB[k],120); // egy szín értékét elforgatjuk
+    var d=diffVsBase(palB); renderB(palB);
+    msgB("warn","Egy szín ÉRTÉKÉT módosítottam (#"+(k+1)+") → <b>"+d+"</b> pixel változott.<br>Más a színkészlet, így néhány pixelhez most más szín a legközelebbi — a kép ÁTRENDEZŐDÖTT.");
+  });
+  if(rs) rs.addEventListener("click",function(){ palB=P0.map(function(c){return c.slice();}); renderB(palB); msgB("ok","Visszaállítva az eredeti, generált palettára."); });
+})();
+
+/* ============ DEMÓ C — match (paletta-csere index szerint) ============ */
+var cCanvas=document.getElementById("cCanvas"), cctx=cCanvas&&cCanvas.getContext("2d");
+var matchSel="original";
+function initC(){ srcIdx=new Array(LOWW*LOWH); for(var p=0;p<LOWW*LOWH;p++){ if(!OPA[p]){ srcIdx[p]=-1; continue; } var c=PIX[p]; srcIdx[p]=nearestIdx(P0,c[0],c[1],c[2]); } renderC(); }
+function renderC(){
+  if(!cctx||!P0) return;
+  var dst = matchSel==="original" ? P0 : buildMatch(TPAL[matchSel], P0.length);
+  paintLow(cctx,200,269,function(p){ return dst[srcIdx[p]]; });
+  numStrip("cSrc", P0); numStrip("cDst", dst);
+}
+(function(){
+  document.querySelectorAll("[data-match]").forEach(function(b){ b.addEventListener("click",function(){ document.querySelectorAll("[data-match]").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); matchSel=b.getAttribute("data-match"); renderC(); }); });
+})();
+
+/* ============ DEMÓ D + HERO — color cycling ============ */
+function lerp(a,b,t){ return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]; }
+function buildRamp(kind){
+  var L=12, out=[], i,t;
+  if(kind==="rainbow"){ for(i=0;i<L;i++) out.push(hsv2rgb(i/L*360,0.78,0.95)); return out; }
+  var dk = kind==="lava"?[60,12,6]:[16,26,68], lt = kind==="lava"?[255,212,90]:[120,222,240];
+  for(i=0;i<L;i++){ t=(1-Math.cos(i/L*Math.PI*2))/2; out.push(lerp(dk,lt,t).map(function(v){return v|0;})); }
+  return out;
+}
+var dCanvas=document.getElementById("dCanvas"), dctx=dCanvas&&dCanvas.getContext("2d");
+var DLW=120, DLH=84;
+var dBuf=document.createElement("canvas"); dBuf.width=DLW; dBuf.height=DLH; var dbx=dBuf.getContext("2d");
+var dWave=null;             // előre számolt hullám-index minden pixelre
+function buildWave(){ dWave=new Int16Array(DLW*DLH); for(var y=0;y<DLH;y++)for(var x=0;x<DLW;x++){ var phase=x*0.16 + 4.2*Math.sin(y*0.16) + 1.5*Math.sin(x*0.05+y*0.03); dWave[y*DLW+x]=Math.floor(phase); } }
+var dRampKind="water", dRamp=buildRamp("water"), dShift=0, dPlaying=true, dAcc=0;
+function drawD(){
+  if(!dctx||!dWave) return;
+  var L=dRamp.length, id=dbx.createImageData(DLW,DLH), d=id.data;
+  for(var p=0;p<DLW*DLH;p++){ var idx=((dWave[p]+dShift)%L+L)%L; var c=dRamp[idx]; var i=p*4; d[i]=c[0]; d[i+1]=c[1]; d[i+2]=c[2]; d[i+3]=255; }
+  dbx.putImageData(id,0,0);
+  dctx.imageSmoothingEnabled=false; dctx.drawImage(dBuf,0,0,DLW,DLH,0,0,dCanvas.width,dCanvas.height);
+}
+function setRampUI(){ swatchStrip("dPal", dRamp); var sr=document.getElementById("dShift"); if(sr) sr.max=dRamp.length-1; }
+(function(){
+  document.querySelectorAll("[data-ramp]").forEach(function(b){ b.addEventListener("click",function(){ document.querySelectorAll("[data-ramp]").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); dRampKind=b.getAttribute("data-ramp"); dRamp=buildRamp(dRampKind); dShift=Math.min(dShift,dRamp.length-1); setRampUI(); document.getElementById("dShiftVal").textContent=dShift; document.getElementById("dShift").value=dShift; drawD(); }); });
+  var sr=document.getElementById("dShift"), sv=document.getElementById("dShiftVal");
+  if(sr) sr.addEventListener("input",function(){ dShift=+sr.value; sv.textContent=dShift; drawD(); });
+  var pl=document.getElementById("dPlay");
+  if(pl) pl.addEventListener("click",function(){ dPlaying=!dPlaying; pl.textContent=dPlaying?"⏸ Szünet":"▶ Lejátszás"; pl.classList.toggle("active",dPlaying); if(dPlaying) ensureLoop(); });
+})();
+
+// HERO color cycling (víz, auto)
+var hCanvas=document.getElementById("heroCanvas"), hctx=hCanvas&&hCanvas.getContext("2d");
+var HLW=112, HLH=150;
+var hBuf=document.createElement("canvas"); hBuf.width=HLW; hBuf.height=HLH; var hbx=hBuf.getContext("2d");
+var hWave=new Int16Array(HLW*HLH);
+(function(){ for(var y=0;y<HLH;y++)for(var x=0;x<HLW;x++){ var phase=x*0.15+4.0*Math.sin(y*0.14)+1.4*Math.sin(x*0.05+y*0.04); hWave[y*HLW+x]=Math.floor(phase); } })();
+var hRamp=buildRamp("water"), hShift=0;
+function drawHero(){
+  if(!hctx) return; var L=hRamp.length, id=hbx.createImageData(HLW,HLH), d=id.data;
+  for(var p=0;p<HLW*HLH;p++){ var idx=((hWave[p]+hShift)%L+L)%L; var c=hRamp[idx]; var i=p*4; d[i]=c[0]; d[i+1]=c[1]; d[i+2]=c[2]; d[i+3]=255; }
+  hbx.putImageData(id,0,0); hctx.imageSmoothingEnabled=false; hctx.drawImage(hBuf,0,0,HLW,HLH,0,0,hCanvas.width,hCanvas.height);
+}
+
+/* egy közös animációs hurok */
+var running=false, frame=0;
+function tick(){
+  frame++;
+  if(!reduce && (frame%6===0)){ hShift=(hShift+1)%hRamp.length; drawHero(); }
+  if(dPlaying && (frame%9===0)){ dShift=(dShift+1)%dRamp.length; var sv=document.getElementById("dShiftVal"),sr=document.getElementById("dShift"); if(sv)sv.textContent=dShift; if(sr)sr.value=dShift; drawD(); }
+  if(!reduce || dPlaying){ requestAnimationFrame(tick); } else { running=false; }
+}
+function ensureLoop(){ if(!running){ running=true; requestAnimationFrame(tick); } }
+
+/* ============ minden forrás-függő demó újraépítése ============ */
+function rebuild(){
+  buildWork(); sampleLow();
+  P0 = medianCut(OPAQUE, 8).sort(function(a,b){return lum(a)-lum(b);});
+  renderA(); initB(); initC();
+  buildWave(); setRampUI(); drawD();
+  drawHero();
+  document.getElementById("dShiftVal").textContent=dShift;
+  if(!reduce || dPlaying) ensureLoop(); else { drawHero(); drawD(); }
+}
+
+/* ============ scrollspy + mobil menü ============ */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){ var pos=window.scrollY+140,active=0; for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i; links.forEach(function(a,i){a.classList.toggle("active",i===active);}); }
+window.addEventListener("scroll",spy,{passive:true}); spy();
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>

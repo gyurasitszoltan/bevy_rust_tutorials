@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PixelOver — Particle systems: részecskerendszerek a shaderben (magyar)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13; --bg-deep:#0b110c; --panel:#1a241b; --panel-2:#162017;
+  --ink:#e9e3cd; --muted:#9caa90; --grass:#7ecb52; --grass-hi:#a5e87d; --grass-dk:#4e8f33;
+  --dirt:#c99c66; --dirt-dk:#9a6e43; --water:#6cc8d9; --stone:#9aa0aa; --concrete:#cacac3;
+  --lava:#ff7a3c; --ice:#bfe0f0; --line:#2d3b2c; --line-hi:#41543e; --shadow:rgba(0,0,0,.45);
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px)}
+::selection{background:var(--grass-dk);color:#fff}
+
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--bg-deep);border-right:3px solid var(--line);overflow-y:auto;z-index:30;padding:22px 0 40px}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px}
+.logo .title{font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15}
+.logo .sub{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em}
+.logo .badge{display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;box-shadow:2px 2px 0 var(--shadow)}
+.logo .badge.alt{background:var(--lava);color:#1a0d06;margin-left:6px}
+.nav-part{font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);padding:16px 20px 6px;text-transform:uppercase}
+.nav a{display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;font-size:14px;position:relative;border-left:4px solid transparent;transition:color .12s,background .12s}
+.nav a::before{content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);transition:opacity .12s,left .12s}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{color:var(--grass-hi);background:rgba(126,203,82,.10);border-left-color:var(--grass);font-weight:600}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;background:var(--grass);color:#10180f;border:none;padding:8px 14px;box-shadow:3px 3px 0 var(--shadow);text-decoration:none;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+.menu-toggle{display:none;position:fixed;top:14px;left:14px;z-index:40;font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;background:var(--panel);color:var(--ink);border:3px solid var(--line);box-shadow:3px 3px 0 var(--shadow)}
+
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-family:"Pixelify Sans";font-weight:700;font-size:clamp(32px,5vw,52px);line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px}
+.hero h1 .g{color:var(--grass-hi)}.hero h1 .d{color:var(--dirt)}.hero h1 .w{color:var(--water)}.hero h1 .l{color:var(--lava)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{border:3px solid var(--line);background:var(--bg-deep);padding:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow)}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0;border:2px solid var(--line);background:#0c120d}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6;flex:1;min-width:220px}
+.hero-strip .cap b{color:var(--lava)}
+
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);text-transform:uppercase}
+.ch-eyebrow{font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);text-transform:uppercase;margin-bottom:8px}
+h2{font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);margin:34px 0 12px}
+p{margin-bottom:14px}p+p{margin-top:2px}
+strong{color:#fff}em{color:var(--dirt)}a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}li{margin-bottom:7px}
+code:not(pre code){font-family:"IBM Plex Mono";font-size:.86em;background:#0c120d;color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+.ui{font-family:"IBM Plex Mono";font-size:.86em;background:#0d181b;color:var(--water);padding:2px 7px;border:1px solid #2a4a52;white-space:nowrap;font-weight:500}
+
+ol.steps{list-style:none;margin:20px 0;counter-reset:st}
+ol.steps>li{counter-increment:st;position:relative;padding:4px 0 14px 52px;margin-bottom:6px;border-left:3px solid var(--line);margin-left:16px}
+ol.steps>li::before{content:counter(st);position:absolute;left:-19px;top:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-family:"Pixelify Sans";font-size:17px;color:#10180f;background:var(--grass);box-shadow:2px 2px 0 var(--shadow)}
+ol.steps>li:last-child{border-left-color:transparent}
+
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--grass)}.diagram pre .di{color:var(--dirt)}.diagram pre .wa{color:var(--water)}.diagram pre .st{color:var(--stone)}.diagram pre .lv{color:var(--lava)}.diagram pre .mu{color:var(--muted)}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+
+.info-box{margin:24px 0;border:3px solid #2a4a52;background:#0d181b;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.info-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.info-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}.info-box p:last-child{margin-bottom:0}
+.info-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.info-box ul{font-size:15px;color:#cfdbd5}
+
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--grass);margin-bottom:4px}
+.note.warn .n-tag{color:var(--dirt)}
+
+.shot{margin:24px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.shot img{display:block;width:100%;height:auto;image-rendering:auto}
+.shot .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.55;padding:9px 13px;border-top:2px dashed var(--line-hi)}
+.shot .cap b{color:var(--grass)}
+.shot.small{max-width:300px}
+
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}.on{color:var(--grass-hi);font-weight:600}.off{color:var(--dirt)}
+
+.playground{margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);border-bottom:3px solid var(--grass-dk);padding:10px 14px}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em}
+.playground .pg-tag{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted)}
+.playground .pg-body{padding:16px;display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#07090a;touch-action:none;max-width:100%}
+.playground .pg-side{flex:1;min-width:240px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:1.9}
+
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--dirt);letter-spacing:.06em;margin:14px 0 4px;text-transform:uppercase}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0}
+.tbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:5px 12px;transition:all .1s}
+.tbtn:hover{color:var(--ink)}
+.tbtn.active{background:var(--grass);color:#10180f;border-color:var(--grass);font-weight:600}
+.tbtn.wa.active{background:var(--water);color:#06181c;border-color:var(--water)}
+.tbtn.lv.active{background:var(--lava);color:#1a0d06;border-color:var(--lava)}
+input[type=range]{width:100%;accent-color:var(--grass);margin:6px 0 2px;cursor:pointer}
+.rng-val{font-family:"IBM Plex Mono";font-size:13px;color:var(--grass-hi)}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+
+footer{margin-top:90px;border-top:3px solid var(--line);padding-top:24px;font-size:13.5px;color:var(--muted)}
+footer .pix{font-family:"Pixelify Sans";color:var(--grass);font-size:15px}
+footer a{color:var(--water)}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}
+  .menu-toggle{display:block}
+  .main{margin-left:0}
+  .wrap{padding:0 20px 100px}
+  .hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;background:linear-gradient(90deg,#ff7a3c,#ffcd75);box-shadow:0 0 10px rgba(255,122,60,.5);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">PIXELOVER<br>PARTICLE SYSTEMS</div>
+    <div class="sub">emitter · sebesség · görbék · szín</div>
+    <span class="badge">PixelOver</span><span class="badge alt">HALADÓ</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I · Az emitter</div>
+    <a href="#ch1">1 · Részecskék — mire jók?</a>
+    <a href="#ch2">2 · Emitter + Particles fül</a>
+    <a href="#ch3">3 · Emission</a>
+    <div class="nav-part">II · A mozgás</div>
+    <a href="#ch4">4 · Velocity &amp; Acceleration</a>
+    <div class="nav-part">III · A megjelenés</div>
+    <a href="#ch5">5 · Transform offset &amp; görbék</a>
+    <a href="#ch6">6 · Color — szín-átmenet</a>
+    <a href="#ch7">7 · Összefoglaló &amp; tovább</a>
+  </nav>
+  <div class="dl-box">
+    <p>A részecskék 3D anyagokra is tehetők. Az anyagokhoz lásd:</p>
+    <a class="btn secondary" href="pixelover-material-editing-tutorial.html">← Material editing</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// haladó tutorial · magyar nyelven · a hivatalos „Particle systems” alapján</div>
+  <h1>Particle systems — <span class="l">tűz</span>, <span class="w">szikra</span>, <span class="g">füst</span> egy emitterből</h1>
+  <p class="lead">A <strong>részecskerendszer (particle system)</strong> egyetlen <em>emitter</em> objektumból szór sok-sok apró, önállóan mozgó részecskét: szikrát, füstöt, lángot, esőt, varázslatot. Te csak a <strong>szabályokat</strong> állítod be — mennyi, merre, milyen gyorsan, hogyan zsugorodik és színeződik az élete során —, a többit a rendszer csinálja. Ebben a leckében az emittertől a kész lángeffektig jutunk — élő, procedurális demókkal.</p>
+  <div class="hero-strip">
+    <canvas id="heroCanvas" width="84" height="112" style="width:168px;height:224px"></canvas>
+    <div class="cap" id="heroCap">↑ Élő minta: <b>lángeffekt</b> tisztán részecskékből. Felfelé szóró emitter, zsugorodó méret-görbe és tűz-színátmenet — pontosan ezt építjük fel.</div>
+  </div>
+</header>
+
+<!-- ================= I. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Az emitter</span></div>
+
+<!-- ====== 1 ====== -->
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>Részecskék — mire jók?</h2>
+
+  <p>Egy <strong>részecske</strong> egy apró, rövid életű grafikai elem (egy folt, pötty, kis sprite), amiből a rendszer <em>sokat</em> hoz létre és mozgat. Egyenként jelentéktelenek, együtt viszont élő jelenséget adnak: <strong>tűz, füst, szikra, eső, hó, buborék, por, varázs-csillám</strong>. A lényeg, hogy nem rajzolod meg kézzel mindet — egy <strong>emittert</strong> állítasz be, ami a megadott szabályok szerint folyamatosan ontja őket.</p>
+
+  <div class="info-box">
+    <div class="tag">▸ Mire tehetsz részecskéket?</div>
+    <p>Az emitter sokféle objektum lehet: <strong>kép</strong>, <strong>animált kép</strong>, <strong>alakzat (shape)</strong>, vagy akár <strong>3D modell</strong>. A hivatalos lecke egy alakzatot deformál (mesh deformation), és arra tesz lángot — de a részecske-beállítások mindegyik objektumtípusnál ugyanúgy működnek.</p>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">▲ Régi verziók</div>
+    Korábban volt egy <strong>Trails</strong> (csóva) funkció — ezt a <strong>Particle system</strong> váltotta fel. A beállítások is átkerültek: régen a <em>„Particles and trails”</em> szekcióban voltak, ma egy külön <strong>Particles</strong> fülön találod őket.
+  </div>
+</section>
+
+<!-- ====== 2 ====== -->
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>Az emitter és a Particles fül</h2>
+
+  <p>Hozd létre (vagy jelöld ki) az emitter-objektumot, majd a bal alsó panelen nyisd meg a <span class="ui">Particles</span> fület. Itt egymás alatt sorakoznak a részecske-beállítások szekciói:</p>
+
+  <div class="shot small">
+    <img src="assets/pixelover/particles_tab.png" alt="A Particles fül szekciói: General, Static mode, Emission, Velocity, Acceleration, Transform offset, Color">
+    <div class="cap">A <b>Particles</b> fül szekciói: <code>General</code>, <code>Static mode</code>, <code>Emission</code>, <code>Velocity</code>, <code>Acceleration</code>, <code>Transform offset</code>, <code>Color</code>. Felülről lefelé haladva építjük fel az effektet.</div>
+  </div>
+
+  <p>Először a <span class="ui">General</span> szekcióban kapcsold <strong>be</strong> a rendszert: <span class="ui">Enable: On</span>. Itt állítod az általános paramétereket is — <em>lifetime</em> (meddig él egy részecske), <em>max particles</em> (egyszerre hány lehet), <em>random seed</em>, és a kibocsátás (<em>Emitting</em>).</p>
+
+  <div class="shot">
+    <img src="assets/pixelover/po_particles_4.png" alt="A General szekció: Enable On bekapcsolva, Emitting, Show emitter, Duration beállításokkal">
+    <div class="cap">A <b>General</b> szekció: a kiemelt <code>Enable: On</code> kapcsolja be a részecskéket. Mellette <code>Emitting</code>, <code>Show emitter</code>, <code>Duration</code>.</div>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▸ Kell egy lejátszott animáció</div>
+    A részecskék az <strong>időben</strong> élnek (megszületnek, mozognak, elhalnak). Ahhoz, hogy lásd őket szóródni, az <span class="ui">Animation</span> panelen kell egy animáció, és nyomd meg a <span class="ui">▶ Play</span>-t. Állókép-előnézeten csak egyetlen pillanat látszik.
+  </div>
+
+  <!-- DEMÓ A -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Emitter-alapok</span>
+      <span class="pg-tag">mennyiség · élettartam · alak</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="aCanvas" width="130" height="100" style="width:300px;height:230px"></canvas>
+      <div class="pg-side">
+        <p>Egy egyszerű emitter. A <strong>mennyiség</strong> a sűrűséget, az <strong>élettartam</strong> a „csóva” hosszát, az <strong>alak</strong> a születési helyet adja.</p>
+        <div class="ctl-label">Mennyiség (rate) <span class="rng-val" id="aRateVal">45</span>/mp</div>
+        <input type="range" id="aRate" min="5" max="120" value="45">
+        <div class="ctl-label">Élettartam (lifetime) <span class="rng-val" id="aLifeVal">1.2</span> mp</div>
+        <input type="range" id="aLife" min="3" max="25" value="12">
+        <div class="ctl-label">Kibocsátó alak (Emission shape)</div>
+        <div class="btn-row">
+          <button class="tbtn wa active" data-ashape="point">Pont</button>
+          <button class="tbtn wa" data-ashape="circle">Kör</button>
+          <button class="tbtn wa" data-ashape="line">Vonal</button>
+        </div>
+        <div class="btn-row" style="margin-top:10px"><button class="tbtn active" id="aPlay">⏸ Szünet</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 3 ====== -->
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>Emission — alak, irány, szórás</h2>
+
+  <p>Az <span class="ui">Emission</span> szekció dönti el, <strong>hol</strong> születnek és <strong>merre</strong> indulnak a részecskék:</p>
+
+  <table>
+    <tr><th>Paraméter</th><th>Mit állít</th></tr>
+    <tr><td><code>Shape</code></td><td>A kibocsátó alakja: <em>Point</em> (pont), kör, vonal… — ez a születési hely.</td></tr>
+    <tr><td><code>Direction (X, Y)</code></td><td>Az alap-kilövési irány vektora. Pl. <code>X 0, Y −1</code> = <strong>felfelé</strong>.</td></tr>
+    <tr><td><code>Spread</code></td><td>A <strong>szórás szöge</strong> fokban: 0° = pontosan egy irányba, 360° = minden irányba (robbanás).</td></tr>
+    <tr><td><code>Emit globally / Emit Above</code></td><td>Hogyan viszonyul a kibocsátás a réteghez / a felette lévőkhöz.</td></tr>
+  </table>
+
+  <div class="shot">
+    <img src="assets/pixelover/po_particles_6.png" alt="Az Emission szekció: Shape Point, Direction X0 Y−1 (felfelé), Spread 50°, Emit globally On">
+    <div class="cap">Felfelé szóró kibocsátás: <code>Shape: Point</code>, <code>Direction X 0 · Y −1</code> (fel), <code>Spread: 50°</code>. A <code>Y −1</code> a felfelé irány — innen indul a láng.</div>
+  </div>
+
+  <p>Az irányt és a szórást a következő (4.) fejezet demójában élőben is állíthatod — ott a sebességgel és a gravitációval együtt látod a hatásukat.</p>
+</section>
+
+<!-- ================= II. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ II. rész — A mozgás</span></div>
+
+<!-- ====== 4 ====== -->
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>Velocity &amp; Acceleration</h2>
+
+  <p>A kibocsátás után két dolog mozgatja a részecskéket: a kezdő <strong>sebesség (Velocity)</strong> és a folyamatos <strong>gyorsulás (Acceleration)</strong>.</p>
+
+  <h3>Velocity — a kezdő lendület</h3>
+  <ul>
+    <li><strong>Linear</strong> — egyenes vonalú kezdősebesség (a kilövési irányba).</li>
+    <li><strong>Angular</strong> — forgási sebesség (a részecske pörög).</li>
+    <li><strong>Orbital</strong> — keringés a kibocsátó körül (örvény-hatás).</li>
+  </ul>
+
+  <div class="shot">
+    <img src="assets/pixelover/po_particles_7.gif" alt="Lineáris sebesség alkalmazása: a részecskék kilőnek a kibocsátási irányba">
+    <div class="cap">A <b>lineáris sebesség</b> hatása: a részecskék lendületet kapnak a kilövési irányba — itt egy ívben szóródó sugár.</div>
+  </div>
+
+  <h3>Acceleration — a folyamatos erő</h3>
+  <ul>
+    <li><strong>Gravity</strong> — gravitáció: lefelé (vagy bármerre) húz. Tűznél jellemzően <em>kikapcsolod</em> vagy fölfelé állítod, hogy a láng emelkedjen.</li>
+    <li><strong>Linear / Radial / Tangential</strong> — állandó erő egy irányba, a középpont felé/től, illetve körkörösen (örvény).</li>
+  </ul>
+
+  <div class="info-box">
+    <div class="tag">▸ Receptek</div>
+    <p><strong>Szökőkút:</strong> felfelé sebesség + lefelé gravitáció → felszállnak, majd visszahullanak. <strong>Robbanás:</strong> 360°-os szórás + nagy sebesség + alig gravitáció. <strong>Eső:</strong> lefelé irány + erős gravitáció. <strong>Tűz:</strong> felfelé sebesség + <em>nulla/negatív</em> gravitáció (felhajtóerő).</p>
+  </div>
+
+  <!-- DEMÓ B -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Sebesség &amp; gravitáció</span>
+      <span class="pg-tag">irány · szórás · gravitáció</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="bCanvas" width="150" height="118" style="width:320px;height:252px"></canvas>
+      <div class="pg-side">
+        <p>Próbáld ki a recepteket, vagy állítsd kézzel. Figyeld, hogyan hajlít a gravitáció.</p>
+        <div class="ctl-label">Receptek</div>
+        <div class="btn-row">
+          <button class="tbtn active" data-bpreset="fountain">Szökőkút</button>
+          <button class="tbtn" data-bpreset="explode">Robbanás</button>
+          <button class="tbtn" data-bpreset="rain">Eső</button>
+        </div>
+        <div class="ctl-label">Irány <span class="rng-val" id="bDirVal">270°</span></div>
+        <input type="range" id="bDir" min="0" max="359" value="270">
+        <div class="ctl-label">Szórás <span class="rng-val" id="bSprVal">40°</span></div>
+        <input type="range" id="bSpr" min="0" max="360" value="40">
+        <div class="ctl-label">Sebesség <span class="rng-val" id="bSpdVal">34</span></div>
+        <input type="range" id="bSpd" min="5" max="60" value="34">
+        <div class="ctl-label">Gravitáció <span class="rng-val" id="bGravVal">26</span></div>
+        <input type="range" id="bGrav" min="-20" max="50" value="26">
+        <div class="btn-row" style="margin-top:10px"><button class="tbtn active" id="bPlay">⏸ Szünet</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= III. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ III. rész — A megjelenés</span></div>
+
+<!-- ====== 5 ====== -->
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Transform offset &amp; görbék</h2>
+
+  <p>A <span class="ui">Transform offset</span> szekció a részecskék <strong>megjelenését</strong> változtatja egyedileg: <em>rotáció</em>, <em>méret (scale)</em>, <em>nyírás (skew)</em> — mindegyikhez adható egy kis véletlen <strong>variáció</strong>, hogy a részecskék ne legyenek egyformák (ez teszi élővé a füstöt, a szikrát).</p>
+
+  <div class="info-box">
+    <div class="tag">▸ A görbék (curves) — a titkos fűszer</div>
+    <p>Sok tulajdonsághoz tartozhat egy <strong>görbe</strong>, ami az értéket a részecske <strong>élettartama során</strong> szorozza. Így a részecske <em>zsugorodhat</em> vagy <em>elhalványulhat</em> az ideje alatt — pl. egy szikra nagyban születik, és a végére semmivé zsugorodik. A görbe vízszintes tengelye az „élet 0%→100%”, a függőleges a szorzó.</p>
+  </div>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Méret-görbe az élettartam során</div>
+<pre>
+  méret-szorzó
+   1 ┤      <span class="lv">▁▂▃▄▅▆▇█</span>            <span class="gr">Növekvő</span>     (0 → 1)
+     │   <span class="wa">█▇▆▅▄▃▂▁</span>               <span class="wa">Zsugorodó</span>  (1 → 0)   ← tűzhöz, szikrához
+     │     <span class="di">▁▄▇█▇▄▁</span>              <span class="di">Növekvő-zsugorodó</span> (puff)
+   0 └────────────────────────►
+       0%      élet      100%
+</pre>
+    <div class="d-cap">A görbe a <b>bázisértéket szorozza</b> az élet előrehaladtával. A „zsugorodó” a leggyakoribb láng/szikra-effekt alapja.</div>
+  </div>
+
+  <p>A görbéket (méret + szín) a következő fejezet demójában élőben kapcsolgathatod.</p>
+</section>
+
+<!-- ====== 6 ====== -->
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Color — szín-átmenet az élet során</h2>
+
+  <p>A <span class="ui">Color</span> szekció színezi a részecskéket. Lehet <strong>fix szín</strong>, de az igazi erő a <strong>szín-átmenet (gradient)</strong>: a részecske színe az élete során végigfut egy színskálán. Ez adja a láng jellegzetes belső‐fehér → sárga → narancs → vörös → elhalványuló átmenetét.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Tűz szín-átmenet az élettartam mentén</div>
+<pre>
+  élet:   <span class="mu">0%</span> ───────────────────────► <span class="mu">100%</span>
+  szín:   <span class="st">fehér</span> → <span class="lv">sárga</span> → <span class="lv">narancs</span> → <span class="di">vörös</span> → <span class="mu">áttetsző</span>
+          <span class="mu">(forró mag)</span>                      <span class="mu">(kihűlő, eltűnő)</span>
+</pre>
+    <div class="d-cap">A szín-átmenet + a zsugorodó méret-görbe + a felfelé szóró emitter együtt = meggyőző láng. Az alfa (áttetszőség) is végigfuthat → a részecske szépen „elpárolog”.</div>
+  </div>
+
+  <!-- DEMÓ C -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Görbék &amp; szín-átmenet</span>
+      <span class="pg-tag">építs tüzet, füstöt, varázst</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="cCanvas" width="112" height="132" style="width:240px;height:284px"></canvas>
+      <div class="pg-side">
+        <p>Ugyanaz a felfelé szóró emitter. A méret-görbe és a szín-átmenet kombinációjából <strong>egészen más</strong> effekt lesz.</p>
+        <div class="ctl-label">Méret-görbe</div>
+        <div class="btn-row">
+          <button class="tbtn" data-cscale="const">Állandó</button>
+          <button class="tbtn" data-cscale="grow">Növekvő</button>
+          <button class="tbtn active" data-cscale="shrink">Zsugorodó</button>
+          <button class="tbtn" data-cscale="growshrink">Puff</button>
+        </div>
+        <div class="ctl-label">Szín-átmenet</div>
+        <div class="btn-row">
+          <button class="tbtn lv active" data-cgrad="fire">Tűz</button>
+          <button class="tbtn" data-cgrad="smoke">Füst</button>
+          <button class="tbtn wa" data-cgrad="magic">Varázs</button>
+          <button class="tbtn" data-cgrad="single">Egyszínű</button>
+        </div>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="tbtn active" id="cFade">Elhalványulás (fade)</button>
+          <button class="tbtn active" id="cPlay">⏸ Szünet</button>
+        </div>
+        <p class="legend" style="margin-top:8px">Tűz: zsugorodó + tűz + fade. Füst: növekvő + füst + fade. Próbáld!</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 7 ====== -->
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>Összefoglaló &amp; merre tovább?</h2>
+
+  <p>A részecske-effekt felépítése egy lapon — fentről lefelé a Particles fülön:</p>
+  <ol class="steps">
+    <li><strong>General</strong>: <span class="ui">Enable: On</span>, lifetime, max particles. (És legyen lejátszott animáció!)</li>
+    <li><strong>Emission</strong>: alak (Shape), irány (Direction), szórás (Spread) — hol és merre születnek.</li>
+    <li><strong>Velocity</strong>: kezdő lendület (linear/angular/orbital).</li>
+    <li><strong>Acceleration</strong>: gravitáció és állandó erők — tűznél a gravitációt vedd ki.</li>
+    <li><strong>Transform offset</strong> + <strong>görbék</strong>: méret/rotáció variáció, és a méret-görbe az élet során (zsugorodás).</li>
+    <li><strong>Color</strong>: szín-átmenet az élet mentén (a láng fehér→vörös→eltűnik).</li>
+  </ol>
+
+  <div class="info-box">
+    <div class="tag">▸ Hol tart a sorozat?</div>
+    <ul>
+      <li><a href="pixelover-elso-lepesek-2d-tutorial.html">Első lépések 2D</a> · <a href="pixelover-szin-indexeles-tutorial.html">Szín-indexelés</a> · <a href="pixelover-color-cycling-tutorial.html">Color cycling</a> · <a href="pixelover-dithering-tutorial.html">Dithering</a> · <a href="pixelover-material-editing-tutorial.html">Material editing</a></li>
+      <li><strong>Particle systems</strong> — itt vagy.</li>
+      <li><strong>Drawing</strong> — a következő (és egyben sorozatzáró) hivatalos lecke: a rajz-eszköz.</li>
+    </ul>
+  </div>
+
+  <p>A kész effekt (a hivatalos „firetorch” láng) megtalálható a PixelOver letöltés <code>examples/</code> mappájában — érdemes megnyitni és szétszedni. A nagy tanulság: a részecskerendszer nem varázslat, hanem <strong>néhány jól megválasztott szabály</strong> (mennyi · merre · milyen gyorsan · hogyan zsugorodik és színeződik) — és ezekből a fenti demókban már te is építettél tüzet.</p>
+
+  <footer>
+    <p class="pix">PixelOver — Particle systems: részecskerendszerek</p>
+    <p>Haladó tutorial magyarul, a hivatalos <a href="https://docs.pixelover.io/tutorials/particle_systems/" target="_blank" rel="noopener">docs.pixelover.io / Particle systems</a> alapján. A képernyőképek a hivatalos dokumentációból származnak; a tűz-, szökőkút-, füst- és robbanás-demók procedurális, élő részecskeszimulációk ezen az oldalon.</p>
+  </footer>
+</section>
+
+</div><!-- /wrap -->
+</div><!-- /main -->
+
+<script>
+(function(){
+"use strict";
+var reduce=(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches);
+var DEG=Math.PI/180;
+function lerp(a,b,t){ return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]; }
+function makeBuf(w,h){ var c=document.createElement("canvas"); c.width=w; c.height=h; return c; }
+
+/* méret-görbék */
+var SC={
+  const:function(t){return 1;},
+  grow:function(t){return 0.15+0.95*t;},
+  shrink:function(t){return 1-0.92*t;},
+  growshrink:function(t){return 0.08+Math.sin(t*Math.PI)*0.95;}
+};
+/* szín-átmenetek (élet 0..1) */
+var GRAD={
+  fire:[[0,[255,250,225]],[.22,[255,212,96]],[.5,[255,120,42]],[.8,[182,44,30]],[1,[70,16,16]]],
+  smoke:[[0,[205,205,210]],[.4,[140,140,150]],[1,[64,64,72]]],
+  magic:[[0,[190,255,250]],[.32,[90,200,255]],[.62,[150,110,255]],[1,[232,92,200]]],
+  single:[[0,[108,200,221]],[1,[108,200,221]]]
+};
+function sampleGrad(g,t){ if(t<=g[0][0])return g[0][1]; for(var i=1;i<g.length;i++){ if(t<=g[i][0]){ var a=g[i-1],b=g[i],f=(t-a[0])/((b[0]-a[0])||1); return lerp(a[1],b[1],f); } } return g[g.length-1][1]; }
+
+/* ===== részecskerendszer ===== */
+function PS(canvas, lw, lh, p){
+  this.cv=canvas; this.lw=lw; this.lh=lh; this.buf=makeBuf(lw,lh); this.bx=this.buf.getContext("2d");
+  this.parts=[]; this.acc=0; this.p=p; this.playing=true;
+}
+PS.prototype.rnd=function(){ return Math.random(); };
+PS.prototype.spawn=function(){
+  var p=this.p, lw=this.lw, lh=this.lh;
+  var ex=p.ex, ey=p.ey, x=ex, y=ey;
+  if(p.shape==="circle"){ var th=this.rnd()*6.2832, rr=Math.sqrt(this.rnd())*(p.shapeR||10); x=ex+Math.cos(th)*rr; y=ey+Math.sin(th)*rr; }
+  else if(p.shape==="line"){ x=ex+(this.rnd()-0.5)*(p.lineW||lw*0.6); }
+  var base=p.dirAng, ang=base+(this.rnd()-0.5)*p.spread*DEG;
+  var sp=p.speed*(1+(this.rnd()-0.5)*(p.speedVar||0.5));
+  this.parts.push({x:x,y:y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,age:0,
+    life:p.life*(1+(this.rnd()-0.5)*(p.lifeVar||0.4)),
+    size:p.size*(1+(this.rnd()-0.5)*(p.sizeVar||0.4)),
+    rot:p.spin?this.rnd()*6.28:0, av:p.spin?(this.rnd()-0.5)*6:0, sd:this.rnd()});
+};
+PS.prototype.step=function(dt){
+  var p=this.p, P=this.parts;
+  this.acc+=p.rate*dt;
+  while(this.acc>=1){ this.acc--; if(P.length<p.max) this.spawn(); }
+  for(var i=P.length-1;i>=0;i--){
+    var q=P[i];
+    if(p.radial||p.tangential){ var dx=q.x-p.ex, dy=q.y-p.ey, ln=Math.sqrt(dx*dx+dy*dy)||1, nx=dx/ln, ny=dy/ln;
+      if(p.radial){ q.vx+=nx*p.radial*dt; q.vy+=ny*p.radial*dt; }
+      if(p.tangential){ q.vx+=-ny*p.tangential*dt; q.vy+=nx*p.tangential*dt; } }
+    q.vy+=p.gravity*dt;
+    q.x+=q.vx*dt; q.y+=q.vy*dt; q.age+=dt; if(p.spin) q.rot+=q.av*dt;
+    if(q.age>=q.life){ P[i]=P[P.length-1]; P.pop(); }
+  }
+};
+PS.prototype.render=function(){
+  var p=this.p, P=this.parts, bx=this.bx, lw=this.lw, lh=this.lh;
+  bx.clearRect(0,0,lw,lh);
+  bx.globalCompositeOperation = p.blend==="add" ? "lighter" : "source-over";
+  var scf=SC[p.scale]||SC.const, grad=GRAD[p.grad]||GRAD.single;
+  for(var i=0;i<P.length;i++){
+    var q=P[i], t=q.age/q.life; if(t<0)t=0; if(t>1)t=1;
+    var s=q.size*scf(t); if(s<0.6) s=0.6;
+    var c=sampleGrad(grad,t);
+    var a = p.fade ? (1-t)*Math.min(1,t*7+0.12) : 1;
+    if(a<=0) continue;
+    bx.fillStyle="rgba("+(c[0]|0)+","+(c[1]|0)+","+(c[2]|0)+","+a.toFixed(3)+")";
+    if(p.spin){ bx.save(); bx.translate(q.x,q.y); bx.rotate(q.rot); bx.fillRect(-s/2,-s/2,s,s); bx.restore(); }
+    else bx.fillRect(q.x-s/2,q.y-s/2,s,s);
+  }
+  bx.globalCompositeOperation="source-over";
+  var d=this.cv.getContext("2d"); d.imageSmoothingEnabled=false; d.clearRect(0,0,this.cv.width,this.cv.height);
+  d.drawImage(this.buf,0,0,lw,lh,0,0,this.cv.width,this.cv.height);
+};
+PS.prototype.prime=function(n){ for(var k=0;k<n;k++){ this.step(1/60); } this.render(); };
+
+/* ===== HERO — láng ===== */
+var hero=new PS(document.getElementById("heroCanvas"),84,112,{
+  ex:42,ey:106,shape:"line",lineW:16,dirAng:-Math.PI/2,spread:24,speed:46,speedVar:0.5,
+  rate:95,max:320,life:1.5,lifeVar:0.4,size:3.6,sizeVar:0.45,gravity:-10,
+  scale:"shrink",grad:"fire",fade:true,blend:"add",spin:false
+});
+
+/* ===== DEMÓ A — emitter alapok ===== */
+var psA=new PS(document.getElementById("aCanvas"),130,100,{
+  ex:65,ey:78,shape:"point",shapeR:10,lineW:70,dirAng:-Math.PI/2,spread:38,speed:24,speedVar:0.5,
+  rate:45,max:260,life:1.2,lifeVar:0.35,size:3,sizeVar:0.35,gravity:10,
+  scale:"const",grad:"single",fade:true,blend:"normal",spin:false
+});
+(function(){
+  var r=document.getElementById("aRate"),rv=document.getElementById("aRateVal");
+  if(r) r.addEventListener("input",function(){ psA.p.rate=+r.value; rv.textContent=r.value; });
+  var l=document.getElementById("aLife"),lv=document.getElementById("aLifeVal");
+  if(l) l.addEventListener("input",function(){ psA.p.life=(+l.value)/10; lv.textContent=psA.p.life.toFixed(1); });
+  document.querySelectorAll("[data-ashape]").forEach(function(b){ b.addEventListener("click",function(){ document.querySelectorAll("[data-ashape]").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); psA.p.shape=b.getAttribute("data-ashape"); psA.parts.length=0; }); });
+  var pl=document.getElementById("aPlay"); if(pl) pl.addEventListener("click",function(){ psA.playing=!psA.playing; pl.textContent=psA.playing?"⏸ Szünet":"▶ Lejátszás"; pl.classList.toggle("active",psA.playing); ensureLoop(); });
+})();
+
+/* ===== DEMÓ B — sebesség & gravitáció ===== */
+var psB=new PS(document.getElementById("bCanvas"),150,118,{
+  ex:75,ey:108,shape:"point",dirAng:-Math.PI/2,spread:40,speed:34,speedVar:0.4,
+  rate:55,max:300,life:1.5,lifeVar:0.3,size:3,sizeVar:0.3,gravity:26,
+  scale:"const",grad:"single",fade:true,blend:"normal",spin:false
+});
+function bSync(){ document.getElementById("bDirVal").textContent=Math.round((((psB.p.dirAng/DEG)%360)+360)%360)+"°"; document.getElementById("bSprVal").textContent=Math.round(psB.p.spread)+"°"; document.getElementById("bSpdVal").textContent=Math.round(psB.p.speed); document.getElementById("bGravVal").textContent=Math.round(psB.p.gravity);
+  document.getElementById("bDir").value=Math.round((((psB.p.dirAng/DEG)%360)+360)%360); document.getElementById("bSpr").value=Math.round(psB.p.spread); document.getElementById("bSpd").value=Math.round(psB.p.speed); document.getElementById("bGrav").value=Math.round(psB.p.gravity); }
+var B_PRESETS={
+  fountain:{dirAng:-Math.PI/2,spread:40,speed:36,gravity:28,ex:75,ey:110,rate:55},
+  explode:{dirAng:0,spread:360,speed:34,gravity:6,ex:75,ey:60,rate:90},
+  rain:{dirAng:Math.PI/2,spread:14,speed:18,gravity:30,ex:75,ey:8,rate:60}
+};
+(function(){
+  document.querySelectorAll("[data-bpreset]").forEach(function(b){ b.addEventListener("click",function(){ document.querySelectorAll("[data-bpreset]").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); var pr=B_PRESETS[b.getAttribute("data-bpreset")]; for(var k in pr) psB.p[k]=pr[k]; psB.parts.length=0; bSync(); }); });
+  var dir=document.getElementById("bDir"); if(dir) dir.addEventListener("input",function(){ psB.p.dirAng=(+dir.value)*DEG; document.getElementById("bDirVal").textContent=dir.value+"°"; });
+  var spr=document.getElementById("bSpr"); if(spr) spr.addEventListener("input",function(){ psB.p.spread=+spr.value; document.getElementById("bSprVal").textContent=spr.value+"°"; });
+  var spd=document.getElementById("bSpd"); if(spd) spd.addEventListener("input",function(){ psB.p.speed=+spd.value; document.getElementById("bSpdVal").textContent=spd.value; });
+  var grv=document.getElementById("bGrav"); if(grv) grv.addEventListener("input",function(){ psB.p.gravity=+grv.value; document.getElementById("bGravVal").textContent=grv.value; });
+  var pl=document.getElementById("bPlay"); if(pl) pl.addEventListener("click",function(){ psB.playing=!psB.playing; pl.textContent=psB.playing?"⏸ Szünet":"▶ Lejátszás"; pl.classList.toggle("active",psB.playing); ensureLoop(); });
+})();
+
+/* ===== DEMÓ C — görbék & szín ===== */
+var psC=new PS(document.getElementById("cCanvas"),112,132,{
+  ex:56,ey:124,shape:"line",lineW:16,dirAng:-Math.PI/2,spread:30,speed:28,speedVar:0.5,
+  rate:60,max:260,life:1.25,lifeVar:0.4,size:3.6,sizeVar:0.4,gravity:-6,
+  scale:"shrink",grad:"fire",fade:true,blend:"add",spin:false
+});
+(function(){
+  document.querySelectorAll("[data-cscale]").forEach(function(b){ b.addEventListener("click",function(){ document.querySelectorAll("[data-cscale]").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); psC.p.scale=b.getAttribute("data-cscale"); }); });
+  document.querySelectorAll("[data-cgrad]").forEach(function(b){ b.addEventListener("click",function(){ document.querySelectorAll("[data-cgrad]").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); var g=b.getAttribute("data-cgrad"); psC.p.grad=g;
+    // füst inkább emelkedjen lágyan és ne additív legyen
+    if(g==="smoke"){ psC.p.blend="normal"; psC.p.gravity=-10; } else { psC.p.blend="add"; psC.p.gravity=-6; } }); });
+  var fd=document.getElementById("cFade"); if(fd) fd.addEventListener("click",function(){ psC.p.fade=!psC.p.fade; fd.classList.toggle("active",psC.p.fade); });
+  var pl=document.getElementById("cPlay"); if(pl) pl.addEventListener("click",function(){ psC.playing=!psC.playing; pl.textContent=psC.playing?"⏸ Szünet":"▶ Lejátszás"; pl.classList.toggle("active",psC.playing); ensureLoop(); });
+})();
+
+/* ===== közös hurok ===== */
+var SYS=[hero,psA,psB,psC];
+var running=false;
+function tick(){
+  var any=false;
+  for(var i=0;i<SYS.length;i++){ var s=SYS[i]; var on = (s===hero)? !reduce : s.playing; if(on){ s.step(1/60); s.render(); any=true; } }
+  if(any){ requestAnimationFrame(tick); } else { running=false; }
+}
+function ensureLoop(){ if(!running){ running=true; requestAnimationFrame(tick); } }
+
+/* init */
+if(reduce){
+  // statikus, „befagyott” pillanat + play gombok felkínálása
+  hero.playing=psA.playing=psB.playing=psC.playing=false;
+  ["aPlay","bPlay","cPlay"].forEach(function(id){ var b=document.getElementById(id); if(b){ b.textContent="▶ Lejátszás"; b.classList.remove("active"); } });
+  SYS.forEach(function(s){ s.prime(70); });
+} else {
+  SYS.forEach(function(s){ s.prime(45); });
+  ensureLoop();
+}
+bSync();
+
+/* scrollspy + mobil menü */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){ var pos=window.scrollY+140,active=0; for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i; links.forEach(function(a,i){a.classList.toggle("active",i===active);}); }
+window.addEventListener("scroll",spy,{passive:true}); spy();
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>

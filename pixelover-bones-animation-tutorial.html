@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PixelOver — 2D csont-animáció: rig, pózok, kulcskockák (magyar)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13; --bg-deep:#0b110c; --panel:#1a241b; --panel-2:#162017;
+  --ink:#e9e3cd; --muted:#9caa90; --grass:#7ecb52; --grass-hi:#a5e87d; --grass-dk:#4e8f33;
+  --dirt:#c99c66; --dirt-dk:#9a6e43; --water:#6cc8d9; --stone:#9aa0aa; --concrete:#cacac3;
+  --lava:#ff7a3c; --ice:#bfe0f0; --line:#2d3b2c; --line-hi:#41543e; --shadow:rgba(0,0,0,.45);
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px)}
+::selection{background:var(--grass-dk);color:#fff}
+
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--bg-deep);border-right:3px solid var(--line);overflow-y:auto;z-index:30;padding:22px 0 40px}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px}
+.logo .title{font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15}
+.logo .sub{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em}
+.logo .badge{display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;box-shadow:2px 2px 0 var(--shadow)}
+.logo .badge.alt{background:var(--water);color:#06181c;margin-left:6px}
+.nav-part{font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);padding:16px 20px 6px;text-transform:uppercase}
+.nav a{display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;font-size:14px;position:relative;border-left:4px solid transparent;transition:color .12s,background .12s}
+.nav a::before{content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);transition:opacity .12s,left .12s}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{color:var(--grass-hi);background:rgba(126,203,82,.10);border-left-color:var(--grass);font-weight:600}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;background:var(--grass);color:#10180f;border:none;padding:8px 14px;box-shadow:3px 3px 0 var(--shadow);text-decoration:none;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+.menu-toggle{display:none;position:fixed;top:14px;left:14px;z-index:40;font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;background:var(--panel);color:var(--ink);border:3px solid var(--line);box-shadow:3px 3px 0 var(--shadow)}
+
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-family:"Pixelify Sans";font-weight:700;font-size:clamp(32px,5vw,52px);line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px}
+.hero h1 .g{color:var(--grass-hi)}.hero h1 .d{color:var(--dirt)}.hero h1 .w{color:var(--water)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{border:3px solid var(--line);background:var(--bg-deep);padding:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow)}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0;border:2px solid var(--line);background:#0c120d}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6;flex:1;min-width:220px}
+.hero-strip .cap b{color:var(--water)}
+
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);text-transform:uppercase}
+.ch-eyebrow{font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);text-transform:uppercase;margin-bottom:8px}
+h2{font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);margin:34px 0 12px}
+p{margin-bottom:14px}p+p{margin-top:2px}
+strong{color:#fff}em{color:var(--dirt)}a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}li{margin-bottom:7px}
+code:not(pre code){font-family:"IBM Plex Mono";font-size:.86em;background:#0c120d;color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+.ui{font-family:"IBM Plex Mono";font-size:.86em;background:#0d181b;color:var(--water);padding:2px 7px;border:1px solid #2a4a52;white-space:nowrap;font-weight:500}
+
+ol.steps{list-style:none;margin:20px 0;counter-reset:st}
+ol.steps>li{counter-increment:st;position:relative;padding:4px 0 14px 52px;margin-bottom:6px;border-left:3px solid var(--line);margin-left:16px}
+ol.steps>li::before{content:counter(st);position:absolute;left:-19px;top:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-family:"Pixelify Sans";font-size:17px;color:#10180f;background:var(--grass);box-shadow:2px 2px 0 var(--shadow)}
+ol.steps>li:last-child{border-left-color:transparent}
+
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--grass)}.diagram pre .di{color:var(--dirt)}.diagram pre .wa{color:var(--water)}.diagram pre .st{color:var(--stone)}.diagram pre .lv{color:var(--lava)}.diagram pre .mu{color:var(--muted)}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+
+.info-box{margin:24px 0;border:3px solid #2a4a52;background:#0d181b;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.info-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.info-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}.info-box p:last-child{margin-bottom:0}
+.info-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.info-box ul{font-size:15px;color:#cfdbd5}
+
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--grass);margin-bottom:4px}
+.note.warn .n-tag{color:var(--dirt)}
+
+.shot{margin:24px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.shot img{display:block;width:100%;height:auto;image-rendering:auto}
+.shot .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.55;padding:9px 13px;border-top:2px dashed var(--line-hi)}
+.shot .cap b{color:var(--grass)}
+.shot.small{max-width:300px}
+.shot-row{display:flex;gap:16px;flex-wrap:wrap;margin:24px 0}
+.shot-row .shot{flex:1;min-width:230px;margin:0}
+
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}.on{color:var(--grass-hi);font-weight:600}.off{color:var(--dirt)}
+
+.playground{margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);border-bottom:3px solid var(--grass-dk);padding:10px 14px}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em}
+.playground .pg-tag{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted)}
+.playground .pg-body{padding:16px;display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#0c120d;touch-action:none;max-width:100%}
+.playground .pg-side{flex:1;min-width:240px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:1.9}
+
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--dirt);letter-spacing:.06em;margin:14px 0 4px;text-transform:uppercase}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0}
+.tbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:5px 12px;transition:all .1s}
+.tbtn:hover{color:var(--ink)}
+.tbtn.active{background:var(--grass);color:#10180f;border-color:var(--grass);font-weight:600}
+.tbtn.wa.active{background:var(--water);color:#06181c;border-color:var(--water)}
+input[type=range]{width:100%;accent-color:var(--grass);margin:6px 0 2px;cursor:pointer}
+.rng-val{font-family:"IBM Plex Mono";font-size:13px;color:var(--grass-hi)}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+
+footer{margin-top:90px;border-top:3px solid var(--line);padding-top:24px;font-size:13.5px;color:var(--muted)}
+footer .pix{font-family:"Pixelify Sans";color:var(--grass);font-size:15px}
+footer a{color:var(--water)}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}
+  .menu-toggle{display:block}
+  .main{margin-left:0}
+  .wrap{padding:0 20px 100px}
+  .hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;background:linear-gradient(90deg,#6cc8d9,#a5e87d);box-shadow:0 0 10px rgba(108,200,217,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">PIXELOVER<br>CSONT-ANIMÁCIÓ</div>
+    <div class="sub">rig · pózok · kulcskockák · 2D</div>
+    <span class="badge">PixelOver</span><span class="badge alt">HALADÓ</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I · Előkészítés</div>
+    <a href="#ch1">1 · Darabold szét a rajzot</a>
+    <a href="#ch2">2 · Import, méret, shader</a>
+    <div class="nav-part">II · Riggelés</div>
+    <a href="#ch3">3 · A csontváz</a>
+    <div class="nav-part">III · Animáció</div>
+    <a href="#ch4">4 · Animation panel &amp; kulcskockák</a>
+    <a href="#ch5">5 · Pózok és átmenetek</a>
+    <a href="#ch6">6 · Export &amp; összefoglaló</a>
+  </nav>
+  <div class="dl-box">
+    <p>A riggeléshez szétdarabolt rajz kell. A 2D alapokhoz:</p>
+    <a class="btn secondary" href="pixelover-elso-lepesek-2d-tutorial.html">← Első lépések 2D</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// haladó tutorial · magyar nyelven · a hivatalos „2D bones animation” alapján</div>
+  <h1>2D csont-animáció — <span class="w">rig</span>eld meg, <span class="g">pózold</span>, <span class="d">animáld</span></h1>
+  <p class="lead">A csont-animáció (bones / skeletal animation) lényege: a karaktert <em>darabokra</em> bontod, a darabokat egy <strong>csontvázra</strong> akasztod, majd nem a pixeleket rajzolod újra frame-enként, hanem a <strong>csontokat forgatod</strong> — és kulcskockákkal (keyframe) rögzíted a pózokat. A PixelOver a köztük lévő átmenetet kiszámolja. Ebben a leckében a szétdarabolástól a kész, exportált animációig jutunk — élő, procedurális demókkal.</p>
+  <div class="hero-strip">
+    <canvas id="heroCanvas" width="96" height="104" style="width:192px;height:208px"></canvas>
+    <div class="cap" id="heroCap">↑ Élő minta: egy <b>csontvázra</b> épített kis madár, ahogy a szárnyait csapkodva pihen (idle). Egyetlen rig, néhány forgatott csont — ezt építjük fel.</div>
+  </div>
+</header>
+
+<!-- ================= I. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Előkészítés</span></div>
+
+<!-- ====== 1 ====== -->
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>Darabold szét a rajzot</h2>
+
+  <p>A csont-animáció előfeltétele, hogy a karakter <strong>külön, mozgatható darabokból</strong> álljon: fej, törzs, szárnyak, lábak, farok. Egyetlen összeolvasztott képet nem lehet riggelni — előbb szét kell szedni a részeket (külön rétegekre/fájlokba). A példánk a <em>Speck</em> nevű madár-karakter (Smiley-Fakemon rajza).</p>
+
+  <div class="shot-row">
+    <div class="shot"><img src="assets/pixelover/speck_reduced.png" alt="Az eredeti, egybefüggő Speck karakter-rajz"><div class="cap">Az eredeti, egybefüggő rajz.</div></div>
+    <div class="shot"><img src="assets/pixelover/speck_splitted_filled.png" alt="A karakter darabokra bontva: fej, szárnyak, törzs, lábak — a piros körök a kitöltött, korábban takart területeket jelölik"><div class="cap">Darabokra bontva. A <b>piros körök</b> a kitöltött, korábban takart részeket jelölik.</div></div>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">▲ Töltsd ki a takart részeket! (fontos)</div>
+    Ahol egy darab eddig egy másik <em>mögött</em> volt (pl. a törzs a szárny alatt), ott a kép „lyukas”. Animáció közben ezek a területek <strong>kilátszanak</strong> — ezért a szétbontásnál a takart részeket <strong>ki kell festeni</strong> (lásd a piros köröket). Ha ezt kihagyod, a mozgásnál csúnya hézagok villannak elő.
+  </div>
+
+  <p>Végül exportáld <strong>minden darabot külön képként</strong> (a teljes eredetit is tartsd meg referenciának). A szétbontásról bővebben a <em>„Splitting drawings into objects”</em> (Drawing) lecke szól.</p>
+</section>
+
+<!-- ====== 2 ====== -->
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>Import, méret, shader</h2>
+
+  <ol class="steps">
+    <li><strong>Importáld a darabokat</strong> a PixelOverbe (drag &amp; drop) — <em>külön képekként</em> (ne animációként). A teljes eredetit hozd be <strong>referencia-képnek</strong>, hogy lásd, hova kerül minden.</li>
+    <li><strong>Méretezés</strong> (ajánlott): jelöld ki az összes darabot (<span class="kbd">Shift</span> + kattintás), és méretezd őket <em>együtt</em> a kívánt pixel-art felbontásra.</li>
+    <li><strong>Tegyél rá pixel-art shadert</strong> — tölts be egy presetet, vagy hangold a jobb panelen (lásd a <a href="pixelover-szin-indexeles-tutorial.html">Szín-indexelés</a> és <a href="pixelover-dithering-tutorial.html">Dithering</a> leckéket).</li>
+  </ol>
+
+  <div class="note">
+    <div class="n-tag">▸ Tipp</div>
+    A shadert érdemes <strong>riggelés előtt</strong> ráhúzni — így a végleges pixel-arányokkal látod a karaktert, és pontosabban tudod elhelyezni a csontokat.
+  </div>
+</section>
+
+<!-- ================= II. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ II. rész — Riggelés</span></div>
+
+<!-- ====== 3 ====== -->
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>A csontváz — Bone tool és hierarchia</h2>
+
+  <p>A <strong>rig</strong> a csontok hierarchiája. A kulcsfogalom a <strong>szülő–gyerek (parent–child)</strong> kapcsolat: ha egy csontot elforgatsz, az <em>összes</em> alatta lévő (gyerek) csont vele mozdul. Így egyetlen „törzs”-csont forgatása az egész madarat megdönti, miközben egy „szárny”-csont csak a szárnyat mozgatja. Ez a <strong>forward kinematics</strong>.</p>
+
+  <p>A csontokat a <span class="ui">Bone tool</span>-lal rajzolod a vászonra (kattints + húzd):</p>
+  <div class="shot-row">
+    <div class="shot"><img src="assets/pixelover/bone_tool.png" alt="A Bone tool kiválasztása az eszköztárban"><div class="cap">A <b>Bone tool</b> az eszköztárban.</div></div>
+    <div class="shot"><img src="assets/pixelover/add_bone.gif" alt="Csont létrehozása kattintással és húzással a vásznon"><div class="cap">Csont rajzolása: <b>kattints + húzd</b>. A hossz és az irány itt dől el.</div></div>
+  </div>
+
+  <p>Építsd fel a hierarchiát egy <code>Root</code> (gyökér) csonttal a tetején — ez lehet 0&nbsp;px hosszú, csak referenciapont. Alá kerül a <code>Body</code> (törzs), és az alá a többi:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A madár csont-hierarchiája</div>
+<pre>
+  <span class="st">Root</span>                  <span class="mu">(0 px, referenciapont — az egész karaktert mozgatja)</span>
+   └ <span class="di">Body</span>               <span class="mu">(törzs — ezt döntve az egész madár dől)</span>
+      ├ <span class="wa">Head</span>           <span class="mu">(fej + csőr)</span>
+      ├ <span class="wa">Wing</span>           <span class="mu">(bal szárny)</span>
+      ├ <span class="wa">Wing2</span>          <span class="mu">(jobb szárny)</span>
+      ├ <span class="wa">Tail</span>           <span class="mu">(farok)</span>
+      ├ <span class="wa">Leg</span> ─ <span class="gr">Feet</span>     <span class="mu">(comb → lábfej)</span>
+      └ <span class="wa">Leg2</span> ─ <span class="gr">Feet2</span>   <span class="mu">(comb → lábfej)</span>
+</pre>
+    <div class="d-cap">A láb két csontból áll (<b>Leg → Feet</b>), hogy térdben hajolhasson. Minden csont a <em>szülője hegyéhez</em> kötődik, és örökli annak forgását.</div>
+  </div>
+
+  <p>Végül <strong>akaszd a képeket a csontokra</strong>: a Scene fában húzd (drag &amp; drop) minden darabot a megfelelő csont alá. A konvenció: a csont nagybetűs (<code>Body</code>), a hozzá tartozó kép kisbetűs (<code>body</code>).</p>
+  <div class="shot-row">
+    <div class="shot"><img src="assets/pixelover/reorder.gif" alt="A képek csontok alá rendezése a Scene fában drag-and-drop-pal"><div class="cap">A képek a csontok alá rendezve (parenting).</div></div>
+    <div class="shot"><img src="assets/pixelover/all_bones.png" alt="A teljes, kész csont-hierarchia a Scene fában, a riggelt karakterrel"><div class="cap">A kész rig: minden kép a saját csontján.</div></div>
+  </div>
+
+  <!-- DEMÓ A -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Hierarchia &amp; forward kinematics</span>
+      <span class="pg-tag">a szülő mozdul → a gyerek követi</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="aCanvas" width="120" height="120" style="width:240px;height:240px"></canvas>
+      <div class="pg-side">
+        <p>Forgasd a csontokat! A <strong>Body</strong> az egész madarat dönti (minden a gyereke); a <strong>szárny</strong> csak önmagát.</p>
+        <div class="ctl-label">Body (törzs) <span class="rng-val" id="aBodyVal">0°</span></div>
+        <input type="range" id="aBody" min="-50" max="50" value="0">
+        <div class="ctl-label">Head (fej) <span class="rng-val" id="aHeadVal">0°</span></div>
+        <input type="range" id="aHead" min="-50" max="50" value="0">
+        <div class="ctl-label">Bal szárny <span class="rng-val" id="aWLVal">0°</span></div>
+        <input type="range" id="aWL" min="-70" max="70" value="0">
+        <div class="ctl-label">Jobb szárny <span class="rng-val" id="aWRVal">0°</span></div>
+        <input type="range" id="aWR" min="-70" max="70" value="0">
+        <div class="btn-row" style="margin-top:10px">
+          <button class="tbtn active" id="aSkin">Bőr mutatása</button>
+          <button class="tbtn" id="aReset">Nyugalmi póz</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= III. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Animáció</span></div>
+
+<!-- ====== 4 ====== -->
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>Animation panel &amp; kulcskockák</h2>
+
+  <p>Az animáció az alsó <span class="ui">Animation</span> panelen készül. Itt állítod be az animáció <strong>hosszát (Duration)</strong>, a képkockasebességet (<span class="ui">Freq. — FPS</span>) és a lejátszási sebességet; innen indítod a <span class="ui">▶ Play</span>-t.</p>
+
+  <div class="shot"><img src="assets/pixelover/animation_panel.png" alt="Az Animation panel: animáció neve, idővonal, Freq 30 FPS, Speed, REC, Add, Snap"><div class="cap">Az <b>Animation</b> panel: animáció-név, idővonal (0–1 s), <code>Freq. 30 FPS</code>, <code>Speed 1×</code>, a <code>REC</code> gomb (bal alsó kulcs-ikon), <code>+ Add</code> (sáv), <code>Snap</code>.</div></div>
+
+  <h3>Az első kulcskockák</h3>
+  <p>A <strong>kulcskocka (key)</strong> egy időpillanatban rögzíti egy csont állapotát. Minden csontnak két fő animálható sávja van: <strong>Transform / Position</strong> és <strong>Transform / Rotation</strong>. Jelöld ki az összes csontot a 0. időpillanatban, és tegyél rájuk egy <strong>Position</strong> és egy <strong>Rotation</strong> kulcsot — ez a kiinduló (nyugalmi) póz.</p>
+
+  <div class="shot"><img src="assets/pixelover/add_keys.png" alt="Kulcskockák: minden csontnak Transform/Position és Transform/Rotation sávja; a kijelölt csont Transform értékei (Position, Length, Rotation)"><div class="cap">Minden csont alatt egy <code>Transform / Position</code> és egy <code>Transform / Rotation</code> sáv. Balra a kijelölt csont (<code>Wing</code>) <code>Transform</code>-ja: <code>Position</code>, <code>Length</code>, <code>Rotation 138°</code>.</div></div>
+
+  <div class="info-box">
+    <div class="tag">▸ REC — a leggyorsabb módszer</div>
+    <p>Kapcsold be a <span class="ui">REC</span> gombot: ezután minden csont-módosításod <strong>automatikusan kulccsá válik</strong> az aktuális időpillanatban. Csak állítsd a pózt, és a kulcsok maguktól keletkeznek. (Kézzel a kulcs-ikonokkal is rakhatsz/törölhetsz.)</p>
+  </div>
+</section>
+
+<!-- ====== 5 ====== -->
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Pózok és átmenetek</h2>
+
+  <p>Az animáció <strong>pózok sorozata</strong> az időtengelyen. A munkamenet:</p>
+  <ol class="steps">
+    <li><strong>Új póz</strong>: told az idővonal-kurzort előrébb (pl. 0,3 mp), és állítsd be a következő pózt (a csontok forgatásával). A köztes képkockákat a PixelOver <em>interpolálja</em>.</li>
+    <li><strong>Kulcsok másolása</strong>: ismétlődő mozgásnál (pl. vissza a kiinduló pózba) jelöld ki és <strong>másold</strong> a kulcsokat a kurzor helyére — gyorsít.</li>
+    <li><strong>Vissza nyugalmi pózba</strong> (<span class="ui">Reset to rest pose</span>): bármikor visszaállíthatod a csontokat az alaphelyzetbe.</li>
+  </ol>
+
+  <div class="info-box">
+    <div class="tag">▸ Ellensúlyozás (counterbalance)</div>
+    <p>A jó animáció titka a túlzás és az ellenmozgás: egy ugrásnál előbb <strong>leguggol</strong> (összenyomódik), aztán rugózik fel, és landoláskor megint összenyomódik. Ezek az „anticipáció” és „follow-through” pózok keltik életre a mozgást.</p>
+  </div>
+
+  <h3>Átmenetek finomítása — easing</h3>
+  <p>A kulcsok közti átmenet alapból egyenletes lehet, de minden kulcshoz adható <strong>easing</strong> (lágyítás): a <span class="ui">Key transition</span> <code>In</code> és <code>Out</code> görbéje (pl. <em>Linear</em>, <em>Expo</em>). Ettől lesz a mozgás rugalmas, élő — nem robotos.</p>
+
+  <div class="shot small"><img src="assets/pixelover/key_transitions.png" alt="Egy kulcskocka tulajdonságai: Time, Value, Key transition In Expo / Out Linear, Wrap, Modulo 360"><div class="cap">Egy kulcs beállításai: <code>Time 2s</code>, <code>Value 117.1</code>, és a <b>Key transition</b> — <code>In: Expo</code>, <code>Out: Linear</code>. A <code>Modulo 360</code> a forgásnál zárja körbe a fokot.</div></div>
+
+  <!-- DEMÓ B -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Pózok &amp; kulcskockák</span>
+      <span class="pg-tag">ugrás-ciklus interpolálva</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="bCanvas" width="120" height="120" style="width:240px;height:240px"></canvas>
+      <div class="pg-side">
+        <p>Három póz az idővonalon: <strong>nyugalom → guggolás → levegő</strong>. A köztes képeket a rendszer számolja. Húzd a kurzort, vagy játszd le!</p>
+        <div class="ctl-label">Idővonal <span class="rng-val" id="bTimeVal">0%</span></div>
+        <input type="range" id="bTime" min="0" max="100" value="0">
+        <div class="ctl-label">Pózok (kulcskockák)</div>
+        <div class="btn-row">
+          <button class="tbtn wa" data-bpose="0">Nyugalom</button>
+          <button class="tbtn wa" data-bpose="35">Guggolás</button>
+          <button class="tbtn wa" data-bpose="70">Levegő</button>
+        </div>
+        <div class="ctl-label">Átmenet (easing)</div>
+        <div class="btn-row">
+          <button class="tbtn" data-bease="lin">Lineáris</button>
+          <button class="tbtn active" data-bease="ease">Lágyított</button>
+        </div>
+        <div class="btn-row" style="margin-top:10px"><button class="tbtn active" id="bPlay">⏸ Szünet</button></div>
+        <p class="legend" style="margin-top:8px">Kapcsold „Lineáris”-ra → gépies. „Lágyított” → rugózó, élő mozgás.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 6 ====== -->
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Export &amp; összefoglaló</h2>
+
+  <p>Ha kész az animáció, exportáld:</p>
+  <ol class="steps">
+    <li>Ellenőrizd az <strong>FPS</strong>-t az Animation panelen.</li>
+    <li><strong>Rejtsd el a csontokat</strong> a jobb felső kapcsolóval (hogy ne látszódjanak az exportban).</li>
+    <li><span class="ui">Project ▸ Export…</span> — formátum: <strong>PNG-szekvencia</strong>, <strong>GIF</strong> vagy <strong>spritesheet</strong>. Itt állíthatsz pixel-méret átskálázást, mappákba bontást, és látod a képkockaszámot.</li>
+  </ol>
+
+  <div class="shot small"><img src="assets/pixelover/speck_animated.gif" alt="A kész, animált Speck karakter — a csont-animáció végeredménye"><div class="cap">A végeredmény: a kész, <b>animált Speck</b> — egyetlen rigből, kulcskockákkal. (Hivatalos előnézet.)</div></div>
+
+  <h3>Összefoglaló</h3>
+  <ol class="steps">
+    <li><strong>Darabold szét</strong> a rajzot részekre, és <em>töltsd ki</em> a takart területeket.</li>
+    <li><strong>Importáld</strong> külön képekként (+ referencia), méretezd, tegyél rá shadert.</li>
+    <li><strong>Riggelés</strong>: a <span class="ui">Bone tool</span>-lal csontváz (Root → Body → fej/szárnyak/lábak/farok), a képeket a csontok alá.</li>
+    <li><strong>Kulcskockák</strong>: minden csont <em>Position</em> + <em>Rotation</em> sávja; a <span class="ui">REC</span> automatikusan kulcsol.</li>
+    <li><strong>Pózok</strong> az idővonalon (anticipáció, ellensúly) + <strong>easing</strong> az átmenetekhez.</li>
+    <li><strong>Export</strong>: csontok elrejtése → <span class="ui">Project ▸ Export…</span> (PNG / GIF / spritesheet).</li>
+  </ol>
+
+  <div class="info-box">
+    <div class="tag">▸ Hol tart a sorozat?</div>
+    <ul>
+      <li><a href="pixelover-elso-lepesek-2d-tutorial.html">Első lépések 2D</a> · <a href="pixelover-szin-indexeles-tutorial.html">Szín-indexelés</a> · <a href="pixelover-color-cycling-tutorial.html">Color cycling</a> · <a href="pixelover-dithering-tutorial.html">Dithering</a> · <a href="pixelover-material-editing-tutorial.html">Material editing</a> · <a href="pixelover-particle-systems-tutorial.html">Particle systems</a></li>
+      <li><strong>2D csont-animáció</strong> — itt vagy.</li>
+      <li>Folytatás: <strong>Mesh deformation</strong> (rács-deformáció) és <strong>Inverse kinematics</strong> (IK) — a csontok „fordított” vezérlése.</li>
+    </ul>
+  </div>
+
+  <p>A nagy tanulság: a csont-animáció nem rajzolás, hanem <strong>bábozás</strong>. Egyszer felépíted a riget, aztán már csak a csontokat forgatod, és pózokat rögzítesz az időben — a PixelOver a köztes képkockákat kiszámolja. A fenti demókban már te is mozgattál egy riget és interpoláltál pózok között.</p>
+
+  <footer>
+    <p class="pix">PixelOver — 2D csont-animáció</p>
+    <p>Haladó tutorial magyarul, a hivatalos <a href="https://docs.pixelover.io/tutorials/bones_animation/" target="_blank" rel="noopener">docs.pixelover.io / 2D bones animation</a> alapján. A képernyőképek és a végeredmény-GIF a hivatalos dokumentációból származnak (a <em>Speck</em> karakter Smiley-Fakemon rajza); a csontváz-demók procedurális, élő szimulációk ezen az oldalon.</p>
+  </footer>
+</section>
+
+</div><!-- /wrap -->
+</div><!-- /main -->
+
+<script>
+(function(){
+"use strict";
+var reduce=(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches);
+
+function makeBuf(w,h){ var c=document.createElement("canvas"); c.width=w; c.height=h; return c; }
+
+/* ===== csontváz (rest WORLD szögek radiánban; y lefelé) ===== */
+var BONES=[
+  {n:"Root", p:-1, len:0,  rw:0,            at:"tip"},
+  {n:"Body", p:0,  len:20, rw:-1.5708,      at:"tip"},
+  {n:"Head", p:1,  len:13, rw:-1.5708,      at:"tip"},
+  {n:"WingL",p:1,  len:20, rw:-2.62,        at:"tip"},
+  {n:"WingR",p:1,  len:20, rw:-0.52,        at:"tip"},
+  {n:"Tail", p:1,  len:13, rw:1.5708,       at:"base"},
+  {n:"LegL", p:1,  len:11, rw:1.95,         at:"base"},
+  {n:"LegR", p:1,  len:11, rw:1.19,         at:"base"}
+];
+var IDX={}; BONES.forEach(function(b,i){ IDX[b.n]=i; b.localRest = (b.p<0)?b.rw:(b.rw-BONES[b.p].rw); });
+
+function fk(rootx, rooty, dyn, deltas){
+  for(var i=0;i<BONES.length;i++){
+    var b=BONES[i], d=(deltas&&deltas[b.n])||0;
+    if(b.p<0){ b.bx=rootx; b.by=rooty+(dyn||0); b.wa=b.rw+d; }
+    else { var par=BONES[b.p], ax=b.at==="base"?{x:par.bx,y:par.by}:{x:par.tx,y:par.ty}; b.bx=ax.x; b.by=ax.y; b.wa=par.wa+b.localRest+d; }
+    b.tx=b.bx+Math.cos(b.wa)*b.len; b.ty=b.by+Math.sin(b.wa)*b.len;
+  }
+}
+
+/* ===== rajz-segédek ===== */
+function limb(ctx,x1,y1,x2,y2,w1,w2,col){
+  var dx=x2-x1,dy=y2-y1,L=Math.sqrt(dx*dx+dy*dy)||1,nx=-dy/L,ny=dx/L;
+  ctx.fillStyle=col; ctx.beginPath();
+  ctx.moveTo(x1+nx*w1,y1+ny*w1); ctx.lineTo(x2+nx*w2,y2+ny*w2); ctx.lineTo(x2-nx*w2,y2-ny*w2); ctx.lineTo(x1-nx*w1,y1-ny*w1); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.arc(x2,y2,w2,0,7); ctx.fill();
+}
+function blob(ctx,x,y,rx,ry,ang,col){ ctx.save();ctx.translate(x,y);ctx.rotate(ang);ctx.fillStyle=col;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,7);ctx.fill();ctx.restore(); }
+function tri(ctx,ax,ay,bx,by,cx,cy,col){ ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.lineTo(cx,cy);ctx.closePath();ctx.fill(); }
+
+var COL={dark:"#26262e",dark2:"#15151b",belly:"#e9e9f0",red:"#d8492e",red2:"#b23a22",beak:"#3a3a42",foot:"#8a8a92",eye:"#f2a01e",eyeD:"#1a1a1f"};
+
+function drawBird(ctx){
+  var Body=BONES[IDX.Body],Head=BONES[IDX.Head],WL=BONES[IDX.WingL],WR=BONES[IDX.WingR],Tail=BONES[IDX.Tail],LL=BONES[IDX.LegL],LR=BONES[IDX.LegR];
+  // farok
+  limb(ctx,Tail.bx,Tail.by,Tail.tx,Tail.ty,6,2,COL.dark);
+  // hátsó szárny (jobb) — a test mögött
+  limb(ctx,WR.bx,WR.by,WR.tx,WR.ty,8,2,COL.dark2);
+  // lábak
+  limb(ctx,LL.bx,LL.by,LL.tx,LL.ty,2.6,1.6,COL.foot); blob(ctx,LL.tx,LL.ty,3,2,0,COL.foot);
+  limb(ctx,LR.bx,LR.by,LR.tx,LR.ty,2.6,1.6,COL.foot); blob(ctx,LR.tx,LR.ty,3,2,0,COL.foot);
+  // test
+  var bmx=(Body.bx+Body.tx)/2, bmy=(Body.by+Body.ty)/2;
+  blob(ctx,bmx,bmy,11,14,Body.wa-1.5708,COL.dark);
+  blob(ctx,bmx,bmy+2,6.5,9,Body.wa-1.5708,COL.belly);
+  // első szárny (bal) — a test előtt
+  limb(ctx,WL.bx,WL.by,WL.tx,WL.ty,8,2,COL.dark);
+  // fej
+  var hx=Head.tx, hy=Head.ty;
+  // sapka/crest hátul
+  blob(ctx,hx-Math.cos(Head.wa)*2,hy-Math.sin(Head.wa)*2,9.5,9.5,0,COL.red);
+  // csőr — a fej irányából előre (kb. balra-fel), a fejjel együtt forog
+  var ba=Head.wa-1.25;
+  var bx=hx+Math.cos(ba)*16, by=hy+Math.sin(ba)*16;
+  var pa=ba+1.5708;
+  tri(ctx, hx+Math.cos(pa)*4, hy+Math.sin(pa)*4, hx-Math.cos(pa)*4, hy-Math.sin(pa)*4, bx,by, COL.beak);
+  // szem
+  blob(ctx,hx+Math.cos(ba)*2.5,hy+Math.sin(ba)*2.5-1,3.2,3.2,0,COL.eye);
+  blob(ctx,hx+Math.cos(ba)*2.5,hy+Math.sin(ba)*2.5-1,1.4,1.4,0,COL.eyeD);
+}
+function drawBonesOverlay(ctx){
+  for(var i=1;i<BONES.length;i++){ var b=BONES[i];
+    ctx.strokeStyle="rgba(165,232,125,.85)"; ctx.lineWidth=1.4; ctx.beginPath(); ctx.moveTo(b.bx,b.by); ctx.lineTo(b.tx,b.ty); ctx.stroke();
+    ctx.fillStyle="#6cc8d9"; ctx.beginPath(); ctx.arc(b.bx,b.by,1.8,0,7); ctx.fill();
+  }
+}
+function renderSkel(cv, buf, rootx, rooty, dyn, deltas, showSkin, showBones){
+  fk(rootx,rooty,dyn,deltas);
+  var bx=buf.getContext("2d"); bx.clearRect(0,0,buf.width,buf.height);
+  if(showSkin) drawBird(bx);
+  if(showBones) drawBonesOverlay(bx);
+  var d=cv.getContext("2d"); d.imageSmoothingEnabled=false; d.clearRect(0,0,cv.width,cv.height); d.drawImage(buf,0,0,buf.width,buf.height,0,0,cv.width,cv.height);
+}
+
+/* ===== pózok (csont-delták radiánban; dy = root függőleges eltolás) ===== */
+var POSES={
+  rest:{dy:0, d:{}},
+  crouch:{dy:9, d:{Body:0.12, Head:0.18, WingL:0.9, WingR:0.9, LegL:0.55, LegR:-0.55, Tail:0.2}},
+  air:{dy:-14, d:{Body:-0.05, Head:-0.25, WingL:-0.85, WingR:-0.85, LegL:-0.35, LegR:0.35, Tail:-0.3}}
+};
+function lerpPose(A,B,t){ var d={},k; var keys={}; for(k in A.d)keys[k]=1; for(k in B.d)keys[k]=1; for(k in keys){ var a=A.d[k]||0,b=B.d[k]||0; d[k]=a+(b-a)*t; } return {dy:A.dy+(B.dy-A.dy)*t, d:d}; }
+function easeInOut(t){ return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2; }
+
+/* ===== HERO — idle szárnycsapás + ringás ===== */
+var heroBuf=makeBuf(96,104);
+var heroT=0;
+function drawHero(){
+  heroT+=0.05;
+  var flap=Math.sin(heroT)*0.5, bob=Math.sin(heroT)*2.0, head=Math.sin(heroT*0.7)*0.08;
+  renderSkel(document.getElementById("heroCanvas"),heroBuf, 48, 50+bob, 0,
+    {Body:Math.sin(heroT*0.5)*0.03, Head:head, WingL:flap-0.1, WingR:flap-0.1, Tail:Math.sin(heroT+1)*0.12}, true, false);
+}
+
+/* ===== DEMÓ A — interaktív hierarchia ===== */
+var aBuf=makeBuf(120,120);
+var aSt={Body:0,Head:0,WingL:0,WingR:0,skin:true};
+function renderA(){
+  renderSkel(document.getElementById("aCanvas"),aBuf, 60, 60, 0,
+    {Body:aSt.Body,Head:aSt.Head,WingL:aSt.WingL,WingR:aSt.WingR}, aSt.skin, true);
+}
+(function(){
+  function bind(id,key,lab){ var r=document.getElementById(id),v=document.getElementById(lab); if(r)r.addEventListener("input",function(){ aSt[key]=(+r.value)*Math.PI/180; v.textContent=r.value+"°"; renderA(); }); }
+  bind("aBody","Body","aBodyVal"); bind("aHead","Head","aHeadVal"); bind("aWL","WingL","aWLVal"); bind("aWR","WingR","aWRVal");
+  var sk=document.getElementById("aSkin"); if(sk)sk.addEventListener("click",function(){ aSt.skin=!aSt.skin; sk.classList.toggle("active",aSt.skin); sk.textContent=aSt.skin?"Bőr mutatása":"Csak csontváz"; renderA(); });
+  var rs=document.getElementById("aReset"); if(rs)rs.addEventListener("click",function(){ aSt.Body=aSt.Head=aSt.WingL=aSt.WingR=0; ["aBody","aHead","aWL","aWR"].forEach(function(id){document.getElementById(id).value=0;}); ["aBodyVal","aHeadVal","aWLVal","aWRVal"].forEach(function(id){document.getElementById(id).textContent="0°";}); renderA(); });
+})();
+
+/* ===== DEMÓ B — pózok + idővonal ===== */
+var bBuf=makeBuf(120,120);
+var bKeys=[{t:0,pose:"rest"},{t:0.35,pose:"crouch"},{t:0.7,pose:"air"},{t:1,pose:"rest"}];
+var bSt={time:0, ease:true, playing:true};
+function poseAt(tt){
+  for(var i=0;i<bKeys.length-1;i++){ if(tt>=bKeys[i].t && tt<=bKeys[i+1].t){ var seg=(tt-bKeys[i].t)/((bKeys[i+1].t-bKeys[i].t)||1); if(bSt.ease)seg=easeInOut(seg); return lerpPose(POSES[bKeys[i].pose],POSES[bKeys[i+1].pose],seg); } }
+  return POSES.rest;
+}
+function renderB(){
+  var pz=poseAt(bSt.time);
+  renderSkel(document.getElementById("bCanvas"),bBuf, 60, 58, pz.dy, pz.d, true, true);
+}
+(function(){
+  var tr=document.getElementById("bTime"),tv=document.getElementById("bTimeVal");
+  if(tr)tr.addEventListener("input",function(){ bSt.time=(+tr.value)/100; tv.textContent=tr.value+"%"; if(bSt.playing){bSt.playing=false; var pl=document.getElementById("bPlay"); pl.textContent="▶ Lejátszás"; pl.classList.remove("active");} renderB(); });
+  document.querySelectorAll("[data-bpose]").forEach(function(btn){ btn.addEventListener("click",function(){ bSt.time=(+btn.getAttribute("data-bpose"))/100; tr.value=Math.round(bSt.time*100); tv.textContent=tr.value+"%"; bSt.playing=false; var pl=document.getElementById("bPlay"); pl.textContent="▶ Lejátszás"; pl.classList.remove("active"); renderB(); }); });
+  document.querySelectorAll("[data-bease]").forEach(function(btn){ btn.addEventListener("click",function(){ document.querySelectorAll("[data-bease]").forEach(function(x){x.classList.remove("active");}); btn.classList.add("active"); bSt.ease=btn.getAttribute("data-bease")==="ease"; renderB(); }); });
+  var pl=document.getElementById("bPlay"); if(pl)pl.addEventListener("click",function(){ bSt.playing=!bSt.playing; pl.textContent=bSt.playing?"⏸ Szünet":"▶ Lejátszás"; pl.classList.toggle("active",bSt.playing); ensureLoop(); });
+})();
+
+/* ===== közös hurok ===== */
+var running=false;
+function tick(){
+  var any=false;
+  if(!reduce){ drawHero(); any=true; }
+  if(bSt.playing){ bSt.time+=0.006; if(bSt.time>1)bSt.time=0; var tr=document.getElementById("bTime"),tv=document.getElementById("bTimeVal"); if(tr){tr.value=Math.round(bSt.time*100); tv.textContent=tr.value+"%";} renderB(); any=true; }
+  if(any) requestAnimationFrame(tick); else running=false;
+}
+function ensureLoop(){ if(!running){ running=true; requestAnimationFrame(tick); } }
+
+/* init */
+renderA(); renderB();
+if(reduce){ bSt.playing=false; var pl=document.getElementById("bPlay"); if(pl){pl.textContent="▶ Lejátszás";pl.classList.remove("active");} drawHero(); }
+else ensureLoop();
+
+/* scrollspy + mobil menü */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){ var pos=window.scrollY+140,active=0; for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i; links.forEach(function(a,i){a.classList.toggle("active",i===active);}); }
+window.addEventListener("scroll",spy,{passive:true}); spy();
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>

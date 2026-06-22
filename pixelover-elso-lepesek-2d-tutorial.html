@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PixelOver — Első lépések 2D-ben · kezdő tutorial (magyar)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13;
+  --bg-deep:#0b110c;
+  --panel:#1a241b;
+  --panel-2:#162017;
+  --ink:#e9e3cd;
+  --muted:#9caa90;
+  --grass:#7ecb52;
+  --grass-hi:#a5e87d;
+  --grass-dk:#4e8f33;
+  --dirt:#c99c66;
+  --dirt-dk:#9a6e43;
+  --water:#6cc8d9;
+  --stone:#9aa0aa;
+  --concrete:#cacac3;
+  --lava:#ff7a3c;
+  --ice:#bfe0f0;
+  --line:#2d3b2c;
+  --line-hi:#41543e;
+  --shadow:rgba(0,0,0,.45);
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  font-size:16.5px;
+  line-height:1.7;
+}
+/* finom scanline-textúra a háttérben */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px);
+}
+::selection{background:var(--grass-dk);color:#fff}
+
+/* ---------- SIDEBAR ---------- */
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);
+  background:var(--bg-deep);
+  border-right:3px solid var(--line);
+  overflow-y:auto;z-index:30;
+  padding:22px 0 40px;
+}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{
+  padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px;
+}
+.logo .title{
+  font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;
+  color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15;
+}
+.logo .sub{
+  font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em;
+}
+.logo .badge{
+  display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;
+  color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;
+  box-shadow:2px 2px 0 var(--shadow);
+}
+.logo .badge.alt{background:var(--water);color:#06181c;margin-left:6px}
+.nav-part{
+  font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);
+  padding:16px 20px 6px;text-transform:uppercase;
+}
+.nav a{
+  display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;
+  font-size:14px;position:relative;border-left:4px solid transparent;
+  transition:color .12s,background .12s;
+}
+.nav a::before{
+  content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);
+  transition:opacity .12s,left .12s;
+}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{
+  color:var(--grass-hi);background:rgba(126,203,82,.10);
+  border-left-color:var(--grass);font-weight:600;
+}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{
+  display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;
+  background:var(--grass);color:#10180f;border:none;padding:8px 14px;
+  box-shadow:3px 3px 0 var(--shadow);text-decoration:none;
+  transition:transform .08s,box-shadow .08s;
+}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+.btn.water{background:var(--water);color:#06181c}
+
+/* hamburger mobilra */
+.menu-toggle{
+  display:none;position:fixed;top:14px;left:14px;z-index:40;
+  font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;
+  background:var(--panel);color:var(--ink);border:3px solid var(--line);
+  box-shadow:3px 3px 0 var(--shadow);
+}
+
+/* ---------- FŐ TARTALOM ---------- */
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+
+/* HERO */
+.hero{
+  padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px;
+}
+.hero .eyebrow{
+  font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;
+  text-transform:uppercase;margin-bottom:14px;
+}
+.hero h1{
+  font-family:"Pixelify Sans";font-weight:700;font-size:clamp(32px,5vw,52px);
+  line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);
+  margin-bottom:18px;
+}
+.hero h1 .g{color:var(--grass-hi)}
+.hero h1 .d{color:var(--dirt)}
+.hero h1 .w{color:var(--water)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{
+  border:3px solid var(--line);background:var(--bg-deep);padding:14px;
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  box-shadow:4px 4px 0 var(--shadow);
+}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0;border:2px solid var(--line);background:#0c120d}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6;flex:1;min-width:220px}
+.hero-strip .cap b{color:var(--grass)}
+
+/* SZEKCIÓK */
+section{padding-top:56px}
+.part-divider{
+  margin-top:72px;padding:14px 0 0;
+  border-top:3px dashed var(--line-hi);
+}
+.part-divider .pd-label{
+  font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);
+  text-transform:uppercase;
+}
+.ch-eyebrow{
+  font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);
+  text-transform:uppercase;margin-bottom:8px;
+}
+h2{
+  font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;
+  color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px;
+}
+h3{
+  font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);
+  margin:34px 0 12px;
+}
+p{margin-bottom:14px}
+p+p{margin-top:2px}
+strong{color:#fff}
+em{color:var(--dirt)}
+a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}
+li{margin-bottom:7px}
+code:not(pre code){
+  font-family:"IBM Plex Mono";font-size:.86em;background:#0c120d;
+  color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap;
+}
+/* menü-útvonal (pl. File ▸ New…) */
+.ui{
+  font-family:"IBM Plex Mono";font-size:.86em;background:#0d181b;
+  color:var(--water);padding:2px 7px;border:1px solid #2a4a52;white-space:nowrap;
+  font-weight:500;
+}
+
+/* SZÁMOZOTT LÉPÉSEK */
+ol.steps{list-style:none;margin:20px 0;counter-reset:st}
+ol.steps>li{
+  counter-increment:st;position:relative;padding:4px 0 14px 52px;margin-bottom:6px;
+  border-left:3px solid var(--line);margin-left:16px;
+}
+ol.steps>li::before{
+  content:counter(st);position:absolute;left:-19px;top:0;
+  width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+  font-family:"Pixelify Sans";font-size:17px;color:#10180f;background:var(--grass);
+  box-shadow:2px 2px 0 var(--shadow);
+}
+ol.steps>li:last-child{border-left-color:transparent}
+
+/* ASCII / BEÁLLÍTÁS ÁBRA */
+.diagram{
+  margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);
+  box-shadow:4px 4px 0 var(--shadow);
+}
+.diagram .d-head{
+  font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;
+  padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase;
+}
+.diagram pre{
+  overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";
+  font-size:13px;line-height:1.5;color:var(--ink);
+}
+.diagram pre .gr{color:var(--grass)}
+.diagram pre .di{color:var(--dirt)}
+.diagram pre .wa{color:var(--water)}
+.diagram pre .st{color:var(--stone)}
+.diagram pre .lv{color:var(--lava)}
+.diagram pre .mu{color:var(--muted)}
+.diagram .d-cap{
+  font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55;
+}
+
+/* INFÓ doboz (kék) */
+.info-box{
+  margin:24px 0;border:3px solid #2a4a52;background:#0d181b;
+  box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px;
+}
+.info-box .tag{
+  font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;
+  margin-bottom:8px;text-transform:uppercase;
+}
+.info-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.info-box p:last-child{margin-bottom:0}
+.info-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.info-box ul{font-size:15px;color:#cfdbd5}
+
+/* TIPP / FIGYELEM doboz */
+.note{
+  margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);
+  background:var(--panel);padding:12px 16px;font-size:15px;
+}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{
+  font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--grass);margin-bottom:4px;
+}
+.note.warn .n-tag{color:var(--dirt)}
+
+/* SCREENSHOT (figure) */
+.shot{
+  margin:24px 0;border:3px solid var(--line);background:var(--bg-deep);
+  box-shadow:4px 4px 0 var(--shadow);
+}
+.shot img{display:block;width:100%;height:auto;image-rendering:auto}
+.shot .cap{
+  font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.55;
+  padding:9px 13px;border-top:2px dashed var(--line-hi);
+}
+.shot .cap b{color:var(--grass)}
+.shot.small{max-width:360px}
+
+/* TÁBLÁZAT */
+table{
+  width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;
+  border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow);
+}
+th{
+  background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;
+  color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);
+  letter-spacing:.04em;
+}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+.on{color:var(--grass-hi);font-weight:600}
+.off{color:var(--dirt)}
+
+/* JÁTSZÓTÉR / DEMÓK */
+.playground{
+  margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);
+  box-shadow:5px 5px 0 var(--shadow);
+}
+.playground .pg-head{
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
+  background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);
+  border-bottom:3px solid var(--grass-dk);padding:10px 14px;
+}
+.playground .pg-title{
+  font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em;
+}
+.playground .pg-tag{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted)}
+.playground .pg-body{padding:16px;display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{
+  image-rendering:pixelated;border:3px solid var(--line);background:#0c120d;
+  touch-action:none;max-width:100%;
+}
+.playground .pg-side{flex:1;min-width:240px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:1.9}
+
+/* vezérlők */
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--dirt);letter-spacing:.06em;margin:14px 0 4px;text-transform:uppercase}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0}
+.tbtn{
+  font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);
+  color:var(--muted);border:2px solid var(--line-hi);padding:5px 12px;transition:all .1s;
+}
+.tbtn:hover{color:var(--ink)}
+.tbtn.active{background:var(--grass);color:#10180f;border-color:var(--grass);font-weight:600}
+.tbtn.wa.active{background:var(--water);color:#06181c;border-color:var(--water)}
+input[type=range]{width:100%;accent-color:var(--grass);margin:6px 0 2px;cursor:pointer}
+.rng-val{font-family:"IBM Plex Mono";font-size:13px;color:var(--grass-hi)}
+.kbd{
+  font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);
+  border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink);
+}
+
+/* paletta-csík */
+.pal-strip{display:flex;flex-wrap:wrap;gap:0;margin:8px 0 2px;border:2px solid var(--line)}
+.pal-sw{width:24px;height:24px;image-rendering:pixelated}
+.pal-empty{font-family:"IBM Plex Mono";font-size:12px;color:var(--muted);padding:4px 0}
+
+footer{
+  margin-top:90px;border-top:3px solid var(--line);padding-top:24px;
+  font-size:13.5px;color:var(--muted);
+}
+footer .pix{font-family:"Pixelify Sans";color:var(--grass);font-size:15px}
+footer a{color:var(--water)}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}
+  .menu-toggle{display:block}
+  .main{margin-left:0}
+  .wrap{padding:0 20px 100px}
+  .hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<!-- olvasási haladásjelző (progress bar) -->
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,#7ecb52,#a5e87d);
+  box-shadow:0 0 10px rgba(126,203,82,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">PIXELOVER<br>2D ALAPOK</div>
+    <div class="sub">képből pixel art · kezdő tutorial · magyarul</div>
+    <span class="badge">PixelOver</span><span class="badge alt">KEZDŐ</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I · Bevezető</div>
+    <a href="#ch1">1 · Mi az a PixelOver?</a>
+    <a href="#ch2">2 · A kezelőfelület</a>
+    <div class="nav-part">II · A munkafolyamat</div>
+    <a href="#ch3">3 · Új projekt</a>
+    <a href="#ch4">4 · Kép megnyitása</a>
+    <a href="#ch5">5 · Méretezés és a vászon</a>
+    <a href="#ch6">6 · Pixel art: a Resampler</a>
+    <a href="#ch7">7 · A réteg-shader</a>
+    <a href="#ch8">8 · Exportálás</a>
+    <div class="nav-part">III · Tovább</div>
+    <a href="#ch9">9 · Összefoglaló &amp; merre tovább?</a>
+  </nav>
+  <div class="dl-box">
+    <p>Töltsd le a hivatalos példaképet, és csináld végig lépésről lépésre te is:</p>
+    <a class="btn secondary" href="assets/pixelover/sword_man.png" download>⬇ sword_man.png</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// kezdő tutorial · magyar nyelven · ~30 perc · a hivatalos docs alapján</div>
+  <h1>Csinálj <span class="g">pixel artot</span><br>bármilyen képből — <span class="w">PixelOver</span>, első lépések</h1>
+  <p class="lead">A PixelOver egy kis programocska, ami egy hagyományos képet (rajzot, illusztrációt, 3D rendert) <strong>pixel arttá</strong> alakít — nem a kezeddel pixelezel, hanem egy <em>réteg-shaderrel</em>: pixelezés, szín-indexelés (paletta), körvonal és dithering, mindezt <strong>roncsolásmentesen</strong>. Ebben a tutorialban egy rajzolt lovagból csinálunk kész pixel-sprite-ot, majd exportáljuk.</p>
+  <div class="hero-strip">
+    <canvas id="heroCanvas" width="210" height="282" style="width:210px;height:282px"></canvas>
+    <div class="cap" id="heroCap">↑ Élő minta: ugyanaz a kép, balról az <b>eredeti</b>, jobbról a <b>pixel art</b> verzió.<br>A csík automatikusan végigsöpör — pontosan ezt a transzformációt építjük fel a 7. fejezetben.</div>
+  </div>
+</header>
+
+<!-- ================= I. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Bevezető</span></div>
+
+<!-- ================= 1. FEJEZET ================= -->
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>Mi az a PixelOver?</h2>
+
+  <p>A <strong>PixelOver</strong> egy asztali alkalmazás (Windows / macOS / Linux), amivel pixel artot lehet készíteni — de nem a klasszikus „rajzolj minden pixelt kézzel” módon. A lényege: fogsz egy <em>kész képet</em> (egy festményt, egy karakter-illusztrációt, akár egy 3D modell renderjét), ráteszel egy <strong>shadert</strong>, és a program a képet automatikusan átalakítja pixel-art stílusúvá.</p>
+
+  <div class="info-box">
+    <div class="tag">▸ A kulcsfogalom: roncsolásmentes (non-destruktív) shader</div>
+    <p>A shader egy <strong>réteg fölé tett szűrő-lánc</strong>, ami SOHA nem írja felül az eredeti képet. Bármikor visszább veheted a felbontást, kicserélheted a palettát, ki-be kapcsolhatod a körvonalat — az eredeti pixelek érintetlenek maradnak alatta. Olyan, mint a fotószerkesztőben a „kiigazító réteg”: kísérletezel, és ha nem tetszik, visszacsavarod.</p>
+    <p>Ezért a PixelOver-rel a workflow <strong>nem</strong> „rajzolj”, hanem „<strong>tölts be → állítsd be a shadert → exportálj</strong>”.</p>
+  </div>
+
+  <h3>Mire jó, mire nem?</h3>
+  <ul>
+    <li><strong>Jó:</strong> meglévő art (kézi rajz, vektor, 3D render) gyors „pixel-artosítása”; egységes paletta ráhúzása sok képre; sprite-ok, ikonok, háttérelemek elő­állítása játékhoz.</li>
+    <li><strong>Kevésbé jó:</strong> ha a nulláról, pixelről pixelre akarsz festeni — arra a klasszikus pixel-szerkesztők (Aseprite stb.) valók. A PixelOver inkább <em>átalakít</em>, mint <em>rajzol</em>.</li>
+  </ul>
+
+  <div class="note warn">
+    <div class="n-tag">▲ Ingyenes vs. fizetős</div>
+    Az ingyenes verzióval mindent kipróbálhatsz és <strong>menthetsz</strong> (<span class="ui">Project ▸ Save</span>), de a <strong>kép-export</strong> (PNG kimentése) a fizetős verzióhoz kötött. A tanuláshoz és e tutorial végigviteléhez az ingyenes verzió tökéletesen elég — az utolsó (export) lépésnél térünk erre vissza.
+  </div>
+
+  <p>Ez a tutorial a hivatalos <a href="https://docs.pixelover.io/tutorials/first_steps2d/" target="_blank" rel="noopener">„First Steps with 2D”</a> leckét követi, magyarul, kibővítve néhány interaktív demóval, hogy lásd is, mit csinál a shader.</p>
+</section>
+
+<!-- ================= 2. FEJEZET ================= -->
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>A kezelőfelület — gyors körkép</h2>
+
+  <p>Mielőtt belevágunk, érdemes átlátni a képernyő felépítését. A PixelOver projektoldala három nagy zónára oszlik, és e tutorial folyamán mindháromhoz nyúlni fogunk:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A projektoldal felépítése</div>
+<pre>
+  <span class="mu">┌─ felső menü:</span> <span class="wa">File · Project · Shader</span> <span class="mu">···············</span> <span class="wa">Settings · About</span> <span class="mu">─┐</span>
+  <span class="mu">├───────────┬──────────────────────────────┬───────────────────────┤</span>
+  <span class="mu">│</span> <span class="gr">SCENE</span> fa  <span class="mu">│</span>                              <span class="mu">│</span> <span class="lv">LAYER SHADER</span>          <span class="mu">│</span>
+  <span class="mu">│</span> <span class="gr">Canvas</span>    <span class="mu">│</span>      <span class="di">VÁSZON (Canvas)</span>         <span class="mu">│</span> Color / Indexation    <span class="mu">│</span>
+  <span class="mu">│</span>  <span class="gr">└ Shader</span> <span class="mu">│</span>      <span class="di">– ide kerül a kép –</span>     <span class="mu">│</span> Dithering / Lines     <span class="mu">│</span>
+  <span class="mu">│</span>    <span class="gr">Layer</span>  <span class="mu">│</span>                              <span class="mu">│</span> Filters / Effects     <span class="mu">│</span>
+  <span class="mu">├───────────┤      </span><span class="di">[ Preview ▾ ]</span>           <span class="mu">│</span>                       <span class="mu">│</span>
+  <span class="mu">│</span> <span class="st">OBJECT</span>    <span class="mu">│</span>                              <span class="mu">│</span> <span class="mu">a kijelölt réteg</span>      <span class="mu">│</span>
+  <span class="mu">│</span> <span class="st">tulajdon-</span> <span class="mu">│</span>                              <span class="mu">│</span> <span class="mu">shader-beállításai</span>    <span class="mu">│</span>
+  <span class="mu">│</span> <span class="st">ságok</span>     <span class="mu">│</span>                              <span class="mu">│</span>                       <span class="mu">│</span>
+  <span class="mu">└───────────┴──────────────────────────────┴───────────────────────┘</span>
+</pre>
+    <div class="d-cap">Bal-fent: <b>Scene</b> (réteg-fa). Bal-lent: <b>Object</b> (a kijelölt elem tulajdonságai). Középen: a <b>Canvas</b> (vászon). Jobbra: a <b>Layer Shader</b> panel.</div>
+  </div>
+
+  <ul>
+    <li><strong>Scene</strong> (bal felső): a réteg-fa. Itt van a <code>Canvas</code> (a „lap”) és alatta a rétegek. Innen adsz hozzá elemet a <span class="ui">+ Add</span> gombbal.</li>
+    <li><strong>Object</strong> (bal alsó): a fában kijelölt elem tulajdonságai — méret, pozíció, <em>ReSampling</em> (erről a 6. fejezetben), láthatóság stb.</li>
+    <li><strong>Canvas</strong> (közép): a vászon, ahol a képet látod. Alul a <span class="ui">Preview</span> legördülő váltogat a nyers és a shaderelt nézet között.</li>
+    <li><strong>Layer Shader</strong> (jobb): a kijelölt réteg teljes shader-lánca — <em>Color</em>, <em>Indexation</em>, <em>Dithering</em>, <em>Lines</em>, <em>Filters</em>, <em>Effects</em>. Itt zajlik a varázslat.</li>
+  </ul>
+  <p>Most, hogy megvan a térkép, kezdjük az elején: csináljunk egy üres projektet.</p>
+</section>
+
+<!-- ================= II. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ II. rész — A munkafolyamat</span></div>
+
+<!-- ================= 3. FEJEZET ================= -->
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>Új projekt létrehozása</h2>
+
+  <p>Két út vezet ide — bármelyik jó:</p>
+  <ol class="steps">
+    <li>A kezdőoldalon kattints a <span class="ui">New…</span> gombra, <em>vagy</em></li>
+    <li>a felső menüből: <span class="ui">File ▸ New…</span></li>
+  </ol>
+
+  <p>Felugrik a <strong>New project</strong> ablak. Kezdőként ezeket állítsd be:</p>
+
+  <div class="shot small">
+    <img src="assets/pixelover/new_project.png" alt="New project párbeszédablak: Canvas, Layer, Shader szekciók">
+    <div class="cap"><b>New project</b> ablak. Felül a <b>Canvas</b> mérete, középen a <b>Layer Type</b>, alul a <b>Shader</b>, legalul a <b>Create</b> gomb.</div>
+  </div>
+
+  <table>
+    <tr><th>Beállítás</th><th>Mit állíts be</th><th>Miért</th></tr>
+    <tr><td><strong>Canvas › Max size</strong></td><td class="mono">pl. 512 × 288</td><td>A „lap” kiinduló mérete pixelben. Mindjárt úgyis hozzáigazítjuk a képhez, szóval most mindegy.</td></tr>
+    <tr><td><strong>Canvas › Auto Resize</strong></td><td><span class="on">On</span></td><td>Hagyd bekapcsolva — így a lap automatikusan a tartalomhoz méreteződik.</td></tr>
+    <tr><td><strong>Layer › Type</strong></td><td class="mono">2D</td><td>Most 2D képpel dolgozunk (a 3D külön tutorial).</td></tr>
+    <tr><td><strong>Shader › Apply</strong></td><td class="mono">None</td><td>Most <em>ne</em> tegyen rá automatikusan shadert — kézzel állítjuk be a 7. fejezetben.</td></tr>
+  </table>
+
+  <p>Nyomd meg a <span class="ui">Create</span> gombot. Megnyílik egy üres projektoldal, benne a <code>Canvas</code> és egy üres 2D réteg (<code>Shader Layer</code> néven):</p>
+
+  <div class="shot">
+    <img src="assets/pixelover/empty_project_page.png" alt="Üres PixelOver projektoldal: Scene fa, Canvas, Layer Shader panel">
+    <div class="cap">Az üres projektoldal. Bal-fent a <b>Scene</b> fa (<code>Canvas ▸ Shader Layer</code>), középen az átlátszó (kockás) vászon, jobbra a <b>Layer Shader</b> panel. A kockás minta = átlátszó terület.</div>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▸ Tipp</div>
+    A jobb oldali panel már most tele van shader-beállításokkal (<em>Color, Indexation, Dithering…</em>) — ez a réteg „Default shader”-e. Egyelőre ne nyúlj hozzá; előbb kell egy kép.
+  </div>
+</section>
+
+<!-- ================= 4. FEJEZET ================= -->
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>Kép megnyitása</h2>
+
+  <p>Most töltsünk be egy képet a vászonra. A hivatalos lecke a <strong>sword_man.png</strong> kardos lovagot használja — ezt a bal oldali sávból letöltheted (<span class="ui">⬇ sword_man.png</span>), de bármilyen saját PNG/JPG megteszi.</p>
+
+  <p>Kép behúzása szintén kétféleképp:</p>
+  <ol class="steps">
+    <li>Felső menü: <span class="ui">File ▸ Open…</span>, majd válaszd ki a fájlt, <em>vagy</em></li>
+    <li>egyszerűen <strong>húzd be (drag &amp; drop)</strong> a képfájlt a projektoldalra.</li>
+  </ol>
+
+  <div class="shot">
+    <img src="assets/pixelover/opened_image.png" alt="A betöltött sword_man kép a vásznon, kijelölő kerettel">
+    <div class="cap">A betöltött <b>sword_man.png</b>. A kék keret a kijelölés, a fehér téglalap a <b>lap (Canvas) határa</b> — látszik, hogy a kép jóval nagyobb a lapnál.</div>
+  </div>
+
+  <p>Ahogy a képen is látod: a kép alapból a saját, eredeti felbontásán jön be (itt 1080×1450 px), ami sokkal nagyobb a lapnál. A következő fejezetben ezt rendezzük.</p>
+</section>
+
+<!-- ================= 5. FEJEZET ================= -->
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Méretezés és a vászon</h2>
+
+  <p>Két dolgot tehetsz, hogy a kép és a lap összepasszoljon. Általában a kettő kombinációja a nyerő.</p>
+
+  <h3>A) A kép kisebbre méretezése</h3>
+  <p>Jelöld ki a képet, és húzd beljebb a <strong>méretező fogantyúkat</strong> (a kijelölő keret sarkain/oldalain lévő pöttyök). A sarok-fogantyú arányosan kicsinyít.</p>
+
+  <div class="shot small">
+    <img src="assets/pixelover/resize_image.png" alt="A kép kisebbre húzva a méretező fogantyúkkal">
+    <div class="cap">A képet a sarok-fogantyúval húztuk kisebbre. A pontos méretet az <b>Object</b> panel <code>Size</code> mezőiben is beírhatod.</div>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▸ Pontos méret</div>
+    Ha nem szemre, hanem <strong>pontosan</strong> akarsz méretezni, jelöld ki a képet, és az <span class="ui">Object</span> panelen írd be a kívánt méretet (Size / Transform). Így például beállíthatsz egy fix sprite-magasságot.
+  </div>
+
+  <h3>B) A vászon (lap) átméretezése</h3>
+  <p>Ha inkább a lapot igazítanád a képhez: a <strong>Scene</strong> fában jelöld ki a <code>Canvas</code> elemet, és az <span class="ui">Object</span> panelen növeld a <strong>lap méretét (Page size)</strong>.</p>
+
+  <div class="shot small">
+    <img src="assets/pixelover/resize_canvas.png" alt="A Canvas kijelölve, a lap mérete az Object panelen állítva">
+    <div class="cap">A <b>Canvas</b> kijelölve a Scene fában; az <b>Object</b> panelen a <code>Page size</code> X/Y mezőivel nagyítjuk a lapot, amíg a kép belefér.</div>
+  </div>
+
+  <div class="info-box">
+    <div class="tag">▸ Melyiket mikor?</div>
+    <p><strong>Kicsinyítsd a képet</strong>, ha kis felbontású sprite-ot szeretnél (a pixel art lényege a kevés, nagy pixel!). <strong>Nagyítsd a lapot</strong>, ha a kép a jó méret, csak a lap kicsi. A kettő együtt: a lapot a kívánt kimeneti mérethez állítod, a képet meg beleméretezed.</p>
+  </div>
+</section>
+
+<!-- ================= 6. FEJEZET ================= -->
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Pixel art és a Resampler</h2>
+
+  <p>Itt jön a pixel art egyik legfontosabb — és kezdőként legtöbbször elrontott — beállítása. Ha a képet <strong>elforgatod vagy felnagyítod</strong>, és <strong>elmosódottá (homályossá)</strong> válik, az azért van, mert a program „simítva” (lineáris interpolációval) skálázza. Pixel arthoz ez pont a rossz: mi <em>éles, szögletes</em> pixeleket akarunk.</p>
+
+  <p>A megoldás az <strong>Object</strong> panel <strong>ReSampling</strong> szekciójában van. Hasonlítsd össze a két állapotot:</p>
+
+  <div class="shot">
+    <img src="assets/pixelover/pixel_resampling_off.png" alt="Elmosódott pixel art, mert a Filter beállítások be vannak kapcsolva">
+    <div class="cap"><b>Rossz:</b> <code>Filter ▸ Linear</code>, <code>Mipmaps</code>, <code>Sharp Bilinear</code> mind <span class="off">bekapcsolva</span>, a <code>Pixel scaling</code> <code>None</code> → elforgatva a sprite <b>elmosódik</b>.</div>
+  </div>
+
+  <div class="shot">
+    <img src="assets/pixelover/pixel_resampling.png" alt="Éles pixel art, a Filter kikapcsolva és OmniScale pixel scaling beállítva">
+    <div class="cap"><b>Jó:</b> a három <code>Filter</code> kapcsoló mind <span class="on">kikapcsolva</span>, a <code>Pixel scaling</code> pedig <code>OmniScale</code> → ugyanaz a sprite forgatva is <b>éles</b> marad.</div>
+  </div>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Ajánlott ReSampling-beállítások pixel arthoz</div>
+<pre>
+  <span class="di">ReSampling</span>
+    <span class="mu">Filter</span>
+      Linear          <span class="off">☐ KI</span>
+      Mipmaps         <span class="off">☐ KI</span>
+      Sharp Bilinear  <span class="off">☐ KI</span>
+    <span class="mu">Pixel scaling</span>     <span class="gr">OmniScale ▾</span>   <span class="mu">(pixel-barát nagyító)</span>
+</pre>
+    <div class="d-cap">A <b>Linear / Mipmaps / Sharp Bilinear</b> mind elmosna — kapcsold ki őket. Az <b>OmniScale</b> egy pixel-art-tudatos skálázó, ami nagyításkor/forgatáskor is éles éleket ad.</div>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">▲ Kezdő-csapda</div>
+    Ha a pixel art „mosott”, szinte mindig ez az oka. Először <strong>itt</strong> nézd meg, ne a shaderben keresd a hibát.
+  </div>
+
+  <!-- ===== DEMÓ: Resampler ===== -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Filter ki/be — miért mosódik?</span>
+      <span class="pg-tag">forgasd és nagyítsd</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="resCanvas" width="300" height="300" style="width:300px;height:300px"></canvas>
+      <div class="pg-side">
+        <p>Egy alacsony felbontású pixel-sprite felnagyítva és elforgatva. Kapcsolgasd a szűrőt, és figyeld az éleket.</p>
+        <div class="ctl-label">Filter (interpoláció)</div>
+        <div class="btn-row">
+          <button class="tbtn" data-filter="on">Linear (mosott)</button>
+          <button class="tbtn active" data-filter="off">Ki — Nearest (éles)</button>
+        </div>
+        <div class="ctl-label">Forgatás <span class="rng-val" id="resAngVal">18°</span></div>
+        <input type="range" id="resAng" min="0" max="45" value="18">
+        <div class="ctl-label">Nagyítás <span class="rng-val" id="resScaleVal">5×</span></div>
+        <input type="range" id="resScale" min="2" max="8" value="5">
+        <p class="legend" style="margin-top:12px">A <strong>Nearest</strong> (szűrő ki) tartja a szögletes pixeleket; a <strong>Linear</strong> elken­őcsöli őket — pont ezt akarjuk elkerülni.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 7. FEJEZET ================= -->
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>A réteg-shader beállítása</h2>
+
+  <p>Most jön a lényeg: a kép pixel-arttá alakítása a <strong>Layer Shader</strong> panelen (jobb oldal). Jelöld ki a réteget a Scene fában — a jobb panel ennek a rétegnek a shaderét mutatja. A főbb szekciók:</p>
+
+  <table>
+    <tr><th>Szekció</th><th>Mit csinál</th></tr>
+    <tr><td><strong>Color</strong></td><td>Színkiigazítás: <em>Hue, Brightness, Contrast, Saturation, Gamma</em>, modulációs szín. A pixelezés <em>előtti</em> hangolás.</td></tr>
+    <tr><td><strong>Indexation</strong></td><td>A szám­talan színt egy <strong>korlátozott palettára</strong> redukálja (<em>Indexed: On</em> + <em>Palette</em>). Ez adja a „kevés szín” pixel-art érzetet.</td></tr>
+    <tr><td><strong>Dithering</strong></td><td>Mintázott pötty­özéssel imitál átmeneteket kevés színnel (<em>Amount, Pattern</em>) — retró beütés.</td></tr>
+    <tr><td><strong>Lines</strong></td><td>Körvonalak: <em>Outline</em> (külső), <em>Inline</em> (belső) stb. — kiemeli a sziluettet.</td></tr>
+    <tr><td><strong>Filters / Effects</strong></td><td>Extra szűrők és effektek (Polish, Denoising, Tiled Mode, Water…). Kezdőként ezeket hagyd későbbre.</td></tr>
+  </table>
+
+  <h3>A gyors út: kész preset betöltése</h3>
+  <p>Nem kell mindent kézzel beállítanod — a PixelOver kész shader-csomagokkal (<code>.poshader</code> fájlok) érkezik. Töltsd be valamelyiket: <span class="ui">Shader ▸ Open…</span>, vagy gyorsabban <span class="ui">Shader ▸ Open Recent</span>:</p>
+
+  <div class="shot">
+    <img src="assets/pixelover/open_shader.png" alt="A Shader menü: Open, Open Recent listával (sweetie_plus.poshader stb.)">
+    <div class="cap">A <b>Shader</b> menü. Az <b>Open Recent</b> alatt kész presetek: <code>sweetie_plus</code>, <code>sweetie</code>, <code>black_and_white</code>, <code>default</code>, <code>artwork</code>, <code>oil</code>… Válaszd a <b>sweetie_plus.poshader</b>-t.</p></div>
+  </div>
+
+  <p>A hivatalos lecke a <strong>sweetie_plus</strong> presetet ajánlja. Betöltés után a lovag azonnal pixel-artos lesz — korlátozott palettával, ditheringgel:</p>
+
+  <div class="shot">
+    <img src="assets/pixelover/applied_shader.png" alt="A sword_man pixel-art változata a sweetie_plus shaderrel: indexelt színek, dithering">
+    <div class="cap">A <b>sweetie_plus</b> shader eredménye: indexelt paletta (<code>Indexation ▸ Palette</code>), bekapcsolt <code>Dithering</code> (Amount 26%), megemelt kontraszt/telítettség. Ez már kész pixel art!</div>
+  </div>
+
+  <div class="info-box">
+    <div class="tag">▸ Miért „sweetie”?</div>
+    <p>A preset a népszerű <strong>Sweetie&nbsp;16</strong> palettára épül (GrafxKid 16 színe) — a <code>_plus</code> változat plusz finomításokkal. Az <em>Indexation</em> minden képpontot a paletta <em>legközelebbi</em> színére kerekít; ettől lesz egységes, „összeállt” a kép. (A részletekért lásd a hivatalos „How to Use Indexation” leckét.)</p>
+  </div>
+
+  <!-- ===== DEMÓ: Shader játszótér ===== -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Pixel-shader játszótér</span>
+      <span class="pg-tag">élő · a valódi sword_man képen</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="shdCanvas" width="200" height="269" style="width:200px;height:269px"></canvas>
+      <div class="pg-side">
+        <p>Ugyanaz, amit a PixelOver shaderje csinál, kicsiben: pixelméret + paletta-indexelés + dithering + körvonal. Tekergesd a vezérlőket!</p>
+
+        <div class="ctl-label">Pixelméret <span class="rng-val" id="shdPxVal">3×</span></div>
+        <input type="range" id="shdPx" min="1" max="6" value="3">
+
+        <div class="ctl-label">Paletta (Indexation)</div>
+        <div class="btn-row">
+          <button class="tbtn wa" data-pal="none">Eredeti</button>
+          <button class="tbtn wa active" data-pal="sweetie">Sweetie&nbsp;16</button>
+          <button class="tbtn wa" data-pal="pico8">PICO-8</button>
+          <button class="tbtn wa" data-pal="gameboy">Game Boy</button>
+          <button class="tbtn wa" data-pal="bw">Fekete-fehér</button>
+        </div>
+        <div class="pal-strip" id="palStrip"></div>
+
+        <div class="ctl-label">Kapcsolók</div>
+        <div class="btn-row">
+          <button class="tbtn active" data-tog="dither">Dithering</button>
+          <button class="tbtn active" data-tog="outline">Körvonal</button>
+        </div>
+
+        <p class="legend" style="margin-top:12px">Vedd vissza a palettát „Eredeti”-re → eltűnik a pixel-art érzet. Kapcsold ki a ditheringet → laposabb átmenetek. Ez pontosan a jobb oldali <em>Indexation / Dithering / Lines</em> szekciók hatása.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▸ Preview</div>
+    A vászon alatti <span class="ui">Preview</span> legördülővel válthatsz a nyers kép és a shaderelt eredmény között — hasznos összevetni, mennyit dob a shader.
+  </div>
+</section>
+
+<!-- ================= 8. FEJEZET ================= -->
+<section id="ch8">
+  <div class="ch-eyebrow">8. fejezet</div>
+  <h2>Exportálás</h2>
+
+  <p>Ha elégedett vagy az eredménnyel, mentsd ki képként: <span class="ui">Project ▸ Export…</span>. Itt állíthatod a kimeneti formátumot és méretezést (a részletekért a hivatalos kézikönyv <em>Export</em> fejezete ad támpontot).</p>
+
+  <div class="note warn">
+    <div class="n-tag">▲ Ingyenes verzió</div>
+    Az <strong>export az ingyenes verzióban nem érhető el</strong>. Amíg nincs fizetős licenced, használd a <span class="ui">Project ▸ Save</span> opciót: ez elmenti a teljes projektet (a réteggel és a shaderrel együtt) <code>.pixelover</code> fájlként, amit később bármikor folytathatsz vagy exportálhatsz.
+  </div>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Mentés vs. Export</div>
+<pre>
+  <span class="gr">Project ▸ Save</span>      <span class="mu">→</span>  <span class="wa">.pixelover</span>   <span class="mu">projekt (réteg + shader, szerkeszthető)  — ingyenes</span>
+  <span class="gr">Project ▸ Export…</span>  <span class="mu">→</span>  <span class="wa">.png</span>         <span class="mu">kész kép / sprite (a játékodba)          — fizetős</span>
+</pre>
+    <div class="d-cap">Tanuláshoz <b>Save</b> bőven elég. Ha játékba kell a sprite, ahhoz kell az <b>Export</b>.</div>
+  </div>
+</section>
+
+<!-- ================= III. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Tovább</span></div>
+
+<!-- ================= 9. FEJEZET ================= -->
+<section id="ch9">
+  <div class="ch-eyebrow">9. fejezet</div>
+  <h2>Összefoglaló &amp; merre tovább?</h2>
+
+  <p>Gratulálok — végigvitted a teljes 2D munkafolyamatot! Röviden, amit megtanultál:</p>
+  <ol class="steps">
+    <li><strong>Új projekt</strong>: <span class="ui">File ▸ New…</span>, Layer Type = 2D, Shader = None.</li>
+    <li><strong>Kép betöltése</strong>: <span class="ui">File ▸ Open…</span> vagy drag &amp; drop.</li>
+    <li><strong>Méretezés</strong>: a képet fogantyúkkal / Object-méret­tel, vagy a Canvas lap-méretét.</li>
+    <li><strong>Resampler</strong>: pixel arthoz Filter KI + Pixel scaling = OmniScale, hogy éles maradjon.</li>
+    <li><strong>Shader</strong>: <span class="ui">Shader ▸ Open Recent ▸ sweetie_plus</span> — Indexation + Dithering + Lines.</li>
+    <li><strong>Mentés/Export</strong>: <span class="ui">Project ▸ Save</span> (ingyenes) vagy <span class="ui">Export…</span> (fizetős).</li>
+  </ol>
+
+  <div class="info-box">
+    <div class="tag">▸ Következő leckék</div>
+    <ul>
+      <li><strong>Bones animation</strong> — csont-alapú animáció: hozd mozgásba a pixel-karaktert.</li>
+      <li><strong>First steps with 3D</strong> — ugyanez a workflow, de 3D modellből indulva (ott a <code>Layer Type</code>-ot 3D-re állítod).</li>
+      <li><strong>How to Use Indexation</strong> — mélymerülés a palettákba és a szín-indexelésbe.</li>
+    </ul>
+  </div>
+
+  <p>A legjobb tipp a végére: <strong>játssz a shaderrel</strong>. Mivel roncsolásmentes, semmit nem ronthatsz el — told szét a palettát, kapcsolgasd a ditheringet és a körvonalat, és figyeld, hogyan változik a kép. Pont ezt teszi fent a játszótér is.</p>
+
+  <footer>
+    <p class="pix">PixelOver — Első lépések 2D-ben</p>
+    <p>Kezdő tutorial magyarul, a hivatalos <a href="https://docs.pixelover.io/tutorials/first_steps2d/" target="_blank" rel="noopener">docs.pixelover.io / First Steps with 2D</a> alapján. A képernyőképek a hivatalos dokumentációból származnak. A <code>sword_man.png</code> a PixelOver hivatalos példaképe.</p>
+  </footer>
+</section>
+
+</div><!-- /wrap -->
+</div><!-- /main -->
+
+<script>
+(function(){
+"use strict";
+var reduce = (window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches);
+
+/* =====================================================================
+   0) Paletták (valódi, ismert pixel-art paletták)
+   ===================================================================== */
+function hx(h){ return [parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)]; }
+var PAL_HEX = {
+  sweetie: ["1a1c2c","5d275d","b13e53","ef7d57","ffcd75","a7f070","38b764","257179","29366f","3b5dc9","41a6f6","73eff7","f4f4f4","94b0c2","566c86","333c57"],
+  pico8:   ["000000","1d2b53","7e2553","008751","ab5236","5f574f","c2c3c7","fff1e8","ff004d","ffa300","ffec27","00e436","29adff","83769c","ff77a8","ffccaa"],
+  gameboy: ["0f380f","306230","8bac0f","9bbc0f"],
+  bw:      ["121212","555555","a6a6a6","f4f4f4"]
+};
+var PAL = {};
+Object.keys(PAL_HEX).forEach(function(k){ PAL[k]=PAL_HEX[k].map(hx); });
+
+var BAYER=[[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]]; // /16 → 0..1
+var OUTLINE=[18,18,26];
+
+function clamp(v){ return v<0?0:v>255?255:v; }
+function nearest(pal, r,g,b){
+  var bi=0, bd=1e12;
+  for(var i=0;i<pal.length;i++){
+    var p=pal[i], dr=r-p[0], dg=g-p[1], db=b-p[2];
+    var d=dr*dr+dg*dg+db*db;
+    if(d<bd){ bd=d; bi=i; }
+  }
+  return pal[bi];
+}
+
+/* =====================================================================
+   1) Forráskép betöltése (valódi sword_man.png) + tartalék rajz
+   ===================================================================== */
+var WORK_W=200, WORK_H=269;          // a kép aspektusa ~1080:1450
+var work=document.createElement("canvas"); work.width=WORK_W; work.height=WORK_H;
+var wctx=work.getContext("2d");
+var imgReady=false, useFallback=false;
+
+var IMG=new Image();
+IMG.onload=function(){ imgReady=true; buildWork(); refreshAll(); };
+IMG.onerror=function(){ useFallback=true; imgReady=true; buildWork(); refreshAll(); };
+IMG.src="assets/pixelover/sword_man.png";
+
+// egyszerű procedurális lovag — ha a kép nem olvasható (pl. file:// alól)
+function drawFallback(ctx){
+  ctx.clearRect(0,0,WORK_W,WORK_H);
+  var cx=WORK_W/2;
+  // köpeny
+  ctx.fillStyle="#b13e53";
+  ctx.beginPath(); ctx.moveTo(cx-58,120); ctx.lineTo(cx+58,120); ctx.lineTo(cx+34,232); ctx.lineTo(cx-34,232); ctx.closePath(); ctx.fill();
+  // lábak
+  ctx.fillStyle="#22262e";
+  ctx.fillRect(cx-30,196,22,60); ctx.fillRect(cx+8,196,22,60);
+  // csizma
+  ctx.fillStyle="#8a5a36"; ctx.fillRect(cx-34,250,28,14); ctx.fillRect(cx+6,250,28,14);
+  // törzs (páncél)
+  ctx.fillStyle="#eef0f4";
+  ctx.beginPath(); ctx.moveTo(cx-40,118); ctx.lineTo(cx+40,118); ctx.lineTo(cx+30,205); ctx.lineTo(cx-30,205); ctx.closePath(); ctx.fill();
+  // karok
+  ctx.fillStyle="#22262e"; ctx.fillRect(cx-56,120,18,70); ctx.fillRect(cx+38,120,18,70);
+  ctx.fillStyle="#eef0f4"; ctx.fillRect(cx-58,150,20,40); ctx.fillRect(cx+38,150,20,40);
+  // fej
+  ctx.fillStyle="#f0c79a"; ctx.beginPath(); ctx.arc(cx,92,26,0,7); ctx.fill();
+  // haj
+  ctx.fillStyle="#6e3b1e"; ctx.beginPath(); ctx.arc(cx,82,27,Math.PI,2*Math.PI); ctx.fill();
+  ctx.fillRect(cx+18,70,30,12);
+  // szem
+  ctx.fillStyle="#2b6fb0"; ctx.fillRect(cx-10,90,6,6); ctx.fillRect(cx+4,90,6,6);
+  // kard
+  ctx.strokeStyle="#9aa0aa"; ctx.lineWidth=6; ctx.beginPath(); ctx.moveTo(cx-2,168); ctx.lineTo(cx+78,236); ctx.stroke();
+  ctx.strokeStyle="#ffcd75"; ctx.lineWidth=6; ctx.beginPath(); ctx.moveTo(cx-14,160); ctx.lineTo(cx+14,176); ctx.stroke();
+}
+
+function buildWork(){
+  if(useFallback || !imgReady){ drawFallback(wctx); return; }
+  wctx.clearRect(0,0,WORK_W,WORK_H);
+  wctx.imageSmoothingEnabled=true;
+  // a képet arányosan a munkavászonra zsugorítjuk
+  var iw=IMG.width, ih=IMG.height, s=Math.min(WORK_W/iw, WORK_H/ih);
+  var dw=iw*s, dh=ih*s;
+  wctx.drawImage(IMG,0,0,iw,ih,(WORK_W-dw)/2,(WORK_H-dh)/2,dw,dh);
+}
+
+// imageData biztonságos kiolvasása; ha a kép „tainteli” a vásznat → fallback
+function safeImageData(ctx,w,h){
+  try{ return ctx.getImageData(0,0,w,h); }
+  catch(e){ useFallback=true; drawFallback(wctx); return ctx.getImageData(0,0,w,h); }
+}
+
+/* =====================================================================
+   2) Shader játszótér
+   ===================================================================== */
+var shd=document.getElementById("shdCanvas"), sctx=shd.getContext("2d");
+var lowC=document.createElement("canvas"), lctx=lowC.getContext("2d");
+var st={ px:3, pal:"sweetie", dither:true, outline:true };
+
+function renderShader(){
+  if(!imgReady) return;
+  var f=st.px;
+  var lowW=Math.max(8, Math.round(WORK_W/f));
+  var lowH=Math.max(8, Math.round(WORK_H/f));
+  lowC.width=lowW; lowC.height=lowH;
+  lctx.imageSmoothingEnabled=true;
+  lctx.clearRect(0,0,lowW,lowH);
+  lctx.drawImage(work,0,0,WORK_W,WORK_H,0,0,lowW,lowH);
+
+  var id=safeImageData(lctx,lowW,lowH);
+  // (ha fallbackre váltottunk a kiolvasás közben, frissítsük a forrást és olvassuk újra)
+  if(useFallback){
+    lctx.clearRect(0,0,lowW,lowH);
+    lctx.drawImage(work,0,0,WORK_W,WORK_H,0,0,lowW,lowH);
+    id=lctx.getImageData(0,0,lowW,lowH);
+  }
+  var d=id.data, pal=PAL[st.pal]||null;
+
+  // 2a) szín-indexelés (+ dithering)
+  for(var y=0;y<lowH;y++)for(var x=0;x<lowW;x++){
+    var i=(y*lowW+x)*4;
+    if(d[i+3]<100){ d[i+3]=0; continue; }
+    var r=d[i],g=d[i+1],b=d[i+2];
+    if(pal){
+      if(st.dither){
+        var t=(BAYER[y&3][x&3]/16-0.5)*46;
+        r=clamp(r+t); g=clamp(g+t); b=clamp(b+t);
+      }
+      var c=nearest(pal,r,g,b);
+      d[i]=c[0]; d[i+1]=c[1]; d[i+2]=c[2];
+    }
+    d[i+3]=255;
+  }
+
+  // 2b) körvonal: átlátszó cella, aminek van tömör 4-szomszédja
+  if(st.outline){
+    var op=new Uint8Array(lowW*lowH);
+    for(var p=0;p<lowW*lowH;p++) op[p]=d[p*4+3]>0?1:0;
+    var src=d.slice(0);
+    for(var yy=0;yy<lowH;yy++)for(var xx=0;xx<lowW;xx++){
+      var k=yy*lowW+xx;
+      if(op[k]) continue;
+      var nb=(xx>0&&op[k-1])||(xx<lowW-1&&op[k+1])||(yy>0&&op[k-lowW])||(yy<lowH-1&&op[k+lowW]);
+      if(nb){ var j=k*4; d[j]=OUTLINE[0]; d[j+1]=OUTLINE[1]; d[j+2]=OUTLINE[2]; d[j+3]=255; }
+    }
+    void src;
+  }
+
+  lctx.putImageData(id,0,0);
+
+  // 2c) felnagyítás élesen (nearest) a kijelző vászonra
+  sctx.imageSmoothingEnabled=false;
+  sctx.clearRect(0,0,WORK_W,WORK_H);
+  sctx.drawImage(lowC,0,0,lowW,lowH,0,0,WORK_W,WORK_H);
+}
+
+function paintStrip(){
+  var el=document.getElementById("palStrip");
+  if(!el) return;
+  var pal=PAL[st.pal];
+  if(!pal){ el.innerHTML='<span class="pal-empty">— az eredeti színek maradnak —</span>'; return; }
+  var h="";
+  for(var i=0;i<pal.length;i++){
+    h+='<span class="pal-sw" style="background:rgb('+pal[i][0]+','+pal[i][1]+','+pal[i][2]+')"></span>';
+  }
+  el.innerHTML=h;
+}
+
+// vezérlők
+(function(){
+  var pxR=document.getElementById("shdPx"), pxV=document.getElementById("shdPxVal");
+  if(pxR) pxR.addEventListener("input",function(){ st.px=+pxR.value; pxV.textContent=st.px+"×"; renderShader(); });
+
+  document.querySelectorAll("[data-pal]").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      document.querySelectorAll("[data-pal]").forEach(function(b){ b.classList.remove("active"); });
+      btn.classList.add("active");
+      st.pal=btn.getAttribute("data-pal");
+      paintStrip(); renderShader();
+    });
+  });
+
+  document.querySelectorAll("[data-tog]").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      var key=btn.getAttribute("data-tog");
+      st[key]=!st[key];
+      btn.classList.toggle("active", st[key]);
+      renderShader();
+    });
+  });
+})();
+
+/* =====================================================================
+   3) Resampler demó (kis sprite forgatva, szűrő ki/be)
+   ===================================================================== */
+var resC=document.getElementById("resCanvas"), rctx=resC.getContext("2d");
+var sprite=document.createElement("canvas");           // kis pixel-sprite
+var rst={ filter:false, ang:18, scale:5 };
+var spriteReady=false;
+
+function buildSprite(){
+  // a munkavászon karakterét lekicsinyítjük ~46 px magasra
+  var sh=46, sw=Math.max(8,Math.round(WORK_W*(sh/WORK_H)));
+  sprite.width=sw; sprite.height=sh;
+  var sc=sprite.getContext("2d");
+  sc.imageSmoothingEnabled=true;
+  sc.clearRect(0,0,sw,sh);
+  sc.drawImage(work,0,0,WORK_W,WORK_H,0,0,sw,sh);
+  // indexeljük Sweetie-re, hogy szép pixeles legyen
+  try{
+    var id=sc.getImageData(0,0,sw,sh), d=id.data, pal=PAL.sweetie;
+    for(var i=0;i<d.length;i+=4){
+      if(d[i+3]<100){ d[i+3]=0; continue; }
+      var c=nearest(pal,d[i],d[i+1],d[i+2]);
+      d[i]=c[0]; d[i+1]=c[1]; d[i+2]=c[2]; d[i+3]=255;
+    }
+    sc.putImageData(id,0,0);
+  }catch(e){ useFallback=true; drawFallback(wctx); /* következő körben rendben */ }
+  spriteReady=true;
+}
+
+function renderRes(){
+  if(!spriteReady) return;
+  var w=resC.width, h=resC.height;
+  rctx.imageSmoothingEnabled=false;
+  rctx.fillStyle="#0c120d"; rctx.fillRect(0,0,w,h);
+  // halvány „kockás” átlátszó-jelző
+  rctx.fillStyle="rgba(255,255,255,.03)";
+  for(var gy=0;gy<h;gy+=16)for(var gx=0;gx<w;gx+=16) if(((gx/16)+(gy/16))&1) rctx.fillRect(gx,gy,16,16);
+
+  rctx.save();
+  rctx.translate(w/2,h/2);
+  rctx.rotate(rst.ang*Math.PI/180);
+  rctx.imageSmoothingEnabled=rst.filter; // ez a lényeg: ki = Nearest (éles), be = Linear (mosott)
+  var dw=sprite.width*rst.scale, dh=sprite.height*rst.scale;
+  rctx.drawImage(sprite,-dw/2,-dh/2,dw,dh);
+  rctx.restore();
+}
+
+(function(){
+  document.querySelectorAll("[data-filter]").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      document.querySelectorAll("[data-filter]").forEach(function(b){ b.classList.remove("active"); });
+      btn.classList.add("active");
+      rst.filter = btn.getAttribute("data-filter")==="on";
+      renderRes();
+    });
+  });
+  var a=document.getElementById("resAng"), av=document.getElementById("resAngVal");
+  if(a) a.addEventListener("input",function(){ rst.ang=+a.value; av.textContent=rst.ang+"°"; renderRes(); });
+  var s=document.getElementById("resScale"), sv=document.getElementById("resScaleVal");
+  if(s) s.addEventListener("input",function(){ rst.scale=+s.value; sv.textContent=rst.scale+"×"; renderRes(); });
+})();
+
+/* =====================================================================
+   4) Hero: eredeti ↔ pixel-art átsöprő csík
+   ===================================================================== */
+var hero=document.getElementById("heroCanvas"), hctx=hero ? hero.getContext("2d") : null;
+var heroOrig=document.createElement("canvas"); heroOrig.width=WORK_W; heroOrig.height=WORK_H;
+var heroPix =document.createElement("canvas"); heroPix.width=WORK_W;  heroPix.height=WORK_H;
+var heroReady=false;
+
+function buildHero(){
+  // bal = eredeti (a munkavászon), jobb = pixel-art (Sweetie, px=3, dither+outline)
+  var oc=heroOrig.getContext("2d");
+  oc.clearRect(0,0,WORK_W,WORK_H); oc.drawImage(work,0,0);
+
+  var f=3, lw=Math.round(WORK_W/f), lh=Math.round(WORK_H/f);
+  var tmp=document.createElement("canvas"); tmp.width=lw; tmp.height=lh;
+  var tc=tmp.getContext("2d"); tc.imageSmoothingEnabled=true;
+  tc.drawImage(work,0,0,WORK_W,WORK_H,0,0,lw,lh);
+  var id, d;
+  try{ id=tc.getImageData(0,0,lw,lh); }
+  catch(e){ useFallback=true; drawFallback(wctx); oc.clearRect(0,0,WORK_W,WORK_H); oc.drawImage(work,0,0); tc.clearRect(0,0,lw,lh); tc.drawImage(work,0,0,WORK_W,WORK_H,0,0,lw,lh); id=tc.getImageData(0,0,lw,lh); }
+  d=id.data;
+  var pal=PAL.sweetie;
+  for(var y=0;y<lh;y++)for(var x=0;x<lw;x++){
+    var i=(y*lw+x)*4;
+    if(d[i+3]<100){ d[i+3]=0; continue; }
+    var t=(BAYER[y&3][x&3]/16-0.5)*46;
+    var c=nearest(pal,clamp(d[i]+t),clamp(d[i+1]+t),clamp(d[i+2]+t));
+    d[i]=c[0]; d[i+1]=c[1]; d[i+2]=c[2]; d[i+3]=255;
+  }
+  // körvonal
+  var op=new Uint8Array(lw*lh);
+  for(var p=0;p<lw*lh;p++) op[p]=d[p*4+3]>0?1:0;
+  for(var yy=0;yy<lh;yy++)for(var xx=0;xx<lw;xx++){
+    var k=yy*lw+xx; if(op[k]) continue;
+    var nb=(xx>0&&op[k-1])||(xx<lw-1&&op[k+1])||(yy>0&&op[k-lw])||(yy<lh-1&&op[k+lw]);
+    if(nb){ var j=k*4; d[j]=OUTLINE[0]; d[j+1]=OUTLINE[1]; d[j+2]=OUTLINE[2]; d[j+3]=255; }
+  }
+  tc.putImageData(id,0,0);
+  var pc=heroPix.getContext("2d"); pc.imageSmoothingEnabled=false;
+  pc.clearRect(0,0,WORK_W,WORK_H); pc.drawImage(tmp,0,0,lw,lh,0,0,WORK_W,WORK_H);
+  heroReady=true;
+}
+
+var heroX=0.5, heroDir=1, heroT=0;
+function drawHero(){
+  if(!hctx||!heroReady) return;
+  var w=WORK_W, h=WORK_H, split=Math.round(w*heroX);
+  hctx.clearRect(0,0,w,h);
+  // bal: eredeti
+  hctx.drawImage(heroOrig,0,0,split,h,0,0,split,h);
+  // jobb: pixel art
+  hctx.imageSmoothingEnabled=false;
+  hctx.drawImage(heroPix,split,0,w-split,h,split,0,w-split,h);
+  // elválasztó vonal
+  hctx.fillStyle="#a5e87d"; hctx.fillRect(split-1,0,2,h);
+  hctx.fillStyle="#0b110c"; hctx.fillRect(split-4,h/2-9,8,18);
+  hctx.fillStyle="#a5e87d"; hctx.fillRect(split-2,h/2-7,4,14);
+}
+
+function heroLoop(){
+  if(reduce){ heroX=0.5; drawHero(); return; }
+  heroT+=0.006;
+  // lassú oda-vissza söprés szinusszal (0.18 .. 0.82)
+  heroX=0.5+0.32*Math.sin(heroT);
+  drawHero();
+  requestAnimationFrame(heroLoop);
+}
+
+/* =====================================================================
+   5) Minden forrás-függő demó (újra)építése
+   ===================================================================== */
+function refreshAll(){
+  buildWork();
+  buildSprite();
+  buildHero();
+  renderShader();
+  renderRes();
+  if(reduce){ heroX=0.5; drawHero(); } else requestAnimationFrame(heroLoop);
+  paintStrip();
+}
+paintStrip();
+
+/* =====================================================================
+   6) Scrollspy + mobil menü
+   ===================================================================== */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){
+  var pos=window.scrollY+140, active=0;
+  for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i;
+  links.forEach(function(a,i){a.classList.toggle("active",i===active);});
+}
+window.addEventListener("scroll",spy,{passive:true});
+spy();
+
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>

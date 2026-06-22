@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PixelOver — Dithering: sima átmenetek kevés színnel (magyar)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13; --bg-deep:#0b110c; --panel:#1a241b; --panel-2:#162017;
+  --ink:#e9e3cd; --muted:#9caa90; --grass:#7ecb52; --grass-hi:#a5e87d; --grass-dk:#4e8f33;
+  --dirt:#c99c66; --dirt-dk:#9a6e43; --water:#6cc8d9; --stone:#9aa0aa; --concrete:#cacac3;
+  --lava:#ff7a3c; --ice:#bfe0f0; --line:#2d3b2c; --line-hi:#41543e; --shadow:rgba(0,0,0,.45);
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px)}
+::selection{background:var(--grass-dk);color:#fff}
+
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--bg-deep);border-right:3px solid var(--line);overflow-y:auto;z-index:30;padding:22px 0 40px}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px}
+.logo .title{font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15}
+.logo .sub{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em}
+.logo .badge{display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;box-shadow:2px 2px 0 var(--shadow)}
+.logo .badge.alt{background:var(--water);color:#06181c;margin-left:6px}
+.nav-part{font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);padding:16px 20px 6px;text-transform:uppercase}
+.nav a{display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;font-size:14px;position:relative;border-left:4px solid transparent;transition:color .12s,background .12s}
+.nav a::before{content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);transition:opacity .12s,left .12s}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{color:var(--grass-hi);background:rgba(126,203,82,.10);border-left-color:var(--grass);font-weight:600}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;background:var(--grass);color:#10180f;border:none;padding:8px 14px;box-shadow:3px 3px 0 var(--shadow);text-decoration:none;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+.menu-toggle{display:none;position:fixed;top:14px;left:14px;z-index:40;font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;background:var(--panel);color:var(--ink);border:3px solid var(--line);box-shadow:3px 3px 0 var(--shadow)}
+
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-family:"Pixelify Sans";font-weight:700;font-size:clamp(32px,5vw,52px);line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px}
+.hero h1 .g{color:var(--grass-hi)}.hero h1 .d{color:var(--dirt)}.hero h1 .w{color:var(--water)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{border:3px solid var(--line);background:var(--bg-deep);padding:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow)}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0;border:2px solid var(--line);background:#0c120d}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6;flex:1;min-width:220px}
+.hero-strip .cap b{color:var(--water)}
+
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);text-transform:uppercase}
+.ch-eyebrow{font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);text-transform:uppercase;margin-bottom:8px}
+h2{font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);margin:34px 0 12px}
+p{margin-bottom:14px}p+p{margin-top:2px}
+strong{color:#fff}em{color:var(--dirt)}a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}li{margin-bottom:7px}
+code:not(pre code){font-family:"IBM Plex Mono";font-size:.86em;background:#0c120d;color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+.ui{font-family:"IBM Plex Mono";font-size:.86em;background:#0d181b;color:var(--water);padding:2px 7px;border:1px solid #2a4a52;white-space:nowrap;font-weight:500}
+
+ol.steps{list-style:none;margin:20px 0;counter-reset:st}
+ol.steps>li{counter-increment:st;position:relative;padding:4px 0 14px 52px;margin-bottom:6px;border-left:3px solid var(--line);margin-left:16px}
+ol.steps>li::before{content:counter(st);position:absolute;left:-19px;top:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-family:"Pixelify Sans";font-size:17px;color:#10180f;background:var(--grass);box-shadow:2px 2px 0 var(--shadow)}
+ol.steps>li:last-child{border-left-color:transparent}
+
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--grass)}.diagram pre .di{color:var(--dirt)}.diagram pre .wa{color:var(--water)}.diagram pre .st{color:var(--stone)}.diagram pre .lv{color:var(--lava)}.diagram pre .mu{color:var(--muted)}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+
+.info-box{margin:24px 0;border:3px solid #2a4a52;background:#0d181b;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.info-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.info-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}.info-box p:last-child{margin-bottom:0}
+.info-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.info-box ul{font-size:15px;color:#cfdbd5}
+
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--grass);margin-bottom:4px}
+.note.warn .n-tag{color:var(--dirt)}
+
+.shot{margin:24px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.shot img{display:block;width:100%;height:auto;image-rendering:auto}
+.shot .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.55;padding:9px 13px;border-top:2px dashed var(--line-hi)}
+.shot .cap b{color:var(--grass)}
+.shot.small{max-width:420px}
+
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}.on{color:var(--grass-hi);font-weight:600}.off{color:var(--dirt)}
+
+.playground{margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);border-bottom:3px solid var(--grass-dk);padding:10px 14px}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em}
+.playground .pg-tag{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted)}
+.playground .pg-body{padding:16px;display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#0c120d;touch-action:none;max-width:100%}
+.playground .pg-side{flex:1;min-width:240px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:1.9}
+.canvas-pair{display:flex;gap:14px;flex-wrap:wrap}
+.canvas-pair figure{margin:0}
+.canvas-pair figcaption{font-family:"IBM Plex Mono";font-size:11px;color:var(--muted);margin-top:5px;text-align:center}
+
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--dirt);letter-spacing:.06em;margin:14px 0 4px;text-transform:uppercase}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0}
+.tbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:5px 12px;transition:all .1s}
+.tbtn:hover{color:var(--ink)}
+.tbtn.active{background:var(--grass);color:#10180f;border-color:var(--grass);font-weight:600}
+.tbtn.wa.active{background:var(--water);color:#06181c;border-color:var(--water)}
+input[type=range]{width:100%;accent-color:var(--grass);margin:6px 0 2px;cursor:pointer}
+.rng-val{font-family:"IBM Plex Mono";font-size:13px;color:var(--grass-hi)}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+
+.pal-strip{display:flex;flex-wrap:wrap;gap:0;margin:8px 0 2px;border:2px solid var(--line)}
+.pal-sw{width:24px;height:24px;image-rendering:pixelated}
+.pal-empty{font-family:"IBM Plex Mono";font-size:12px;color:var(--muted);padding:4px 0}
+
+footer{margin-top:90px;border-top:3px solid var(--line);padding-top:24px;font-size:13.5px;color:var(--muted)}
+footer .pix{font-family:"Pixelify Sans";color:var(--grass);font-size:15px}
+footer a{color:var(--water)}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}
+  .menu-toggle{display:block}
+  .main{margin-left:0}
+  .wrap{padding:0 20px 100px}
+  .hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;background:linear-gradient(90deg,#6cc8d9,#a5e87d);box-shadow:0 0 10px rgba(108,200,217,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">PIXELOVER<br>DITHERING</div>
+    <div class="sub">kevés szín · sima átmenet · Bayer</div>
+    <span class="badge">PixelOver</span><span class="badge alt">HALADÓ</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I · Az alapelv</div>
+    <a href="#ch1">1 · A banding-probléma</a>
+    <a href="#ch2">2 · A dithering-trükk</a>
+    <a href="#ch3">3 · Küszöb és minta</a>
+    <div class="nav-part">II · Módszerek</div>
+    <a href="#ch4">4 · Ordered (Bayer)</a>
+    <a href="#ch5">5 · Error-diffusion</a>
+    <div class="nav-part">III · A PixelOverben</div>
+    <a href="#ch6">6 · A Dithering panel</a>
+    <a href="#ch7">7 · Dithering + indexáció</a>
+  </nav>
+  <div class="dl-box">
+    <p>A dithering az <strong>indexálás</strong> párja. Ha az indexelés még új, előbb nézd meg:</p>
+    <a class="btn secondary" href="pixelover-szin-indexeles-tutorial.html">← Szín-indexelés</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// haladó tutorial · magyar nyelven · a PixelOver Layer Shader Dithering szekciója</div>
+  <h1>Dithering — <span class="g">sima</span> átmenetek <span class="w">kevés</span> színnel</h1>
+  <p class="lead">Amikor a képet kevés színre <strong>indexeled</strong>, a finom átmenetek <em>csíkokra</em> (banding) esnek szét. A <strong>dithering</strong> ezt oldja fel: két szomszédos palettaszínt apró mintában <em>összeszór</em>, a szemed pedig egy köztes árnyalattá olvasztja össze — így néhány színnel is sima a gradient. Ebben a leckében megérted a trükköt, az <strong>ordered (Bayer)</strong> és az <strong>error-diffusion</strong> módszert, és összerakod a PixelOver <span class="ui">Dithering</span> panelét — élő demókkal.</p>
+  <div class="hero-strip">
+    <canvas id="heroCanvas" width="140" height="92" style="width:280px;height:184px"></canvas>
+    <div class="cap" id="heroCap">↑ Élő minta: ugyanaz a <b>6 színű</b> naplemente-gradient. Balról <b>dithering nélkül</b> (csíkok), jobbról <b>ditheringgel</b> (sima). A csík automatikusan végigsöpör.</div>
+  </div>
+</header>
+
+<!-- ================= I. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Az alapelv</span></div>
+
+<!-- ====== 1 ====== -->
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>A banding-probléma</h2>
+
+  <p>Egy lágy átmenet (ég, fény, árnyék) több száz közeli árnyalatból áll. Amikor a réteg-shader <strong>indexálja</strong> a képet — vagyis kevés színre szűkíti (lásd a <a href="pixelover-szin-indexeles-tutorial.html">Szín-indexelés</a> leckét) —, ezek a finom lépcsők <strong>néhány nagy, lapos sávvá</strong> ugranak össze. Ez a <em>banding</em>: jól látható, csúnya „szintvonalak” a gradienten.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Mi történik indexáláskor?</div>
+<pre>
+  eredeti gradient   ─►  4 színre indexelve  ─►  <span class="lv">banding</span> (4 lapos sáv)
+  ░▒▓█ folytonos          ░  ▒  ▓  █             ░░░│▒▒▒│▓▓▓│███   ← éles ugrások
+                                                    <span class="mu">itt „lépcsőzik” a szem</span>
+</pre>
+    <div class="d-cap">Minél kevesebb a szín, annál szélesebbek a sávok, és annál bántóbb a banding. A dithering pont ezeket a sáv-határokat „töri fel”.</div>
+  </div>
+
+  <p>Választhatnánk több színt — de a pixel art lényege épp a <strong>kevés szín</strong> (egységes paletta, retró érzet, kis méret). Kell egy trükk, ami <em>kevés</em> színnel kelti a <em>sok</em> szín illúzióját. Ez a dithering.</p>
+</section>
+
+<!-- ====== 2 ====== -->
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>A dithering-trükk</h2>
+
+  <p>Az ötlet a szemed tulajdonságát használja ki: ha két színt elég apró mintában keversz, a szem <strong>összemossa</strong> őket egy köztes árnyalattá (optikai keverés — ugyanaz, mint a régi újságnyomtatás raszterpontjai vagy az impresszionisták ecsetvonásai).</p>
+
+  <p>A sáv-határoknál tehát nem éles vágást rakunk, hanem a két szomszédos palettaszínt <strong>fokozatosan átszórjuk</strong> egymásba: a határ egyik oldalán sok az „A” szín, kevés a „B”; átérve fordítva. Távolról ez folytonos átmenetnek látszik — pedig végig csak a paletta színeit használtuk.</p>
+
+  <div class="info-box">
+    <div class="tag">▸ A hivatalos meghatározás</div>
+    <p>A PixelOver dokumentáció szerint a dithering „<em>egy dithering-mintát alkalmaz az indexelt színek között, egy állítható küszöb alapján, hogy simítsa az átmeneteket az indexelt palettákon</em>”. Vagyis: a dithering az <strong>indexálásra épül</strong> — a már korlátozott paletta <em>szomszédos színei között</em> szór, a sávhatárok ellágyítására.</p>
+  </div>
+
+  <!-- DEMÓ A -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Banding kontra dithering</span>
+      <span class="pg-tag">ugyanannyi szín, más eredmény</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="aCanvas" width="220" height="120" style="width:300px;height:164px"></canvas>
+      <div class="pg-side">
+        <p>Egy ég-gradient. Vedd lejjebb a színszámot — megjelennek a sávok. Aztán kapcsold be a ditheringet: ugyanannyi szín, mégis sima.</p>
+        <div class="ctl-label">Színek száma <span class="rng-val" id="aNVal">4</span></div>
+        <input type="range" id="aN" min="2" max="10" value="4">
+        <div class="btn-row" style="margin-top:10px">
+          <button class="tbtn" data-adith="off">Dithering KI</button>
+          <button class="tbtn active" data-adith="on">Dithering BE</button>
+        </div>
+        <div class="ctl-label">A paletta</div>
+        <div class="pal-strip" id="aPal"></div>
+        <p class="legend" style="margin-top:10px">Figyeld: a dithering nem ad új színt — csak <em>okosabban osztja el</em> a meglévőket a sávhatároknál.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 3 ====== -->
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>Küszöb és minta</h2>
+
+  <p>Honnan tudja a shader, hogy egy adott pixel az „A” vagy a „B” szín legyen? Egy <strong>küszöb-minta (threshold pattern)</strong> alapján. Minden pixelhez a minta egy 0 és 1 közötti küszöböt rendel a pozíciója szerint, és:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A döntés pixelről pixelre</div>
+<pre>
+  a pixel „köztes” értéke (mennyire van A és B között): <span class="wa">frac</span>  (0..1)
+  a minta küszöbe ezen a pozíción:                       <span class="di">th</span>    (0..1)
+
+  ha <span class="wa">frac</span> &gt; <span class="di">th</span>   →  a világosabb (B) szín
+  különben      →  a sötétebb (A) szín
+</pre>
+    <div class="d-cap">A különböző pozíciókon más a <b>th</b>, ezért a határ közelében váltakoznak az A és B pixelek — ez adja a kevert mintát. A „köztes” érték eltolja az arányt.</div>
+  </div>
+
+  <p>A <strong>minta</strong> milyensége határozza meg, hogy ez a keverés rendezett (szabályos rács) vagy szórt (organikus) lesz — erről szól a II. rész. A PixelOver-ben egy <strong>Pattern</strong> (minta) és egy <strong>küszöb/Amount</strong> vezérli a dolgot; ezeket a 6. fejezetben nézzük meg.</p>
+</section>
+
+<!-- ================= II. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ II. rész — Módszerek</span></div>
+
+<!-- ====== 4 ====== -->
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>Ordered dithering — a Bayer-mátrix</h2>
+
+  <p>A leggyakoribb mintás (ordered) dithering egy <strong>Bayer-mátrixot</strong> használ küszöbként. Ez egy kis, csempézhető rács, amiben a számok úgy vannak elrendezve, hogy a lehető legegyenletesebben szórjanak. A 4×4-es változat:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ 4×4 Bayer küszöb-mátrix (0–15)</div>
+<pre>
+   <span class="wa">0</span>   <span class="wa">8</span>   <span class="wa">2</span>  <span class="wa">10</span>          <span class="mu">a cellák értékét elosztva 16-tal → küszöb 0..1</span>
+  <span class="wa">12</span>   <span class="wa">4</span>  <span class="wa">14</span>   <span class="wa">6</span>          a mátrix 4×4-enként ismétlődik a képen
+   <span class="wa">3</span>  <span class="wa">11</span>   <span class="wa">1</span>   <span class="wa">9</span>
+  <span class="wa">15</span>   <span class="wa">7</span>  <span class="wa">13</span>   <span class="wa">5</span>          <span class="mu">minden pixel a saját cellájának küszöbéhez hasonlít</span>
+</pre>
+    <div class="d-cap">Mivel a szomszédos cellák értékei távol esnek (0 mellett 8, 2, 12…), a bekapcsolt pixelek szépen szétszórva jelennek meg, nem csomóban. Nagyobb minta (8×8) finomabb, kisebb (2×2) durvább szövésű.</div>
+  </div>
+
+  <ul>
+    <li><strong>Előny:</strong> gyors, determinisztikus, csempézhető, jól néz ki nagyítva — a klasszikus „pixel-art” dithering-szövet.</li>
+    <li><strong>Jellegzetessége:</strong> szabályos, rácsos textúra (keresztszövés). Ez sokszor kifejezetten kívánatos retró hatás.</li>
+  </ul>
+</section>
+
+<!-- ====== 5 ====== -->
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Error-diffusion — a hiba szétkenése</h2>
+
+  <p>A másik nagy család az <strong>error-diffusion</strong> (hiba-szórás), aminek leghíresebb tagja a <strong>Floyd–Steinberg</strong>. Itt nincs fix mátrix: minden pixelnél a legközelebbi palettaszínre kerekítünk, a keletkező <em>hibát</em> (amennyivel mellé kerekítettünk) pedig „szétkenjük” a még feldolgozatlan szomszédokra:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Floyd–Steinberg hiba-szórás</div>
+<pre>
+              <span class="st">X</span>    <span class="wa">7/16</span>
+       <span class="wa">3/16</span> <span class="wa">5/16</span> <span class="wa">1/16</span>
+
+  <span class="st">X</span> = az épp feldolgozott pixel hibája szétoszlik a jobb és az alsó szomszédokra
+</pre>
+    <div class="d-cap">A hiba „görgetése” miatt a pontok <b>organikusan</b>, szabálytalanul oszlanak el — nincs látható rács. Cserébe nem csempézhető és kicsit „zajosabb”.</div>
+  </div>
+
+  <p>Hasonlítsd össze élőben — ugyanaz a gradient, ugyanannyi szín, két módszer:</p>
+
+  <!-- DEMÓ B -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Ordered vs. error-diffusion</span>
+      <span class="pg-tag">rácsos vs. organikus</span>
+    </div>
+    <div class="pg-body">
+      <div class="canvas-pair">
+        <figure>
+          <canvas id="bOrd" width="120" height="96" style="width:150px;height:120px"></canvas>
+          <figcaption>Ordered (Bayer 4×4)<br>szabályos szövet</figcaption>
+        </figure>
+        <figure>
+          <canvas id="bFs" width="120" height="96" style="width:150px;height:120px"></canvas>
+          <figcaption>Floyd–Steinberg<br>organikus</figcaption>
+        </figure>
+      </div>
+      <div class="pg-side">
+        <p>Bal: rendezett Bayer-minta — látszik a rácsos textúra. Jobb: error-diffusion — szórtabb, „véletlenszerűbb”.</p>
+        <div class="ctl-label">Színek száma <span class="rng-val" id="bNVal">4</span></div>
+        <input type="range" id="bN" min="2" max="8" value="4">
+        <p class="legend" style="margin-top:10px">Kevés színnél (2–3) a leglátványosabb a különbség. A PixelOver mintás (ordered) ditheringet használ — a bal oldali a „házias” pixel-art szövet.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= III. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ III. rész — A PixelOverben</span></div>
+
+<!-- ====== 6 ====== -->
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>A Dithering panel</h2>
+
+  <p>A dithering a <strong>Layer Shader</strong> panelen, az <strong>Indexation</strong> szekció alatt lakik (logikus: előbb indexálunk, aztán a sávhatárokat ditheringeljük). Kapcsold be a <span class="ui">Dithering</span>-et, és állítsd a vezérlőit:</p>
+
+  <div class="shot small">
+    <img src="assets/pixelover/applied_shader.png" alt="A Layer Shader panel: Indexation (Indexed On, Palette) és alatta a Dithering szekció (Dithering On, Amount 26%, Invert Off, Center On, Pattern)">
+    <div class="cap">A panel: fent az <b>Indexation</b> (Indexed: On, Palette), alatta a <b>Dithering</b> — <code>Dithering: On</code>, <code>Amount: 26%</code>, <code>Invert: Off</code>, <code>Center: On</code>, és egy <code>Pattern</code> (minta) előnézet.</div>
+  </div>
+
+  <table>
+    <tr><th>Vezérlő</th><th>Mit csinál</th></tr>
+    <tr><td><strong>Dithering</strong></td><td>Be/ki kapcsoló. Kikapcsolva tiszta banding (kemény sávok).</td></tr>
+    <tr><td><strong>Amount</strong></td><td>A dithering <em>erőssége</em> / a küszöb hatóköre. Kicsi érték finom, visszafogott szórás; nagy érték erős, látványos minta. (A képen 26%.)</td></tr>
+    <tr><td><strong>Pattern</strong></td><td>A használt <em>küszöb-minta</em> (pl. Bayer-rács vagy más mátrix). Ez adja a szövet jellegét és méretét.</td></tr>
+    <tr><td><strong>Invert</strong></td><td>Megfordítja a mintát (a küszöb 1−th), így a szórás „negatívba” fordul — a pöttyök ott jelennek meg, ahol előtte nem.</td></tr>
+    <tr><td><strong>Center</strong></td><td>A küszöböt a színhatár köré <em>középre</em> igazítja, hogy a dithering ne tolja el a kép összfényességét (szimmetrikus szórás a két szín között).</td></tr>
+  </table>
+
+  <div class="note">
+    <div class="n-tag">▸ Megjegyzés</div>
+    A dokumentáció a paramétert általánosan „küszöbnek (threshold)” nevezi; a panel <code>Amount</code> / <code>Pattern</code> / <code>Invert</code> / <code>Center</code> vezérlői ennek a finomhangolásai. A pontos numerikus viselkedés verziónként eltérhet — a lényeg a <em>fogalom</em>: minta + küszöb dönt pixel szinten.
+  </div>
+</section>
+
+<!-- ====== 7 ====== -->
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>Dithering + indexáció: a teljes lánc</h2>
+
+  <p>Most rakjuk össze a képen, amit eddig szétszedtünk. A lánc: <strong>Color → Indexation → Dithering</strong>. Az indexálás leszűkíti a palettát, a dithering pedig visszacsempészi a finomságot a sávhatárokra. Próbáld ki a valódi képen:</p>
+
+  <!-- DEMÓ C -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · A teljes lánc</span>
+      <span class="pg-tag">indexáció + dithering, élőben</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="cCanvas" width="200" height="269" style="width:188px;height:253px"></canvas>
+      <div class="pg-side">
+        <p>A sword_man kevés színre indexelve, ditheringgel. Kapcsold ki a ditheringet → visszajön a banding; told fel az Amountot → erősebb a szövet.</p>
+        <div class="ctl-label">Paletta</div>
+        <div class="btn-row">
+          <button class="tbtn wa active" data-cpal="4">4 szín</button>
+          <button class="tbtn wa" data-cpal="8">8 szín</button>
+          <button class="tbtn wa" data-cpal="sweetie">Sweetie&nbsp;16</button>
+        </div>
+        <div class="btn-row" style="margin-top:8px">
+          <button class="tbtn" data-cdith="off">Dithering KI</button>
+          <button class="tbtn active" data-cdith="on">Dithering BE</button>
+        </div>
+        <div class="ctl-label">Amount <span class="rng-val" id="cAmtVal">60%</span></div>
+        <input type="range" id="cAmt" min="0" max="100" value="60">
+        <div class="ctl-label">Minta (Pattern)</div>
+        <div class="btn-row">
+          <button class="tbtn" data-cpat="2">2×2</button>
+          <button class="tbtn active" data-cpat="4">4×4</button>
+          <button class="tbtn" data-cpat="8">8×8</button>
+        </div>
+        <div class="btn-row" style="margin-top:8px">
+          <button class="tbtn" id="cInvert">Invert</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Tippek &amp; korlátok</h3>
+  <ul>
+    <li><strong>Előbb indexálj.</strong> Dithering indexálás nélkül értelmetlen — a sok színen nincs mit simítani.</li>
+    <li><strong>Kevés szín → több dithering.</strong> 4 színnél sokat dob; 16+ színnél már alig kell.</li>
+    <li><strong>Az Amount-tal bánj óvatosan.</strong> A túl erős dithering zajossá, „pöttyössé” teszi a képet. Gyakran a finom a nyerő.</li>
+    <li><strong>A minta mérete számít.</strong> Nagyobb sprite-nál a 4×4/8×8 szépen szövődik; pici ikonon a 2×2 is durva lehet.</li>
+    <li><strong>Animációnál vigyázz.</strong> A fix mintás (ordered) dithering frame-ek közt „nyüzsöghet”; filmszerű mozgásnál teszteld.</li>
+  </ul>
+
+  <h3>Összefoglaló</h3>
+  <ol class="steps">
+    <li>Az indexálás kevés színre szűkít → <strong>banding</strong> (lapos sávok).</li>
+    <li>A dithering két szomszédos színt <strong>mintában szór</strong> → a szem köztes árnyalatot lát.</li>
+    <li>Egy <strong>küszöb-minta</strong> dönt pixelenként: <code>frac &gt; th ? B : A</code>.</li>
+    <li><strong>Ordered (Bayer)</strong> = szabályos szövet; <strong>error-diffusion</strong> = organikus.</li>
+    <li>PixelOverben: <span class="ui">Dithering</span> + <code>Amount</code> / <code>Pattern</code> / <code>Invert</code> / <code>Center</code>, az <em>Indexation</em> alatt.</li>
+  </ol>
+
+  <div class="info-box">
+    <div class="tag">▸ Hol tart a sorozat?</div>
+    <ul>
+      <li><a href="pixelover-elso-lepesek-2d-tutorial.html">Első lépések 2D</a> — a teljes alap-workflow.</li>
+      <li><a href="pixelover-szin-indexeles-tutorial.html">Szín-indexelés</a> — paletták, Match indexation (a dithering párja).</li>
+      <li><a href="pixelover-color-cycling-tutorial.html">Color cycling</a> — paletta-animáció a Shift-tel.</li>
+      <li><strong>Dithering</strong> — itt vagy.</li>
+    </ul>
+  </div>
+
+  <footer>
+    <p class="pix">PixelOver — Dithering: sima átmenetek kevés színnel</p>
+    <p>Haladó tutorial magyarul, a PixelOver Layer Shader <em>Dithering</em> szekciója és a hivatalos <a href="https://docs.pixelover.io/manual/shader/" target="_blank" rel="noopener">shader-kézikönyv</a> alapján. A panel-képernyőkép a hivatalos dokumentációból; a többi ábra ezen az oldalon procedurálisan, élőben generálódik.</p>
+  </footer>
+</section>
+
+</div><!-- /wrap -->
+</div><!-- /main -->
+
+<script>
+(function(){
+"use strict";
+var reduce=(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches);
+
+/* ---- segéd ---- */
+function clamp(v){ return v<0?0:v>255?255:v|0; }
+function lerp(a,b,t){ return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]; }
+function rgbStr(c){ return "rgb("+(c[0]|0)+","+(c[1]|0)+","+(c[2]|0)+")"; }
+function hx(h){ return [parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)]; }
+function lum(c){ return 0.299*c[0]+0.587*c[1]+0.114*c[2]; }
+
+// Bayer mátrixok rekurzívan (2,4,8)
+function genBayer(n){
+  if(n===1) return [[0]];
+  var s=genBayer(n>>1), h=n>>1, m=[],i,j;
+  for(i=0;i<n;i++){ m[i]=[]; for(j=0;j<n;j++){ var base=4*s[i%h][j%h]; var q=(i<h?(j<h?0:2):(j<h?3:1)); m[i][j]=base+q; } }
+  return m;
+}
+var BAYER={2:genBayer(2),4:genBayer(4),8:genBayer(8)};
+function bThresh(size,x,y){ return (BAYER[size][y%size][x%size]+0.5)/(size*size); } // 0..1
+
+// szín-stopok mintavételezése (sima ramp)
+function sampleStops(t, stops){
+  if(t<=0) return stops[0].slice(); if(t>=1) return stops[stops.length-1].slice();
+  var f=t*(stops.length-1), i=Math.floor(f), fr=f-i;
+  return lerp(stops[i],stops[i+1],fr);
+}
+var SKY=[[14,22,54],[40,86,150],[96,178,214],[150,224,242],[247,250,255]];
+var SUNSET=[[28,18,52],[92,40,86],[200,74,72],[224,121,63],[255,205,117]];
+
+// nearest paletta-szín
+function nearest(pal,r,g,b){ var bi=0,bd=1e12; for(var i=0;i<pal.length;i++){var p=pal[i],dr=r-p[0],dg=g-p[1],db=b-p[2],d=dr*dr+dg*dg+db*db; if(d<bd){bd=d;bi=i;}} return pal[bi]; }
+
+// median-cut kvantálás N színre (demó C kevés-színű palettáihoz)
+function medianCut(px,n){
+  if(!px.length) return [[128,128,128]];
+  var boxes=[px.slice()];
+  while(boxes.length<n){
+    var bi=-1,br=-1,ax=0;
+    for(var i=0;i<boxes.length;i++){ var b=boxes[i]; if(b.length<2) continue; var mn=[255,255,255],mx=[0,0,0],j,k;
+      for(j=0;j<b.length;j++)for(k=0;k<3;k++){var v=b[j][k]; if(v<mn[k])mn[k]=v; if(v>mx[k])mx[k]=v;}
+      var rg=[mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2]], a=(rg[0]>=rg[1]&&rg[0]>=rg[2])?0:(rg[1]>=rg[2]?1:2);
+      if(rg[a]>br){br=rg[a];bi=i;ax=a;} }
+    if(bi<0) break;
+    var box=boxes[bi]; box.sort(function(a,b){return a[ax]-b[ax];}); var mid=box.length>>1;
+    boxes.splice(bi,1,box.slice(0,mid),box.slice(mid));
+  }
+  return boxes.map(function(b){var s=[0,0,0],j;for(j=0;j<b.length;j++){s[0]+=b[j][0];s[1]+=b[j][1];s[2]+=b[j][2];}var m=b.length||1;return [Math.round(s[0]/m),Math.round(s[1]/m),Math.round(s[2]/m)];});
+}
+var SWEETIE=["1a1c2c","5d275d","b13e53","ef7d57","ffcd75","a7f070","38b764","257179","29366f","3b5dc9","41a6f6","73eff7","f4f4f4","94b0c2","566c86","333c57"].map(hx);
+
+/* alacsony felbontás → kijelző */
+function makeBuf(w,h){ var c=document.createElement("canvas"); c.width=w; c.height=h; return c; }
+function blit(buf,lw,lh,dest){ var d=dest.getContext("2d"); d.imageSmoothingEnabled=false; d.clearRect(0,0,dest.width,dest.height); d.drawImage(buf,0,0,lw,lh,0,0,dest.width,dest.height); }
+function paintBuf(bctx,lw,lh,colorOf){ var id=bctx.createImageData(lw,lh),d=id.data; for(var p=0;p<lw*lh;p++){ var c=colorOf(p),i=p*4; if(!c){d[i+3]=0;continue;} d[i]=c[0];d[i+1]=c[1];d[i+2]=c[2];d[i+3]=255; } bctx.putImageData(id,0,0); }
+function swatchStrip(elId,pal){ var el=document.getElementById(elId); if(!el)return; var h=""; for(var i=0;i<pal.length;i++) h+='<span class="pal-sw" style="background:'+rgbStr(pal[i])+'"></span>'; el.innerHTML=h; }
+
+/* gradient értéke (vízszintes, kis átlós beütéssel) */
+function gradT(x,y,w,h){ return Math.max(0,Math.min(1, x/(w-1)*0.92 + y/(h-1)*0.08 )); }
+
+/* ordered dithering EGY ramp két szomszédos szintje között */
+function ditherRamp(t,x,y,N,size,stops){
+  var scaled=t*(N-1), base=Math.floor(scaled), frac=scaled-base;
+  if(base>=N-1) return sampleStops(1,stops);
+  var lvl=base+(frac>bThresh(size,x,y)?1:0);
+  return sampleStops(lvl/(N-1),stops);
+}
+function bandRamp(t,N,stops){ var lvl=Math.round(t*(N-1)); return sampleStops(lvl/(N-1),stops); }
+
+/* =========================================================
+   DEMÓ A — banding vs dithering (ég-gradient)
+   ========================================================= */
+var ALW=220,ALH=120,aN=4,aDith=true;
+var aC=document.getElementById("aCanvas"), aBuf=makeBuf(ALW,ALH), aBx=aBuf.getContext("2d");
+function renderA(){
+  if(!aC) return;
+  paintBuf(aBx,ALW,ALH,function(p){ var x=p%ALW,y=(p/ALW)|0,t=gradT(x,y,ALW,ALH); return aDith?ditherRamp(t,x,y,aN,4,SKY):bandRamp(t,aN,SKY); });
+  blit(aBuf,ALW,ALH,aC);
+  var pal=[]; for(var i=0;i<aN;i++) pal.push(sampleStops(i/(aN-1),SKY)); swatchStrip("aPal",pal);
+}
+(function(){
+  var r=document.getElementById("aN"),v=document.getElementById("aNVal");
+  if(r) r.addEventListener("input",function(){ aN=+r.value; v.textContent=aN; renderA(); });
+  document.querySelectorAll("[data-adith]").forEach(function(b){ b.addEventListener("click",function(){ document.querySelectorAll("[data-adith]").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); aDith=b.getAttribute("data-adith")==="on"; renderA(); }); });
+})();
+
+/* =========================================================
+   DEMÓ B — ordered vs Floyd–Steinberg
+   ========================================================= */
+var BLW=120,BLH=96,bN=4;
+var bOrdC=document.getElementById("bOrd"), bFsC=document.getElementById("bFs");
+var bOrdBuf=makeBuf(BLW,BLH), bOrdBx=bOrdBuf.getContext("2d");
+var bFsBuf=makeBuf(BLW,BLH), bFsBx=bFsBuf.getContext("2d");
+function renderB(){
+  if(!bOrdC) return;
+  // ordered
+  paintBuf(bOrdBx,BLW,BLH,function(p){ var x=p%BLW,y=(p/BLW)|0,t=gradT(x,y,BLW,BLH); return ditherRamp(t,x,y,bN,4,SKY); });
+  blit(bOrdBuf,BLW,BLH,bOrdC);
+  // Floyd–Steinberg (szint-egységben)
+  var val=new Float32Array(BLW*BLH);
+  for(var p=0;p<BLW*BLH;p++){ var x=p%BLW,y=(p/BLW)|0; val[p]=gradT(x,y,BLW,BLH)*(bN-1); }
+  for(var yy=0;yy<BLH;yy++)for(var xx=0;xx<BLW;xx++){
+    var i=yy*BLW+xx, old=val[i], nl=Math.round(old); if(nl<0)nl=0; if(nl>bN-1)nl=bN-1;
+    var err=old-nl; val[i]=nl;
+    if(xx+1<BLW) val[i+1]+=err*7/16;
+    if(yy+1<BLH){ if(xx>0) val[i-1+BLW]+=err*3/16; val[i+BLW]+=err*5/16; if(xx+1<BLW) val[i+1+BLW]+=err*1/16; }
+  }
+  paintBuf(bFsBx,BLW,BLH,function(p){ var lvl=val[p]; if(lvl<0)lvl=0; if(lvl>bN-1)lvl=bN-1; return sampleStops(lvl/(bN-1),SKY); });
+  blit(bFsBuf,BLW,BLH,bFsC);
+}
+(function(){ var r=document.getElementById("bN"),v=document.getElementById("bNVal"); if(r) r.addEventListener("input",function(){ bN=+r.value; v.textContent=bN; renderB(); }); })();
+
+/* =========================================================
+   DEMÓ C — teljes lánc a sword_man-en
+   ========================================================= */
+var WORK_W=200,WORK_H=269,PIXF=3,LOWW=Math.round(WORK_W/PIXF),LOWH=Math.round(WORK_H/PIXF);
+var work=makeBuf(WORK_W,WORK_H), wctx=work.getContext("2d");
+var lowSrc=makeBuf(LOWW,LOWH), lowCtx=lowSrc.getContext("2d");
+var paintC=makeBuf(LOWW,LOWH), pcCtx=paintC.getContext("2d");
+var imgReady=false,useFallback=false,PIX=[],OPA=null,OPAQUE=[];
+var cPalSel="4",cDith=true,cAmt=0.6,cPat=4,cInv=false,cPalCache={};
+
+var IMG=new Image();
+IMG.onload=function(){ imgReady=true; rebuildC(); };
+IMG.onerror=function(){ useFallback=true; imgReady=true; rebuildC(); };
+IMG.src="assets/pixelover/sword_man.png";
+
+function drawFallback(ctx){
+  ctx.clearRect(0,0,WORK_W,WORK_H); var cx=WORK_W/2;
+  ctx.fillStyle="#b13e53"; ctx.beginPath(); ctx.moveTo(cx-58,120); ctx.lineTo(cx+58,120); ctx.lineTo(cx+34,232); ctx.lineTo(cx-34,232); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#22262e"; ctx.fillRect(cx-30,196,22,60); ctx.fillRect(cx+8,196,22,60);
+  ctx.fillStyle="#8a5a36"; ctx.fillRect(cx-34,250,28,14); ctx.fillRect(cx+6,250,28,14);
+  ctx.fillStyle="#eef0f4"; ctx.beginPath(); ctx.moveTo(cx-40,118); ctx.lineTo(cx+40,118); ctx.lineTo(cx+30,205); ctx.lineTo(cx-30,205); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#22262e"; ctx.fillRect(cx-56,120,18,70); ctx.fillRect(cx+38,120,18,70);
+  ctx.fillStyle="#eef0f4"; ctx.fillRect(cx-58,150,20,40); ctx.fillRect(cx+38,150,20,40);
+  ctx.fillStyle="#f0c79a"; ctx.beginPath(); ctx.arc(cx,92,26,0,7); ctx.fill();
+  ctx.fillStyle="#6e3b1e"; ctx.beginPath(); ctx.arc(cx,82,27,Math.PI,2*Math.PI); ctx.fill(); ctx.fillRect(cx+18,70,30,12);
+  ctx.fillStyle="#2b6fb0"; ctx.fillRect(cx-10,90,6,6); ctx.fillRect(cx+4,90,6,6);
+  ctx.strokeStyle="#9aa0aa"; ctx.lineWidth=6; ctx.beginPath(); ctx.moveTo(cx-2,168); ctx.lineTo(cx+78,236); ctx.stroke();
+  ctx.strokeStyle="#ffcd75"; ctx.lineWidth=6; ctx.beginPath(); ctx.moveTo(cx-14,160); ctx.lineTo(cx+14,176); ctx.stroke();
+}
+function buildWork(){ if(useFallback||!imgReady){ drawFallback(wctx); return; } wctx.clearRect(0,0,WORK_W,WORK_H); wctx.imageSmoothingEnabled=true; var iw=IMG.width,ih=IMG.height,s=Math.min(WORK_W/iw,WORK_H/ih),dw=iw*s,dh=ih*s; wctx.drawImage(IMG,0,0,iw,ih,(WORK_W-dw)/2,(WORK_H-dh)/2,dw,dh); }
+function sampleLow(){
+  lowCtx.imageSmoothingEnabled=true; lowCtx.clearRect(0,0,LOWW,LOWH); lowCtx.drawImage(work,0,0,WORK_W,WORK_H,0,0,LOWW,LOWH);
+  var d; try{ d=lowCtx.getImageData(0,0,LOWW,LOWH).data; }catch(e){ useFallback=true; drawFallback(wctx); lowCtx.clearRect(0,0,LOWW,LOWH); lowCtx.drawImage(work,0,0,WORK_W,WORK_H,0,0,LOWW,LOWH); d=lowCtx.getImageData(0,0,LOWW,LOWH).data; }
+  PIX=new Array(LOWW*LOWH); OPA=new Uint8Array(LOWW*LOWH); OPAQUE=[];
+  for(var p=0;p<LOWW*LOWH;p++){ var i=p*4; if(d[i+3]<100){PIX[p]=null;OPA[p]=0;} else {var c=[d[i],d[i+1],d[i+2]];PIX[p]=c;OPA[p]=1;OPAQUE.push(c);} }
+  cPalCache={};
+}
+function getPal(sel){
+  if(sel==="sweetie") return SWEETIE;
+  if(cPalCache[sel]) return cPalCache[sel];
+  var pal=medianCut(OPAQUE, sel==="4"?4:8).sort(function(a,b){return lum(a)-lum(b);});
+  cPalCache[sel]=pal; return pal;
+}
+var cC=document.getElementById("cCanvas");
+function renderC(){
+  if(!cC||!imgReady) return; var pal=getPal(cPalSel), spread=70*cAmt;
+  paintBuf(pcCtx,LOWW,LOWH,function(p){
+    if(!OPA[p]) return null; var c=PIX[p];
+    if(!cDith||cAmt<=0) return nearest(pal,c[0],c[1],c[2]);
+    var x=p%LOWW,y=(p/LOWW)|0, th=bThresh(cPat,x,y)-0.5; if(cInv) th=-th; var a=th*spread;
+    return nearest(pal,c[0]+a,c[1]+a,c[2]+a);
+  });
+  blit(paintC,LOWW,LOWH,cC);
+}
+function rebuildC(){ buildWork(); sampleLow(); renderC(); }
+(function(){
+  document.querySelectorAll("[data-cpal]").forEach(function(b){ b.addEventListener("click",function(){ document.querySelectorAll("[data-cpal]").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); cPalSel=b.getAttribute("data-cpal"); renderC(); }); });
+  document.querySelectorAll("[data-cdith]").forEach(function(b){ b.addEventListener("click",function(){ document.querySelectorAll("[data-cdith]").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); cDith=b.getAttribute("data-cdith")==="on"; renderC(); }); });
+  document.querySelectorAll("[data-cpat]").forEach(function(b){ b.addEventListener("click",function(){ document.querySelectorAll("[data-cpat]").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); cPat=+b.getAttribute("data-cpat"); renderC(); }); });
+  var am=document.getElementById("cAmt"),av=document.getElementById("cAmtVal");
+  if(am) am.addEventListener("input",function(){ cAmt=(+am.value)/100; av.textContent=am.value+"%"; renderC(); });
+  var inv=document.getElementById("cInvert");
+  if(inv) inv.addEventListener("click",function(){ cInv=!cInv; inv.classList.toggle("active",cInv); renderC(); });
+})();
+
+/* =========================================================
+   HERO — naplemente-gradient, banding ↔ dithering wipe
+   ========================================================= */
+var HW=140,HH=92,HLW=70,HLH=46,hN=6;
+var hC=document.getElementById("heroCanvas"), hctx=hC&&hC.getContext("2d");
+var hBand=makeBuf(HW,HH), hDith=makeBuf(HW,HH);
+(function buildHero(){
+  var lb=makeBuf(HLW,HLH), lbx=lb.getContext("2d");
+  paintBuf(lbx,HLW,HLH,function(p){ var x=p%HLW,y=(p/HLW)|0,t=gradT(x,y,HLW,HLH); return bandRamp(t,hN,SUNSET); });
+  var b=hBand.getContext("2d"); b.imageSmoothingEnabled=false; b.drawImage(lb,0,0,HLW,HLH,0,0,HW,HH);
+  var ld=makeBuf(HLW,HLH), ldx=ld.getContext("2d");
+  paintBuf(ldx,HLW,HLH,function(p){ var x=p%HLW,y=(p/HLW)|0,t=gradT(x,y,HLW,HLH); return ditherRamp(t,x,y,hN,4,SUNSET); });
+  var d=hDith.getContext("2d"); d.imageSmoothingEnabled=false; d.drawImage(ld,0,0,HLW,HLH,0,0,HW,HH);
+})();
+var heroX=0.5,heroT=0;
+function drawHero(){
+  if(!hctx) return; var split=Math.round(HW*heroX);
+  hctx.clearRect(0,0,HW,HH);
+  hctx.drawImage(hBand,0,0,split,HH,0,0,split,HH);
+  hctx.drawImage(hDith,split,0,HW-split,HH,split,0,HW-split,HH);
+  hctx.fillStyle="#a5e87d"; hctx.fillRect(split-1,0,2,HH);
+}
+
+/* animációs hurok (csak a hero mozog) */
+var running=false;
+function tick(){ heroT+=0.006; heroX=0.5+0.32*Math.sin(heroT); drawHero(); if(!reduce){ requestAnimationFrame(tick); } else { running=false; } }
+function ensureLoop(){ if(!running){ running=true; requestAnimationFrame(tick); } }
+
+/* init */
+renderA(); renderB(); drawHero();
+if(reduce){ heroX=0.5; drawHero(); } else ensureLoop();
+
+/* scrollspy + mobil menü */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){ var pos=window.scrollY+140,active=0; for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i; links.forEach(function(a,i){a.classList.toggle("active",i===active);}); }
+window.addEventListener("scroll",spy,{passive:true}); spy();
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>

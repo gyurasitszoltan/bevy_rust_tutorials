@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PixelOver — Color cycling: paletta-animáció mélységében (magyar)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13; --bg-deep:#0b110c; --panel:#1a241b; --panel-2:#162017;
+  --ink:#e9e3cd; --muted:#9caa90; --grass:#7ecb52; --grass-hi:#a5e87d; --grass-dk:#4e8f33;
+  --dirt:#c99c66; --dirt-dk:#9a6e43; --water:#6cc8d9; --stone:#9aa0aa; --concrete:#cacac3;
+  --lava:#ff7a3c; --ice:#bfe0f0; --line:#2d3b2c; --line-hi:#41543e; --shadow:rgba(0,0,0,.45);
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px)}
+::selection{background:var(--grass-dk);color:#fff}
+
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--bg-deep);border-right:3px solid var(--line);overflow-y:auto;z-index:30;padding:22px 0 40px}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px}
+.logo .title{font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15}
+.logo .sub{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em}
+.logo .badge{display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;box-shadow:2px 2px 0 var(--shadow)}
+.logo .badge.alt{background:var(--water);color:#06181c;margin-left:6px}
+.nav-part{font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);padding:16px 20px 6px;text-transform:uppercase}
+.nav a{display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;font-size:14px;position:relative;border-left:4px solid transparent;transition:color .12s,background .12s}
+.nav a::before{content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);transition:opacity .12s,left .12s}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{color:var(--grass-hi);background:rgba(126,203,82,.10);border-left-color:var(--grass);font-weight:600}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;background:var(--grass);color:#10180f;border:none;padding:8px 14px;box-shadow:3px 3px 0 var(--shadow);text-decoration:none;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+.menu-toggle{display:none;position:fixed;top:14px;left:14px;z-index:40;font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;background:var(--panel);color:var(--ink);border:3px solid var(--line);box-shadow:3px 3px 0 var(--shadow)}
+
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-family:"Pixelify Sans";font-weight:700;font-size:clamp(32px,5vw,52px);line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px}
+.hero h1 .g{color:var(--grass-hi)}.hero h1 .d{color:var(--dirt)}.hero h1 .w{color:var(--water)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{border:3px solid var(--line);background:var(--bg-deep);padding:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow)}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0;border:2px solid var(--line);background:#0c120d}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6;flex:1;min-width:220px}
+.hero-strip .cap b{color:var(--water)}
+
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);text-transform:uppercase}
+.ch-eyebrow{font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);text-transform:uppercase;margin-bottom:8px}
+h2{font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);margin:34px 0 12px}
+p{margin-bottom:14px}p+p{margin-top:2px}
+strong{color:#fff}em{color:var(--dirt)}a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}li{margin-bottom:7px}
+code:not(pre code){font-family:"IBM Plex Mono";font-size:.86em;background:#0c120d;color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+.ui{font-family:"IBM Plex Mono";font-size:.86em;background:#0d181b;color:var(--water);padding:2px 7px;border:1px solid #2a4a52;white-space:nowrap;font-weight:500}
+
+ol.steps{list-style:none;margin:20px 0;counter-reset:st}
+ol.steps>li{counter-increment:st;position:relative;padding:4px 0 14px 52px;margin-bottom:6px;border-left:3px solid var(--line);margin-left:16px}
+ol.steps>li::before{content:counter(st);position:absolute;left:-19px;top:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-family:"Pixelify Sans";font-size:17px;color:#10180f;background:var(--grass);box-shadow:2px 2px 0 var(--shadow)}
+ol.steps>li:last-child{border-left-color:transparent}
+
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--grass)}.diagram pre .di{color:var(--dirt)}.diagram pre .wa{color:var(--water)}.diagram pre .st{color:var(--stone)}.diagram pre .lv{color:var(--lava)}.diagram pre .mu{color:var(--muted)}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+
+.info-box{margin:24px 0;border:3px solid #2a4a52;background:#0d181b;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.info-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.info-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}.info-box p:last-child{margin-bottom:0}
+.info-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.info-box ul{font-size:15px;color:#cfdbd5}
+
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--grass);margin-bottom:4px}
+.note.warn .n-tag{color:var(--dirt)}
+
+.shot{margin:24px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.shot img{display:block;width:100%;height:auto;image-rendering:auto}
+.shot .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.55;padding:9px 13px;border-top:2px dashed var(--line-hi)}
+.shot .cap b{color:var(--grass)}
+.shot.small{max-width:420px}
+
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}.on{color:var(--grass-hi);font-weight:600}.off{color:var(--dirt)}
+
+.playground{margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);border-bottom:3px solid var(--grass-dk);padding:10px 14px}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em}
+.playground .pg-tag{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted)}
+.playground .pg-body{padding:16px;display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#0c120d;touch-action:none;max-width:100%}
+.playground .pg-side{flex:1;min-width:240px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:1.9}
+.canvas-pair{display:flex;gap:14px;flex-wrap:wrap}
+.canvas-pair figure{margin:0}
+.canvas-pair figcaption{font-family:"IBM Plex Mono";font-size:11px;color:var(--muted);margin-top:5px;text-align:center}
+
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--dirt);letter-spacing:.06em;margin:14px 0 4px;text-transform:uppercase}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0}
+.tbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:5px 12px;transition:all .1s}
+.tbtn:hover{color:var(--ink)}
+.tbtn.active{background:var(--grass);color:#10180f;border-color:var(--grass);font-weight:600}
+.tbtn.wa.active{background:var(--water);color:#06181c;border-color:var(--water)}
+.tbtn.lv.active{background:var(--lava);color:#1a0d06;border-color:var(--lava)}
+input[type=range]{width:100%;accent-color:var(--grass);margin:6px 0 2px;cursor:pointer}
+.rng-val{font-family:"IBM Plex Mono";font-size:13px;color:var(--grass-hi)}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+
+.pal-strip{display:flex;flex-wrap:wrap;gap:0;margin:8px 0 2px;border:2px solid var(--line)}
+.pal-sw{width:24px;height:24px;image-rendering:pixelated;position:relative}
+.pal-sw.hi{outline:3px solid #fff;outline-offset:-3px;z-index:2}
+.pal-empty{font-family:"IBM Plex Mono";font-size:12px;color:var(--muted);padding:4px 0}
+
+footer{margin-top:90px;border-top:3px solid var(--line);padding-top:24px;font-size:13.5px;color:var(--muted)}
+footer .pix{font-family:"Pixelify Sans";color:var(--grass);font-size:15px}
+footer a{color:var(--water)}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}
+  .menu-toggle{display:block}
+  .main{margin-left:0}
+  .wrap{padding:0 20px 100px}
+  .hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;background:linear-gradient(90deg,#6cc8d9,#a5e87d);box-shadow:0 0 10px rgba(108,200,217,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">PIXELOVER<br>COLOR CYCLING</div>
+    <div class="sub">paletta-animáció · Shift · ciklus-szalag</div>
+    <span class="badge">PixelOver</span><span class="badge alt">HALADÓ</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I · Az alapelv</div>
+    <a href="#ch1">1 · Mi az a color cycling?</a>
+    <a href="#ch2">2 · A LUT forog, a pixelek állnak</a>
+    <a href="#ch3">3 · Frame-anim vs. cycling</a>
+    <div class="nav-part">II · Tervezés</div>
+    <a href="#ch4">4 · A ciklus-szalag</a>
+    <a href="#ch5">5 · Részleges ciklus</a>
+    <div class="nav-part">III · A gyakorlatban</div>
+    <a href="#ch6">6 · Lépésről lépésre</a>
+    <a href="#ch7">7 · Tippek, korlátok &amp; tovább</a>
+  </nav>
+  <div class="dl-box">
+    <p>A color cycling a <strong>Match indexation</strong>-re épül. Ha az még új, előbb nézd meg:</p>
+    <a class="btn secondary" href="pixelover-szin-indexeles-tutorial.html">← Szín-indexelés</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// haladó tutorial · magyar nyelven · a hivatalos „Color cycling” alapján</div>
+  <h1>Color cycling — animálj a <span class="w">paletta</span> forgatásával, <span class="g">nem</span> a pixelekkel</h1>
+  <p class="lead">A <strong>color cycling</strong> (paletta-animáció) a 8 bites korszak egyik legzseniálisabb trükkje: a kép pixelei <em>meg sem mozdulnak</em> — csak a paletta indexeit forgatod körbe, és máris folyik a víz, lobog a fáklya, hullámzik a láva. Egyetlen kép, <strong>nulla extra frame</strong>, végtelen loop. Ebben a leckében megérted a mechanizmust, megtanulod megtervezni a ciklus-szalagot, és összerakod a PixelOver <span class="ui">Match indexation ▸ Shift</span> munkamenetét — élő demókkal.</p>
+  <div class="hero-strip">
+    <canvas id="heroCanvas" width="140" height="92" style="width:280px;height:184px"></canvas>
+    <div class="cap" id="heroCap">↑ Élő minta: <b>folyó víz</b>, tisztán paletta-animációval. A pixelek statikusak — csak a színek forognak körbe egy ciklikus szalagon.</div>
+  </div>
+</header>
+
+<!-- ================= I. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Az alapelv</span></div>
+
+<!-- ====== 1 ====== -->
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>Mi az a color cycling?</h2>
+
+  <p>Képzelj el egy indexelt képet: minden pixel nem egy <em>színt</em> tárol, hanem egy <strong>indexet</strong> — egy számot, ami a palettára (egy szín-táblázatra) mutat. A megjelenítéskor a gép minden pixelhez kikeresi a palettából a megfelelő színt.</p>
+
+  <p>A <strong>color cycling</strong> ötlete pofonegyszerű: hagyjuk a pixeleket (az indexeket) érintetlenül, és <em>magát a palettát</em> forgassuk körbe időről időre. Mivel sok pixel ugyanarra a néhány indexre mutat, a paletta egyetlen lépése egyszerre az egész képen végigfut — és mozgás illúzióját kelti, holott semmi sem mozdult.</p>
+
+  <div class="info-box">
+    <div class="tag">▸ Klasszikus technika</div>
+    <p>A trükk a VGA / 8–16 bites korszakból való, amikor a hardver natívan tudott „palette rotation”-t. Híres példák: a LucasArts kalandjátékok élő hátterei és Mark Ferrari <em>„living worlds”</em> festményei — vízesések, eső, tűz, neonfények, amik egyetlen állóképből animálódtak. A modern pixel art ugyanezt használja ambient mozgásra.</p>
+  </div>
+
+  <p>Miért éri meg ma is?</p>
+  <ul>
+    <li><strong>Ingyen animáció</strong> — egyetlen képből, nulla extra frame. Egy <em>N</em> színű szalag <em>N</em> fázisnyi mozgást ad.</li>
+    <li><strong>Pici és gyors</strong> — nem a pixeleket írod újra, csak egy kis táblázatot tolsz el. Tökéletes loop, „varratmentes”.</li>
+    <li><strong>Ambient élet</strong> — csordogáló patak, lüktető portál, pislákoló jelzőfény: olcsó, mégis életre kelti a jelenetet.</li>
+  </ul>
+</section>
+
+<!-- ====== 2 ====== -->
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>A LUT forog, a pixelek állnak</h2>
+
+  <p>Ez a fejezet a lecke szíve. A paletta lényegében egy <strong>LUT</strong> (look-up table, kikereső-táblázat): index → szín. A color cycling annyit tesz, hogy egy <code>Shift</code> eltolással <em>máshonnan</em> olvassuk ki a táblázatot:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Az egyetlen képlet</div>
+<pre>
+  megjelenített szín(pixel) = paletta[ ( <span class="di">index(pixel)</span> + <span class="wa">Shift</span> ) % N ]
+
+  <span class="di">index(pixel)</span>  → a pixelbe „beégetett” szám — <span class="gr">SOHA nem változik</span>
+  <span class="wa">Shift</span>         → minden frame-ben nő eggyel — <span class="wa">ez forgatja a palettát</span>
+  N             → a (ciklikus) szalag hossza; Shift = N után újrakezdődik
+</pre>
+    <div class="d-cap">A <b>% N</b> (maradékos osztás) zárja körbe a szalagot: az utolsó index után visszaugrunk az elsőre. Innen a végtelen loop.</div>
+  </div>
+
+  <p>A demóban ezt tetten éred: bal oldalon a <strong>index-térkép</strong> (minden pixel a saját indexe, szürkeárnyalatban) — ez <em>kővé dermedt</em>, akárhogy tekered a Shiftet. Jobb oldalon ugyanaz az index-térkép, csak a palettán át nézve — és ez <strong>folyik</strong>.</p>
+
+  <!-- DEMÓ A -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · A LUT forog, a pixelek állnak</span>
+      <span class="pg-tag">a kulcs-intuíció</span>
+    </div>
+    <div class="pg-body">
+      <div class="canvas-pair">
+        <figure>
+          <canvas id="aIdx" width="120" height="88" style="width:150px;height:110px"></canvas>
+          <figcaption>index-térkép<br>(állandó)</figcaption>
+        </figure>
+        <figure>
+          <canvas id="aCol" width="120" height="88" style="width:150px;height:110px"></canvas>
+          <figcaption>palettán át<br>(forog)</figcaption>
+        </figure>
+      </div>
+      <div class="pg-side">
+        <p>Told a Shiftet, vagy indítsd a lejátszást. A bal kép meg sem rezzen; a jobb folyik — pedig a kettő pixelről pixelre <em>ugyanaz</em> az index-térkép.</p>
+        <div class="ctl-label">A szalag (paletta) · Shift = <span class="rng-val" id="aShiftVal">0</span></div>
+        <div class="pal-strip" id="aPal"></div>
+        <input type="range" id="aShift" min="0" max="9" value="0">
+        <div class="btn-row" style="margin-top:8px">
+          <button class="tbtn active" id="aPlay">⏸ Szünet</button>
+        </div>
+        <p class="legend" style="margin-top:8px">A fehér keret a szalagon azt mutatja, <em>honnan</em> kezdődik az olvasás az adott Shiftnél.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 3 ====== -->
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>Frame-animáció vs. color cycling</h2>
+
+  <p>Miért nem rajzolunk egyszerűen több frame-et? Mert a folyamatos, ismétlődő <em>ambient</em> mozgásra (víz, láva, fény) a color cycling nagyságrendekkel olcsóbb. Hasonlítsuk össze:</p>
+
+  <table>
+    <tr><th></th><th>Frame-animáció</th><th>Color cycling</th></tr>
+    <tr><td><strong>Tárhely</strong></td><td>N külön kép</td><td class="on">1 kép + 1 paletta</td></tr>
+    <tr><td><strong>Munka</strong></td><td>minden frame-et megrajzolni</td><td class="on">egy szalagot megtervezni</td></tr>
+    <tr><td><strong>Loop</strong></td><td>kézzel kell varratmentessé tenni</td><td class="on">automatikusan tökéletes</td></tr>
+    <tr><td><strong>Erre jó</strong></td><td>karakter, ami alakot vált (járás, robbanás)</td><td>folyó/lüktető felületek, fény, átszínezés</td></tr>
+    <tr><td><strong>Erre rossz</strong></td><td>sok ambient felület → rengeteg frame</td><td>ha a <em>sziluett</em> változna (azt nem tudja)</td></tr>
+  </table>
+
+  <div class="note">
+    <div class="n-tag">▸ Döntési szabály</div>
+    Ha csak a <strong>színek</strong> mozognak egy állandó formán (víz csillámlik, láva folyik, neon villog) → <strong>color cycling</strong>. Ha a <strong>forma/sziluett</strong> változik (kard lendül, láng alakot vált) → frame-animáció. A kettő nyugodtan keverhető egy jeleneten belül.
+  </div>
+</section>
+
+<!-- ================= II. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ II. rész — Tervezés</span></div>
+
+<!-- ====== 4 ====== -->
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>A ciklus-szalag — varratmentes vs. törött</h2>
+
+  <p>A color cycling akkor néz ki <em>folyásnak</em>, ha a forgatott színek egy <strong>ciklikus szalagot</strong> alkotnak: olyan átmenetet, ahol az <em>utolsó</em> szín simán visszaköt az <em>elsőhöz</em>. Ha a szalag „törött” (az eleje és a vége élesen elüt), a loop pillanatában egy látható <strong>varrat</strong> fut végig a képen — egy zavaró, ugráló él.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Két szalag, ugyanaz a mozgás</div>
+<pre>
+  <span class="gr">VARRATMENTES</span>  sötét → világos → sötét      <span class="mu">(oda-vissza, az end visszaköt a start-hoz)</span>
+                █▓▒░ ░▒▓█  →  zökkenőmentes loop
+
+  <span class="lv">TÖRÖTT</span>        sötét → világos | sötét      <span class="mu">(éles ugrás a vége és az eleje között)</span>
+                ░▒▓█ ░▒▓█  →  látható „varrat” söpör végig
+</pre>
+    <div class="d-cap">A szabály: a szalag legyen <b>körkörös gradient</b>. A legbiztosabb a „palindrom” (oda-vissza) felépítés, vagy egy eleve körbeérő színkör.</div>
+  </div>
+
+  <!-- DEMÓ B -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Varratmentes vs. törött szalag</span>
+      <span class="pg-tag">figyeld a varratot</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="bCanvas" width="140" height="96" style="width:300px;height:206px"></canvas>
+      <div class="pg-side">
+        <p>Ugyanaz a hullámminta, ugyanaz a Shift-léptetés. Csak a szalag jellege más. A törött szalagnál egy sötét „fal” söpör végig minden körben — ez a varrat.</p>
+        <div class="ctl-label">A szalag típusa</div>
+        <div class="btn-row">
+          <button class="tbtn wa active" data-bramp="loop">Varratmentes</button>
+          <button class="tbtn lv" data-bramp="broken">Törött</button>
+        </div>
+        <div class="pal-strip" id="bPal" style="margin-top:8px"></div>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="tbtn active" id="bPlay">⏸ Szünet</button>
+        </div>
+        <p class="legend" style="margin-top:8px">A varratmentes szalag oda-vissza fut (sötét→világos→sötét), ezért bárhol „elvágva” folytonos marad.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 5 ====== -->
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Részleges ciklus — mi mozog, mi áll?</h2>
+
+  <p>A jeleneten általában <em>nem</em> akarod, hogy minden színt forgass — csak a vizet, a lávát, a fényt. A megoldás: a palettát <strong>kettéosztod</strong>. Egy rész <strong>állandó</strong> színeket tartalmaz (kő, fű, ég), egy másik, összefüggő tartomány pedig a <strong>ciklus-szalag</strong>, amit a Shift forgat. Csak ez utóbbi animálódik.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A paletta felosztása</div>
+<pre>
+  index:  <span class="st">0   1   2   3</span> │ <span class="wa">4   5   6   7   8   9</span>
+          <span class="st">└── ÁLLANDÓ ──┘</span> │ <span class="wa">└──── CIKLUS-SZALAG ────┘</span>
+          <span class="mu">kő, fű, ég</span>      │ <span class="mu">víz: csak ezeket forgatja a Shift</span>
+</pre>
+    <div class="d-cap">A demóban a parti fű és a kövek a 0–3 állandó indexen ülnek; a víz a 4–9 ciklikus szalagon folyik. A kövek a vízben is <b>helyben maradnak</b>.</div>
+  </div>
+
+  <!-- DEMÓ C -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Részleges ciklus — folyó</span>
+      <span class="pg-tag">sebesség &amp; irány</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="cCanvas" width="140" height="100" style="width:300px;height:214px"></canvas>
+      <div class="pg-side">
+        <p>Egy folyó: a partok és a kövek <strong>állandók</strong>, csak a víz forog. Vedd észre — a kövek nem sodródnak el!</p>
+        <div class="ctl-label">Sebesség <span class="rng-val" id="cSpeedVal">2</span></div>
+        <input type="range" id="cSpeed" min="0" max="5" value="2">
+        <div class="ctl-label">Irány</div>
+        <div class="btn-row">
+          <button class="tbtn wa active" data-cdir="1">▶ jobbra</button>
+          <button class="tbtn wa" data-cdir="-1">◀ balra</button>
+        </div>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="tbtn active" id="cPlay">⏸ Szünet</button>
+        </div>
+        <p class="legend" style="margin-top:8px">A <em>sebesség</em> a Shift léptetésének üteme; az <em>irány</em> a léptetés előjele. Sebesség = 0 → megáll a víz.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">▲ PixelOver-pontosítás</div>
+    A PixelOver <code>Shift</code> értéke a <em>teljes</em> match palettát forgatja. Hogy mégis csak a víz „folyjon”, az állandó színeket úgy rendezed, hogy a forgatás ne legyen rajtuk látható (külön, sima ciklus-szalagba szervezed a vizet), vagy a kétféle effektet <strong>külön rétegre</strong> teszed, saját Shift-tel. Több, független ciklus (víz + láva egyszerre) jellemzően több réteg.
+  </div>
+</section>
+
+<!-- ================= III. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ III. rész — A gyakorlatban</span></div>
+
+<!-- ====== 6 ====== -->
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Lépésről lépésre a PixelOverben</h2>
+
+  <p>A PixelOver a color cyclinget a <strong>Match indexation</strong> + <strong>Shift</strong> párosra építi (ezt a <a href="pixelover-szin-indexeles-tutorial.html">Szín-indexelés</a> leckében már megismerted). A hivatalos munkamenet öt lépés:</p>
+
+  <ol class="steps">
+    <li><strong>Indexelő paletta</strong> létrehozása vagy generálása a rétegből (<span class="ui">Indexation ▸ Indexed: On</span> + paletta).</li>
+    <li><strong>Rendezd a színeket a ciklus irányában</strong> — pl. <span class="ui">Sort by Hue</span> vagy fényesség szerint. A sorrend adja a „folyás” irányát és simaságát.</li>
+    <li><strong>Kapcsold be a Match indexation-t</strong>, és <strong>másold a palettát match palettának</strong> (a kiindulás: match = az indexelő paletta).</li>
+    <li><strong>Animáld a Shift értéket</strong> az időben — az <span class="ui">Animation</span> panelen tégy kulcskockákat (Shift: 0 → N), hogy körbeforogjon a szalag.</li>
+    <li><strong>Kapcsold be a loopolást</strong> az animáción — így a Shift folyamatosan, varratmentesen ismétlődik.</li>
+  </ol>
+
+  <p>Az eredmény pont az, amit a hivatalos előnézet mutat: a Shift növekedtével a színek körbejárják a palettát, és a kép finoman, végtelenül loopolva animálódik.</p>
+
+  <div class="shot small">
+    <img src="assets/pixelover/po_color_cycling_preview.gif" alt="A hivatalos PixelOver color cycling előnézet: folyamatosan hullámzó kék víz a Match paletta Shift értékét léptetve">
+    <div class="cap">A hivatalos előnézet: kék árnyalatok forognak körbe a match palettán → folyó víz. A <code>Shift</code> lépteti a színpozíciókat, a loop varratmentes.</div>
+  </div>
+
+  <div class="info-box">
+    <div class="tag">▸ Készen kapod</div>
+    <p>A PixelOver letöltése mellé jár egy kész <em>color cycling</em> példaprojekt — érdemes megnyitni, és megnézni, hogyan vannak az indexek és a Shift-animáció beállítva benne.</p>
+  </div>
+</section>
+
+<!-- ====== 7 ====== -->
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>Tippek, korlátok &amp; merre tovább?</h2>
+
+  <h3>Mire figyelj?</h3>
+  <ul>
+    <li><strong>Csak indexelt képen működik.</strong> Nincs index → nincs mit forgatni. Előbb mindig az indexelés.</li>
+    <li><strong>A szalag legyen körkörös.</strong> Különben varrat (lásd 4. fejezet). A palindrom (oda-vissza) átmenet a legbiztosabb.</li>
+    <li><strong>A rendezés = az irány.</strong> A sötét→világos sorrend más folyásirányt ad, mint a fordítottja; kísérletezz a <span class="ui">Sort</span> opciókkal és az <span class="ui">Invert</span>-tel.</li>
+    <li><strong>Kevesebb néha több.</strong> A finom, lassú cycling „él”; a túl gyors vagy nagy kontrasztú villog. Állítsd vissza a sebességet.</li>
+    <li><strong>Több effekt → több réteg.</strong> Külön víz és külön láva általában külön réteg, saját Shift-animációval.</li>
+  </ul>
+
+  <h3>Összefoglaló</h3>
+  <ol class="steps">
+    <li>A color cycling a <strong>palettát</strong> forgatja (<code>(index+Shift)%N</code>), a pixeleket nem.</li>
+    <li>Ambient mozgásra olcsóbb és simább, mint a frame-animáció.</li>
+    <li>A szalag legyen <strong>varratmentes</strong> (körkörös), különben ugrik a loop.</li>
+    <li>Oszd fel a palettát <strong>állandó</strong> + <strong>ciklus</strong> részre, hogy csak a kívánt felület mozogjon.</li>
+    <li>PixelOverben: <strong>Match indexation</strong> + a <strong>Shift</strong> animálása + loop.</li>
+  </ol>
+
+  <div class="info-box">
+    <div class="tag">▸ Következő leckék</div>
+    <ul>
+      <li><strong>Material editing</strong> — anyagok és effektek a shaderben (a Color cycling utáni hivatalos lecke).</li>
+      <li><a href="pixelover-szin-indexeles-tutorial.html">Szín-indexelés</a> — a paletták és a Match indexation alapja (ez kell a cyclinghez).</li>
+      <li><a href="pixelover-elso-lepesek-2d-tutorial.html">Első lépések 2D</a> — ha a legalapok hiányoznak.</li>
+    </ul>
+  </div>
+
+  <footer>
+    <p class="pix">PixelOver — Color cycling: paletta-animáció</p>
+    <p>Haladó tutorial magyarul, a hivatalos <a href="https://docs.pixelover.io/tutorials/color_cycling/" target="_blank" rel="noopener">docs.pixelover.io / Color cycling</a> alapján. Az előnézet a hivatalos dokumentációból származik; a többi animáció ezen az oldalon procedurálisan, élőben generálódik.</p>
+  </footer>
+</section>
+
+</div><!-- /wrap -->
+</div><!-- /main -->
+
+<script>
+(function(){
+"use strict";
+var reduce=(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches);
+
+/* ---- segéd ---- */
+function lerp(a,b,t){ return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]; }
+function rgbStr(c){ return "rgb("+(c[0]|0)+","+(c[1]|0)+","+(c[2]|0)+")"; }
+function clamp(v){ return v<0?0:v>255?255:v|0; }
+function hsv2rgb(h,s,v){ var c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c,r=0,g=0,b=0; if(h<60){r=c;g=x;}else if(h<120){r=x;g=c;}else if(h<180){g=c;b=x;}else if(h<240){g=x;b=c;}else if(h<300){r=x;b=c;}else{r=c;b=x;} return [clamp((r+m)*255),clamp((g+m)*255),clamp((b+m)*255)]; }
+// determinisztikus zaj (stabil reload-ok közt)
+function nz(x,y){ var h=(x*374761393+y*668265263)|0; h=(h^(h>>13))*1274126177|0; return ((h^(h>>16))>>>0)/4294967295; }
+
+function buildRamp(kind){
+  var L=10,out=[],i,t;
+  if(kind==="rainbow"){ L=12; for(i=0;i<L;i++) out.push(hsv2rgb(i/L*360,0.78,0.95)); return out; }
+  if(kind==="broken"){ L=10; for(i=0;i<L;i++){ t=i/(L-1); out.push(lerp([18,28,72],[150,224,242],t).map(function(v){return v|0;})); } return out; }
+  // varratmentes (oda-vissza) — water / lava / loop
+  var dk = kind==="lava"?[60,12,6]:[16,28,72], lt = kind==="lava"?[255,212,90]:[150,224,242];
+  for(i=0;i<L;i++){ t=(1-Math.cos(i/L*Math.PI*2))/2; out.push(lerp(dk,lt,t).map(function(v){return v|0;})); }
+  return out;
+}
+
+/* alacsony felbontás → kijelző (élesen) */
+function makeBuf(w,h){ var c=document.createElement("canvas"); c.width=w; c.height=h; return c; }
+function blit(buf,bctx,lw,lh,dest){ var d=dest.getContext("2d"); d.imageSmoothingEnabled=false; d.drawImage(buf,0,0,lw,lh,0,0,dest.width,dest.height); }
+function paintBuf(bctx,lw,lh,colorOf){ var id=bctx.createImageData(lw,lh),d=id.data; for(var p=0;p<lw*lh;p++){ var c=colorOf(p),i=p*4; if(!c){ d[i+3]=0; continue; } d[i]=c[0];d[i+1]=c[1];d[i+2]=c[2];d[i+3]=255; } bctx.putImageData(id,0,0); }
+
+function swatchStrip(elId,pal,hiIdx){
+  var el=document.getElementById(elId); if(!el) return;
+  var h=""; for(var i=0;i<pal.length;i++) h+='<span class="pal-sw'+(i===hiIdx?' hi':'')+'" style="background:'+rgbStr(pal[i])+'"></span>';
+  el.innerHTML=h;
+}
+
+/* =========================================================
+   DEMÓ A — index-térkép (állandó) vs palettán át (forog)
+   ========================================================= */
+var ALW=120,ALH=88,aIdxArr=new Int16Array(ALW*ALH);
+var aRamp=buildRamp("water"), aN=aRamp.length, aShift=0, aPlaying=true;
+(function(){ for(var y=0;y<ALH;y++)for(var x=0;x<ALW;x++){ var ph=x*0.16+3.6*Math.sin(y*0.16)+1.2*Math.sin(x*0.05+y*0.04); aIdxArr[y*ALW+x]=((Math.floor(ph)%aN)+aN)%aN; } })();
+var aIdxC=document.getElementById("aIdx"), aColC=document.getElementById("aCol");
+var aIdxBuf=makeBuf(ALW,ALH), aIdxBx=aIdxBuf.getContext("2d");
+var aColBuf=makeBuf(ALW,ALH), aColBx=aColBuf.getContext("2d");
+function renderA(){
+  if(!aIdxC) return;
+  paintBuf(aIdxBx,ALW,ALH,function(p){ var g=10+Math.round(aIdxArr[p]/(aN-1)*220); return [g,g,g]; });
+  blit(aIdxBuf,aIdxBx,ALW,ALH,aIdxC);
+  paintBuf(aColBx,ALW,ALH,function(p){ return aRamp[(aIdxArr[p]+aShift)%aN]; });
+  blit(aColBuf,aColBx,ALW,ALH,aColC);
+  swatchStrip("aPal",aRamp,aShift%aN);
+  var v=document.getElementById("aShiftVal"); if(v) v.textContent=aShift;
+}
+(function(){
+  var r=document.getElementById("aShift"); if(r){ r.max=aN-1; r.addEventListener("input",function(){ aShift=+r.value; renderA(); }); }
+  var pl=document.getElementById("aPlay"); if(pl) pl.addEventListener("click",function(){ aPlaying=!aPlaying; pl.textContent=aPlaying?"⏸ Szünet":"▶ Lejátszás"; pl.classList.toggle("active",aPlaying); if(aPlaying) ensureLoop(); });
+})();
+
+/* =========================================================
+   DEMÓ B — varratmentes vs törött szalag
+   ========================================================= */
+var BLW=140,BLH=96,bIdxArr=new Int16Array(BLW*BLH);
+var bKind="loop", bRamp=buildRamp("loop"), bN=bRamp.length, bShift=0, bPlaying=true;
+(function(){ for(var y=0;y<BLH;y++)for(var x=0;x<BLW;x++){ var ph=x*0.5+3.0*Math.sin(y*0.2); bIdxArr[y*BLW+x]=((Math.floor(ph)%10)+10)%10; } })();
+var bC=document.getElementById("bCanvas"), bBuf=makeBuf(BLW,BLH), bBx=bBuf.getContext("2d");
+function renderB(){
+  if(!bC) return; bN=bRamp.length;
+  paintBuf(bBx,BLW,BLH,function(p){ return bRamp[(bIdxArr[p]+bShift)%bN]; });
+  blit(bBuf,bBx,BLW,BLH,bC);
+  swatchStrip("bPal",bRamp,-1);
+}
+(function(){
+  document.querySelectorAll("[data-bramp]").forEach(function(btn){ btn.addEventListener("click",function(){ document.querySelectorAll("[data-bramp]").forEach(function(x){x.classList.remove("active");}); btn.classList.add("active"); bKind=btn.getAttribute("data-bramp"); bRamp=buildRamp(bKind); renderB(); }); });
+  var pl=document.getElementById("bPlay"); if(pl) pl.addEventListener("click",function(){ bPlaying=!bPlaying; pl.textContent=bPlaying?"⏸ Szünet":"▶ Lejátszás"; pl.classList.toggle("active",bPlaying); if(bPlaying) ensureLoop(); });
+})();
+
+/* =========================================================
+   DEMÓ C — részleges ciklus (folyó: állandó part+kő, forgó víz)
+   ========================================================= */
+var CLW=140,CLH=100;
+var cType=new Uint8Array(CLW*CLH);     // 0=fű,1=kő,2=víz
+var cWater=new Int16Array(CLW*CLH);    // víz ciklikus alapindex
+var STATIC={ grass:[[78,143,51],[63,122,46],[99,176,63]], rock:[[120,124,132],[92,96,104],[150,154,162]] };
+var WPAL=buildRamp("water");           // 10 színű víz-szalag
+var cDir=1, cSpeed=2, cAcc=0, cShift=0, cPlaying=true;
+(function(){
+  var top=Math.round(CLH*0.32), bot=Math.round(CLH*0.68);
+  // kövek a vízben
+  var rocks=[[42,Math.round(CLH*0.5),7],[92,Math.round(CLH*0.58),6],[68,Math.round(CLH*0.44),5]];
+  for(var y=0;y<CLH;y++)for(var x=0;x<CLW;x++){
+    var p=y*CLW+x, inRock=false;
+    for(var r=0;r<rocks.length;r++){ var dx=x-rocks[r][0],dy=(y-rocks[r][1])*1.2; if(dx*dx+dy*dy<rocks[r][2]*rocks[r][2]) inRock=true; }
+    if(inRock){ cType[p]=1; }
+    else if(y<top||y>bot){ cType[p]=0; }       // partok
+    else { cType[p]=2; cWater[p]=((Math.floor(x*0.35+1.6*Math.sin(y*0.30+x*0.05))%10)+10)%10; }
+  }
+})();
+var cC=document.getElementById("cCanvas"), cBuf=makeBuf(CLW,CLH), cBx=cBuf.getContext("2d");
+function renderC(){
+  if(!cC) return; var L=WPAL.length;
+  paintBuf(cBx,CLW,CLH,function(p){
+    var t=cType[p];
+    if(t===0){ var gi=(nz(p%CLW,(p/CLW)|0)*3)|0; return STATIC.grass[gi]; }
+    if(t===1){ var ri=(nz((p%CLW)+7,((p/CLW)|0)+3)*3)|0; return STATIC.rock[ri]; }
+    return WPAL[(((cWater[p]+cDir*cShift)%L)+L)%L];
+  });
+  blit(cBuf,cBx,CLW,CLH,cC);
+}
+(function(){
+  var sp=document.getElementById("cSpeed"),sv=document.getElementById("cSpeedVal");
+  if(sp) sp.addEventListener("input",function(){ cSpeed=+sp.value; sv.textContent=cSpeed; });
+  document.querySelectorAll("[data-cdir]").forEach(function(btn){ btn.addEventListener("click",function(){ document.querySelectorAll("[data-cdir]").forEach(function(x){x.classList.remove("active");}); btn.classList.add("active"); cDir=+btn.getAttribute("data-cdir"); }); });
+  var pl=document.getElementById("cPlay"); if(pl) pl.addEventListener("click",function(){ cPlaying=!cPlaying; pl.textContent=cPlaying?"⏸ Szünet":"▶ Lejátszás"; pl.classList.toggle("active",cPlaying); if(cPlaying) ensureLoop(); });
+})();
+
+/* =========================================================
+   HERO — folyó víz (auto)
+   ========================================================= */
+var HLW=140,HLH=92,hIdx=new Int16Array(HLW*HLH);
+var hRamp=buildRamp("water"), hN=hRamp.length, hShift=0;
+(function(){ for(var y=0;y<HLH;y++)for(var x=0;x<HLW;x++){ var ph=x*0.15+4.0*Math.sin(y*0.14)+1.4*Math.sin(x*0.05+y*0.04); hIdx[y*HLW+x]=((Math.floor(ph)%hN)+hN)%hN; } })();
+var hC=document.getElementById("heroCanvas"), hBuf=makeBuf(HLW,HLH), hBx=hBuf.getContext("2d");
+function renderHero(){ if(!hC) return; paintBuf(hBx,HLW,HLH,function(p){ return hRamp[(hIdx[p]+hShift)%hN]; }); blit(hBuf,hBx,HLW,HLH,hC); }
+
+/* =========================================================
+   közös animációs hurok
+   ========================================================= */
+var running=false, frame=0;
+function tick(){
+  frame++;
+  if(!reduce && frame%6===0){ hShift=(hShift+1)%hN; renderHero(); }
+  if(aPlaying && frame%7===0){ aShift=(aShift+1)%aN; var r=document.getElementById("aShift"); if(r) r.value=aShift; renderA(); }
+  if(bPlaying && frame%5===0){ bShift=(bShift+1)%bN; renderB(); }
+  if(cPlaying){ cAcc+=cSpeed*0.16; var ns=Math.floor(cAcc); if(ns!==cShift){ cShift=ns; renderC(); } }
+  if(!reduce||aPlaying||bPlaying||cPlaying){ requestAnimationFrame(tick); } else { running=false; }
+}
+function ensureLoop(){ if(!running){ running=true; requestAnimationFrame(tick); } }
+
+/* init */
+renderHero(); renderA(); renderB(); renderC();
+if(reduce){ aPlaying=bPlaying=cPlaying=false;
+  ["aPlay","bPlay","cPlay"].forEach(function(id){ var b=document.getElementById(id); if(b){ b.textContent="▶ Lejátszás"; b.classList.remove("active"); } });
+} else { ensureLoop(); }
+
+/* scrollspy + mobil menü */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){ var pos=window.scrollY+140,active=0; for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i; links.forEach(function(a,i){a.classList.toggle("active",i===active);}); }
+window.addEventListener("scroll",spy,{passive:true}); spy();
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>

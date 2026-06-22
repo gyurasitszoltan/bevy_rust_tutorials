@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PixelOver — Material editing: 3D anyagok és effektek a shaderben (magyar)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13; --bg-deep:#0b110c; --panel:#1a241b; --panel-2:#162017;
+  --ink:#e9e3cd; --muted:#9caa90; --grass:#7ecb52; --grass-hi:#a5e87d; --grass-dk:#4e8f33;
+  --dirt:#c99c66; --dirt-dk:#9a6e43; --water:#6cc8d9; --stone:#9aa0aa; --concrete:#cacac3;
+  --lava:#ff7a3c; --ice:#bfe0f0; --line:#2d3b2c; --line-hi:#41543e; --shadow:rgba(0,0,0,.45);
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px)}
+::selection{background:var(--grass-dk);color:#fff}
+
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--bg-deep);border-right:3px solid var(--line);overflow-y:auto;z-index:30;padding:22px 0 40px}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px}
+.logo .title{font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15}
+.logo .sub{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em}
+.logo .badge{display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;box-shadow:2px 2px 0 var(--shadow)}
+.logo .badge.alt{background:var(--lava);color:#1a0d06;margin-left:6px}
+.nav-part{font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);padding:16px 20px 6px;text-transform:uppercase}
+.nav a{display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;font-size:14px;position:relative;border-left:4px solid transparent;transition:color .12s,background .12s}
+.nav a::before{content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);transition:opacity .12s,left .12s}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{color:var(--grass-hi);background:rgba(126,203,82,.10);border-left-color:var(--grass);font-weight:600}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;background:var(--grass);color:#10180f;border:none;padding:8px 14px;box-shadow:3px 3px 0 var(--shadow);text-decoration:none;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+.menu-toggle{display:none;position:fixed;top:14px;left:14px;z-index:40;font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;background:var(--panel);color:var(--ink);border:3px solid var(--line);box-shadow:3px 3px 0 var(--shadow)}
+
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-family:"Pixelify Sans";font-weight:700;font-size:clamp(32px,5vw,52px);line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px}
+.hero h1 .g{color:var(--grass-hi)}.hero h1 .d{color:var(--dirt)}.hero h1 .w{color:var(--water)}.hero h1 .l{color:var(--lava)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{border:3px solid var(--line);background:var(--bg-deep);padding:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow)}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0;border:2px solid var(--line);background:#0c120d}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6;flex:1;min-width:220px}
+.hero-strip .cap b{color:var(--lava)}
+
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);text-transform:uppercase}
+.ch-eyebrow{font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);text-transform:uppercase;margin-bottom:8px}
+h2{font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);margin:34px 0 12px}
+p{margin-bottom:14px}p+p{margin-top:2px}
+strong{color:#fff}em{color:var(--dirt)}a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}li{margin-bottom:7px}
+code:not(pre code){font-family:"IBM Plex Mono";font-size:.86em;background:#0c120d;color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+.ui{font-family:"IBM Plex Mono";font-size:.86em;background:#0d181b;color:var(--water);padding:2px 7px;border:1px solid #2a4a52;white-space:nowrap;font-weight:500}
+
+ol.steps{list-style:none;margin:20px 0;counter-reset:st}
+ol.steps>li{counter-increment:st;position:relative;padding:4px 0 14px 52px;margin-bottom:6px;border-left:3px solid var(--line);margin-left:16px}
+ol.steps>li::before{content:counter(st);position:absolute;left:-19px;top:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-family:"Pixelify Sans";font-size:17px;color:#10180f;background:var(--grass);box-shadow:2px 2px 0 var(--shadow)}
+ol.steps>li:last-child{border-left-color:transparent}
+
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--grass)}.diagram pre .di{color:var(--dirt)}.diagram pre .wa{color:var(--water)}.diagram pre .st{color:var(--stone)}.diagram pre .lv{color:var(--lava)}.diagram pre .mu{color:var(--muted)}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+
+.info-box{margin:24px 0;border:3px solid #2a4a52;background:#0d181b;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.info-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.info-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}.info-box p:last-child{margin-bottom:0}
+.info-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.info-box ul{font-size:15px;color:#cfdbd5}
+
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--grass);margin-bottom:4px}
+.note.warn .n-tag{color:var(--dirt)}
+
+.shot{margin:24px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.shot img{display:block;width:100%;height:auto;image-rendering:auto}
+.shot .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.55;padding:9px 13px;border-top:2px dashed var(--line-hi)}
+.shot .cap b{color:var(--grass)}
+.shot.small{max-width:420px}
+
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}.on{color:var(--grass-hi);font-weight:600}.off{color:var(--dirt)}
+
+.playground{margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);border-bottom:3px solid var(--grass-dk);padding:10px 14px}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em}
+.playground .pg-tag{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted)}
+.playground .pg-body{padding:16px;display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#0c120d;touch-action:none;max-width:100%}
+.playground .pg-side{flex:1;min-width:240px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:1.9}
+.canvas-pair{display:flex;gap:14px;flex-wrap:wrap}
+.canvas-pair figure{margin:0}
+.canvas-pair figcaption{font-family:"IBM Plex Mono";font-size:11px;color:var(--muted);margin-top:5px;text-align:center}
+
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--dirt);letter-spacing:.06em;margin:14px 0 4px;text-transform:uppercase}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0}
+.tbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:5px 12px;transition:all .1s}
+.tbtn:hover{color:var(--ink)}
+.tbtn.active{background:var(--grass);color:#10180f;border-color:var(--grass);font-weight:600}
+.tbtn.wa.active{background:var(--water);color:#06181c;border-color:var(--water)}
+.tbtn.lv.active{background:var(--lava);color:#1a0d06;border-color:var(--lava)}
+input[type=range]{width:100%;accent-color:var(--grass);margin:6px 0 2px;cursor:pointer}
+.rng-val{font-family:"IBM Plex Mono";font-size:13px;color:var(--grass-hi)}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+.color-swatches{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0}
+.csw{width:30px;height:30px;border:2px solid var(--line-hi);cursor:pointer}
+.csw.active{outline:3px solid #fff;outline-offset:-3px}
+
+footer{margin-top:90px;border-top:3px solid var(--line);padding-top:24px;font-size:13.5px;color:var(--muted)}
+footer .pix{font-family:"Pixelify Sans";color:var(--grass);font-size:15px}
+footer a{color:var(--water)}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}
+  .menu-toggle{display:block}
+  .main{margin-left:0}
+  .wrap{padding:0 20px 100px}
+  .hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;background:linear-gradient(90deg,#ff7a3c,#a5e87d);box-shadow:0 0 10px rgba(255,122,60,.5);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">PIXELOVER<br>MATERIAL EDITING</div>
+    <div class="sub">3D anyagok · PBR · per-anyag shader</div>
+    <span class="badge">PixelOver</span><span class="badge alt">3D · HALADÓ</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I · Importálás</div>
+    <a href="#ch1">1 · 3D objektum kiválasztása</a>
+    <a href="#ch2">2 · Import &amp; Manage</a>
+    <a href="#ch3">3 · Linkelt anyagok</a>
+    <div class="nav-part">II · Szerkesztés</div>
+    <a href="#ch4">4 · Anyag-tulajdonságok</a>
+    <a href="#ch5">5 · Per-anyag shader</a>
+    <div class="nav-part">III · Animáció</div>
+    <a href="#ch6">6 · Tulajdonságok animálása</a>
+    <a href="#ch7">7 · Összefoglaló &amp; tovább</a>
+  </nav>
+  <div class="dl-box">
+    <p>Ez a <strong>3D</strong> oldal. Ha a 2D alapok még újak, kezdd itt:</p>
+    <a class="btn secondary" href="pixelover-elso-lepesek-2d-tutorial.html">← Első lépések 2D</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// haladó tutorial · magyar nyelven · a hivatalos „Material editing” alapján</div>
+  <h1>Material editing — <span class="g">3D anyagok</span> és <span class="l">effektek</span> a shaderben</h1>
+  <p class="lead">Amikor egy <strong>3D modellt</strong> hozol be a PixelOverbe, a felületeit <em>anyagok</em> (materials) borítják: alapszín, textúra, érdesség, fémesség. Ezeket nemcsak megnézheted, hanem <strong>importálhatod és szerkesztheted</strong> — sőt, minden anyagra külön <strong>indexelést, ditheringet</strong> tehetsz, és az értékeit <strong>animálhatod</strong> (görgő textúra, színváltás). Ebben a leckében végigvesszük az importtól az animált anyagig — élő demókkal.</p>
+  <div class="hero-strip">
+    <canvas id="heroCanvas" width="84" height="84" style="width:200px;height:200px"></canvas>
+    <div class="cap" id="heroCap">↑ Élő minta: egy anyaggömb pixel-artosítva. A fény körbejár, az <b>indexelt</b> paletta és a per-anyag shader adja a pixeles felületet — pontosan ezt állítjuk be.</div>
+  </div>
+</header>
+
+<!-- ================= I. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Importálás</span></div>
+
+<!-- ====== 1 ====== -->
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>3D objektum kiválasztása</h2>
+
+  <p>Az anyagszerkesztés a <strong>3D</strong> rétegekhez tartozik. Ha behoztál egy 3D modellt (lásd a hivatalos „First Steps 3D” leckét), az a Scene fában egy <code>Shader 3D Layer</code> alá kerül. Jelöld ki — vagy a fában, vagy közvetlenül a fő nézetben.</p>
+
+  <div class="info-box">
+    <div class="tag">▸ Mi az az „anyag” (material)?</div>
+    <p>A 3D modell felülete nem egyetlen szín: a textúrái és fizikai paraméterei (mennyire <em>fényes</em>, <em>fémes</em>, <em>érdes</em>) együtt adják ki a „bőrét”. Ezt a csomagot hívjuk <strong>anyagnak</strong>. Egy modellnek több anyaga is lehet (pl. külön a páncél, külön a bőr).</p>
+  </div>
+
+  <div class="shot">
+    <img src="assets/pixelover/select_model.png" alt="Kijelölt 3D modell (mixamo_default) egy Shader 3D Layer alatt, gizmóval">
+    <div class="cap">Egy kijelölt 3D modell (<code>mixamo_default</code>) a <b>Shader 3D Layer</b> alatt. Az <b>Object</b> panelen a <code>Resource</code> (a 3D jelenet), egy <code>Animation</code> és a <code>Position</code> — ez a modell, aminek mindjárt az anyagaihoz nyúlunk.</div>
+  </div>
+</section>
+
+<!-- ====== 2 ====== -->
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>Importálás: Import &amp; Manage</h2>
+
+  <p>A bal alsó panelen válts az <span class="ui">Object</span> fülről a <span class="ui">Materials</span> fülre. Itt egy <strong>előnézet</strong> mutatja a modell anyagait, és egy <span class="ui">Import &amp; Manage</span> gomb hozza be őket a projektbe szerkesztésre.</p>
+
+  <div class="shot">
+    <img src="assets/pixelover/select_materials.png" alt="A Materials fül: anyag-előnézet és Import & Manage gomb">
+    <div class="cap">A <b>Materials</b> fül import előtt: az anyagok előnézete és az <b>Import &amp; Manage</b> gomb. Lent a <code>Path</code> és a <code>Save</code> mód.</div>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">▲ Fontos figyelmeztetés</div>
+    Az anyagok importálása <strong>leválasztja (unsync) őket az eredeti 3D fájlról</strong>. Ezután a PixelOverben végzett módosításaid a projektben élnek, és az eredeti modell újratöltése már nem írja felül őket. Cserébe szabadon szerkesztheted az anyagokat.
+  </div>
+
+  <p>Import után a Materials panel az anyagok <strong>listáját</strong> mutatja (kis gömb-előnézettel). Kattints egy anyagra, és megjelennek a <strong>tulajdonságai</strong> alul — itt szerkeszthetsz:</p>
+
+  <div class="shot">
+    <img src="assets/pixelover/edit_material.png" alt="Importált anyaglista (Beta_Joint, asdf1:Beta...) és a kijelölt anyag Base tulajdonságai: Lighting Burley, Color, Texture">
+    <div class="cap">Importálva: az <b>anyaglista</b> (<code>+ Add</code> új, <code>✕</code> törlés), és a kijelölt anyag (<code>Beta_Joints_MAT</code>) tulajdonságai — <b>Base</b>: <code>Lighting</code> (itt <em>Burley</em>), <code>Color</code>, <code>Texture</code>. Lent a kulcskocka-idővonal az animáláshoz.</div>
+  </div>
+</section>
+
+<!-- ====== 3 ====== -->
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>Linkelt (megosztott) anyagok</h2>
+
+  <p>Egy anyag mellett néha egy <strong>lánc-ikon 🔗 és egy szám</strong> jelenik meg. Ez azt jelenti, hogy ugyanaz az anyag <em>több felületen</em> is használatban van — <strong>megosztott példány (shared instance)</strong>. A varázslat: ha az egyiket szerkeszted, az <strong>összes</strong> linkelt felület együtt változik. (Másoláskor is keletkezhet ilyen link.)</p>
+
+  <div class="shot small">
+    <img src="assets/pixelover/linked_material.png" alt="Két linkelt anyag, mindkettő 🔗2 jelzéssel; a Color zöldre állítva, a modell felülete zöld lett">
+    <div class="cap">A <code>🔗 2</code> jelzés: az anyag 2 felületen osztott. A <code>Color</code> zöldre állítva — és a modell <b>összes</b> linkelt felülete egyszerre lett zöld.</div>
+  </div>
+
+  <p>Ha egy felületet <em>külön</em> akarsz kezelni, kattints a <strong>lánc gombra</strong>, ezzel <strong>leválasztod (unlink)</strong>, és az anyag egyedivé válik — onnantól a többitől függetlenül szerkesztheted.</p>
+
+  <!-- DEMÓ: linked -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Linkelt anyagok</span>
+      <span class="pg-tag">egy anyag, két felület</span>
+    </div>
+    <div class="pg-body">
+      <div class="canvas-pair">
+        <figure><canvas id="lnA" width="84" height="84" style="width:130px;height:130px"></canvas><figcaption id="lnAcap">🔗 felület A</figcaption></figure>
+        <figure><canvas id="lnB" width="84" height="84" style="width:130px;height:130px"></canvas><figcaption id="lnBcap">🔗 felület B</figcaption></figure>
+      </div>
+      <div class="pg-side">
+        <p>Mindkét gömb <strong>ugyanazt</strong> a (megosztott) anyagot használja. Told a színt — amíg linkelve van, mindkettő követi.</p>
+        <div class="ctl-label">Megosztott anyag · színárnyalat <span class="rng-val" id="lnHueVal">200°</span></div>
+        <input type="range" id="lnHue" min="0" max="359" value="200">
+        <div class="btn-row" style="margin-top:10px">
+          <button class="tbtn" id="lnUnlink">🔗 B leválasztása (unlink)</button>
+        </div>
+        <div class="diff-msg" id="lnMsg" style="font-family:'IBM Plex Mono';font-size:12.5px;margin-top:12px;padding:8px 11px;border:2px solid var(--line);border-left:6px solid var(--grass);color:var(--grass-hi);line-height:1.5">Linkelve: a csúszka MINDKÉT felületet színezi.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= II. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ II. rész — Szerkesztés</span></div>
+
+<!-- ====== 4 ====== -->
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>Anyag-tulajdonságok</h2>
+
+  <p>Egy importált anyag rengeteg beállítást kínál. A leggyakrabban használtak:</p>
+
+  <table>
+    <tr><th>Csoport</th><th>Tulajdonság</th><th>Mit állít</th></tr>
+    <tr><td rowspan="3"><strong>Base</strong></td><td><code>Lighting</code></td><td>A megvilágítási modell — pl. <em>Burley</em> (realisztikus) vagy <em>Toon</em> (cel-shaded, sávos).</td></tr>
+    <tr><td><code>Color</code></td><td>Az anyag alapszíne (base color).</td></tr>
+    <tr><td><code>Texture</code></td><td>Az alaptextúra (base texture), ha van.</td></tr>
+    <tr><td rowspan="3"><strong>ORM</strong></td><td><code>Ambient Occlusion</code></td><td>A felület mélyedéseinek beárnyékolása (saját árnyék).</td></tr>
+    <tr><td><code>Roughness</code></td><td><strong>Érdesség</strong>: alacsony = tükörfényes, magas = matt, szórt fény.</td></tr>
+    <tr><td><code>Metallic</code></td><td><strong>Fémesség</strong>: a fémek alig szórnak diffúz fényt, és a tükörfényük az alapszínt veszi fel.</td></tr>
+    <tr><td rowspan="2"><strong>Map</strong></td><td><code>Normal Map</code></td><td>Felületi részletek (dudorok, karcok) fakeelése a fény becsapásával.</td></tr>
+    <tr><td><code>Height</code></td><td>Magasság/parallax a mélységérzethez.</td></tr>
+    <tr><td><strong>UV</strong></td><td><code>Scale / Offset</code></td><td>A textúra méretezése és eltolása (ezt animálni is lehet — 6. fejezet).</td></tr>
+  </table>
+
+  <div class="shot small">
+    <img src="assets/pixelover/material_properties.png" alt="Anyag-tulajdonságok: ReSampling, Transparency, UV, Shadows, Billboard, ORM (Ambient Occlusion, Roughness, Metallic), Map (Normal Map, Height)">
+    <div class="cap">A tulajdonság-fa: a szokásos szekciók után az <b>ORM</b> (Ambient Occlusion · Roughness · Metallic) és a <b>Map</b> (Normal Map · Height) csoport adja a fizikai felület-paramétereket.</div>
+  </div>
+
+  <!-- DEMÓ: material lab -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Anyag-labor</span>
+      <span class="pg-tag">PBR + per-anyag shader</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="matCanvas" width="96" height="96" style="width:210px;height:210px"></canvas>
+      <div class="pg-side">
+        <p>Egy anyaggömb (a 3D felület helyett). Tekergesd a fizikai paramétereket — és lent a 5. fejezethez kapcsold be a per-anyag pixelizálást is.</p>
+        <div class="ctl-label">Alapszín (Base Color)</div>
+        <div class="color-swatches" id="matSw"></div>
+        <div class="ctl-label">Megvilágítás (Lighting)</div>
+        <div class="btn-row">
+          <button class="tbtn wa active" data-light="real">Burley (realisztikus)</button>
+          <button class="tbtn wa" data-light="toon">Toon</button>
+        </div>
+        <div class="ctl-label">Roughness (érdesség) <span class="rng-val" id="matRoughVal">40%</span></div>
+        <input type="range" id="matRough" min="0" max="100" value="40">
+        <div class="ctl-label">Metallic (fémesség) <span class="rng-val" id="matMetalVal">20%</span></div>
+        <input type="range" id="matMetal" min="0" max="100" value="20">
+        <div class="ctl-label">Per-anyag shader</div>
+        <div class="btn-row">
+          <button class="tbtn" id="matPix">Pixelizálás (Indexation + Dithering)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 5 ====== -->
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Per-anyag shader-effektek</h2>
+
+  <p>Itt jön a PixelOver igazi csavarja: minden <strong>anyagnak saját shader-lánca</strong> van — ugyanazok az effektek, amiket a 2D <em>Layer Shader</em>nél megismertél, csak <em>felületenként</em>. A tulajdonság-fa <strong>Color</strong> csoportjában találod:</p>
+
+  <ul>
+    <li><strong>Adjustments</strong> — szín-kiigazítás (Hue, Brightness, Contrast…), csak erre az anyagra.</li>
+    <li><strong>Indexation</strong> — az anyag színeit korlátozott palettára szűkíti. (Lásd: <a href="pixelover-szin-indexeles-tutorial.html">Szín-indexelés</a>.)</li>
+    <li><strong>Match indexation</strong> — index-alapú átszínezés, akár <a href="pixelover-color-cycling-tutorial.html">color cyclinghez</a>.</li>
+    <li><strong>Dithering</strong> — sima átmenetek kevés színnel. (Lásd: <a href="pixelover-dithering-tutorial.html">Dithering</a>.)</li>
+  </ul>
+
+  <div class="shot">
+    <img src="assets/pixelover/material_shader_properties.png" alt="Per-anyag shader: a Color csoportban Adjustments, Indexation (Indexed On, Palette), Match indexation, Dithering — a modell indexelt, lilás pixel-art lett">
+    <div class="cap">A per-anyag <b>Color</b> csoport: <code>Adjustments</code>, <code>Indexation</code> (Indexed: On + Palette), <code>Match indexation</code>, <code>Dithering</code> — pont mint a Layer Shaderben. A modell itt anyagszinten lett indexelt pixel-art.</div>
+  </div>
+
+  <div class="info-box">
+    <div class="tag">▸ Miért anyagonként?</div>
+    <p>Mert így <strong>felületenként</strong> más-más pixel-art stílust adhatsz: a fémpáncél kaphat egy hideg, kontrasztos palettát, a bőr egy melegebbet, a ruha pedig erős ditheringet — mindezt egyetlen modellen, egyszerre. A fenti <em>Anyag-laborban</em> a <span class="ui">Pixelizálás</span> gomb pont ezt a lépést mutatja: indexelés + dithering az anyagra.</p>
+  </div>
+</section>
+
+<!-- ================= III. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Animáció</span></div>
+
+<!-- ====== 6 ====== -->
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Anyag-tulajdonságok animálása</h2>
+
+  <p>A legtöbb anyag-tulajdonság <strong>kulcskockázható (keyframe)</strong> az <span class="ui">Animation</span> panelen. Ezzel mozgó anyageffekteket kapsz a modell mozgatása nélkül: <strong>görgő textúrák</strong>, színváltás, animált árnyalás.</p>
+
+  <p>A klasszikus példa a <strong>UV ▸ Offset</strong> animálása: ha a textúra-eltolást folyamatosan léptetjük, a textúra <em>csorog</em> a felületen — folyó víz, láva, vízesés, futószalag. A hivatalos példában egy „Fire” anyag <code>Toon</code> megvilágítással, a <code>UV / Offset</code> kulcskockázva:</p>
+
+  <div class="shot">
+    <img src="assets/pixelover/animated_uv_material.gif" alt="Animált UV: egy Fire anyag, Lighting Toon, a UV Offset kulcskockázva — a textúra csorog, lángnyelv-hatás">
+    <div class="cap">A hivatalos előnézet: egy <code>Fire</code> anyag, <code>Lighting: Toon</code>, és a <code>UV / Offset</code> animálva az idővonalon → a textúra <b>csorog</b>, lángnyelv-hatás. Egyetlen kulcskockázott érték.</div>
+  </div>
+
+  <!-- DEMÓ: animated UV -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Animált UV (görgő textúra)</span>
+      <span class="pg-tag">a textúra mozog, a modell áll</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="uvCanvas" width="120" height="88" style="width:300px;height:220px"></canvas>
+      <div class="pg-side">
+        <p>Egy felület csempézett textúrával. A <strong>UV Offset</strong> léptetésével a minta csorog — a felület helyben marad.</p>
+        <div class="ctl-label">Sebesség (UV Offset/idő) <span class="rng-val" id="uvSpeedVal">3</span></div>
+        <input type="range" id="uvSpeed" min="0" max="6" value="3">
+        <div class="ctl-label">Irány</div>
+        <div class="btn-row">
+          <button class="tbtn wa active" data-uvdir="down">▼ le</button>
+          <button class="tbtn wa" data-uvdir="up">▲ fel</button>
+          <button class="tbtn wa" data-uvdir="right">▶ jobbra</button>
+        </div>
+        <div class="btn-row" style="margin-top:8px">
+          <button class="tbtn" id="uvPix">Pixelizálás</button>
+          <button class="tbtn active" id="uvPlay">⏸ Szünet</button>
+        </div>
+        <p class="legend" style="margin-top:8px">Ez NEM color cycling: itt a <em>textúra-koordináta</em> (UV) tolódik, vagyis a minta tényleg „arrébb csúszik”.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== 7 ====== -->
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>Összefoglaló &amp; merre tovább?</h2>
+
+  <p>A 3D anyag-munkamenet egy lapon:</p>
+  <ol class="steps">
+    <li><strong>Jelöld ki</strong> a 3D modellt a <code>Shader 3D Layer</code> alatt.</li>
+    <li><strong>Importáld</strong> az anyagokat: <span class="ui">Materials ▸ Import &amp; Manage</span> (figyelem: leválik az eredeti fájlról).</li>
+    <li><strong>Linkelt anyagok</strong>: a <code>🔗 N</code> egy felület → mind változik; a lánc gombbal leválaszthatod.</li>
+    <li><strong>Tulajdonságok</strong>: Base (Lighting/Color/Texture), ORM (AO/Roughness/Metallic), Map (Normal/Height), UV.</li>
+    <li><strong>Per-anyag shader</strong>: Adjustments, Indexation, Match, Dithering — felületenként.</li>
+    <li><strong>Animáció</strong>: kulcskockázd a tulajdonságokat (pl. UV Offset) → görgő, élő anyagok.</li>
+  </ol>
+
+  <div class="info-box">
+    <div class="tag">▸ Hol tart a sorozat?</div>
+    <ul>
+      <li><a href="pixelover-elso-lepesek-2d-tutorial.html">Első lépések 2D</a> — az alap-workflow.</li>
+      <li><a href="pixelover-szin-indexeles-tutorial.html">Szín-indexelés</a> — paletták (a per-anyag Indexation alapja).</li>
+      <li><a href="pixelover-color-cycling-tutorial.html">Color cycling</a> — paletta-animáció a Shift-tel.</li>
+      <li><a href="pixelover-dithering-tutorial.html">Dithering</a> — sima átmenetek kevés színnel.</li>
+      <li><strong>Material editing</strong> — itt vagy.</li>
+      <li><strong>Particle systems</strong> — a következő hivatalos lecke: részecskerendszerek.</li>
+    </ul>
+  </div>
+
+  <p>A nagy tanulság: a PixelOverben az „anyag” nem csak szín — fizikai felület (ORM), <strong>saját shader-lánc</strong> (per-anyag indexálás/dithering) és <strong>animálható</strong> paraméterek együtt. Ez teszi lehetővé, hogy egyetlen 3D modellből gazdag, felületenként hangolt, mozgó pixel-art szülessen.</p>
+
+  <footer>
+    <p class="pix">PixelOver — Material editing: 3D anyagok és effektek</p>
+    <p>Haladó tutorial magyarul, a hivatalos <a href="https://docs.pixelover.io/tutorials/material_editing/" target="_blank" rel="noopener">docs.pixelover.io / Material editing</a> alapján. A képernyőképek és az animált UV előnézet a hivatalos dokumentációból származnak; a demók procedurális, élő illusztrációk (a 3D modell helyett egy egyszerű anyaggömbön).</p>
+  </footer>
+</section>
+
+</div><!-- /wrap -->
+</div><!-- /main -->
+
+<script>
+(function(){
+"use strict";
+var reduce=(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches);
+
+/* ---- segéd ---- */
+function clamp(v){ return v<0?0:v>255?255:v|0; }
+function lerp(a,b,t){ return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]; }
+function rgbStr(c){ return "rgb("+(c[0]|0)+","+(c[1]|0)+","+(c[2]|0)+")"; }
+function norm(v){ var l=Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2])||1; return [v[0]/l,v[1]/l,v[2]/l]; }
+function hsv2rgb(h,s,v){ var c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c,r=0,g=0,b=0; if(h<60){r=c;g=x;}else if(h<120){r=x;g=c;}else if(h<180){g=c;b=x;}else if(h<240){g=x;b=c;}else if(h<300){r=x;b=c;}else{r=c;b=x;} return [clamp((r+m)*255),clamp((g+m)*255),clamp((b+m)*255)]; }
+function nz(x,y){ var h=(x*374761393+y*668265263)|0; h=(h^(h>>13))*1274126177|0; return ((h^(h>>16))>>>0)/4294967295; }
+
+// Bayer 4x4 → küszöb 0..1
+var B4=[[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
+function bth(x,y){ return (B4[y&3][x&3]+0.5)/16; }
+function nearest(pal,r,g,b){ var bi=0,bd=1e12; for(var i=0;i<pal.length;i++){var p=pal[i],dr=r-p[0],dg=g-p[1],db=b-p[2],d=dr*dr+dg*dg+db*db; if(d<bd){bd=d;bi=i;}} return pal[bi]; }
+function medianCut(px,n){
+  if(!px.length) return [[128,128,128]];
+  var boxes=[px.slice()];
+  while(boxes.length<n){
+    var bi=-1,br=-1,ax=0;
+    for(var i=0;i<boxes.length;i++){ var b=boxes[i]; if(b.length<2) continue; var mn=[255,255,255],mx=[0,0,0],j,k;
+      for(j=0;j<b.length;j++)for(k=0;k<3;k++){var v=b[j][k]; if(v<mn[k])mn[k]=v; if(v>mx[k])mx[k]=v;}
+      var rg=[mx[0]-mn[0],mx[1]-mn[1],mx[2]-mn[2]], a=(rg[0]>=rg[1]&&rg[0]>=rg[2])?0:(rg[1]>=rg[2]?1:2);
+      if(rg[a]>br){br=rg[a];bi=i;ax=a;} }
+    if(bi<0) break;
+    var box=boxes[bi]; box.sort(function(a,b){return a[ax]-b[ax];}); var mid=box.length>>1;
+    boxes.splice(bi,1,box.slice(0,mid),box.slice(mid));
+  }
+  return boxes.map(function(b){var s=[0,0,0],j;for(j=0;j<b.length;j++){s[0]+=b[j][0];s[1]+=b[j][1];s[2]+=b[j][2];}var m=b.length||1;return [Math.round(s[0]/m),Math.round(s[1]/m),Math.round(s[2]/m)];});
+}
+
+function makeBuf(w,h){ var c=document.createElement("canvas"); c.width=w; c.height=h; return c; }
+function blit(buf,lw,lh,dest){ var d=dest.getContext("2d"); d.imageSmoothingEnabled=false; d.clearRect(0,0,dest.width,dest.height); d.drawImage(buf,0,0,lw,lh,0,0,dest.width,dest.height); }
+function paintBuf(bctx,lw,lh,colorOf){ var id=bctx.createImageData(lw,lh),d=id.data; for(var p=0;p<lw*lh;p++){ var c=colorOf(p),i=p*4; if(!c){d[i+3]=0;continue;} d[i]=c[0];d[i+1]=c[1];d[i+2]=c[2];d[i+3]=255; } bctx.putImageData(id,0,0); }
+
+/* =========================================================
+   anyaggömb árnyékolás (egyszerű PBR-szerű) + opcionális pixelizálás
+   ========================================================= */
+function renderSphere(destC, buf, lw, lh, opt){
+  var bctx=buf.getContext("2d");
+  var cx=lw/2-0.5, cy=lh/2-0.5, r=Math.min(lw,lh)*0.46;
+  var L=norm(opt.light||[-0.5,-0.55,0.66]), V=[0,0,1], H=norm([L[0]+V[0],L[1]+V[1],L[2]+V[2]]);
+  var base=opt.base, rough=opt.rough, metal=opt.metal, toon=opt.toon;
+  var shin=6+(1-rough)*90, specK=(1-rough*0.65);
+  var diffC=[base[0]*(1-metal*0.85),base[1]*(1-metal*0.85),base[2]*(1-metal*0.85)];
+  var specC=lerp([255,255,255],base,metal);
+  var amb=[base[0]*0.17,base[1]*0.17,base[2]*0.17];
+  var cols=new Array(lw*lh), opaque=[];
+  for(var y=0;y<lh;y++)for(var x=0;x<lw;x++){
+    var p=y*lw+x, nx=(x-cx)/r, ny=(y-cy)/r, d2=nx*nx+ny*ny;
+    if(d2>1){ cols[p]=null; continue; }
+    var nz3=Math.sqrt(1-d2), ndl=nx*L[0]+ny*L[1]+nz3*L[2]; if(ndl<0)ndl=0;
+    var ndh=nx*H[0]+ny*H[1]+nz3*H[2]; if(ndh<0)ndh=0;
+    var diff=ndl, spec=Math.pow(ndh,shin)*specK;
+    if(toon){ diff = ndl<0.12?0.10: ndl<0.4?0.38: ndl<0.72?0.66: 1.0; spec = spec>0.35?0.85:0; }
+    var c=[ clamp(amb[0]+diffC[0]*diff+specC[0]*spec),
+            clamp(amb[1]+diffC[1]*diff+specC[1]*spec),
+            clamp(amb[2]+diffC[2]*diff+specC[2]*spec) ];
+    cols[p]=c; opaque.push(c);
+  }
+  if(opt.pixelize){
+    var pal=medianCut(opaque,12).sort(function(a,b){return (0.3*a[0]+0.59*a[1]+0.11*a[2])-(0.3*b[0]+0.59*b[1]+0.11*b[2]);});
+    for(var q=0;q<lw*lh;q++){ if(!cols[q]) continue; var qx=q%lw,qy=(q/lw)|0,t=(bth(qx,qy)-0.5)*52; cols[q]=nearest(pal,cols[q][0]+t,cols[q][1]+t,cols[q][2]+t); }
+  }
+  paintBuf(bctx,lw,lh,function(p){ return cols[p]; });
+  blit(buf,lw,lh,destC);
+}
+
+/* =========================================================
+   HERO — forgó fényű, pixelizált anyaggömb
+   ========================================================= */
+var hC=document.getElementById("heroCanvas"), hBuf=makeBuf(84,84);
+var hAng=0.6;
+function drawHero(){ if(!hC) return; renderSphere(hC,hBuf,84,84,{base:[230,120,60],rough:0.42,metal:0.35,toon:false,pixelize:true,light:[Math.cos(hAng)*0.7,-0.5,Math.sin(hAng)*0.7]}); }
+
+/* =========================================================
+   DEMÓ — Anyag-labor
+   ========================================================= */
+var matC=document.getElementById("matCanvas"), matBuf=makeBuf(96,96);
+var MATSW=[[210,80,70],[230,150,60],[80,170,90],[70,150,220],[170,110,210],[210,210,215]];
+var matSt={base:MATSW[3].slice(),rough:0.4,metal:0.2,toon:false,pix:false};
+function renderMat(){ if(!matC) return; renderSphere(matC,matBuf,96,96,{base:matSt.base,rough:matSt.rough,metal:matSt.metal,toon:matSt.toon,pixelize:matSt.pix,light:[-0.5,-0.55,0.66]}); }
+(function(){
+  var sw=document.getElementById("matSw");
+  if(sw){ MATSW.forEach(function(c,i){ var el=document.createElement("span"); el.className="csw"+(i===3?" active":""); el.style.background=rgbStr(c); el.addEventListener("click",function(){ sw.querySelectorAll(".csw").forEach(function(x){x.classList.remove("active");}); el.classList.add("active"); matSt.base=c.slice(); renderMat(); }); sw.appendChild(el); }); }
+  document.querySelectorAll("[data-light]").forEach(function(b){ b.addEventListener("click",function(){ document.querySelectorAll("[data-light]").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); matSt.toon=b.getAttribute("data-light")==="toon"; renderMat(); }); });
+  var rr=document.getElementById("matRough"),rv=document.getElementById("matRoughVal");
+  if(rr) rr.addEventListener("input",function(){ matSt.rough=(+rr.value)/100; rv.textContent=rr.value+"%"; renderMat(); });
+  var mm=document.getElementById("matMetal"),mv=document.getElementById("matMetalVal");
+  if(mm) mm.addEventListener("input",function(){ matSt.metal=(+mm.value)/100; mv.textContent=mm.value+"%"; renderMat(); });
+  var pix=document.getElementById("matPix");
+  if(pix) pix.addEventListener("click",function(){ matSt.pix=!matSt.pix; pix.classList.toggle("active",matSt.pix); renderMat(); });
+})();
+
+/* =========================================================
+   DEMÓ — Linkelt anyagok
+   ========================================================= */
+var lnAC=document.getElementById("lnA"), lnBC=document.getElementById("lnB");
+var lnABuf=makeBuf(84,84), lnBBuf=makeBuf(84,84);
+var lnHue=200, lnLinked=true, lnBhueFrozen=200;
+function lnColor(h){ return hsv2rgb(h,0.62,0.92); }
+function renderLn(){
+  if(!lnAC) return;
+  renderSphere(lnAC,lnABuf,84,84,{base:lnColor(lnHue),rough:0.38,metal:0.25,toon:false,pixelize:true,light:[-0.5,-0.55,0.66]});
+  var bh=lnLinked?lnHue:lnBhueFrozen;
+  renderSphere(lnBC,lnBBuf,84,84,{base:lnColor(bh),rough:0.38,metal:0.25,toon:false,pixelize:true,light:[-0.5,-0.55,0.66]});
+}
+(function(){
+  var r=document.getElementById("lnHue"),v=document.getElementById("lnHueVal");
+  if(r) r.addEventListener("input",function(){ lnHue=+r.value; v.textContent=lnHue+"°"; renderLn(); });
+  var u=document.getElementById("lnUnlink"), msg=document.getElementById("lnMsg"), capB=document.getElementById("lnBcap");
+  if(u) u.addEventListener("click",function(){
+    lnLinked=!lnLinked;
+    if(!lnLinked){ lnBhueFrozen=(lnHue+150)%360; u.textContent="🔗 B újra-linkelése"; u.classList.add("active"); capB.textContent="✂ felület B (egyedi)"; msg.style.borderLeftColor="var(--dirt)"; msg.style.color="var(--dirt)"; msg.innerHTML="Leválasztva (unlink): a B felület most EGYEDI — a csúszka már csak az A-t színezi."; }
+    else { u.textContent="🔗 B leválasztása (unlink)"; u.classList.remove("active"); capB.textContent="🔗 felület B"; msg.style.borderLeftColor="var(--grass)"; msg.style.color="var(--grass-hi)"; msg.innerHTML="Linkelve: a csúszka MINDKÉT felületet színezi."; }
+    renderLn();
+  });
+})();
+
+/* =========================================================
+   DEMÓ — Animált UV (görgő csempe-textúra)
+   ========================================================= */
+var uvC=document.getElementById("uvCanvas"), uvBuf=makeBuf(120,88), uvBx=uvBuf.getContext("2d");
+var uvSpeed=3, uvDir="down", uvPix=false, uvPlaying=true, uvOff=0;
+var UVPAL=null;
+function uvTexColor(u,v){
+  // csempézett "futószalag" minta: cella + perem + váltakozó töltőszín
+  var sc=10, cu=Math.floor(u*sc), cv=Math.floor(v*sc);
+  var fu=u*sc-cu, fv=v*sc-cv;
+  var edge=(fu<0.12||fu>0.88||fv<0.12||fv>0.88);
+  if(edge) return [40,26,18];
+  var warm=((cu+cv)&1)?[235,150,55]:[200,90,45];
+  // kis fény-folt a cellán belül
+  if(fu>0.3&&fu<0.7&&fv>0.3&&fv<0.7) warm=[warm[0]+18,warm[1]+22,warm[2]+14];
+  return warm;
+}
+function renderUV(){
+  if(!uvC) return;
+  var ou=0,ov=0;
+  if(uvDir==="down") ov=-uvOff; else if(uvDir==="up") ov=uvOff; else ou=uvOff;
+  var cols=new Array(120*88), opaque=[];
+  for(var y=0;y<88;y++)for(var x=0;x<120;x++){ var p=y*120+x; var u=x/120+ou, v=y/88+ov; var c=uvTexColor(u,v); cols[p]=c; opaque.push(c); }
+  if(uvPix){
+    if(!UVPAL) UVPAL=medianCut(opaque,8).sort(function(a,b){return (0.3*a[0]+0.59*a[1]+0.11*a[2])-(0.3*b[0]+0.59*b[1]+0.11*b[2]);});
+    for(var q=0;q<cols.length;q++){ var qx=q%120,qy=(q/120)|0,t=(bth(qx,qy)-0.5)*46; cols[q]=nearest(UVPAL,cols[q][0]+t,cols[q][1]+t,cols[q][2]+t); }
+  }
+  paintBuf(uvBx,120,88,function(p){return cols[p];});
+  blit(uvBuf,120,88,uvC);
+}
+(function(){
+  var sp=document.getElementById("uvSpeed"),sv=document.getElementById("uvSpeedVal");
+  if(sp) sp.addEventListener("input",function(){ uvSpeed=+sp.value; sv.textContent=uvSpeed; });
+  document.querySelectorAll("[data-uvdir]").forEach(function(b){ b.addEventListener("click",function(){ document.querySelectorAll("[data-uvdir]").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); uvDir=b.getAttribute("data-uvdir"); renderUV(); }); });
+  var px=document.getElementById("uvPix");
+  if(px) px.addEventListener("click",function(){ uvPix=!uvPix; px.classList.toggle("active",uvPix); renderUV(); });
+  var pl=document.getElementById("uvPlay");
+  if(pl) pl.addEventListener("click",function(){ uvPlaying=!uvPlaying; pl.textContent=uvPlaying?"⏸ Szünet":"▶ Lejátszás"; pl.classList.toggle("active",uvPlaying); if(uvPlaying) ensureLoop(); });
+})();
+
+/* =========================================================
+   közös animációs hurok (hero forgó fény + UV görgetés)
+   ========================================================= */
+var running=false, frame=0;
+function tick(){
+  frame++;
+  if(!reduce && frame%2===0){ hAng+=0.05; drawHero(); }
+  if(uvPlaying){ uvOff+=uvSpeed*0.0009; if(uvOff>1e6)uvOff=0; renderUV(); }
+  if(!reduce||uvPlaying){ requestAnimationFrame(tick); } else { running=false; }
+}
+function ensureLoop(){ if(!running){ running=true; requestAnimationFrame(tick); } }
+
+/* init */
+drawHero(); renderMat(); renderLn(); renderUV();
+if(reduce){ uvPlaying=false; var pl=document.getElementById("uvPlay"); if(pl){pl.textContent="▶ Lejátszás";pl.classList.remove("active");} drawHero(); }
+else ensureLoop();
+
+/* scrollspy + mobil menü */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){ var pos=window.scrollY+140,active=0; for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i; links.forEach(function(a,i){a.classList.toggle("active",i===active);}); }
+window.addEventListener("scroll",spy,{passive:true}); spy();
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>
