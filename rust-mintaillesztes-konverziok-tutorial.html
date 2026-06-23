@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mintaillesztés mesterfokon és típuskonverziók — Rust magyarul</title>
+<style>
+:root{
+  --bg:#F6F4F0;
+  --paper:#FFFFFF;
+  --ink:#26211C;
+  --ink-soft:#5C544B;
+  --rust:#C2540A;
+  --rust-deep:#8F3D06;
+  --steel:#3B6EA5;
+  --iron:#211D19;
+  --iron-2:#2C2722;
+  --code-bg:#1C1916;
+  --code-ink:#E8E2D8;
+  --kw:#E58E51;
+  --str:#A8C97F;
+  --num:#7FB8D4;
+  --com:#867D70;
+  --fn:#E5C07B;
+  --mac:#C678DD;
+  --line:#E4DED5;
+  --ok:#4E7A3A;
+  --warn:#A35A00;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:Charter,"Iowan Old Style",Georgia,"Times New Roman",serif;
+  background:var(--bg);color:var(--ink);
+  line-height:1.65;font-size:17px;
+}
+.layout{display:flex;min-height:100vh}
+
+/* ---------- sidebar ---------- */
+nav#sidebar{
+  width:300px;flex-shrink:0;background:var(--iron);color:#CFC8BD;
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+  padding:28px 0 60px 0;
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  scrollbar-width:thin;scrollbar-color:#4a4138 var(--iron);
+}
+nav#sidebar .brand{padding:0 24px 22px 24px;border-bottom:1px solid #3a332c;margin-bottom:14px}
+nav#sidebar .brand h1{font-size:20px;font-weight:700;color:#F3EEE6;letter-spacing:.3px}
+nav#sidebar .brand h1 span{color:var(--kw)}
+nav#sidebar .brand p{font-size:12.5px;color:#968D80;margin-top:4px}
+nav#sidebar a{
+  display:flex;align-items:baseline;gap:10px;
+  padding:7px 24px;color:#B8B0A4;text-decoration:none;font-size:13.5px;
+  border-left:3px solid transparent;
+}
+nav#sidebar a .hex{
+  font-family:ui-monospace,"Cascadia Code",Consolas,monospace;
+  font-size:11.5px;color:#7A7164;min-width:38px;
+}
+nav#sidebar a:hover{background:#2B2620;color:#F0EAE0}
+nav#sidebar a.active{border-left-color:var(--rust);background:#2B2620;color:#FFD9B8}
+nav#sidebar a.active .hex{color:var(--kw)}
+nav#sidebar .part{
+  padding:16px 24px 6px 24px;font-size:10.5px;letter-spacing:1.6px;
+  text-transform:uppercase;color:#6E6557;font-weight:600;
+}
+
+/* ---------- main ---------- */
+main{flex:1;min-width:0}
+.page{max-width:860px;margin:0 auto;padding:48px 48px 120px 48px}
+
+/* hero */
+header.hero{
+  background:linear-gradient(135deg,#241F1A 0%,#3A2517 55%,#6B3408 100%);
+  color:#F3EAE0;padding:72px 48px 64px 48px;
+}
+header.hero .heroinner{max-width:860px;margin:0 auto}
+header.hero .eyebrow{
+  font-family:ui-monospace,Consolas,monospace;font-size:13px;color:#E5A06B;
+  letter-spacing:2px;margin-bottom:18px;
+}
+header.hero h1{
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  font-size:46px;line-height:1.12;font-weight:700;max-width:680px;
+}
+header.hero h1 em{font-style:normal;color:#F0A35E}
+header.hero p.lead{margin-top:20px;font-size:18.5px;color:#D8CCBF;max-width:640px}
+header.hero .meta{
+  margin-top:30px;display:flex;gap:26px;flex-wrap:wrap;
+  font-family:"Avenir Next",system-ui,sans-serif;font-size:13px;color:#B8A795;
+}
+header.hero .meta b{color:#F0DEC9;font-weight:600}
+
+/* chapters */
+section.fejezet{margin-top:64px;scroll-margin-top:24px}
+section.fejezet:first-of-type{margin-top:40px}
+.fejcim{
+  display:flex;align-items:baseline;gap:14px;
+  border-bottom:3px solid var(--rust);padding-bottom:10px;margin-bottom:26px;
+}
+.fejcim .hex{
+  font-family:ui-monospace,Consolas,monospace;font-size:15px;color:var(--rust);
+  background:#F6E3D2;padding:3px 9px;border-radius:4px;
+}
+.fejcim h2{
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  font-size:29px;font-weight:700;letter-spacing:-.2px;
+}
+h3{
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  font-size:20px;font-weight:600;margin:34px 0 12px 0;color:var(--rust-deep);
+}
+h4{
+  font-family:"Avenir Next",system-ui,sans-serif;font-size:16.5px;
+  font-weight:600;margin:24px 0 8px 0;
+}
+p{margin:0 0 14px 0}
+ul,ol{margin:0 0 16px 26px}
+li{margin-bottom:6px}
+a{color:var(--steel)}
+strong{color:#1B1611}
+code{
+  font-family:ui-monospace,"Cascadia Code",Consolas,"Liberation Mono",monospace;
+  font-size:.86em;color:#7A3D10;
+  padding:1.5px 6px;border-radius:4px;
+}
+
+/* code blocks */
+.kod{
+  position:relative;background:var(--code-bg);border-radius:10px;
+  margin:18px 0 22px 0;overflow:hidden;
+  box-shadow:0 2px 10px rgba(40,30,20,.18);
+}
+.kod .kodfej{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 14px;background:#26221D;border-bottom:1px solid #36302A;
+  font-family:"Avenir Next",system-ui,sans-serif;
+}
+.kod .kodfej .fajl{font-size:12px;color:#9C9285;font-family:ui-monospace,Consolas,monospace}
+.kod .masol{
+  font-size:11.5px;color:#B8AC9C;background:#36302A;border:none;border-radius:5px;
+  padding:4px 11px;cursor:pointer;font-family:inherit;
+}
+.kod .masol:hover{background:#473F36;color:#F0E8DC}
+.kod pre{
+  padding:16px 18px;overflow-x:auto;
+  font-family:ui-monospace,"Cascadia Code",Consolas,"Liberation Mono",monospace;
+  font-size:14px;line-height:1.58;color:var(--code-ink);
+  tab-size:4;
+}
+.kod pre::-webkit-scrollbar{height:8px}
+.kod pre::-webkit-scrollbar-thumb{background:#403A32;border-radius:4px}
+.k-kw{color:var(--kw);font-weight:600}
+.k-str{color:var(--str)}
+.k-num{color:var(--num)}
+.k-com{color:var(--com);font-style:italic}
+.k-fn{color:var(--fn)}
+.k-mac{color:var(--mac)}
+.k-type{color:#76C5B0}
+.k-life{color:#D4848C}
+
+/* terminal output */
+.kimenet{
+  background:#14110E;border-radius:8px;margin:-12px 0 22px 0;
+  padding:12px 18px;font-family:ui-monospace,Consolas,monospace;
+  font-size:13px;color:#9FB89A;border-left:3px solid #3E5A36;
+}
+.kimenet::before{
+  content:"KIMENET";display:block;font-size:9.5px;letter-spacing:1.8px;
+  color:#5E6E58;margin-bottom:6px;font-family:"Avenir Next",system-ui,sans-serif;
+}
+
+/* callouts */
+.doboz{
+  border-radius:8px;padding:15px 18px 13px 18px;margin:18px 0 22px 0;
+  font-size:15.5px;
+}
+.doboz .dcim{
+  font-family:"Avenir Next",system-ui,sans-serif;font-weight:700;font-size:12px;
+  letter-spacing:1.4px;text-transform:uppercase;display:block;margin-bottom:6px;
+}
+.doboz.tipp{background:#EDF3E6;border-left:4px solid var(--ok)}
+.doboz.tipp .dcim{color:var(--ok)}
+.doboz.figyelem{background:#FBEEDC;border-left:4px solid var(--warn)}
+.doboz.figyelem .dcim{color:var(--warn)}
+.doboz.melyseg{background:#E8EEF5;border-left:4px solid var(--steel)}
+.doboz.melyseg .dcim{color:var(--steel)}
+.doboz p:last-child{margin-bottom:0}
+
+/* tables */
+table{border-collapse:collapse;width:100%;margin:16px 0 22px 0;font-size:15px}
+th{
+  text-align:left;font-family:"Avenir Next",system-ui,sans-serif;font-size:12.5px;
+  letter-spacing:.8px;text-transform:uppercase;color:var(--rust-deep);
+  border-bottom:2px solid var(--rust);padding:8px 12px;
+}
+td{border-bottom:1px solid var(--line);padding:9px 12px;vertical-align:top}
+td code{white-space:nowrap}
+
+/* exercise blocks */
+.gyakorlat{
+  background:var(--paper);border:1px solid var(--line);border-top:4px solid var(--rust);
+  border-radius:8px;padding:18px 20px;margin:26px 0;
+}
+.gyakorlat .gcim{
+  font-family:"Avenir Next",system-ui,sans-serif;font-weight:700;font-size:14px;
+  color:var(--rust);margin-bottom:8px;letter-spacing:.4px;
+}
+details{margin-top:10px}
+details summary{
+  cursor:pointer;font-family:"Avenir Next",system-ui,sans-serif;
+  font-size:13.5px;color:var(--steel);font-weight:600;
+}
+details[open] summary{margin-bottom:8px}
+
+footer{
+  margin-top:80px;border-top:1px solid var(--line);padding-top:24px;
+  font-size:13.5px;color:var(--ink-soft);
+  font-family:"Avenir Next",system-ui,sans-serif;
+}
+
+@media (max-width:980px){
+  nav#sidebar{display:none}
+  .page{padding:32px 20px 80px 20px}
+  header.hero{padding:48px 20px}
+  header.hero h1{font-size:32px}
+}
+@media print{
+  nav#sidebar{display:none}
+  .kod .masol{display:none}
+  body{background:#fff}
+}
+</style>
+</head>
+<body>
+<!-- olvasási haladásjelző (progress bar) -->
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,#C2540A,#E58E51);
+  box-shadow:0 0 10px rgba(194,84,10,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<div class="layout">
+
+<nav id="sidebar">
+  <div class="brand">
+    <h1>Rust<span>‑kohó</span></h1>
+    <p>Mintaillesztés és konverziók<br>kiegészítő a nagy tananyaghoz</p>
+  </div>
+  <div class="part">I. rész — Mintaillesztés</div>
+  <a href="#f00"><span class="hex">0x00</span>A minták mindenhol ott vannak</a>
+  <a href="#f01"><span class="hex">0x01</span>if let, while let, let else</a>
+  <a href="#f02"><span class="hex">0x02</span>Őrfeltételek és tartományok</a>
+  <a href="#f03"><span class="hex">0x03</span>Destrukturálás</a>
+  <a href="#f04"><span class="hex">0x04</span>@-kötés és ref</a>
+  <div class="part">II. rész — Típuskonverziók</div>
+  <a href="#f05"><span class="hex">0x05</span>From és Into</a>
+  <a href="#f06"><span class="hex">0x06</span>TryFrom és TryInto</a>
+  <a href="#f07"><span class="hex">0x07</span>A ? és a From: hibakonverzió</a>
+  <a href="#f08"><span class="hex">0x08</span>AsRef, parse és a String-térkép</a>
+  <a href="#f09"><span class="hex">0x09</span>Összefoglaló és továbblépés</a>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="heroinner">
+    <div class="eyebrow">match ⇒ from — a hétköznapi réteg</div>
+    <h1>Mintaillesztés mesterfokon <em>és típuskonverziók</em></h1>
+    <p class="lead">A két téma, ami a Rust-alapok és a haladó fejezetek közt a leggyakrabban előkerül — és amit a legtöbb tananyag épp csak érint. Ez a kiegészítő pontosan ezt a hézagot tölti ki.</p>
+    <div class="meta">
+      <span><b>10</b> fejezet</span>
+      <span><b>~35</b> kódpélda</span>
+      <span><b>Szint:</b> középhaladó</span>
+      <span><b>Épít rá:</b> a nagy Rust-tananyag (match, enum, Result)</span>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+
+<!-- ============ 0x00 ============ -->
+<section class="fejezet" id="f00">
+<div class="fejcim"><span class="hex">0x00</span><h2>A minták mindenhol ott vannak</h2></div>
+
+<p>A nagy tananyagban a <code>match</code>-et úgy ismerted meg, mint elágazást. De a mintaillesztés ennél jóval több: a Rustban <strong>a minta egy önálló nyelvi elem</strong>, ami sok helyen felbukkan. Valójában már az első naptól használtad — csak nem hívtad így.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    // Ez már mintaillesztés: a bal oldal MINTA, nem csak egy név.
+    let (x, y) = (10, 20);
+    let [a, b, c] = [1, 2, 3];
+    let Pont { x: px, y: py } = Pont { x: 3, y: 4 };
+
+    println!("{x} {y} | {a} {b} {c} | {px} {py}");
+    osszeg((px, py)); // a függvény-paraméter HELYE is minta
+}
+
+struct Pont { x: i32, y: i32 }
+
+// A paraméter helyén egy tuple-mintát bontunk szét két névre:
+fn osszeg((a, b): (i32, i32)) {
+    println!("összeg: {}", a + b);
+}</code></pre></div>
+
+<p>Két fajta mintát különböztetünk meg, és ez a megkülönböztetés végigkíséri a fejezetet:</p>
+<ul>
+<li><strong>Cáfolhatatlan (irrefutable)</strong> minta — <em>mindig</em> illeszkedik. Ezek mehetnek <code>let</code> bal oldalára, függvény-paraméterbe, <code>for</code>-ciklusba.</li>
+<li><strong>Cáfolható (refutable)</strong> minta — <em>el is bukhat</em>. Ilyen a <code>Some(n)</code>: ha az érték <code>None</code>, nem illeszkedik. Ezek a <code>match</code> ágaiba, az <code>if let</code>-be és a <code>while let</code>-be valók.</li>
+</ul>
+
+<div class="doboz melyseg"><span class="dcim">Miért érdekes ez?</span>
+<p>Mert megmagyarázza a fordító hibáit. Ha <code>let Some(n) = opcio;</code>-t írsz, a fordító elutasítja: „refutable pattern in local binding". Egy sima <code>let</code> ugyanis cáfolhatatlan mintát vár — ami sosem bukik el. A megoldás épp a következő fejezet: <code>if let</code> vagy <code>let ... else</code>.</p></div>
+</section>
+
+<!-- ============ 0x01 ============ -->
+<section class="fejezet" id="f01">
+<div class="fejcim"><span class="hex">0x01</span><h2>if let, while let, let else</h2></div>
+
+<p>A <code>match</code> kimerítő: <em>minden</em> ágat le kell írni. Sokszor viszont csak egyetlen eset érdekel. Erre való ez a három tömör forma.</p>
+
+<h3>if let — „ha illeszkedik, csináld"</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">let beallitas: Option&lt;i32&gt; = Some(5);
+
+// match-csel: a None ágat KÖTELEZŐ kiírni, pedig nem is érdekel.
+match beallitas {
+    Some(n) =&gt; println!("érték: {n}"),
+    None =&gt; {}
+}
+
+// if let: csak az érdekes ágat írjuk le.
+if let Some(n) = beallitas {
+    println!("érték: {n}");
+} else {
+    println!("nincs érték"); // az else nem kötelező
+}</code></pre></div>
+
+<div class="doboz tipp"><span class="dcim">Hüvelykujjszabály</span>
+<p>Ha <em>egy</em> esetre reagálnál, és a többit hagynád — <code>if let</code>. Ha <em>több</em> esetet kezelsz külön, és számít, hogy egyik se maradjon ki — <code>match</code>. Az <code>if let</code> ugyanis nem ellenőrzi a kimerítőséget.</p></div>
+
+<h3>while let — „amíg illeszkedik, ismételd"</h3>
+<p>Tökéletes gyűjtemények ürítésére: addig fut, amíg a minta illeszkedik, és az első nem-illeszkedésnél magától leáll.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">let mut verem = vec![1, 2, 3, 4, 5];
+
+// A pop() Option-t ad: Some(érték), amíg van elem, utána None.
+while let Some(tetel) = verem.pop() {
+    println!("kivettem: {tetel}");
+}
+println!("a verem üres: {verem:?}");</code></pre></div>
+<div class="kimenet">kivettem: 5
+kivettem: 4
+kivettem: 3
+kivettem: 2
+kivettem: 1
+a verem üres: []</div>
+
+<h3>let else — „bontsd ki, vagy lépj ki"</h3>
+<p>Ez a legfiatalabb a háromból, és a leghasznosabb. Az <code>if let</code> baja, hogy a kibontott érték csak a blokkon <em>belül</em> él. A <code>let ... else</code> fordítva működik: a sikeres ágban kibontott változó a blokk <strong>után</strong> is látható — az <code>else</code> ágnak viszont <em>ki kell lépnie</em> (return, break, continue vagy panic).</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn elso_szam(sor: &amp;str) -&gt; i64 {
+    // Ha nem szám, az else ág kilép. Ha igen, `n` innentől sima i64.
+    let Ok(n) = sor.trim().parse::&lt;i64&gt;() else {
+        eprintln!("nem szám: {sor:?}");
+        return -1;
+    };
+
+    n * 2 // nincs beljebb húzva: `n` itt is él, és nem Result, hanem i64
+}</code></pre></div>
+
+<div class="doboz figyelem"><span class="dcim">A „pyramid of doom" ellenszere</span>
+<p>A <code>let ... else</code> nélkül a hibaágak egyre beljebb tolják a fő logikát (egymásba ágyazott <code>if let</code>-ek). Vele a hibaeseteket sorban „letudod" az elején (early return), és a függvény törzse lapos marad. Ez az egyik leggyakoribb modern Rust-idióma.</p></div>
+
+<div class="doboz melyseg"><span class="dcim">Bónusz: let-láncok (Rust 1.88+ / 2024 edition)</span>
+<p>Újabb Rusttal több <code>let</code> és feltétel fűzhető össze egyetlen <code>if</code>-ben <code>&amp;&amp;</code>-del:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">let x: Option&lt;i32&gt; = Some(2);
+let y: Option&lt;i32&gt; = Some(5);
+
+if let Some(a) = x
+    &amp;&amp; let Some(b) = y
+    &amp;&amp; a &lt; b
+{
+    println!("{a} kisebb, mint {b}");
+}</code></pre></div></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x01</div>
+<p>Írj <code>fn felezd(s: &amp;str) -&gt; Option&lt;i32&gt;</code> függvényt, amely a szöveget egész számmá alakítja és a felét adja vissza, vagy <code>None</code>-t, ha nem szám. Használj <code>let ... else</code>-t.</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">fn felezd(s: &amp;str) -&gt; Option&lt;i32&gt; {
+    let Ok(n) = s.trim().parse::&lt;i32&gt;() else {
+        return None;
+    };
+    Some(n / 2)
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x02 ============ -->
+<section class="fejezet" id="f02">
+<div class="fejcim"><span class="hex">0x02</span><h2>Őrfeltételek és tartományok</h2></div>
+
+<h3>Match-őr (guard): if egy ágon belül</h3>
+<p>Egy minta után <code>if</code>-fel további feltételt szabhatsz. Az ág csak akkor választódik, ha a minta <em>és</em> a feltétel is teljesül.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">let pont = (0, -3);
+
+match pont {
+    (0, 0)          =&gt; println!("origó"),
+    (0, y) if y &lt; 0 =&gt; println!("y-tengely, lefelé: {y}"),
+    (0, y)          =&gt; println!("y-tengely, felfelé: {y}"),
+    (x, 0)          =&gt; println!("x-tengely: {x}"),
+    _               =&gt; println!("általános pont"),
+}</code></pre></div>
+
+<div class="doboz figyelem"><span class="dcim">Az őr nem számít a kimerítőségbe</span>
+<p>A fordító nem tudja kiértékelni az <code>if</code> feltételt, ezért egy őrzött ágat <em>nem</em> tekint teljesnek. Ha minden ágad őrzött, kelleni fog egy minta-fedő (<code>_</code>) ág a végére, különben „non-exhaustive patterns" hibát kapsz.</p></div>
+
+<h3>Tartomány- és vagy-minták</h3>
+<p>Számokra és karakterekre tartományt (<code>..=</code>) illeszthetsz, több értéket pedig a <code>|</code> („vagy") köt össze egyetlen ágban.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">let jel = 'q';
+match jel {
+    'a'..='z' =&gt; println!("kisbetű"),
+    'A'..='Z' =&gt; println!("nagybetű"),
+    '0'..='9' =&gt; println!("számjegy"),
+    _         =&gt; println!("egyéb karakter"),
+}
+
+let n = 2;
+match n {
+    1 | 2 | 3 =&gt; println!("kicsi"),   // vagy-minta: 1, 2 vagy 3
+    4..=6     =&gt; println!("közepes"), // tartomány: 4-től 6-ig bezárólag
+    _         =&gt; println!("nagy"),
+}</code></pre></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x02</div>
+<p>Írj <code>fn minosit(pont: i32) -&gt; &amp;'static str</code> függvényt <code>match</code>-csel, tartomány-mintákkal: 90–100 → „kiváló", 50–89 → „megfelelt", 0–49 → „megbukott", minden más → „érvénytelen".</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">fn minosit(pont: i32) -&gt; &amp;'static str {
+    match pont {
+        90..=100 =&gt; "kiváló",
+        50..=89  =&gt; "megfelelt",
+        0..=49   =&gt; "megbukott",
+        _        =&gt; "érvénytelen",
+    }
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x03 ============ -->
+<section class="fejezet" id="f03">
+<div class="fejcim"><span class="hex">0x03</span><h2>Destrukturálás</h2></div>
+
+<p>A mintaillesztés igazi ereje a <strong>mélységi szétbontás</strong>: egyetlen mintával belenyúlsz egy beágyazott szerkezetbe, és pont azokat a mezőket kötöd névhez, amik kellenek.</p>
+
+<h3>Beágyazott struct és enum egyszerre</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">struct Pont { x: i32, y: i32 }
+
+enum Alak {
+    Kor { kozep: Pont, sugar: f64 },
+    Szakasz(Pont, Pont),
+}
+
+fn leiras(alak: &amp;Alak) {
+    match alak {
+        // a Kör belsejében a Pont-ot is azonnal szétbontjuk x-re és y-ra:
+        Alak::Kor { kozep: Pont { x, y }, sugar } =&gt;
+            println!("kör, közép ({x}, {y}), sugár {sugar}"),
+
+        Alak::Szakasz(Pont { x: x1, y: y1 }, Pont { x: x2, y: y2 }) =&gt;
+            println!("szakasz ({x1},{y1}) → ({x2},{y2})"),
+    }
+}</code></pre></div>
+
+<h3>A maradék elnyelése: <code>..</code> és <code>_</code></h3>
+<p>A <code>_</code> egyetlen értéket dob el (és nem köti meg). A <code>..</code> a <em>maradék</em> mezőket nyeli el — struktúrában, tuple-ben és tömbben is.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">struct Ablak { szelesseg: u32, magassag: u32, cim: String, teljes: bool }
+
+let a = Ablak {
+    szelesseg: 1920, magassag: 1080,
+    cim: String::from("Játék"), teljes: true,
+};
+
+// Csak a méret kell — a többi mezőt a `..` elnyeli:
+let Ablak { szelesseg, magassag, .. } = &amp;a;
+println!("{szelesseg} x {magassag}");
+
+// Tuple közepének kihagyása:
+let szamok = (1, 2, 3, 4, 5);
+let (elso, .., utolso) = szamok;
+println!("{elso} .. {utolso}"); // 1 .. 5
+
+// Egyetlen pozíció eldobása a _ jellel:
+let (_, kozepso, _) = ('a', 'b', 'c');
+println!("{kozepso}"); // b</code></pre></div>
+
+<div class="doboz tipp"><span class="dcim">Hol jön ez elő a Bevyben?</span>
+<p>Folyton. Egy lekérdezés iterálásakor tuple-t kapsz, amit destrukturálsz: <code>for (transform, sebesseg) in &amp;query { ... }</code>. Az eseménykezelők, a <code>Res</code>/<code>ResMut</code> kicsomagolása, a <code>Vec2 { x, y }</code> szétszedése — mind ez a minta.</p></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x03</div>
+<p>Adott <code>struct Felhasznalo { nev: String, kor: u32, aktiv: bool }</code>. Írj függvényt, amely egy <code>&amp;Felhasznalo</code>-ból <strong>egyetlen <code>let</code>-tel</strong> kibontja a <code>nev</code>-et és a <code>kor</code>-t (az <code>aktiv</code> nem kell), és kiírja őket.</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">fn kiir(f: &amp;Felhasznalo) {
+    let Felhasznalo { nev, kor, .. } = f;
+    println!("{nev}, {kor} éves");
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x04 ============ -->
+<section class="fejezet" id="f04">
+<div class="fejcim"><span class="hex">0x04</span><h2>@-kötés és ref</h2></div>
+
+<h3>@ — kötés és ellenőrzés egy lépésben</h3>
+<p>Néha egy értéket egyszerre szeretnél <em>ellenőrizni</em> (illik-e egy tartományba) és <em>megtartani</em> (kelleni fog a névvel). A <code>@</code> operátor pontosan ezt teszi: a bal oldalon a név, a jobb oldalon a minta, amit közben ellenőriz.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">enum Esemeny {
+    Kattintas { x: i32, y: i32 },
+}
+
+let e = Esemeny::Kattintas { x: 5, y: 40 };
+
+match e {
+    // xkord MEGKAPJA az értéket, ÉS közben ellenőrizzük, hogy 0..=10 közé esik:
+    Esemeny::Kattintas { x: xkord @ 0..=10, y } =&gt;
+        println!("bal sávban, x={xkord}, y={y}"),
+
+    Esemeny::Kattintas { x, y } =&gt;
+        println!("máshol: ({x}, {y})"),
+}</code></pre></div>
+
+<h3>ref — amikor régi kódban találkozol vele</h3>
+<p>A modern Rust („match ergonomics") magától eldönti, hogy referenciát kössön-e: ha <code>&amp;</code>-re illesztesz, a kötések automatikusan referenciák lesznek, és <strong>nem mozgatsz el semmit</strong>. Régebbi kódban viszont látni fogod a <code>ref</code> kulcsszót, ami ugyanezt kérte kézzel.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">let szoveg = Some(String::from("szia"));
+
+// MODERN: &amp;-re illesztünk → s automatikusan &amp;String lesz, nincs mozgatás.
+match &amp;szoveg {
+    Some(s) =&gt; println!("hossz: {}", s.len()),
+    None    =&gt; println!("üres"),
+}
+println!("még megvan: {szoveg:?}"); // nem költöztettük el
+
+// RÉGEBBI kód ugyanerre — a `ref` kézzel kér referenciát az érték elmozgatása helyett:
+match szoveg {
+    Some(ref s) =&gt; println!("hossz: {}", s.len()),
+    None        =&gt; {}
+}</code></pre></div>
+
+<div class="doboz melyseg"><span class="dcim">Miért fontos érteni?</span>
+<p>A <code>String</code> nem <code>Copy</code>. Ha <em>érték</em> szerint illesztenéd (<code>match szoveg { Some(s) =&gt; ... }</code> a <code>&amp;</code> nélkül), akkor a <code>String</code> kiköltözne a <code>szoveg</code>-ből, és utána nem használhatnád. A <code>&amp;szoveg</code>-re illesztés (vagy a régi <code>ref</code>) ezt kerüli meg — kölcsönöz, nem költöztet. Ez a tulajdonjog és a mintaillesztés metszéspontja.</p></div>
+</section>
+
+<!-- ============ 0x05 ============ -->
+<section class="fejezet" id="f05">
+<div class="fejcim"><span class="hex">0x05</span><h2>From és Into</h2></div>
+
+<p>Itt kezdődik a második rész. A Rust egyik legelegánsabb mintája, hogy a típusok közti átalakítást két párba állított trait szabványosítja: a <code>From</code> és az <code>Into</code>. A trükk: <strong>csak a <code>From</code>-ot írod meg, az <code>Into</code>-t ingyen kapod.</strong></p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">struct Celsius(f64);
+struct Fahrenheit(f64);
+
+// Csak a From-ot írjuk meg: "Celsius-ból hogyan lesz Fahrenheit".
+impl From&lt;Celsius&gt; for Fahrenheit {
+    fn from(c: Celsius) -&gt; Self {
+        Fahrenheit(c.0 * 9.0 / 5.0 + 32.0)
+    }
+}
+
+fn main() {
+    // explicit, From-mal:
+    let f = Fahrenheit::from(Celsius(100.0));
+    println!("{}", f.0); // 212
+
+    // ...az Into INGYEN jár — a fordító a From-ból származtatja:
+    let f2: Fahrenheit = Celsius(0.0).into();
+    println!("{}", f2.0); // 32
+}</code></pre></div>
+
+<div class="doboz tipp"><span class="dcim">Aranyszabály</span>
+<p>Mindig a <code>From</code>-ot implementáld, soha közvetlenül az <code>Into</code>-t. A standard könyvtárban van egy „blanket impl", ami minden <code>From</code>-ból automatikusan legyártja a megfelelő <code>Into</code>-t. Az <code>.into()</code> cserébe gyakran tömörebb, mert a célt a típuskövetkeztetés adja.</p></div>
+
+<h3>Into a függvény-fejlécben: rugalmas API</h3>
+<p>Ha egy függvény <code>impl Into&lt;T&gt;</code>-t fogad, akkor a hívó <em>bármilyen</em> típust átadhat, amiből <code>T</code> lesz — így egyetlen függvény több bemeneti típust is kiszolgál.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">// Bármi elfogadható, amiből Fahrenheit lesz — Celsius IS, Fahrenheit IS:
+fn melegszik(ho: impl Into&lt;Fahrenheit&gt;) -&gt; f64 {
+    ho.into().0
+}
+
+fn main() {
+    println!("{}", melegszik(Celsius(37.0)));    // 98.6
+    println!("{}", melegszik(Fahrenheit(72.0))); // 72  — minden típus konvertálható ÖNMAGÁRA
+}</code></pre></div>
+<p>A második hívás azért működik, mert a standard könyvtárban ott a <code>From&lt;T&gt; for T</code> identitás-implementáció: minden típus átalakítható önmagává. Ezért nem kell külön túlterhelni a függvényt.</p>
+</section>
+
+<!-- ============ 0x06 ============ -->
+<section class="fejezet" id="f06">
+<div class="fejcim"><span class="hex">0x06</span><h2>TryFrom és TryInto</h2></div>
+
+<p>A <code>From</code> feltételezi, hogy az átalakítás <em>sosem</em> bukhat el. De mi van, ha igen? Egy <code>i32</code>-ből nem mindig lesz érvényes életkor. Ilyenkor a <code>TryFrom</code> a megoldás: ugyanaz, mint a <code>From</code>, csak <code>Result</code>-ot ad vissza.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">struct Eletkor(u8);
+
+impl TryFrom&lt;i32&gt; for Eletkor {
+    type Error = String; // mi a hiba típusa, ha nem sikerül
+
+    fn try_from(ertek: i32) -&gt; Result&lt;Self, Self::Error&gt; {
+        if (0..=130).contains(&amp;ertek) {
+            Ok(Eletkor(ertek as u8))
+        } else {
+            Err(format!("érvénytelen életkor: {ertek}"))
+        }
+    }
+}
+
+fn main() {
+    match Eletkor::try_from(25) {
+        Ok(k)  =&gt; println!("rendben: {}", k.0),
+        Err(e) =&gt; println!("hiba: {e}"),
+    }
+
+    // TryInto is ingyen jár, a TryFrom-ból:
+    let probal: Result&lt;Eletkor, _&gt; = 200.try_into();
+    println!("200 érvényes? {}", probal.is_ok()); // false
+
+    // A std is tele van vele: szűkítő szám-átalakítás try_from-mal.
+    println!("{:?}", u8::try_from(300_i32)); // Err(TryFromIntError(..))
+}</code></pre></div>
+
+<div class="doboz melyseg"><span class="dcim">From vagy TryFrom?</span>
+<p>Kérdezd meg: „Van olyan bemenet, amire ennek <em>nincs</em> értelmes eredménye?" Ha nincs (pl. <code>i32</code> → <code>i64</code>, mindig belefér) → <code>From</code>. Ha van (pl. <code>i64</code> → <code>i32</code>, túlcsordulhat; szöveg → szám, lehet érvénytelen) → <code>TryFrom</code>. A <code>Result</code> rákényszerít, hogy a hívó kezelje a kudarcot.</p></div>
+</section>
+
+<!-- ============ 0x07 ============ -->
+<section class="fejezet" id="f07">
+<div class="fejcim"><span class="hex">0x07</span><h2>A ? és a From: hibakonverzió</h2></div>
+
+<p>Ez a fejezet köti össze a két részt — és ez a leggyakorlatibb. A nagy tananyagból tudod, hogy a <code>?</code> operátor „továbbpasszolja" a hibát. De <em>hogyan</em> illik egy <code>ParseIntError</code> a saját <code>AppHiba</code> típusodba? A válasz: <strong>a <code>?</code> automatikusan meghívja a <code>From</code>-ot a hibán.</strong></p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::num::ParseIntError;
+
+#[derive(Debug)]
+enum AppHiba {
+    UresSor,
+    RosszSzam(ParseIntError),
+}
+
+// EZ a kulcs: a ? operátor ezt hívja meg, hogy a ParseIntError-ból AppHiba legyen.
+impl From&lt;ParseIntError&gt; for AppHiba {
+    fn from(e: ParseIntError) -&gt; Self {
+        AppHiba::RosszSzam(e)
+    }
+}
+
+fn elso_szam(sor: &amp;str) -&gt; Result&lt;i32, AppHiba&gt; {
+    // ok_or: Option → Result, a SAJÁT hibánkkal, ha None.
+    let mezo = sor.split(',').next().ok_or(AppHiba::UresSor)?;
+    // a parse() ParseIntError-t ad; a ? a From-mal AppHibá-vá alakítja.
+    let n: i32 = mezo.trim().parse()?;
+    Ok(n)
+}</code></pre></div>
+
+<div class="doboz melyseg"><span class="dcim">Mivé bővül a ?</span>
+<p>A <code>mezo.trim().parse()?</code> nagyjából ezzé:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">koncepció</span><button class="masol">Másolás</button></div><pre><code class="rust">match mezo.trim().parse() {
+    Ok(v)  =&gt; v,
+    Err(e) =&gt; return Err(From::from(e)), // &lt;-- itt hívódik a From!
+}</code></pre></div>
+<p>Ezért elég, ha a hibatípusod implementálja a <code>From&lt;ForrásHiba&gt;</code>-t minden olyan hibára, amit a <code>?</code>-tal továbbítani akarsz.</p></div>
+
+<h3>A gyors út: Box&lt;dyn Error&gt;</h3>
+<p>Alkalmazásokban (nem könyvtárakban) gyakran nem akarsz saját enumot. A <code>Box&lt;dyn Error&gt;</code> azt jelenti: „bármilyen hiba belefér". A <code>?</code> ekkor minden szabványos hibát ebbe dobozol.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::error::Error;
+
+fn elso_szam(sor: &amp;str) -&gt; Result&lt;i32, Box&lt;dyn Error&gt;&gt; {
+    let mezo = sor.split(',').next().ok_or("üres sor")?; // &amp;str → Box&lt;dyn Error&gt;
+    let n: i32 = mezo.trim().parse()?;                   // ParseIntError → Box&lt;dyn Error&gt;
+    Ok(n)
+}</code></pre></div>
+
+<h3>A profi út: thiserror és anyhow</h3>
+<p>A gyakorlatban a kézi <code>From</code>-okat egy makró írja meg helyetted. <strong>Könyvtárhoz</strong> a <code>thiserror</code> (pontos, beszédes hibatípus), <strong>alkalmazáshoz</strong> az <code>anyhow</code> (egy mindent elnyelő hibatípus + kontextus).</p>
+<div class="kod"><div class="kodfej"><span class="fajl">terminál</span><button class="masol">Másolás</button></div><pre><code class="bash">cargo add thiserror   # könyvtárhoz
+cargo add anyhow      # alkalmazáshoz</code></pre></div>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs — thiserror</span><button class="masol">Másolás</button></div><pre><code class="rust">use thiserror::Error;
+
+#[derive(Error, Debug)]
+enum AppHiba {
+    #[error("üres sor")]
+    UresSor,
+
+    // a #[from] LEGENERÁLJA a From&lt;ParseIntError&gt; impl-t — nem kell kézzel megírni!
+    #[error("rossz szám: {0}")]
+    RosszSzam(#[from] std::num::ParseIntError),
+}</code></pre></div>
+
+<div class="doboz tipp"><span class="dcim">Most kapcsolódott össze minden</span>
+<p>A <code>?</code> a <code>From</code>-ra épül. A <code>#[from]</code> attribútum a <code>From</code>-ot generálja. Vagyis amit a 0x05-ben mint elvont mintát tanultál, az itt válik a mindennapi hibakezelés motorjává. Ez a Rust egyik legszebb „minden összeér" pillanata.</p></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x07</div>
+<p>Készíts <code>enum CliHiba</code>-t két változattal: <code>HianyzoArgumentum</code> és <code>RosszSzam(ParseIntError)</code>. Implementáld rá kézzel a <code>From&lt;ParseIntError&gt;</code>-t, majd írj <code>fn parse_kor(args: &amp;[String]) -&gt; Result&lt;u32, CliHiba&gt;</code> függvényt, amely a <em>második</em> argumentumot számmá alakítja a <code>?</code>-tal (ha nincs ennyi argumentum, <code>HianyzoArgumentum</code>).</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::num::ParseIntError;
+
+#[derive(Debug)]
+enum CliHiba {
+    HianyzoArgumentum,
+    RosszSzam(ParseIntError),
+}
+
+impl From&lt;ParseIntError&gt; for CliHiba {
+    fn from(e: ParseIntError) -&gt; Self {
+        CliHiba::RosszSzam(e)
+    }
+}
+
+fn parse_kor(args: &amp;[String]) -&gt; Result&lt;u32, CliHiba&gt; {
+    let masodik = args.get(1).ok_or(CliHiba::HianyzoArgumentum)?;
+    let kor: u32 = masodik.trim().parse()?; // a ? a From-mal CliHibá-vá alakít
+    Ok(kor)
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x08 ============ -->
+<section class="fejezet" id="f08">
+<div class="fejcim"><span class="hex">0x08</span><h2>AsRef, parse és a String-térkép</h2></div>
+
+<h3>AsRef — „kölcsönkérek belőled egy referenciát"</h3>
+<p>A <code>From</code>/<code>Into</code> <em>tulajdont</em> alakít át (elfogyasztja a bemenetet). Az <code>AsRef</code> ezzel szemben olcsó, <em>kölcsönzött</em> referenciát ad. A leggyakoribb haszna: egy függvény elfogadjon <code>&amp;str</code>-t, <code>String</code>-et és <code>&amp;String</code>-et is, anélkül hogy másolatot kérne.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">// impl AsRef&lt;str&gt;: &amp;str, String, &amp;String — mind átadható, másolás nélkül.
+fn betuk_szama(s: impl AsRef&lt;str&gt;) -&gt; usize {
+    s.as_ref().chars().count()
+}
+
+fn main() {
+    println!("{}", betuk_szama("körte"));              // 5
+    println!("{}", betuk_szama(String::from("alma"))); // 4
+}</code></pre></div>
+<p>Ezért fogad el a std „bármilyen útvonalat" a fájlműveleteknél: a <code>std::fs::read</code> és társai <code>impl AsRef&lt;Path&gt;</code>-et várnak, így a <code>&amp;str</code>, a <code>String</code> és a <code>PathBuf</code> mind működik.</p>
+
+<h3>parse — szövegből bármilyen típus</h3>
+<p>A <code>&amp;str::parse</code> a <code>FromStr</code> trait-re épül. A célt a bal oldali típus vagy egy „turbofish" adja meg.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let n: i32   = "42".parse().unwrap();        // típus a bal oldalról
+    let m        = "42".parse::&lt;i32&gt;().unwrap();  // vagy turbofish-sel
+    let pi: f64  = "3.14".parse().unwrap();
+    let ok: bool = "true".parse().unwrap();
+
+    println!("{n} {m} {pi} {ok}");
+    // Saját típusra is: ha implementálod a FromStr-t, a .parse() rá is működni fog.
+}</code></pre></div>
+
+<h3>A String-konverziók térképe</h3>
+<p>Ez a táblázat a kezdők leggyakoribb buktatóját rendezi el — mi mivé, és hogyan:</p>
+<table>
+<tr><th>Honnan → hova</th><th>Hogyan</th><th>Megjegyzés</th></tr>
+<tr><td><code>&amp;str</code> → <code>String</code></td><td><code>.to_string()</code> / <code>.to_owned()</code> / <code>String::from(s)</code> / <code>s.into()</code></td><td>Mind ugyanazt teszi; olvashatóságra a <code>.to_string()</code> a leggyakoribb.</td></tr>
+<tr><td><code>String</code> → <code>&amp;str</code></td><td><code>&amp;s</code> / <code>s.as_str()</code></td><td>Ingyen, csak kölcsönzés — nincs másolás.</td></tr>
+<tr><td>bármi <code>Display</code> → <code>String</code></td><td><code>.to_string()</code> / <code>format!("{x}")</code></td><td>Számok, bool stb. is: <code>42.to_string()</code>.</td></tr>
+<tr><td><code>String</code> / <code>&amp;str</code> → szám, bool…</td><td><code>.parse()</code></td><td><code>Result</code>-ot ad — kezelni kell a hibát.</td></tr>
+</table>
+
+<div class="doboz figyelem"><span class="dcim">to_string vs. to_owned vs. into</span>
+<p><code>&amp;str</code> → <code>String</code> esetén mindegyik jó. A különbség az eredetükben van: a <code>to_owned</code> a „kölcsönzöttből tulajdont" (<code>ToOwned</code>) mintából jön, a <code>to_string</code> a <code>Display</code>-ből, az <code>into</code> a <code>From</code>-ból. Ha bizonytalan vagy: szövegre <code>to_string()</code>, és kész.</p></div>
+</section>
+
+<!-- ============ 0x09 ============ -->
+<section class="fejezet" id="f09">
+<div class="fejcim"><span class="hex">0x09</span><h2>Összefoglaló és továbblépés</h2></div>
+
+<p>Két olyan réteget jártunk be, amit a kezdő tananyagok átugranak, a haladók pedig már feltételeznek. Innentől ezek a napi rutinod részei.</p>
+
+<h3>Melyik mintaformát mikor?</h3>
+<table>
+<tr><th>Helyzet</th><th>Eszköz</th></tr>
+<tr><td>Több esetet kezelsz, és számít, hogy egyik se maradjon ki</td><td><code>match</code></td></tr>
+<tr><td>Csak egy eset érdekel, a többit hagyod</td><td><code>if let</code></td></tr>
+<tr><td>Gyűjteményt ürítesz, amíg illeszkedik</td><td><code>while let</code></td></tr>
+<tr><td>Hibaág korai kilépéssel, a fő logika lapos marad</td><td><code>let ... else</code></td></tr>
+<tr><td>Mintán belül extra feltétel</td><td>match-őr (<code>if</code>)</td></tr>
+<tr><td>Értéket egyszerre kötsz meg és ellenőrzöl</td><td><code>@</code></td></tr>
+</table>
+
+<h3>Melyik konverziót mikor?</h3>
+<table>
+<tr><th>Helyzet</th><th>Eszköz</th></tr>
+<tr><td>Átalakítás, ami sosem bukhat el</td><td><code>From</code> / <code>Into</code></td></tr>
+<tr><td>Átalakítás, ami elbukhat</td><td><code>TryFrom</code> / <code>TryInto</code></td></tr>
+<tr><td>Olcsó, kölcsönzött referencia többféle bemenetből</td><td><code>AsRef</code></td></tr>
+<tr><td>Szövegből érték</td><td><code>parse</code> (<code>FromStr</code>)</td></tr>
+<tr><td>Hibatípusok összekötése a <code>?</code>-hoz</td><td><code>From</code> (kézzel vagy <code>#[from]</code>)</td></tr>
+</table>
+
+<div class="doboz tipp"><span class="dcim">A leg­fontosabb mondat</span>
+<p>A <code>?</code> operátor a <code>From</code>-ra épül. Ezt az egy összefüggést ha megjegyzed, a Rust hibakezelése egy csapásra logikussá válik — és a <code>thiserror</code>/<code>anyhow</code> sem varázslat többé, csak kényelem ugyanezen elv fölött.</p></div>
+
+<h3>Merre tovább?</h3>
+<p>Ez a kiegészítő a magyar Rust-tananyag mellé készült. A sorozat következő, tervezett hiánypótló darabjai:</p>
+<ul>
+<li><strong>String, &amp;str és az iterátor-eszköztár a gyakorlatban</strong> — <code>filter_map</code>, <code>flat_map</code>, <code>collect::&lt;Result&lt;…&gt;&gt;</code>, UTF-8 buktatók, és mikor melyik szövegtípus a helyes.</li>
+<li><strong>„A fordító a barátod"</strong> — a borrow checker hibaüzeneteinek olvasása (E0382, E0499, E0502…), és a hibakeresési munkafolyamat (<code>dbg!</code>, <code>tracing</code>, debugger).</li>
+</ul>
+<p>És ne feledd: ez itt olvasmány. A magabiztosság a gyakorlásból jön — a <code>rustlings</code> végigcsinálásából és saját kis projektekből. A fordító nem ellenfél, hanem a legszigorúbb, de legkorrektebb code reviewer. 🦀</p>
+
+<footer>
+Rust-kohó — magyar nyelvű Rust tananyag · Kiegészítő modul: mintaillesztés és típuskonverziók · A kódpéldák szabadon felhasználhatók.<br>
+A hivatalos dokumentáció: <a href="https://doc.rust-lang.org">doc.rust-lang.org</a> · Játszótér: <a href="https://play.rust-lang.org">play.rust-lang.org</a>
+</footer>
+</section>
+
+</div><!-- /page -->
+</main>
+</div><!-- /layout -->
+
+<script>
+/* ---------- egyszerű Rust/Bash szintaxiskiemelő ---------- */
+(function(){
+  const KW = new Set(("fn let mut const static if else match for while loop in break continue return "+
+    "struct enum impl trait type where pub use mod crate super self Self as move ref dyn async await "+
+    "unsafe extern union true false").split(" "));
+  const TYPES = new Set(("i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64 bool char str "+
+    "String Vec Option Some None Result Ok Err Box Rc Arc RefCell Cell Mutex HashMap HashSet BTreeMap "+
+    "VecDeque Ordering Duration Iterator Display Debug Clone Copy Default From Into TryFrom TryInto AsRef "+
+    "FromStr Path PathBuf Error ParseIntError PartialEq Eq PartialOrd Ord Add Hash File Formatter").split(" "));
+
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+  function highlightRust(src){
+    let out = "", i = 0, n = src.length;
+    while(i < n){
+      const c = src[i];
+      // kommentek
+      if(c === "/" && src[i+1] === "/"){
+        let j = src.indexOf("\n", i); if(j < 0) j = n;
+        out += '<span class="k-com">'+esc(src.slice(i,j))+'</span>'; i = j; continue;
+      }
+      // stringek
+      if(c === '"'){
+        let j = i+1;
+        while(j < n && (src[j] !== '"' || src[j-1] === "\\")) j++;
+        out += '<span class="k-str">'+esc(src.slice(i,j+1))+'</span>'; i = j+1; continue;
+      }
+      // char literál / élettartam
+      if(c === "'"){
+        const m = /^'(\\.|[^'\\]){1}'/.exec(src.slice(i));
+        if(m){ out += '<span class="k-str">'+esc(m[0])+'</span>'; i += m[0].length; continue; }
+        const l = /^'[A-Za-z_][A-Za-z0-9_]*/.exec(src.slice(i));
+        if(l){ out += '<span class="k-life">'+esc(l[0])+'</span>'; i += l[0].length; continue; }
+        out += esc(c); i++; continue;
+      }
+      // szám
+      if(/[0-9]/.test(c)){
+        const m = /^[0-9][0-9_]*(\.[0-9_]+)?([eE][+-]?[0-9]+)?(_?[iuf](8|16|32|64|128|size)?)?|^0x[0-9A-Fa-f_]+|^0b[01_]+/.exec(src.slice(i));
+        if(m){ out += '<span class="k-num">'+esc(m[0])+'</span>'; i += m[0].length; continue; }
+      }
+      // azonosító / kulcsszó / makró / fn-hívás
+      if(/[A-Za-z_]/.test(c)){
+        const m = /^[A-Za-z_][A-Za-z0-9_]*/.exec(src.slice(i));
+        const word = m[0]; const after = src[i+word.length];
+        if(after === "!"){ out += '<span class="k-mac">'+word+'!</span>'; i += word.length+1; continue; }
+        if(KW.has(word)){ out += '<span class="k-kw">'+word+'</span>'; }
+        else if(TYPES.has(word) || /^[A-Z]/.test(word)){ out += '<span class="k-type">'+word+'</span>'; }
+        else if(after === "("){ out += '<span class="k-fn">'+word+'</span>'; }
+        else { out += word; }
+        i += word.length; continue;
+      }
+      out += esc(c); i++;
+    }
+    return out;
+  }
+
+  function highlightBash(src){
+    return src.split("\n").map(line=>{
+      const h = line.indexOf("#");
+      if(h >= 0){
+        return esc(line.slice(0,h)) + '<span class="k-com">'+esc(line.slice(h))+'</span>';
+      }
+      return esc(line);
+    }).join("\n");
+  }
+
+  document.querySelectorAll("pre code").forEach(el=>{
+    const raw = el.textContent;
+    if(el.classList.contains("rust")) el.innerHTML = highlightRust(raw);
+    else if(el.classList.contains("bash")) el.innerHTML = highlightBash(raw);
+  });
+
+  /* ---------- másolás gombok ---------- */
+  document.querySelectorAll(".kod").forEach(blokk=>{
+    const gomb = blokk.querySelector(".masol");
+    const kod = blokk.querySelector("pre code");
+    if(!gomb || !kod) return;
+    gomb.addEventListener("click", ()=>{
+      navigator.clipboard.writeText(kod.textContent).then(()=>{
+        const regi = gomb.textContent;
+        gomb.textContent = "Másolva ✓";
+        setTimeout(()=>{ gomb.textContent = regi; }, 1400);
+      });
+    });
+  });
+
+  /* ---------- aktív fejezet a sidebarban ---------- */
+  const linkek = Array.from(document.querySelectorAll("#sidebar a"));
+  const fejezetek = Array.from(document.querySelectorAll("section.fejezet"));
+  function frissit(){
+    let aktiv = fejezetek[0];
+    for(const f of fejezetek){
+      if(f.getBoundingClientRect().top <= 120) aktiv = f;
+    }
+    linkek.forEach(a=>a.classList.toggle("active", a.getAttribute("href") === "#"+aktiv.id));
+  }
+  document.addEventListener("scroll", frissit, {passive:true});
+  frissit();
+})();
+</script>
+</body>
+</html>

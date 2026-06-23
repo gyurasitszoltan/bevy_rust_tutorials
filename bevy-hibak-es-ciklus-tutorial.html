@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bevy futásidejű hibák és a fejlesztői ciklus — magyarul</title>
+<style>
+:root{
+  --bg:#F6F4F0;
+  --paper:#FFFFFF;
+  --ink:#26211C;
+  --ink-soft:#5C544B;
+  --rust:#C2540A;
+  --rust-deep:#8F3D06;
+  --steel:#3B6EA5;
+  --iron:#211D19;
+  --iron-2:#2C2722;
+  --code-bg:#1C1916;
+  --code-ink:#E8E2D8;
+  --kw:#E58E51;
+  --str:#A8C97F;
+  --num:#7FB8D4;
+  --com:#867D70;
+  --fn:#E5C07B;
+  --mac:#C678DD;
+  --line:#E4DED5;
+  --ok:#4E7A3A;
+  --warn:#A35A00;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:Charter,"Iowan Old Style",Georgia,"Times New Roman",serif;
+  background:var(--bg);color:var(--ink);
+  line-height:1.65;font-size:17px;
+}
+.layout{display:flex;min-height:100vh}
+
+/* ---------- sidebar ---------- */
+nav#sidebar{
+  width:300px;flex-shrink:0;background:var(--iron);color:#CFC8BD;
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+  padding:28px 0 60px 0;
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  scrollbar-width:thin;scrollbar-color:#4a4138 var(--iron);
+}
+nav#sidebar .brand{padding:0 24px 22px 24px;border-bottom:1px solid #3a332c;margin-bottom:14px}
+nav#sidebar .brand h1{font-size:20px;font-weight:700;color:#F3EEE6;letter-spacing:.3px}
+nav#sidebar .brand h1 span{color:var(--kw)}
+nav#sidebar .brand p{font-size:12.5px;color:#968D80;margin-top:4px}
+nav#sidebar a{
+  display:flex;align-items:baseline;gap:10px;
+  padding:7px 24px;color:#B8B0A4;text-decoration:none;font-size:13.5px;
+  border-left:3px solid transparent;
+}
+nav#sidebar a .hex{
+  font-family:ui-monospace,"Cascadia Code",Consolas,monospace;
+  font-size:11.5px;color:#7A7164;min-width:38px;
+}
+nav#sidebar a:hover{background:#2B2620;color:#F0EAE0}
+nav#sidebar a.active{border-left-color:var(--rust);background:#2B2620;color:#FFD9B8}
+nav#sidebar a.active .hex{color:var(--kw)}
+nav#sidebar .part{
+  padding:16px 24px 6px 24px;font-size:10.5px;letter-spacing:1.6px;
+  text-transform:uppercase;color:#6E6557;font-weight:600;
+}
+
+/* ---------- main ---------- */
+main{flex:1;min-width:0}
+.page{max-width:860px;margin:0 auto;padding:48px 48px 120px 48px}
+
+/* hero */
+header.hero{
+  background:linear-gradient(135deg,#1C1A24 0%,#34243A 55%,#7A3A14 100%);
+  color:#F3EAE0;padding:72px 48px 64px 48px;
+}
+header.hero .heroinner{max-width:860px;margin:0 auto}
+header.hero .eyebrow{
+  font-family:ui-monospace,Consolas,monospace;font-size:13px;color:#E5A06B;
+  letter-spacing:2px;margin-bottom:18px;
+}
+header.hero h1{
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  font-size:46px;line-height:1.12;font-weight:700;max-width:680px;
+}
+header.hero h1 em{font-style:normal;color:#F0A35E}
+header.hero p.lead{margin-top:20px;font-size:18.5px;color:#D8CCBF;max-width:640px}
+header.hero .meta{
+  margin-top:30px;display:flex;gap:26px;flex-wrap:wrap;
+  font-family:"Avenir Next",system-ui,sans-serif;font-size:13px;color:#B8A795;
+}
+header.hero .meta b{color:#F0DEC9;font-weight:600}
+
+/* chapters */
+section.fejezet{margin-top:64px;scroll-margin-top:24px}
+section.fejezet:first-of-type{margin-top:40px}
+.fejcim{
+  display:flex;align-items:baseline;gap:14px;
+  border-bottom:3px solid var(--rust);padding-bottom:10px;margin-bottom:26px;
+}
+.fejcim .hex{
+  font-family:ui-monospace,Consolas,monospace;font-size:15px;color:var(--rust);
+  background:#F6E3D2;padding:3px 9px;border-radius:4px;
+}
+.fejcim h2{
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  font-size:29px;font-weight:700;letter-spacing:-.2px;
+}
+h3{
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  font-size:20px;font-weight:600;margin:34px 0 12px 0;color:var(--rust-deep);
+}
+h4{
+  font-family:"Avenir Next",system-ui,sans-serif;font-size:16.5px;
+  font-weight:600;margin:24px 0 8px 0;
+}
+p{margin:0 0 14px 0}
+ul,ol{margin:0 0 16px 26px}
+li{margin-bottom:6px}
+a{color:var(--steel)}
+strong{color:#1B1611}
+code{
+  font-family:ui-monospace,"Cascadia Code",Consolas,"Liberation Mono",monospace;
+  font-size:.86em;color:#7A3D10;
+  padding:1.5px 6px;border-radius:4px;
+}
+
+/* code blocks */
+.kod{
+  position:relative;background:var(--code-bg);border-radius:10px;
+  margin:18px 0 22px 0;overflow:hidden;
+  box-shadow:0 2px 10px rgba(40,30,20,.18);
+}
+.kod .kodfej{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 14px;background:#26221D;border-bottom:1px solid #36302A;
+  font-family:"Avenir Next",system-ui,sans-serif;
+}
+.kod .kodfej .fajl{font-size:12px;color:#9C9285;font-family:ui-monospace,Consolas,monospace}
+.kod .masol{
+  font-size:11.5px;color:#B8AC9C;background:#36302A;border:none;border-radius:5px;
+  padding:4px 11px;cursor:pointer;font-family:inherit;
+}
+.kod .masol:hover{background:#473F36;color:#F0E8DC}
+.kod pre{
+  padding:16px 18px;overflow-x:auto;
+  font-family:ui-monospace,"Cascadia Code",Consolas,"Liberation Mono",monospace;
+  font-size:14px;line-height:1.58;color:var(--code-ink);
+  tab-size:4;
+}
+.kod pre::-webkit-scrollbar{height:8px}
+.kod pre::-webkit-scrollbar-thumb{background:#403A32;border-radius:4px}
+.k-kw{color:var(--kw);font-weight:600}
+.k-str{color:var(--str)}
+.k-num{color:var(--num)}
+.k-com{color:var(--com);font-style:italic}
+.k-fn{color:var(--fn)}
+.k-mac{color:var(--mac)}
+.k-type{color:#76C5B0}
+.k-life{color:#D4848C}
+
+/* terminal output */
+.kimenet{
+  background:#14110E;border-radius:8px;margin:-12px 0 22px 0;
+  padding:12px 18px;font-family:ui-monospace,Consolas,monospace;
+  font-size:13px;color:#9FB89A;border-left:3px solid #3E5A36;
+  white-space:pre;overflow-x:auto;
+}
+.kimenet::before{
+  content:"KIMENET";display:block;font-size:9.5px;letter-spacing:1.8px;
+  color:#5E6E58;margin-bottom:6px;font-family:"Avenir Next",system-ui,sans-serif;
+}
+/* fordító-/futtatókimenet variáns (hibaüzenetekhez) */
+.kimenet.hiba{color:#E4C6A4;border-left-color:var(--rust)}
+.kimenet.hiba::before{content:"BEVY HIBA";color:#E07B3A}
+
+/* callouts */
+.doboz{
+  border-radius:8px;padding:15px 18px 13px 18px;margin:18px 0 22px 0;
+  font-size:15.5px;
+}
+.doboz .dcim{
+  font-family:"Avenir Next",system-ui,sans-serif;font-weight:700;font-size:12px;
+  letter-spacing:1.4px;text-transform:uppercase;display:block;margin-bottom:6px;
+}
+.doboz.tipp{background:#EDF3E6;border-left:4px solid var(--ok)}
+.doboz.tipp .dcim{color:var(--ok)}
+.doboz.figyelem{background:#FBEEDC;border-left:4px solid var(--warn)}
+.doboz.figyelem .dcim{color:var(--warn)}
+.doboz.melyseg{background:#E8EEF5;border-left:4px solid var(--steel)}
+.doboz.melyseg .dcim{color:var(--steel)}
+.doboz p:last-child{margin-bottom:0}
+
+/* tables */
+table{border-collapse:collapse;width:100%;margin:16px 0 22px 0;font-size:15px}
+th{
+  text-align:left;font-family:"Avenir Next",system-ui,sans-serif;font-size:12.5px;
+  letter-spacing:.8px;text-transform:uppercase;color:var(--rust-deep);
+  border-bottom:2px solid var(--rust);padding:8px 12px;
+}
+td{border-bottom:1px solid var(--line);padding:9px 12px;vertical-align:top}
+td code{white-space:nowrap}
+
+/* exercise blocks */
+.gyakorlat{
+  background:var(--paper);border:1px solid var(--line);border-top:4px solid var(--rust);
+  border-radius:8px;padding:18px 20px;margin:26px 0;
+}
+.gyakorlat .gcim{
+  font-family:"Avenir Next",system-ui,sans-serif;font-weight:700;font-size:14px;
+  color:var(--rust);margin-bottom:8px;letter-spacing:.4px;
+}
+details{margin-top:10px}
+details summary{
+  cursor:pointer;font-family:"Avenir Next",system-ui,sans-serif;
+  font-size:13.5px;color:var(--steel);font-weight:600;
+}
+details[open] summary{margin-bottom:8px}
+
+footer{
+  margin-top:80px;border-top:1px solid var(--line);padding-top:24px;
+  font-size:13.5px;color:var(--ink-soft);
+  font-family:"Avenir Next",system-ui,sans-serif;
+}
+
+@media (max-width:980px){
+  nav#sidebar{display:none}
+  .page{padding:32px 20px 80px 20px}
+  header.hero{padding:48px 20px}
+  header.hero h1{font-size:32px}
+}
+@media print{
+  nav#sidebar{display:none}
+  .kod .masol{display:none}
+  body{background:#fff}
+}
+</style>
+</head>
+<body>
+<!-- olvasási haladásjelző (progress bar) -->
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,#C2540A,#E58E51);
+  box-shadow:0 0 10px rgba(194,84,10,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<div class="layout">
+
+<nav id="sidebar">
+  <div class="brand">
+    <h1>Bevy<span>‑híd</span></h1>
+    <p>Gyakorlati kiegészítő:<br>futásidejű hibák és dev-ciklus</p>
+  </div>
+  <div class="part">I. rész — Futásidejű hibák</div>
+  <a href="#f00"><span class="hex">0x00</span>A határ: fordító vs. futásidő</a>
+  <a href="#f01"><span class="hex">0x01</span>B0001: query-konfliktus</a>
+  <a href="#f02"><span class="hex">0x02</span>B0002: resource-konfliktus</a>
+  <a href="#f03"><span class="hex">0x03</span>B0003: despawn-olt entitás</a>
+  <a href="#f04"><span class="hex">0x04</span>B0004 és a néma bukások</a>
+  <div class="part">II. rész — A fejlesztői ciklus</div>
+  <a href="#f05"><span class="hex">0x05</span>Gyors fordítás</a>
+  <a href="#f06"><span class="hex">0x06</span>Asset hot-reload</a>
+  <a href="#f07"><span class="hex">0x07</span>Élő ECS-inspector</a>
+  <a href="#f08"><span class="hex">0x08</span>Az ökoszisztéma</a>
+  <a href="#f09"><span class="hex">0x09</span>Összefoglaló és továbblépés</a>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="heroinner">
+    <div class="eyebrow">B0001 · cargo · inspector — a gyakorlat</div>
+    <h1>Bevy <em>futásidejű hibák</em> és a fejlesztői ciklus</h1>
+    <p class="lead">A fordító elengedett, a játék mégis elszáll induláskor — vagy némán nem csinál semmit? Itt a Bevy-specifikus hibák referenciája, és az eszköztár, amivel naponta dolgozol.</p>
+    <div class="meta">
+      <span><b>10</b> fejezet</span>
+      <span><b>Bevy 0.18</b></span>
+      <span><b>Szint:</b> középhaladó</span>
+      <span><b>Épít rá:</b> a Bevy-műhely + a Rust-trilógia</span>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+
+<!-- ============ 0x00 ============ -->
+<section class="fejezet" id="f00">
+<div class="fejcim"><span class="hex">0x00</span><h2>A határ: fordító vs. futásidő</h2></div>
+
+<p>A <a href="rust-fordito-hibak-debug-tutorial.html">fordítóhibák</a> modulban láttad, hogy a Rust-fordító a fordítás idején elkapja a kölcsönzési hibákat. A Bevy ECS-ében viszont a rendszerek <strong>párhuzamosan futnak</strong>, és hogy ezt biztonságosan megtehesse, a borrow checker néhány garanciáját az ütemező <strong>futásidőre</strong> csúsztatja. Ezért van egy második hibaosztály, amit a fordító már nem lát — ezt kapod meg <code>B0001</code>-féle kódokkal, többnyire rögtön induláskor.</p>
+
+<div class="doboz melyseg"><span class="dcim">Hogyan néz ki egy Bevy-hiba?</span>
+<p>Egy közönséges Rust-pánik, kiegészítve egy <code>B####</code> kóddal és egy linkkel a <a href="https://bevy.org/learn/errors">bevy.org/learn/errors</a> oldalra. A kód a kulcs: minden <code>B####</code>-höz tartozik egy magyarázó oldal. A <code>RUST_BACKTRACE=1</code> itt is ad hívási láncot, az ECS-belső eseményekhez pedig: <code>RUST_LOG=bevy_ecs=debug</code>.</p></div>
+
+<p>Az I. rész a hat hivatalos hibakódot veszi sorra (a leggyakoribbakat mélyebben), a II. rész pedig a napi fejlesztői ciklust gyorsítja fel.</p>
+</section>
+
+<!-- ============ 0x01 ============ -->
+<section class="fejezet" id="f01">
+<div class="fejcim"><span class="hex">0x01</span><h2>B0001: query-konfliktus</h2></div>
+
+<p>Ez a leggyakoribb Bevy-hiba — és pontosan a Rust <code>E0499</code> (két módosító kölcsön) <strong>futásidejű megfelelője</strong>. Akkor jön, ha egy rendszer két lekérdezése úgy fér hozzá ugyanahhoz a komponenshez, hogy az ütemező nem tudja garantálni: nem ugyanazt az entitást módosítják.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">// Mindkét lekérdezés &amp;mut Transform-ot kér — a Bevy óvatos: nem bizonyított,
+// hogy a két halmaz diszjunkt, ezért elutasítja.
+fn rossz_rendszer(
+    jatekosok:  Query&lt;&amp;mut Transform, With&lt;Jatekos&gt;&gt;,
+    ellensegek: Query&lt;&amp;mut Transform, With&lt;Ellenseg&gt;&gt;,
+) {
+    // ...
+}</code></pre></div>
+
+<div class="kimenet hiba">thread 'main' panicked at bevy_ecs/src/system/...:
+error[B0001]: Query&lt;&amp;mut Transform, With&lt;Jatekos&gt;&gt; in system rossz_rendszer
+accesses component(s) Transform in a way that conflicts with a previous system
+parameter. Consider using `Without&lt;T&gt;` to create disjoint Queries or merging
+conflicting Queries into a `ParamSet`.
+   See: https://bevy.org/learn/errors/b0001</div>
+
+<h3>Javítás 1 — bizonyítsd a diszjunktságot Without-tal</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn jo_rendszer(
+    mut jatekosok:  Query&lt;&amp;mut Transform, (With&lt;Jatekos&gt;,  Without&lt;Ellenseg&gt;)&gt;,
+    mut ellensegek: Query&lt;&amp;mut Transform, (With&lt;Ellenseg&gt;, Without&lt;Jatekos&gt;)&gt;,
+) {
+    // a Without garantálja: egyetlen entitás sem eshet mindkét halmazba
+}</code></pre></div>
+
+<h3>Javítás 2 — ParamSet, ha tényleg átfedhetnek</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">// A ParamSet megengedi az ütköző lekérdezéseket, de garantálja, hogy
+// egyszerre csak az EGYIKET használod (p0(), p1(), ...).
+fn jo_rendszer2(mut keszlet: ParamSet&lt;(
+    Query&lt;&amp;mut Transform, With&lt;Jatekos&gt;&gt;,
+    Query&lt;&amp;mut Transform, With&lt;Ellenseg&gt;&gt;,
+)&gt;) {
+    for mut t in keszlet.p0().iter_mut() { /* játékosok */ }
+    for mut t in keszlet.p1().iter_mut() { /* ellenségek */ }
+}</code></pre></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x01</div>
+<p>Ez a rendszer <code>B0001</code>-gyel elszáll induláskor. Javítsd ki <code>Without</code>-tal úgy, hogy mindkét halmaz módosítható maradjon.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">hibás kód</span><button class="masol">Másolás</button></div><pre><code class="rust">fn mozgat(
+    mut baratok:    Query&lt;&amp;mut Transform, With&lt;Barat&gt;&gt;,
+    mut ellenfelek: Query&lt;&amp;mut Transform, With&lt;Ellenfel&gt;&gt;,
+) { /* ... */ }</code></pre></div>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">fn mozgat(
+    mut baratok:    Query&lt;&amp;mut Transform, (With&lt;Barat&gt;,    Without&lt;Ellenfel&gt;)&gt;,
+    mut ellenfelek: Query&lt;&amp;mut Transform, (With&lt;Ellenfel&gt;, Without&lt;Barat&gt;)&gt;,
+) { /* ... */ }</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x02 ============ -->
+<section class="fejezet" id="f02">
+<div class="fejcim"><span class="hex">0x02</span><h2>B0002: resource-konfliktus</h2></div>
+
+<p>Ugyanaz az elv, csak resource-okra: egy rendszer nem férhet hozzá ugyanahhoz a resource-hoz egyszerre <code>Res</code>-ként (olvasó) és <code>ResMut</code>-ként (módosító) — ez sértené a Rust kölcsönzési szabályait.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">#[derive(Resource)]
+struct Pontszam(u32);
+
+// Ugyanaz a resource Res-ként ÉS ResMut-ként — ütközik.
+fn rossz(olvas: Res&lt;Pontszam&gt;, mut ir: ResMut&lt;Pontszam&gt;) {
+    // ...
+}</code></pre></div>
+
+<div class="kimenet hiba">thread 'main' panicked at bevy_ecs/src/system/...:
+error[B0002]: ResMut&lt;Pontszam&gt; in system rossz conflicts with a previous
+Res&lt;Pontszam&gt; access. Remove the duplicate access.
+   See: https://bevy.org/learn/errors/b0002</div>
+
+<p>A javítás egyszerű: a <code>ResMut</code>-ból olvasni <em>is</em> lehet, így a külön <code>Res</code> fölösleges — töröld.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn jo(mut pont: ResMut&lt;Pontszam&gt;) {
+    let jelenlegi = pont.0; // a ResMut olvasásra is jó
+    pont.0 = jelenlegi + 10;
+}</code></pre></div>
+</section>
+
+<!-- ============ 0x03 ============ -->
+<section class="fejezet" id="f03">
+<div class="fejcim"><span class="hex">0x03</span><h2>B0003: despawn-olt entitás</h2></div>
+
+<p>A <code>Commands</code> műveletei <strong>halasztottak</strong>: nem azonnal hajtódnak végre, hanem a következő szinkronizációs pontnál. Ezért megtörténhet, hogy az egyik rendszer despawnol egy entitást, miközben egy másik még műveletet sorol be ugyanarra — mire az lefutna, az entitás már nincs.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">// Az egyik rendszer eltávolítja a lejárt entitásokat...
+fn takarit(mut commands: Commands, q: Query&lt;Entity, With&lt;Lejart&gt;&gt;) {
+    for e in &amp;q {
+        commands.entity(e).despawn();
+    }
+}
+
+// ...a másik (ugyanabban a frame-ben) még komponenst tenne rájuk:
+fn frissit(mut commands: Commands, q: Query&lt;Entity, With&lt;Lejart&gt;&gt;) {
+    for e in &amp;q {
+        commands.entity(e).insert(Pont(0)); // lehet, hogy már despawnolták
+    }
+}</code></pre></div>
+
+<div class="kimenet hiba">warning[B0003]: Could not insert a bundle (of type `Pont`) for entity 42v1
+because it doesn't exist in this World.
+note: configure RUST_LOG=bevy_ecs=debug to find the system that despawned it.
+   See: https://bevy.org/learn/errors/b0003</div>
+
+<p>A javítás: <strong>rendezd</strong> a rendszereket, hogy az entitást használó fusson le előbb, és csak utána a despawn — a <code>.chain()</code> determinisztikus sorrendet ad:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">app.add_systems(Update, (frissit, takarit).chain());
+// frissit ELŐBB fut, takarit (despawn) UTÁNA — nincs verseny</code></pre></div>
+
+<div class="doboz tipp"><span class="dcim">Miért csak warning?</span>
+<p>A Bevy a despawn-olt entitásra adott parancsot alapból csak <em>figyelmezteti</em>, nem ejti össze a játékot — a hibás parancs egyszerűen elvész. Ez kényelmes, de alattomos: ha „néha nem történik meg" valami, keress <code>B0003</code> figyelmeztetést a logban.</p></div>
+</section>
+
+<!-- ============ 0x04 ============ -->
+<section class="fejezet" id="f04">
+<div class="fejcim"><span class="hex">0x04</span><h2>B0004 és a néma bukások</h2></div>
+
+<h3>B0004 — megszakadt hierarchia</h3>
+<p>Ha egy gyerek-entitás örökölhető komponenst hordoz (pl. <code>InheritedVisibility</code>), de a szülőjén nincs meg a megfelelő komponens (<code>Visibility</code>), az öröklési lánc megszakad — és a gyerek pl. láthatatlan marad.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">// A szülőn nincs Visibility, csak Transform:
+let szulo = commands.spawn(Transform::default()).id();
+commands.spawn((Sprite::from_image(kep), ChildOf(szulo))); // a sprite nem látszik</code></pre></div>
+
+<div class="kimenet hiba">warning[B0004]: An entity with `InheritedVisibility` has an ancestor without
+`Visibility`, which breaks visibility inheritance.
+   See: https://bevy.org/learn/errors/b0004</div>
+
+<p>Javítás: adj a szülőnek <code>Visibility</code>-t — ez (mint „required component") magával hozza a hiányzó láthatósági komponenseket:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">let szulo = commands.spawn((Transform::default(), Visibility::default())).id();</code></pre></div>
+
+<h3>A néma bukások — amik még csak nem is figyelmeztetnek</h3>
+<p>A legtöbb időt nem a pánikok viszik el, hanem a csendes „miért nem történik semmi" hibák. A három leggyakoribb:</p>
+
+<p><strong>1. A <code>single()</code> elbukik (0 vagy 2+ entitás).</strong> Bevy 0.18-ban <code>Result</code>-ot ad — kezeld, ne pánikolj rá:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn kamera_kovet(jatekos: Query&lt;&amp;Transform, With&lt;Jatekos&gt;&gt;) {
+    // ha 0 vagy 2+ játékos van, szépen kilépünk a frame-ből (nem panic):
+    let Ok(t) = jatekos.single() else { return; };
+    // ... t használata
+}</code></pre></div>
+
+<p><strong>2. A lekérdezés semmire sem illik.</strong> Ilyenkor a <code>for</code> törzse egyszerűen nem fut — a rendszer némán nem csinál semmit. Derítsd ki egy gyors számlálással:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn debug_rendszer(q: Query&lt;Entity, With&lt;Ellenseg&gt;&gt;) {
+    info!("ellenségek száma: {}", q.iter().count()); // 0? akkor a spawn vagy a szűrő a baj
+}</code></pre></div>
+
+<p><strong>3. Az asset még nem töltött be.</strong> A <code>Handle</code> azonnal érvényes, de az adat csak néhány frame múlva érhető el — addig az <code>Assets::get</code> <code>None</code>-t ad:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn hasznal_kepet(kepek: Res&lt;Assets&lt;Image&gt;&gt;, handle: Res&lt;AktualisKep&gt;) {
+    let Some(kep) = kepek.get(&amp;handle.0) else { return; }; // még tölt → kilépünk
+    // ... a kép használata
+}</code></pre></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x04</div>
+<p>Ez a rendszer <code>unwrap()</code>-pal pánikol, ha nincs (vagy több) játékos. Tedd biztonságossá <code>let ... else</code>-szel, hogy ilyenkor egyszerűen kilépjen a frame-ből.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">hibás kód</span><button class="masol">Másolás</button></div><pre><code class="rust">fn hud_frissit(jatekos: Query&lt;&amp;Eletero, With&lt;Jatekos&gt;&gt;) {
+    let eletero = jatekos.single().unwrap(); // pánik, ha 0 vagy 2+ játékos
+    // ... HUD frissítése
+}</code></pre></div>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">fn hud_frissit(jatekos: Query&lt;&amp;Eletero, With&lt;Jatekos&gt;&gt;) {
+    let Ok(eletero) = jatekos.single() else { return; };
+    // ... HUD frissítése
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x05 ============ -->
+<section class="fejezet" id="f05">
+<div class="fejcim"><span class="hex">0x05</span><h2>Gyors fordítás</h2></div>
+
+<p>A leggyakoribb Bevy-panasz: „lassú a fordítás". A hideg első build tényleg hosszú, de a napi <em>inkrementális</em> fordítás drámaian gyorsítható. Három beállítás, amit minden Bevy-projektben érdemes bekapcsolni dev közben.</p>
+
+<h3>1. Dynamic linking (a legnagyobb nyereség)</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">Cargo.toml</span><button class="masol">Másolás</button></div><pre><code class="toml">[dependencies]
+bevy = { version = "0.18", features = ["dynamic_linking"] }</code></pre></div>
+<div class="doboz figyelem"><span class="dcim">Csak fejlesztéshez!</span>
+<p>A <code>dynamic_linking</code> a Bevyt megosztott könyvtárként linkeli — sokkal gyorsabb újrafordítás, de a kész játék mellé oda kell adni a <code>.so</code>/<code>.dll</code>-t. <strong>Kiadáshoz kapcsold ki</strong> (pl. tedd egy feature mögé, vagy fordíts <code>--no-default-features</code> nélküli release-t).</p></div>
+
+<h3>2. Gyorsabb linker</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">.cargo/config.toml — példa (Linux)</span><button class="masol">Másolás</button></div><pre><code class="toml"># A linkelés gyakran a szűk keresztmetszet. Linuxon az lld vagy a mold sokat gyorsít.
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+# macOS és Windows beállítását lásd: bevy.org/learn (Fast Compiles)</code></pre></div>
+
+<h3>3. A függőségek optimalizálva, a saját kódod gyorsan</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">Cargo.toml</span><button class="masol">Másolás</button></div><pre><code class="toml"># A te kódod gyorsan fordul (opt-level 1), de a függőségek optimalizáltak (3),
+# így a játék dev-módban is élvezhetően fut.
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3</code></pre></div>
+</section>
+
+<!-- ============ 0x06 ============ -->
+<section class="fejezet" id="f06">
+<div class="fejcim"><span class="hex">0x06</span><h2>Asset hot-reload</h2></div>
+
+<p>Sprite-ot, hangot, shadert szerkeszteni a játék újraindítása nélkül — ez óriási gyorsítás. Kapcsold be az asset-figyelést, és minden mentett változás magától újratöltődik.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">Cargo.toml</span><button class="masol">Másolás</button></div><pre><code class="toml">bevy = { version = "0.18", features = ["file_watcher"] }</code></pre></div>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use bevy::prelude::*;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins.set(AssetPlugin {
+            watch_for_changes_override: Some(true),
+            ..default()
+        }))
+        .run();
+}</code></pre></div>
+<p>Mostantól, ha az <code>assets/</code> mappában átrajzolsz egy PNG-t és mented, a futó játékban azonnal frissül — kódmódosítás és újraindítás nélkül.</p>
+</section>
+
+<!-- ============ 0x07 ============ -->
+<section class="fejezet" id="f07">
+<div class="fejcim"><span class="hex">0x07</span><h2>Élő ECS-inspector</h2></div>
+
+<p>A <code>dbg!</code> jó, de az ECS-állapotot a legkényelmesebben egy <em>élő böngészővel</em> nézed: a <code>bevy-inspector-egui</code> egy oldalpanelt ad, amiben futás közben látod minden entitás komponenseit, és a számértékeket <strong>élőben át is állíthatod</strong>. Ez a debugger megfelelője az ECS-világban.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">terminál</span><button class="masol">Másolás</button></div><pre><code class="bash">cargo add bevy-inspector-egui</code></pre></div>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use bevy::prelude::*;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_plugins(WorldInspectorPlugin::new()) // élő világ-böngésző panel
+        .run();
+}</code></pre></div>
+<div class="doboz tipp"><span class="dcim">Tipp</span>
+<p>Az inspectort érdemes egy feature vagy egy <code>#[cfg(debug_assertions)]</code> mögé tenni, hogy a kiadott build ne tartalmazza. A komponenseid akkor jelennek meg szépen, ha levezeted rájuk a <code>Reflect</code>-et: <code>#[derive(Component, Reflect)]</code> + <code>app.register_type::&lt;T&gt;()</code>.</p></div>
+</section>
+
+<!-- ============ 0x08 ============ -->
+<section class="fejezet" id="f08">
+<div class="fejcim"><span class="hex">0x08</span><h2>Az ökoszisztéma</h2></div>
+
+<p>A Bevy szándékosan kicsi mag — sok mindent külső crate ad hozzá. Nem kell mindent magadnak megírni; íme a bevett választások.</p>
+<table>
+<tr><th>Mire</th><th>Crate</th></tr>
+<tr><td>2D/3D fizika</td><td><code>avian2d</code> / <code>avian3d</code> (Rust-natív) vagy <code>bevy_rapier2d</code></td></tr>
+<tr><td>Bemenet-kezelés (átköthető gombok)</td><td><code>leafwing-input-manager</code></td></tr>
+<tr><td>Eszköz-/debug-UI</td><td><code>bevy_egui</code> + <code>bevy-inspector-egui</code></td></tr>
+<tr><td>Betöltőképernyő, asset-állapotok</td><td><code>bevy_asset_loader</code></td></tr>
+<tr><td>Tween / easing animáció</td><td><code>bevy_tweening</code></td></tr>
+<tr><td>Csempetérkép (tilemap)</td><td><code>bevy_ecs_tilemap</code></td></tr>
+<tr><td>Hang</td><td>beépített <code>bevy_audio</code>, vagy <code>bevy_kira_audio</code></td></tr>
+</table>
+
+<div class="doboz melyseg"><span class="dcim">Hol találd meg, amit keresel</span>
+<p><strong>docs.rs/bevy</strong> — a teljes API. <strong>A Bevy <code>examples/</code> mappája</strong> (a repóban / a bevy.org-on) — a kanonikus „hogyan csináljam" referencia, témánként. <strong>bevy-cheatbook</strong> — gyakorlati receptek. <strong>Migration guide-ok</strong> (bevy.org/learn) — verzióváltáskor aranyat érnek, mert a Bevy API gyorsan változik. És a <strong>Discord</strong> a közösségi segítséghez.</p></div>
+
+<div class="doboz figyelem"><span class="dcim">Verziófüggőség</span>
+<p>Egy külső crate csak akkor működik, ha a <strong>te Bevy-verziódhoz</strong> készült. Telepítés előtt nézd meg a crate Bevy-kompatibilitási tábláját — egy 0.17-re írt plugin nem feltétlenül fordul 0.18-cal.</p></div>
+</section>
+
+<!-- ============ 0x09 ============ -->
+<section class="fejezet" id="f09">
+<div class="fejcim"><span class="hex">0x09</span><h2>Összefoglaló és továbblépés</h2></div>
+
+<h3>Bevy hibakód-puska</h3>
+<table>
+<tr><th>Kód</th><th>Mit jelent</th><th>Tipikus javítás</th></tr>
+<tr><td><code>B0001</code></td><td>Query-konfliktus egy rendszerben</td><td><code>Without&lt;T&gt;</code> vagy <code>ParamSet</code></td></tr>
+<tr><td><code>B0002</code></td><td>Resource-konfliktus (Res + ResMut)</td><td>Hagyd meg csak a <code>ResMut</code>-ot</td></tr>
+<tr><td><code>B0003</code></td><td>Parancs egy despawn-olt entitásra</td><td>Rendszer-sorrend (<code>.chain()</code>)</td></tr>
+<tr><td><code>B0004</code></td><td>Megszakadt hierarchia (hiányzó komponens)</td><td><code>Visibility</code> a szülőre</td></tr>
+<tr><td><code>B0005</code></td><td>Dinamikus fontméret memória-figyelmeztetés</td><td><code>Transform::scale</code> a betűméretre</td></tr>
+<tr><td><code>B0006</code></td><td>Szoftveres renderer (nincs GPU-gyorsítás)</td><td>Driver-frissítés / másik backend</td></tr>
+</table>
+
+<h3>A néma bukások ellenszere</h3>
+<ul>
+<li><strong>„Néha nem történik meg"</strong> → keress <code>B0003</code> warningot a logban (<code>RUST_LOG=bevy_ecs=debug</code>).</li>
+<li><strong>„Nem látszik a sprite"</strong> → <code>B0004</code>, vagy hiányzó <code>Visibility</code>/kamera/<code>z</code>-koordináta.</li>
+<li><strong>„A rendszer nem csinál semmit"</strong> → a lekérdezés 0 entitásra illik (<code>q.iter().count()</code>), vagy a <code>single()</code> <code>Err</code>.</li>
+<li><strong>„Pánikol indítás után pár frame-mel"</strong> → asset, ami még nem töltött be (<code>Assets::get</code> = <code>None</code>).</li>
+</ul>
+
+<h3>A dev-ciklus eszköztára</h3>
+<table>
+<tr><th>Cél</th><th>Eszköz</th></tr>
+<tr><td>Gyorsabb fordítás</td><td><code>dynamic_linking</code> + lld/mold + opt-level trükk</td></tr>
+<tr><td>Asset szerkesztése újraindítás nélkül</td><td><code>file_watcher</code> + <code>watch_for_changes_override</code></td></tr>
+<tr><td>ECS-állapot élő megnézése/állítása</td><td><code>bevy-inspector-egui</code></td></tr>
+<tr><td>Egy probléma megoldása máshogy</td><td>az ökoszisztéma-crate-ek + a <code>examples/</code> mappa</td></tr>
+</table>
+
+<div class="doboz tipp"><span class="dcim">Az öt kiegészítő együtt</span>
+<p>Ez a darab a sorozat gyakorlati lezárása. A <a href="rust-mintaillesztes-konverziok-tutorial.html">mintaillesztés + konverziók</a>, a <a href="rust-string-iterator-tutorial.html">String + iterátorok</a> és a <a href="rust-fordito-hibak-debug-tutorial.html">fordítóhibák + debug</a> a Rust-oldalt, ez és a <a href="rust-fordito-hibak-debug-tutorial.html">cheat-sheet</a> a Bevy-hidat erősíti — a nagy <a href="bevy-tutorial_hu.html">Bevy-műhely</a> és <a href="rust-tutorial_hu.html">Rust-tananyag</a> mellé.</p></div>
+
+<h3>Merre tovább?</h3>
+<p>Most már nem a nyelv vagy a motor van az utadban, hanem csak a <em>játék, amit meg akarsz csinálni</em>. Fogj egy kis ötletet, fordítsd gyorsra a buildet, kapcsold be a hot-reloadot és az inspectort — és építsd meg. A hibák már nem ellenségek: tudod olvasni őket. 🦀</p>
+
+<footer>
+Bevy-híd — magyar nyelvű Bevy-kiegészítő · Futásidejű hibák és a fejlesztői ciklus · Bevy 0.18 · A kódpéldák szabadon felhasználhatók.<br>
+Hivatalos hibakód-magyarázatok: <a href="https://bevy.org/learn/errors">bevy.org/learn/errors</a> · Dokumentáció: <a href="https://docs.rs/bevy">docs.rs/bevy</a>
+</footer>
+</section>
+
+</div><!-- /page -->
+</main>
+</div><!-- /layout -->
+
+<script>
+/* ---------- egyszerű Rust/Bash szintaxiskiemelő ---------- */
+(function(){
+  const KW = new Set(("fn let mut const static if else match for while loop in break continue return "+
+    "struct enum impl trait type where pub use mod crate super self Self as move ref dyn async await "+
+    "unsafe extern union true false").split(" "));
+  const TYPES = new Set(("i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64 bool char str "+
+    "String Vec Option Some None Result Ok Err Box Rc Arc RefCell Cell Mutex HashMap HashSet BTreeMap "+
+    "VecDeque Ordering Duration Iterator Display Debug Clone Copy Default From Into TryFrom TryInto AsRef "+
+    "FromStr Path PathBuf Error ParseIntError PartialEq Eq PartialOrd Ord Add Hash File Formatter "+
+    "App Query Commands Entity Transform Component Resource Res ResMut With Without ParamSet Sprite "+
+    "Image Assets Handle Visibility ChildOf Update DefaultPlugins AssetPlugin Reflect").split(" "));
+
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+  function highlightRust(src){
+    let out = "", i = 0, n = src.length;
+    while(i < n){
+      const c = src[i];
+      // kommentek
+      if(c === "/" && src[i+1] === "/"){
+        let j = src.indexOf("\n", i); if(j < 0) j = n;
+        out += '<span class="k-com">'+esc(src.slice(i,j))+'</span>'; i = j; continue;
+      }
+      // stringek
+      if(c === '"'){
+        let j = i+1;
+        while(j < n && (src[j] !== '"' || src[j-1] === "\\")) j++;
+        out += '<span class="k-str">'+esc(src.slice(i,j+1))+'</span>'; i = j+1; continue;
+      }
+      // char literál / élettartam
+      if(c === "'"){
+        const m = /^'(\\.|[^'\\]){1}'/.exec(src.slice(i));
+        if(m){ out += '<span class="k-str">'+esc(m[0])+'</span>'; i += m[0].length; continue; }
+        const l = /^'[A-Za-z_][A-Za-z0-9_]*/.exec(src.slice(i));
+        if(l){ out += '<span class="k-life">'+esc(l[0])+'</span>'; i += l[0].length; continue; }
+        out += esc(c); i++; continue;
+      }
+      // szám
+      if(/[0-9]/.test(c)){
+        const m = /^[0-9][0-9_]*(\.[0-9_]+)?([eE][+-]?[0-9]+)?(_?[iuf](8|16|32|64|128|size)?)?|^0x[0-9A-Fa-f_]+|^0b[01_]+/.exec(src.slice(i));
+        if(m){ out += '<span class="k-num">'+esc(m[0])+'</span>'; i += m[0].length; continue; }
+      }
+      // azonosító / kulcsszó / makró / fn-hívás
+      if(/[A-Za-z_]/.test(c)){
+        const m = /^[A-Za-z_][A-Za-z0-9_]*/.exec(src.slice(i));
+        const word = m[0]; const after = src[i+word.length];
+        if(after === "!"){ out += '<span class="k-mac">'+word+'!</span>'; i += word.length+1; continue; }
+        if(KW.has(word)){ out += '<span class="k-kw">'+word+'</span>'; }
+        else if(TYPES.has(word) || /^[A-Z]/.test(word)){ out += '<span class="k-type">'+word+'</span>'; }
+        else if(after === "("){ out += '<span class="k-fn">'+word+'</span>'; }
+        else { out += word; }
+        i += word.length; continue;
+      }
+      out += esc(c); i++;
+    }
+    return out;
+  }
+
+  function highlightBash(src){
+    return src.split("\n").map(line=>{
+      const h = line.indexOf("#");
+      if(h >= 0){
+        return esc(line.slice(0,h)) + '<span class="k-com">'+esc(line.slice(h))+'</span>';
+      }
+      return esc(line);
+    }).join("\n");
+  }
+
+  document.querySelectorAll("pre code").forEach(el=>{
+    const raw = el.textContent;
+    if(el.classList.contains("rust")) el.innerHTML = highlightRust(raw);
+    else if(el.classList.contains("bash")) el.innerHTML = highlightBash(raw);
+  });
+
+  /* ---------- másolás gombok ---------- */
+  document.querySelectorAll(".kod").forEach(blokk=>{
+    const gomb = blokk.querySelector(".masol");
+    const kod = blokk.querySelector("pre code");
+    if(!gomb || !kod) return;
+    gomb.addEventListener("click", ()=>{
+      navigator.clipboard.writeText(kod.textContent).then(()=>{
+        const regi = gomb.textContent;
+        gomb.textContent = "Másolva ✓";
+        setTimeout(()=>{ gomb.textContent = regi; }, 1400);
+      });
+    });
+  });
+
+  /* ---------- aktív fejezet a sidebarban ---------- */
+  const linkek = Array.from(document.querySelectorAll("#sidebar a"));
+  const fejezetek = Array.from(document.querySelectorAll("section.fejezet"));
+  function frissit(){
+    let aktiv = fejezetek[0];
+    for(const f of fejezetek){
+      if(f.getBoundingClientRect().top <= 120) aktiv = f;
+    }
+    linkek.forEach(a=>a.classList.toggle("active", a.getAttribute("href") === "#"+aktiv.id));
+  }
+  document.addEventListener("scroll", frissit, {passive:true});
+  frissit();
+})();
+</script>
+</body>
+</html>

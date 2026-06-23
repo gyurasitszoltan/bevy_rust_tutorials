@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>String, &str és az iterátor-eszköztár a gyakorlatban — Rust magyarul</title>
+<style>
+:root{
+  --bg:#F6F4F0;
+  --paper:#FFFFFF;
+  --ink:#26211C;
+  --ink-soft:#5C544B;
+  --rust:#C2540A;
+  --rust-deep:#8F3D06;
+  --steel:#3B6EA5;
+  --iron:#211D19;
+  --iron-2:#2C2722;
+  --code-bg:#1C1916;
+  --code-ink:#E8E2D8;
+  --kw:#E58E51;
+  --str:#A8C97F;
+  --num:#7FB8D4;
+  --com:#867D70;
+  --fn:#E5C07B;
+  --mac:#C678DD;
+  --line:#E4DED5;
+  --ok:#4E7A3A;
+  --warn:#A35A00;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:Charter,"Iowan Old Style",Georgia,"Times New Roman",serif;
+  background:var(--bg);color:var(--ink);
+  line-height:1.65;font-size:17px;
+}
+.layout{display:flex;min-height:100vh}
+
+/* ---------- sidebar ---------- */
+nav#sidebar{
+  width:300px;flex-shrink:0;background:var(--iron);color:#CFC8BD;
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+  padding:28px 0 60px 0;
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  scrollbar-width:thin;scrollbar-color:#4a4138 var(--iron);
+}
+nav#sidebar .brand{padding:0 24px 22px 24px;border-bottom:1px solid #3a332c;margin-bottom:14px}
+nav#sidebar .brand h1{font-size:20px;font-weight:700;color:#F3EEE6;letter-spacing:.3px}
+nav#sidebar .brand h1 span{color:var(--kw)}
+nav#sidebar .brand p{font-size:12.5px;color:#968D80;margin-top:4px}
+nav#sidebar a{
+  display:flex;align-items:baseline;gap:10px;
+  padding:7px 24px;color:#B8B0A4;text-decoration:none;font-size:13.5px;
+  border-left:3px solid transparent;
+}
+nav#sidebar a .hex{
+  font-family:ui-monospace,"Cascadia Code",Consolas,monospace;
+  font-size:11.5px;color:#7A7164;min-width:38px;
+}
+nav#sidebar a:hover{background:#2B2620;color:#F0EAE0}
+nav#sidebar a.active{border-left-color:var(--rust);background:#2B2620;color:#FFD9B8}
+nav#sidebar a.active .hex{color:var(--kw)}
+nav#sidebar .part{
+  padding:16px 24px 6px 24px;font-size:10.5px;letter-spacing:1.6px;
+  text-transform:uppercase;color:#6E6557;font-weight:600;
+}
+
+/* ---------- main ---------- */
+main{flex:1;min-width:0}
+.page{max-width:860px;margin:0 auto;padding:48px 48px 120px 48px}
+
+/* hero */
+header.hero{
+  background:linear-gradient(135deg,#241F1A 0%,#3A2517 55%,#6B3408 100%);
+  color:#F3EAE0;padding:72px 48px 64px 48px;
+}
+header.hero .heroinner{max-width:860px;margin:0 auto}
+header.hero .eyebrow{
+  font-family:ui-monospace,Consolas,monospace;font-size:13px;color:#E5A06B;
+  letter-spacing:2px;margin-bottom:18px;
+}
+header.hero h1{
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  font-size:46px;line-height:1.12;font-weight:700;max-width:680px;
+}
+header.hero h1 em{font-style:normal;color:#F0A35E}
+header.hero p.lead{margin-top:20px;font-size:18.5px;color:#D8CCBF;max-width:640px}
+header.hero .meta{
+  margin-top:30px;display:flex;gap:26px;flex-wrap:wrap;
+  font-family:"Avenir Next",system-ui,sans-serif;font-size:13px;color:#B8A795;
+}
+header.hero .meta b{color:#F0DEC9;font-weight:600}
+
+/* chapters */
+section.fejezet{margin-top:64px;scroll-margin-top:24px}
+section.fejezet:first-of-type{margin-top:40px}
+.fejcim{
+  display:flex;align-items:baseline;gap:14px;
+  border-bottom:3px solid var(--rust);padding-bottom:10px;margin-bottom:26px;
+}
+.fejcim .hex{
+  font-family:ui-monospace,Consolas,monospace;font-size:15px;color:var(--rust);
+  background:#F6E3D2;padding:3px 9px;border-radius:4px;
+}
+.fejcim h2{
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  font-size:29px;font-weight:700;letter-spacing:-.2px;
+}
+h3{
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  font-size:20px;font-weight:600;margin:34px 0 12px 0;color:var(--rust-deep);
+}
+h4{
+  font-family:"Avenir Next",system-ui,sans-serif;font-size:16.5px;
+  font-weight:600;margin:24px 0 8px 0;
+}
+p{margin:0 0 14px 0}
+ul,ol{margin:0 0 16px 26px}
+li{margin-bottom:6px}
+a{color:var(--steel)}
+strong{color:#1B1611}
+code{
+  font-family:ui-monospace,"Cascadia Code",Consolas,"Liberation Mono",monospace;
+  font-size:.86em;color:#7A3D10;
+  padding:1.5px 6px;border-radius:4px;
+}
+
+/* code blocks */
+.kod{
+  position:relative;background:var(--code-bg);border-radius:10px;
+  margin:18px 0 22px 0;overflow:hidden;
+  box-shadow:0 2px 10px rgba(40,30,20,.18);
+}
+.kod .kodfej{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 14px;background:#26221D;border-bottom:1px solid #36302A;
+  font-family:"Avenir Next",system-ui,sans-serif;
+}
+.kod .kodfej .fajl{font-size:12px;color:#9C9285;font-family:ui-monospace,Consolas,monospace}
+.kod .masol{
+  font-size:11.5px;color:#B8AC9C;background:#36302A;border:none;border-radius:5px;
+  padding:4px 11px;cursor:pointer;font-family:inherit;
+}
+.kod .masol:hover{background:#473F36;color:#F0E8DC}
+.kod pre{
+  padding:16px 18px;overflow-x:auto;
+  font-family:ui-monospace,"Cascadia Code",Consolas,"Liberation Mono",monospace;
+  font-size:14px;line-height:1.58;color:var(--code-ink);
+  tab-size:4;
+}
+.kod pre::-webkit-scrollbar{height:8px}
+.kod pre::-webkit-scrollbar-thumb{background:#403A32;border-radius:4px}
+.k-kw{color:var(--kw);font-weight:600}
+.k-str{color:var(--str)}
+.k-num{color:var(--num)}
+.k-com{color:var(--com);font-style:italic}
+.k-fn{color:var(--fn)}
+.k-mac{color:var(--mac)}
+.k-type{color:#76C5B0}
+.k-life{color:#D4848C}
+
+/* terminal output */
+.kimenet{
+  background:#14110E;border-radius:8px;margin:-12px 0 22px 0;
+  padding:12px 18px;font-family:ui-monospace,Consolas,monospace;
+  font-size:13px;color:#9FB89A;border-left:3px solid #3E5A36;
+}
+.kimenet::before{
+  content:"KIMENET";display:block;font-size:9.5px;letter-spacing:1.8px;
+  color:#5E6E58;margin-bottom:6px;font-family:"Avenir Next",system-ui,sans-serif;
+}
+
+/* callouts */
+.doboz{
+  border-radius:8px;padding:15px 18px 13px 18px;margin:18px 0 22px 0;
+  font-size:15.5px;
+}
+.doboz .dcim{
+  font-family:"Avenir Next",system-ui,sans-serif;font-weight:700;font-size:12px;
+  letter-spacing:1.4px;text-transform:uppercase;display:block;margin-bottom:6px;
+}
+.doboz.tipp{background:#EDF3E6;border-left:4px solid var(--ok)}
+.doboz.tipp .dcim{color:var(--ok)}
+.doboz.figyelem{background:#FBEEDC;border-left:4px solid var(--warn)}
+.doboz.figyelem .dcim{color:var(--warn)}
+.doboz.melyseg{background:#E8EEF5;border-left:4px solid var(--steel)}
+.doboz.melyseg .dcim{color:var(--steel)}
+.doboz p:last-child{margin-bottom:0}
+
+/* tables */
+table{border-collapse:collapse;width:100%;margin:16px 0 22px 0;font-size:15px}
+th{
+  text-align:left;font-family:"Avenir Next",system-ui,sans-serif;font-size:12.5px;
+  letter-spacing:.8px;text-transform:uppercase;color:var(--rust-deep);
+  border-bottom:2px solid var(--rust);padding:8px 12px;
+}
+td{border-bottom:1px solid var(--line);padding:9px 12px;vertical-align:top}
+td code{white-space:nowrap}
+
+/* exercise blocks */
+.gyakorlat{
+  background:var(--paper);border:1px solid var(--line);border-top:4px solid var(--rust);
+  border-radius:8px;padding:18px 20px;margin:26px 0;
+}
+.gyakorlat .gcim{
+  font-family:"Avenir Next",system-ui,sans-serif;font-weight:700;font-size:14px;
+  color:var(--rust);margin-bottom:8px;letter-spacing:.4px;
+}
+details{margin-top:10px}
+details summary{
+  cursor:pointer;font-family:"Avenir Next",system-ui,sans-serif;
+  font-size:13.5px;color:var(--steel);font-weight:600;
+}
+details[open] summary{margin-bottom:8px}
+
+footer{
+  margin-top:80px;border-top:1px solid var(--line);padding-top:24px;
+  font-size:13.5px;color:var(--ink-soft);
+  font-family:"Avenir Next",system-ui,sans-serif;
+}
+
+@media (max-width:980px){
+  nav#sidebar{display:none}
+  .page{padding:32px 20px 80px 20px}
+  header.hero{padding:48px 20px}
+  header.hero h1{font-size:32px}
+}
+@media print{
+  nav#sidebar{display:none}
+  .kod .masol{display:none}
+  body{background:#fff}
+}
+</style>
+</head>
+<body>
+<!-- olvasási haladásjelző (progress bar) -->
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,#C2540A,#E58E51);
+  box-shadow:0 0 10px rgba(194,84,10,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<div class="layout">
+
+<nav id="sidebar">
+  <div class="brand">
+    <h1>Rust<span>‑kohó</span></h1>
+    <p>String, &amp;str és iterátorok<br>kiegészítő a nagy tananyaghoz</p>
+  </div>
+  <div class="part">I. rész — String és &amp;str</div>
+  <a href="#f00"><span class="hex">0x00</span>A két szövegtípus</a>
+  <a href="#f01"><span class="hex">0x01</span>Melyiket az argumentumban?</a>
+  <a href="#f02"><span class="hex">0x02</span>UTF-8 — amit tudni kell</a>
+  <a href="#f03"><span class="hex">0x03</span>Építés és metódus-katalógus</a>
+  <div class="part">II. rész — Iterátorok</div>
+  <a href="#f04"><span class="hex">0x04</span>Lustaság: adapter vs consumer</a>
+  <a href="#f05"><span class="hex">0x05</span>iter / iter_mut / into_iter</a>
+  <a href="#f06"><span class="hex">0x06</span>Transzformáló adapterek</a>
+  <a href="#f07"><span class="hex">0x07</span>Lezáró műveletek és collect</a>
+  <a href="#f08"><span class="hex">0x08</span>Szövegfeldolgozás a gyakorlatban</a>
+  <a href="#f09"><span class="hex">0x09</span>Összefoglaló és továbblépés</a>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="heroinner">
+    <div class="eyebrow">&amp;str ⇒ iter().collect() — adatfeldolgozás</div>
+    <h1>String, &amp;str <em>és az iterátor-eszköztár</em></h1>
+    <p class="lead">A két típus, ami minden kezdőt elejt, és az absztrakció, amit naponta használsz. Itt a gyakorlat felől nézzük meg őket — és a végén összeér a kettő: szövegfeldolgozás iterátorláncokkal.</p>
+    <div class="meta">
+      <span><b>10</b> fejezet</span>
+      <span><b>~40</b> kódpélda</span>
+      <span><b>Szint:</b> középhaladó</span>
+      <span><b>Épít rá:</b> a nagy Rust-tananyag (Vec, String, closure-ök)</span>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+
+<!-- ============ 0x00 ============ -->
+<section class="fejezet" id="f00">
+<div class="fejcim"><span class="hex">0x00</span><h2>A két szövegtípus</h2></div>
+
+<p>A Rust egyik leggyakoribb kezdő-buktatója, hogy <strong>kétféle szöveg</strong> van. Nem azért, hogy bosszantson — a kettő két különböző dolgot jelent, és ha érted a különbséget, a szöveggel kapcsolatos fordítási hibák fele megszűnik.</p>
+
+<table>
+<tr><th>Típus</th><th>Mi ez</th><th>Tulajdonos?</th></tr>
+<tr><td><code>String</code></td><td>Saját, a heap-en tárolt, <strong>növelhető</strong> szöveg.</td><td>Igen — ő birtokolja az adatot.</td></tr>
+<tr><td><code>&amp;str</code></td><td>Kölcsönzött, <strong>fix</strong> nézet egy meglévő szövegre („string slice").</td><td>Nem — csak rámutat.</td></tr>
+</table>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    // &amp;str — kölcsönzött, fix nézet. A string literál típusa &amp;'static str:
+    let kolcson: &amp;str = "Helló";
+
+    // String — saját tulajdonú, a heap-en, NÖVELHETŐ:
+    let mut sajat: String = String::from("Helló");
+    sajat.push_str(", világ!"); // egy &amp;str-t nem tudnál bővíteni
+
+    println!("{kolcson} | {sajat}");
+}</code></pre></div>
+
+<div class="doboz melyseg"><span class="dcim">A motorháztető alatt</span>
+<p>A <code>String</code> három dolgot tárol a stacken: egy mutatót a heap-adatra, a hosszt és a kapacitást. A <code>&amp;str</code> csak kettőt: egy mutatót és a hosszt — ezért „kövér mutató" (fat pointer). Egy <code>&amp;str</code> rámutathat egy <code>String</code> adatára, egy literálra (a program <code>.rodata</code> szegmensében), vagy bármilyen UTF-8 bájtsorozatra. <strong>Nem másolat — nézet.</strong></p></div>
+</section>
+
+<!-- ============ 0x01 ============ -->
+<section class="fejezet" id="f01">
+<div class="fejcim"><span class="hex">0x01</span><h2>Melyiket az argumentumban?</h2></div>
+
+<p>Ez a fejezet egyetlen szabályról szól, amit ha megjegyzel, profibb API-kat írsz:</p>
+
+<div class="doboz tipp"><span class="dcim">Az aranyszabály</span>
+<p><strong>Kérj <code>&amp;str</code>-t a paraméterben, és adj vissza <code>String</code>-et.</strong> A <code>&amp;str</code> a legrugalmasabb bemenet: literállal <em>és</em> <code>String</code>-gel is hívható. A <code>String</code> visszaadásával pedig a hívó megkapja a tulajdont, és azt csinál vele, amit akar.</p></div>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">// JÓ: &amp;str-t kérünk → hívható literállal IS, String-gel IS.
+fn koszon(nev: &amp;str) {
+    println!("Szia, {nev}!");
+}
+
+fn main() {
+    let tulajdon = String::from("Anna");
+
+    koszon("Béla");     // &amp;str literál — közvetlenül megy
+    koszon(&amp;tulajdon);  // &amp;String → &amp;str AUTOMATIKUSAN (deref coercion)
+}</code></pre></div>
+
+<p>A <code>&amp;tulajdon</code> egy <code>&amp;String</code>, de a függvény <code>&amp;str</code>-t vár — a fordító ezt magától elintézi. Ezt hívják <em>deref coercion</em>-nek, és ezért nincs soha értelme <code>&amp;String</code>-et kérni a paraméterben.</p>
+
+<div class="doboz figyelem"><span class="dcim">Gyakori kezdő-hiba</span>
+<p>Ne kérj <code>fn koszon(nev: String)</code>-t, ha csak olvasod! Azzal <em>elveszed</em> a tulajdont a hívótól (move), aki utána nem használhatja a változóját — és literállal is csak egy felesleges <code>.to_string()</code>-gel hívható. A <code>&amp;str</code> mindkét gondot megoldja.</p></div>
+</section>
+
+<!-- ============ 0x02 ============ -->
+<section class="fejezet" id="f02">
+<div class="fejcim"><span class="hex">0x02</span><h2>UTF-8 — amit tudni kell</h2></div>
+
+<p>A Rust minden szövege <strong>UTF-8</strong> kódolású. Ez nagyszerű (a világ minden nyelve működik), de három dolgot meg kell érteni, különben futásidejű pánikba szaladsz.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let s = "héló"; // h · é · l · ó
+
+    // 1) A .len() BÁJTOKAT ad, nem karaktereket!
+    //    Az é és az ó 2-2 bájt UTF-8-ban, a h és az l 1-1.
+    println!("{}", s.len());            // 6  (NEM 4!)
+    println!("{}", s.chars().count());  // 4  — ennyi a karakter
+
+    // 2) NINCS s[0] indexelés — ez fordítási hiba.
+    // let c = s[0];                     // ❌ a bájt-index félbevághatna egy karaktert
+
+    // 3) Karakterek és pozícióik bejárása:
+    for (bajt_index, c) in s.char_indices() {
+        println!("{bajt_index}: {c}");  // 0:h  1:é  3:l  4:ó
+    }
+}</code></pre></div>
+
+<h3>Szeletelés — itt csússz el</h3>
+<p>Szeletelni lehet, de a <strong>bájt</strong>-indexnek karakterhatárra kell esnie, különben futásidejű pánik. Ha bizonytalan az index, használd a pánik helyett <code>Option</code>-t adó <code>.get()</code>-et.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let s = "héló";
+
+    let eleje = &amp;s[0..1];        // "h" — a 0..1 bájthatáron van, rendben
+    println!("{eleje}");
+
+    // let rossz = &amp;s[0..2];     // ❌ PÁNIK: byte index 2 is not a char boundary (az é közepe)
+
+    // Biztonságos változat: get() — None-t ad pánik helyett
+    println!("{:?}", s.get(0..1)); // Some("h")
+    println!("{:?}", s.get(0..2)); // None
+}</code></pre></div>
+
+<div class="doboz melyseg"><span class="dcim">Karakter, bájt, vagy ennél is bonyolultabb?</span>
+<p>A <code>.chars()</code> Unicode <em>kódpontokat</em> ad. A legtöbb feladatra ez kell. Ami a felhasználó szemében „egy betű" (pl. emoji bőrszín-módosítóval, vagy összetett ékezet), az lehet több kódpont is — ezt „grapheme cluster"-nek hívják, és a <code>unicode-segmentation</code> crate kezeli. A mindennapokban a <code>.chars()</code> bőven elég; csak tudd, hogy létezik a réteg alatta.</p></div>
+</section>
+
+<!-- ============ 0x03 ============ -->
+<section class="fejezet" id="f03">
+<div class="fejcim"><span class="hex">0x03</span><h2>Építés és metódus-katalógus</h2></div>
+
+<h3>String építése</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let mut s = String::new();
+    s.push_str("Helló");   // &amp;str hozzáfűzése
+    s.push(' ');           // EGYETLEN karakter (char) hozzáfűzése
+    s.push_str("világ");
+
+    // + operátor: a BAL oldalt elfogyasztja (move), a jobb oldal &amp;str:
+    let teljes = s + "!";  // s elmozgott; teljes == "Helló világ!"
+
+    // format! — semmit nem mozgat, és messze a legolvashatóbb építő:
+    let nev = "Anna";
+    let kor = 30;
+    let mondat = format!("{nev} {kor} éves.");
+
+    println!("{teljes}");
+    println!("{mondat}");
+}</code></pre></div>
+
+<div class="doboz tipp"><span class="dcim">Egyszerű szabály</span>
+<p>Kettőnél több darab összefűzéséhez használj <code>format!</code>-ot — olvashatóbb, mint a <code>+</code> láncolgatása, és nem kell a move-okkal bajlódni. Ciklusban épülő szöveghez a <code>push_str</code> a leghatékonyabb.</p></div>
+
+<h3>A leggyakrabban használt szöveg-metódusok</h3>
+<table>
+<tr><th>Metódus</th><th>Mit csinál</th></tr>
+<tr><td><code>.trim()</code></td><td>Levágja az elejéről/végéről a whitespace-t.</td></tr>
+<tr><td><code>.split(',')</code></td><td>Iterátor a darabokról egy elválasztó mentén.</td></tr>
+<tr><td><code>.split_whitespace()</code></td><td>Szavakra bont tetszőleges whitespace mentén.</td></tr>
+<tr><td><code>.lines()</code></td><td>Iterátor a sorokról.</td></tr>
+<tr><td><code>.replace("a", "b")</code></td><td>Minden előfordulást lecserél (új <code>String</code>-et ad).</td></tr>
+<tr><td><code>.to_lowercase()</code> / <code>.to_uppercase()</code></td><td>Kis-/nagybetűsít.</td></tr>
+<tr><td><code>.contains("x")</code></td><td><code>bool</code>: tartalmazza-e.</td></tr>
+<tr><td><code>.starts_with(..)</code> / <code>.ends_with(..)</code></td><td>Prefix/suffix vizsgálat.</td></tr>
+<tr><td><code>.parse::&lt;T&gt;()</code></td><td><code>Result</code>: szövegből szám/bool stb.</td></tr>
+</table>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let s = "  alma,körte,szilva  ";
+
+    println!("{:?}", s.trim());                 // "alma,körte,szilva"
+
+    let darabok: Vec&lt;&amp;str&gt; = s.trim().split(',').collect();
+    println!("{darabok:?}");                    // ["alma", "körte", "szilva"]
+
+    println!("{}", "Helló".to_uppercase());     // "HELLÓ"
+    println!("{}", "alma".contains("lm"));      // true
+    println!("{}", "Cargo.toml".ends_with(".toml")); // true
+}</code></pre></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x03</div>
+<p>Írj <code>fn maganhangzok(s: &amp;str) -&gt; usize</code> függvényt, amely megszámolja a magánhangzókat egy (kisbetűs) szövegben. Tipp: <code>.chars()</code> + <code>.filter(..)</code> + <code>.count()</code>, és a <code>&amp;str</code>-nek van <code>.contains(char)</code> metódusa.</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">fn maganhangzok(s: &amp;str) -&gt; usize {
+    s.chars()
+        .filter(|c| "aeiouáéíóöőúüű".contains(*c))
+        .count()
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x04 ============ -->
+<section class="fejezet" id="f04">
+<div class="fejcim"><span class="hex">0x04</span><h2>Lustaság: adapter vs consumer</h2></div>
+
+<p>Itt kezdődik a második rész — és a Rust egyik legkedveltebb eszköze. Az iterátorok megértésének kulcsa egyetlen szó: <strong>lustaság</strong>. Az iterátor-műveletek két csoportra oszlanak:</p>
+<ul>
+<li><strong>Adapter</strong> (pl. <code>map</code>, <code>filter</code>): új iterátort ad vissza. <em>Semmit nem csinál</em>, csak „receptet" épít.</li>
+<li><strong>Consumer</strong> (pl. <code>collect</code>, <code>sum</code>, <code>count</code>): elindítja a láncot, és előállítja a végeredményt.</li>
+</ul>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let szamok = vec![1, 2, 3, 4, 5];
+
+    // EZ A SOR SEMMIT NEM SZÁMOL — az adapterek lusták (lazy):
+    let lanc = szamok.iter().map(|&amp;x| x * 2).filter(|&amp;x| x &gt; 4);
+    //         ^ egyetlen szorzás vagy szűrés sem futott le; `lanc` csak egy recept.
+
+    // A consumer indítja el az EGÉSZ láncot, egyetlen menetben:
+    let eredmeny: Vec&lt;i32&gt; = lanc.collect();
+    println!("{eredmeny:?}"); // [6, 8, 10]
+}</code></pre></div>
+
+<div class="doboz melyseg"><span class="dcim">Miért jó ez?</span>
+<p>Mert a lánc <strong>egyetlen menetben</strong> fut le, elemenként — nem készül köztes <code>Vec</code> minden lépés után. A <code>map</code> majd <code>filter</code> nem két bejárás: minden elem végigmegy a teljes láncon, aztán jön a következő. Ezért „zero-cost" az absztrakció: a fordított kód olyan gyors, mint egy kézzel írt <code>for</code>-ciklus. Ha pedig elfelejted a consumert, a fordító figyelmeztet: „unused <code>Map</code> that must be used".</p></div>
+</section>
+
+<!-- ============ 0x05 ============ -->
+<section class="fejezet" id="f05">
+<div class="fejcim"><span class="hex">0x05</span><h2>iter / iter_mut / into_iter</h2></div>
+
+<p>Háromféleképpen kérhetsz iterátort egy gyűjteményből, és a különbség <em>tulajdonjogi</em>: mit kapsz az elemekből — kölcsönt, módosítható kölcsönt, vagy a tulajdont.</p>
+
+<table>
+<tr><th>Hívás</th><th>Elem típusa</th><th>A gyűjtemény utána</th></tr>
+<tr><td><code>.iter()</code></td><td><code>&amp;T</code> (olvasás)</td><td>megmarad</td></tr>
+<tr><td><code>.iter_mut()</code></td><td><code>&amp;mut T</code> (módosítás)</td><td>megmarad, módosulhat</td></tr>
+<tr><td><code>.into_iter()</code></td><td><code>T</code> (tulajdon)</td><td>elfogy</td></tr>
+</table>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    // iter() → &amp;T: csak olvasunk, a vektor utána is megvan
+    let v = vec![10, 20, 30];
+    for x in v.iter() {
+        print!("{x} ");          // x: &amp;i32
+    }
+    println!("| megvan: {v:?}");
+
+    // iter_mut() → &amp;mut T: helyben módosítunk
+    let mut v2 = vec![1, 2, 3];
+    for x in v2.iter_mut() {
+        *x *= 10;                // x: &amp;mut i32 — a * dereferál
+    }
+    println!("{v2:?}");          // [10, 20, 30]
+
+    // into_iter() → T: elfogyasztja a vektort
+    let v3 = vec![String::from("a"), String::from("b")];
+    for s in v3.into_iter() {
+        println!("{s}");         // s: String (tulajdon)
+    }
+    // v3 itt már NEM használható — elfogyott
+}</code></pre></div>
+
+<div class="doboz tipp"><span class="dcim">A for-ciklus titka</span>
+<p>A <code>for</code> a háttérben ezeket hívja: <code>for x in &amp;v</code> ⇒ <code>v.iter()</code>, <code>for x in &amp;mut v</code> ⇒ <code>v.iter_mut()</code>, és a sima <code>for x in v</code> ⇒ <code>v.into_iter()</code> (vagyis <strong>elfogyasztja</strong> a gyűjteményt!). Ha a ciklus után még kell a vektor, írj <code>&amp;v</code>-t.</p></div>
+</section>
+
+<!-- ============ 0x06 ============ -->
+<section class="fejezet" id="f06">
+<div class="fejcim"><span class="hex">0x06</span><h2>Transzformáló adapterek</h2></div>
+
+<p>Ezek építik a láncot. Itt a leghasznosabbak, két futtatható csokorban.</p>
+
+<h3>map, filter, filter_map, flat_map</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    // filter_map: szűr ÉS átalakít egy lépésben — a None-okat eldobja.
+    let nyers = vec!["1", "kettő", "3", "négy", "5"];
+    let szamok: Vec&lt;i32&gt; = nyers.iter()
+        .filter_map(|s| s.parse().ok())  // a parse cél-típusát a collect adja: i32
+        .collect();
+    println!("{szamok:?}"); // [1, 3, 5]
+
+    // flat_map: minden elemből TÖBB lesz, majd egy szintbe lapít.
+    let mondatok = vec!["a b", "c d e"];
+    let szavak: Vec&lt;&amp;str&gt; = mondatok.iter()
+        .flat_map(|m| m.split(' '))
+        .collect();
+    println!("{szavak:?}"); // ["a", "b", "c", "d", "e"]
+}</code></pre></div>
+
+<h3>enumerate, zip, take, skip, rev</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let v = vec![1, 2, 3, 4, 5, 6];
+
+    // enumerate: (index, elem) párokat ad
+    for (i, x) in v.iter().enumerate() {
+        if i % 2 == 0 { print!("[{i}]={x} "); }
+    }
+    println!();
+
+    // zip: két iterátort párokká fűz; a rövidebbnél megáll
+    let nevek = vec!["Anna", "Béla"];
+    let korok = vec![30, 25];
+    for (nev, kor) in nevek.iter().zip(korok.iter()) {
+        println!("{nev}: {kor}");
+    }
+
+    // take / skip / rev — a lánc közben
+    let elso_harom: Vec&lt;i32&gt; = v.iter().copied().take(3).collect();   // [1, 2, 3]
+    let forditva:   Vec&lt;i32&gt; = v.iter().copied().rev().collect();      // [6, 5, 4, 3, 2, 1]
+    println!("{elso_harom:?} | {forditva:?}");
+}</code></pre></div>
+
+<div class="doboz melyseg"><span class="dcim">A closure-ök referenciái</span>
+<p>Az <code>.iter()</code> referenciákat ad, ezért látsz <code>|&amp;x|</code> mintát: a <code>&amp;</code> a mintában „kicsomagolja" a referenciát, így a törzsben <code>x</code> már a sima érték. A <code>.filter()</code> ráadásul <em>referenciát ad a closure-nek</em>, ezért ott néha dupla a jel: <code>|&amp;&amp;x|</code>. Ha belezavarodsz, írhatsz egy <code>*</code>-ot a törzsben helyette (pl. <code>|x| *x &gt; 4</code>).</p></div>
+</section>
+
+<!-- ============ 0x07 ============ -->
+<section class="fejezet" id="f07">
+<div class="fejcim"><span class="hex">0x07</span><h2>Lezáró műveletek és collect</h2></div>
+
+<p>A consumerek zárják le a láncot. Itt a leggyakoribbak.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let v = vec![1, 2, 3, 4, 5];
+
+    let osszeg: i32 = v.iter().sum();                       // 15
+    let paros_db = v.iter().filter(|&amp;&amp;x| x % 2 == 0).count(); // 2
+    let szorzat  = v.iter().fold(1, |acc, &amp;x| acc * x);      // 120 (saját akkumulátor)
+
+    println!("összeg={osszeg}, páros={paros_db}, szorzat={szorzat}");
+
+    // keresők — mind Option-t vagy bool-t adnak:
+    println!("{:?}", v.iter().find(|&amp;&amp;x| x &gt; 3));   // Some(4)
+    println!("{:?}", v.iter().position(|&amp;x| x == 3)); // Some(2)
+    println!("{}",   v.iter().any(|&amp;x| x &lt; 0));       // false
+    println!("{}",   v.iter().all(|&amp;x| x &gt; 0));       // true
+
+    // max_by_key: a leghosszabb szó
+    let szavak = vec!["alma", "körte", "szilva"];
+    println!("{:?}", szavak.iter().max_by_key(|s| s.len())); // Some("szilva")
+}</code></pre></div>
+
+<h3>collect — a svájcibicska</h3>
+<p>A <code>collect</code> abba gyűjt, amit a céltípus megkövetel. A típust a változó annotációja vagy egy „turbofish" (<code>::&lt;...&gt;</code>) adja meg.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::collections::HashMap;
+
+fn main() {
+    let v: Vec&lt;i32&gt; = (1..=5).collect();                 // [1, 2, 3, 4, 5]
+    let s: String = vec!['R', 'u', 's', 't'].into_iter().collect(); // "Rust"
+    let map: HashMap&lt;&amp;str, i32&gt; =
+        vec![("a", 1), ("b", 2)].into_iter().collect();  // {"a":1, "b":2}
+
+    println!("{v:?} | {s} | {map:?}");
+}</code></pre></div>
+
+<div class="doboz tipp"><span class="dcim">A legfontosabb collect-trükk: Result-ök összegyűjtése</span>
+<p>Ha <code>Result</code>-okból álló iterátorod van, a <code>collect</code> képes egyetlen <code>Result&lt;Vec&lt;_&gt;, _&gt;</code>-ba gyűjteni: ha <strong>minden</strong> elem <code>Ok</code>, megkapod az <code>Ok(Vec)</code>-et; ha <strong>bármelyik</strong> <code>Err</code>, az első hiba „rövidre zárja" az egészet. Ez a hibatűrő adatfeldolgozás motorja.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let mind: Result&lt;Vec&lt;i32&gt;, _&gt; =
+        vec!["1", "2", "3"].into_iter().map(|s| s.parse::&lt;i32&gt;()).collect();
+    println!("{mind:?}"); // Ok([1, 2, 3])
+
+    let hibas: Result&lt;Vec&lt;i32&gt;, _&gt; =
+        vec!["1", "x", "3"].into_iter().map(|s| s.parse::&lt;i32&gt;()).collect();
+    println!("{hibas:?}"); // Err(ParseIntError { .. })
+}</code></pre></div></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x07</div>
+<p>Írj <code>fn paros_negyzetosszeg(v: &amp;[i32]) -&gt; i32</code> függvényt, amely egyetlen iterátorláncban visszaadja a <strong>páros</strong> számok négyzeteinek összegét.</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">fn paros_negyzetosszeg(v: &amp;[i32]) -&gt; i32 {
+    v.iter()
+        .filter(|&amp;&amp;x| x % 2 == 0)
+        .map(|&amp;x| x * x)
+        .sum()
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x08 ============ -->
+<section class="fejezet" id="f08">
+<div class="fejcim"><span class="hex">0x08</span><h2>Szövegfeldolgozás a gyakorlatban</h2></div>
+
+<p>Most ér össze a két téma. A való életben a szövegfeldolgozás szinte mindig egy iterátorlánc: sorokra bontasz, szűrsz, átalakítasz, parse-olsz, összegzel.</p>
+
+<h3>Sorok szűrése és összegzése egyetlen láncban</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let szoveg = "alma 3\n# komment\nkörte 5\n\nszilva 2";
+
+    // Üres és kommentsorok kiszűrése, a 2. mező kivétele, parse, összegzés:
+    let osszeg: i32 = szoveg
+        .lines()
+        .map(|sor| sor.trim())
+        .filter(|sor| !sor.is_empty() &amp;&amp; !sor.starts_with('#'))
+        .filter_map(|sor| sor.split_whitespace().nth(1)) // a második mező
+        .filter_map(|mezo| mezo.parse::&lt;i32&gt;().ok())
+        .sum();
+
+    println!("összeg: {osszeg}"); // 10
+}</code></pre></div>
+
+<h3>Szószámláló HashMap-pel</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use std::collections::HashMap;
+
+fn szavak_szamlalasa(szoveg: &amp;str) -&gt; HashMap&lt;String, usize&gt; {
+    let mut szamlalo: HashMap&lt;String, usize&gt; = HashMap::new();
+    for szo in szoveg.split_whitespace() {
+        // entry(...).or_insert(0): ha nincs még a kulcs, beteszi 0-val, majd növel
+        *szamlalo.entry(szo.to_lowercase()).or_insert(0) += 1;
+    }
+    szamlalo
+}
+
+fn main() {
+    let szamlalo = szavak_szamlalasa("a kutya és a macska és a kutya");
+    println!("{szamlalo:?}"); // {"a": 3, "kutya": 2, "és": 2, "macska": 1}
+}</code></pre></div>
+
+<h3>Bónusz: windows és chunks</h3>
+<p>Ezek nem iterátor-adapterek, hanem <em>slice</em>-metódusok — de iterátort adnak, így beilleszthetők a láncba. Szomszédos elemek vizsgálatához aranyat érnek.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let v = [1, 2, 3, 4, 5];
+
+    // windows(2): ÁTFEDŐ ablakok — szomszédos párok
+    for w in v.windows(2) {
+        print!("{w:?} ");   // [1, 2] [2, 3] [3, 4] [4, 5]
+    }
+    println!();
+
+    // chunks(2): NEM átfedő darabok (az utolsó lehet rövidebb)
+    for c in v.chunks(2) {
+        print!("{c:?} ");   // [1, 2] [3, 4] [5]
+    }
+    println!();
+}</code></pre></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x08</div>
+<p>Adott egy többsoros szöveg, soronként <code>"név,pont"</code> formátumban (pl. <code>"Anna,90\nBéla,75"</code>). Írj <code>fn atlag(szoveg: &amp;str) -&gt; f64</code> függvényt, amely egy iterátorlánccal kiszámolja a pontok átlagát (üres lista esetén <code>0.0</code>).</p>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">fn atlag(szoveg: &amp;str) -&gt; f64 {
+    let pontok: Vec&lt;f64&gt; = szoveg
+        .lines()
+        .filter_map(|sor| sor.split(',').nth(1))      // a pont-mező
+        .filter_map(|p| p.trim().parse::&lt;f64&gt;().ok())  // számmá, hibásat eldobva
+        .collect();
+
+    if pontok.is_empty() {
+        return 0.0;
+    }
+    pontok.iter().sum::&lt;f64&gt;() / pontok.len() as f64
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x09 ============ -->
+<section class="fejezet" id="f09">
+<div class="fejcim"><span class="hex">0x09</span><h2>Összefoglaló és továbblépés</h2></div>
+
+<p>A szöveg és az iterátorok a mindennapi Rust gerince. Innentől nem küzdesz velük — eszközként nyúlsz hozzájuk.</p>
+
+<h3>Melyik szövegtípus?</h3>
+<table>
+<tr><th>Helyzet</th><th>Típus</th></tr>
+<tr><td>Függvény-paraméter, csak olvasod</td><td><code>&amp;str</code></td></tr>
+<tr><td>Tárolod, építed, módosítod, visszaadod</td><td><code>String</code></td></tr>
+<tr><td>Egy hosszabb szöveg egy részlete (másolás nélkül)</td><td><code>&amp;str</code> (slice)</td></tr>
+</table>
+
+<h3>Iterátor cheat-sheet</h3>
+<table>
+<tr><th>Cél</th><th>Eszköz</th></tr>
+<tr><td>Átalakítás elemenként</td><td><code>map</code></td></tr>
+<tr><td>Szűrés</td><td><code>filter</code></td></tr>
+<tr><td>Szűrés + átalakítás egyben</td><td><code>filter_map</code></td></tr>
+<tr><td>Egy elemből több + lapítás</td><td><code>flat_map</code></td></tr>
+<tr><td>Index az elemekhez</td><td><code>enumerate</code></td></tr>
+<tr><td>Két sorozat párosítása</td><td><code>zip</code></td></tr>
+<tr><td>Gyűjteménybe / String-be / HashMap-be</td><td><code>collect</code></td></tr>
+<tr><td>Result-ök egyesítése</td><td><code>collect::&lt;Result&lt;_, _&gt;&gt;()</code></td></tr>
+<tr><td>Összeg / darab / egyedi akkumulátor</td><td><code>sum</code> / <code>count</code> / <code>fold</code></td></tr>
+<tr><td>Keresés</td><td><code>find</code> / <code>position</code> / <code>any</code> / <code>all</code></td></tr>
+</table>
+
+<div class="doboz tipp"><span class="dcim">A leg­fontosabb gondolat</span>
+<p>Az iterátorlánc <strong>nem lassabb</strong>, mint a kézzel írt <code>for</code>-ciklus — a fordító egyenértékű gépi kódot készít belőle (zero-cost absztrakció). Tehát nyugodtan írj olvasható, deklaratív láncokat: a „mit", nem a „hogyan". A teljesítményt nem áldozod fel az érthetőségért.</p></div>
+
+<h3>Merre tovább?</h3>
+<p>Ez a második hiánypótló modul a magyar Rust-tananyag mellé. A sorozat következő, tervezett darabja:</p>
+<ul>
+<li><strong>„A fordító a barátod"</strong> — a borrow checker hibaüzeneteinek olvasása (E0382, E0499, E0502…), és a hibakeresési munkafolyamat (<code>dbg!</code>, <code>tracing</code>, debugger).</li>
+</ul>
+<p>A korábbi modulok: a nagy <a href="rust-tutorial_hu.html">Rust-tananyag</a>, az <a href="rust-option_t_tutorial.html">Option&lt;T&gt;</a> mélymerülés, és a <a href="rust-mintaillesztes-konverziok-tutorial.html">mintaillesztés + konverziók</a>. És ne feledd: a magabiztosság a gyakorlásból jön — szedd szét ezeket a láncokat, írd át <code>for</code>-ciklussá, aztán vissza. 🦀</p>
+
+<footer>
+Rust-kohó — magyar nyelvű Rust tananyag · Kiegészítő modul: String, &amp;str és iterátorok · A kódpéldák szabadon felhasználhatók.<br>
+A hivatalos dokumentáció: <a href="https://doc.rust-lang.org">doc.rust-lang.org</a> · Játszótér: <a href="https://play.rust-lang.org">play.rust-lang.org</a>
+</footer>
+</section>
+
+</div><!-- /page -->
+</main>
+</div><!-- /layout -->
+
+<script>
+/* ---------- egyszerű Rust/Bash szintaxiskiemelő ---------- */
+(function(){
+  const KW = new Set(("fn let mut const static if else match for while loop in break continue return "+
+    "struct enum impl trait type where pub use mod crate super self Self as move ref dyn async await "+
+    "unsafe extern union true false").split(" "));
+  const TYPES = new Set(("i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64 bool char str "+
+    "String Vec Option Some None Result Ok Err Box Rc Arc RefCell Cell Mutex HashMap HashSet BTreeMap "+
+    "VecDeque Ordering Duration Iterator Display Debug Clone Copy Default From Into TryFrom TryInto AsRef "+
+    "FromStr Path PathBuf Error ParseIntError PartialEq Eq PartialOrd Ord Add Hash File Formatter").split(" "));
+
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+  function highlightRust(src){
+    let out = "", i = 0, n = src.length;
+    while(i < n){
+      const c = src[i];
+      // kommentek
+      if(c === "/" && src[i+1] === "/"){
+        let j = src.indexOf("\n", i); if(j < 0) j = n;
+        out += '<span class="k-com">'+esc(src.slice(i,j))+'</span>'; i = j; continue;
+      }
+      // stringek
+      if(c === '"'){
+        let j = i+1;
+        while(j < n && (src[j] !== '"' || src[j-1] === "\\")) j++;
+        out += '<span class="k-str">'+esc(src.slice(i,j+1))+'</span>'; i = j+1; continue;
+      }
+      // char literál / élettartam
+      if(c === "'"){
+        const m = /^'(\\.|[^'\\]){1}'/.exec(src.slice(i));
+        if(m){ out += '<span class="k-str">'+esc(m[0])+'</span>'; i += m[0].length; continue; }
+        const l = /^'[A-Za-z_][A-Za-z0-9_]*/.exec(src.slice(i));
+        if(l){ out += '<span class="k-life">'+esc(l[0])+'</span>'; i += l[0].length; continue; }
+        out += esc(c); i++; continue;
+      }
+      // szám
+      if(/[0-9]/.test(c)){
+        const m = /^[0-9][0-9_]*(\.[0-9_]+)?([eE][+-]?[0-9]+)?(_?[iuf](8|16|32|64|128|size)?)?|^0x[0-9A-Fa-f_]+|^0b[01_]+/.exec(src.slice(i));
+        if(m){ out += '<span class="k-num">'+esc(m[0])+'</span>'; i += m[0].length; continue; }
+      }
+      // azonosító / kulcsszó / makró / fn-hívás
+      if(/[A-Za-z_]/.test(c)){
+        const m = /^[A-Za-z_][A-Za-z0-9_]*/.exec(src.slice(i));
+        const word = m[0]; const after = src[i+word.length];
+        if(after === "!"){ out += '<span class="k-mac">'+word+'!</span>'; i += word.length+1; continue; }
+        if(KW.has(word)){ out += '<span class="k-kw">'+word+'</span>'; }
+        else if(TYPES.has(word) || /^[A-Z]/.test(word)){ out += '<span class="k-type">'+word+'</span>'; }
+        else if(after === "("){ out += '<span class="k-fn">'+word+'</span>'; }
+        else { out += word; }
+        i += word.length; continue;
+      }
+      out += esc(c); i++;
+    }
+    return out;
+  }
+
+  function highlightBash(src){
+    return src.split("\n").map(line=>{
+      const h = line.indexOf("#");
+      if(h >= 0){
+        return esc(line.slice(0,h)) + '<span class="k-com">'+esc(line.slice(h))+'</span>';
+      }
+      return esc(line);
+    }).join("\n");
+  }
+
+  document.querySelectorAll("pre code").forEach(el=>{
+    const raw = el.textContent;
+    if(el.classList.contains("rust")) el.innerHTML = highlightRust(raw);
+    else if(el.classList.contains("bash")) el.innerHTML = highlightBash(raw);
+  });
+
+  /* ---------- másolás gombok ---------- */
+  document.querySelectorAll(".kod").forEach(blokk=>{
+    const gomb = blokk.querySelector(".masol");
+    const kod = blokk.querySelector("pre code");
+    if(!gomb || !kod) return;
+    gomb.addEventListener("click", ()=>{
+      navigator.clipboard.writeText(kod.textContent).then(()=>{
+        const regi = gomb.textContent;
+        gomb.textContent = "Másolva ✓";
+        setTimeout(()=>{ gomb.textContent = regi; }, 1400);
+      });
+    });
+  });
+
+  /* ---------- aktív fejezet a sidebarban ---------- */
+  const linkek = Array.from(document.querySelectorAll("#sidebar a"));
+  const fejezetek = Array.from(document.querySelectorAll("section.fejezet"));
+  function frissit(){
+    let aktiv = fejezetek[0];
+    for(const f of fejezetek){
+      if(f.getBoundingClientRect().top <= 120) aktiv = f;
+    }
+    linkek.forEach(a=>a.classList.toggle("active", a.getAttribute("href") === "#"+aktiv.id));
+  }
+  document.addEventListener("scroll", frissit, {passive:true});
+  frissit();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A fordító a barátod — hibaüzenetek és hibakeresés — Rust magyarul</title>
+<style>
+:root{
+  --bg:#F6F4F0;
+  --paper:#FFFFFF;
+  --ink:#26211C;
+  --ink-soft:#5C544B;
+  --rust:#C2540A;
+  --rust-deep:#8F3D06;
+  --steel:#3B6EA5;
+  --iron:#211D19;
+  --iron-2:#2C2722;
+  --code-bg:#1C1916;
+  --code-ink:#E8E2D8;
+  --kw:#E58E51;
+  --str:#A8C97F;
+  --num:#7FB8D4;
+  --com:#867D70;
+  --fn:#E5C07B;
+  --mac:#C678DD;
+  --line:#E4DED5;
+  --ok:#4E7A3A;
+  --warn:#A35A00;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:Charter,"Iowan Old Style",Georgia,"Times New Roman",serif;
+  background:var(--bg);color:var(--ink);
+  line-height:1.65;font-size:17px;
+}
+.layout{display:flex;min-height:100vh}
+
+/* ---------- sidebar ---------- */
+nav#sidebar{
+  width:300px;flex-shrink:0;background:var(--iron);color:#CFC8BD;
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+  padding:28px 0 60px 0;
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  scrollbar-width:thin;scrollbar-color:#4a4138 var(--iron);
+}
+nav#sidebar .brand{padding:0 24px 22px 24px;border-bottom:1px solid #3a332c;margin-bottom:14px}
+nav#sidebar .brand h1{font-size:20px;font-weight:700;color:#F3EEE6;letter-spacing:.3px}
+nav#sidebar .brand h1 span{color:var(--kw)}
+nav#sidebar .brand p{font-size:12.5px;color:#968D80;margin-top:4px}
+nav#sidebar a{
+  display:flex;align-items:baseline;gap:10px;
+  padding:7px 24px;color:#B8B0A4;text-decoration:none;font-size:13.5px;
+  border-left:3px solid transparent;
+}
+nav#sidebar a .hex{
+  font-family:ui-monospace,"Cascadia Code",Consolas,monospace;
+  font-size:11.5px;color:#7A7164;min-width:38px;
+}
+nav#sidebar a:hover{background:#2B2620;color:#F0EAE0}
+nav#sidebar a.active{border-left-color:var(--rust);background:#2B2620;color:#FFD9B8}
+nav#sidebar a.active .hex{color:var(--kw)}
+nav#sidebar .part{
+  padding:16px 24px 6px 24px;font-size:10.5px;letter-spacing:1.6px;
+  text-transform:uppercase;color:#6E6557;font-weight:600;
+}
+
+/* ---------- main ---------- */
+main{flex:1;min-width:0}
+.page{max-width:860px;margin:0 auto;padding:48px 48px 120px 48px}
+
+/* hero */
+header.hero{
+  background:linear-gradient(135deg,#241F1A 0%,#3A2517 55%,#6B3408 100%);
+  color:#F3EAE0;padding:72px 48px 64px 48px;
+}
+header.hero .heroinner{max-width:860px;margin:0 auto}
+header.hero .eyebrow{
+  font-family:ui-monospace,Consolas,monospace;font-size:13px;color:#E5A06B;
+  letter-spacing:2px;margin-bottom:18px;
+}
+header.hero h1{
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  font-size:46px;line-height:1.12;font-weight:700;max-width:680px;
+}
+header.hero h1 em{font-style:normal;color:#F0A35E}
+header.hero p.lead{margin-top:20px;font-size:18.5px;color:#D8CCBF;max-width:640px}
+header.hero .meta{
+  margin-top:30px;display:flex;gap:26px;flex-wrap:wrap;
+  font-family:"Avenir Next",system-ui,sans-serif;font-size:13px;color:#B8A795;
+}
+header.hero .meta b{color:#F0DEC9;font-weight:600}
+
+/* chapters */
+section.fejezet{margin-top:64px;scroll-margin-top:24px}
+section.fejezet:first-of-type{margin-top:40px}
+.fejcim{
+  display:flex;align-items:baseline;gap:14px;
+  border-bottom:3px solid var(--rust);padding-bottom:10px;margin-bottom:26px;
+}
+.fejcim .hex{
+  font-family:ui-monospace,Consolas,monospace;font-size:15px;color:var(--rust);
+  background:#F6E3D2;padding:3px 9px;border-radius:4px;
+}
+.fejcim h2{
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  font-size:29px;font-weight:700;letter-spacing:-.2px;
+}
+h3{
+  font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+  font-size:20px;font-weight:600;margin:34px 0 12px 0;color:var(--rust-deep);
+}
+h4{
+  font-family:"Avenir Next",system-ui,sans-serif;font-size:16.5px;
+  font-weight:600;margin:24px 0 8px 0;
+}
+p{margin:0 0 14px 0}
+ul,ol{margin:0 0 16px 26px}
+li{margin-bottom:6px}
+a{color:var(--steel)}
+strong{color:#1B1611}
+code{
+  font-family:ui-monospace,"Cascadia Code",Consolas,"Liberation Mono",monospace;
+  font-size:.86em;color:#7A3D10;
+  padding:1.5px 6px;border-radius:4px;
+}
+
+/* code blocks */
+.kod{
+  position:relative;background:var(--code-bg);border-radius:10px;
+  margin:18px 0 22px 0;overflow:hidden;
+  box-shadow:0 2px 10px rgba(40,30,20,.18);
+}
+.kod .kodfej{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 14px;background:#26221D;border-bottom:1px solid #36302A;
+  font-family:"Avenir Next",system-ui,sans-serif;
+}
+.kod .kodfej .fajl{font-size:12px;color:#9C9285;font-family:ui-monospace,Consolas,monospace}
+.kod .masol{
+  font-size:11.5px;color:#B8AC9C;background:#36302A;border:none;border-radius:5px;
+  padding:4px 11px;cursor:pointer;font-family:inherit;
+}
+.kod .masol:hover{background:#473F36;color:#F0E8DC}
+.kod pre{
+  padding:16px 18px;overflow-x:auto;
+  font-family:ui-monospace,"Cascadia Code",Consolas,"Liberation Mono",monospace;
+  font-size:14px;line-height:1.58;color:var(--code-ink);
+  tab-size:4;
+}
+.kod pre::-webkit-scrollbar{height:8px}
+.kod pre::-webkit-scrollbar-thumb{background:#403A32;border-radius:4px}
+.k-kw{color:var(--kw);font-weight:600}
+.k-str{color:var(--str)}
+.k-num{color:var(--num)}
+.k-com{color:var(--com);font-style:italic}
+.k-fn{color:var(--fn)}
+.k-mac{color:var(--mac)}
+.k-type{color:#76C5B0}
+.k-life{color:#D4848C}
+
+/* terminal output */
+.kimenet{
+  background:#14110E;border-radius:8px;margin:-12px 0 22px 0;
+  padding:12px 18px;font-family:ui-monospace,Consolas,monospace;
+  font-size:13px;color:#9FB89A;border-left:3px solid #3E5A36;
+  white-space:pre;overflow-x:auto;
+}
+.kimenet::before{
+  content:"KIMENET";display:block;font-size:9.5px;letter-spacing:1.8px;
+  color:#5E6E58;margin-bottom:6px;font-family:"Avenir Next",system-ui,sans-serif;
+}
+/* fordító-kimenet variáns (hibaüzenetekhez) */
+.kimenet.hiba{color:#E4C6A4;border-left-color:var(--rust)}
+.kimenet.hiba::before{content:"FORDÍTÓ";color:#E07B3A}
+.kimenet pre{margin:0;font-family:inherit;background:none;padding:0}
+
+/* callouts */
+.doboz{
+  border-radius:8px;padding:15px 18px 13px 18px;margin:18px 0 22px 0;
+  font-size:15.5px;
+}
+.doboz .dcim{
+  font-family:"Avenir Next",system-ui,sans-serif;font-weight:700;font-size:12px;
+  letter-spacing:1.4px;text-transform:uppercase;display:block;margin-bottom:6px;
+}
+.doboz.tipp{background:#EDF3E6;border-left:4px solid var(--ok)}
+.doboz.tipp .dcim{color:var(--ok)}
+.doboz.figyelem{background:#FBEEDC;border-left:4px solid var(--warn)}
+.doboz.figyelem .dcim{color:var(--warn)}
+.doboz.melyseg{background:#E8EEF5;border-left:4px solid var(--steel)}
+.doboz.melyseg .dcim{color:var(--steel)}
+.doboz p:last-child{margin-bottom:0}
+
+/* tables */
+table{border-collapse:collapse;width:100%;margin:16px 0 22px 0;font-size:15px}
+th{
+  text-align:left;font-family:"Avenir Next",system-ui,sans-serif;font-size:12.5px;
+  letter-spacing:.8px;text-transform:uppercase;color:var(--rust-deep);
+  border-bottom:2px solid var(--rust);padding:8px 12px;
+}
+td{border-bottom:1px solid var(--line);padding:9px 12px;vertical-align:top}
+td code{white-space:nowrap}
+
+/* exercise blocks */
+.gyakorlat{
+  background:var(--paper);border:1px solid var(--line);border-top:4px solid var(--rust);
+  border-radius:8px;padding:18px 20px;margin:26px 0;
+}
+.gyakorlat .gcim{
+  font-family:"Avenir Next",system-ui,sans-serif;font-weight:700;font-size:14px;
+  color:var(--rust);margin-bottom:8px;letter-spacing:.4px;
+}
+details{margin-top:10px}
+details summary{
+  cursor:pointer;font-family:"Avenir Next",system-ui,sans-serif;
+  font-size:13.5px;color:var(--steel);font-weight:600;
+}
+details[open] summary{margin-bottom:8px}
+
+footer{
+  margin-top:80px;border-top:1px solid var(--line);padding-top:24px;
+  font-size:13.5px;color:var(--ink-soft);
+  font-family:"Avenir Next",system-ui,sans-serif;
+}
+
+@media (max-width:980px){
+  nav#sidebar{display:none}
+  .page{padding:32px 20px 80px 20px}
+  header.hero{padding:48px 20px}
+  header.hero h1{font-size:32px}
+}
+@media print{
+  nav#sidebar{display:none}
+  .kod .masol{display:none}
+  body{background:#fff}
+}
+</style>
+</head>
+<body>
+<!-- olvasási haladásjelző (progress bar) -->
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,#C2540A,#E58E51);
+  box-shadow:0 0 10px rgba(194,84,10,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<div class="layout">
+
+<nav id="sidebar">
+  <div class="brand">
+    <h1>Rust<span>‑kohó</span></h1>
+    <p>A fordítóhibák olvasása és<br>a hibakeresés eszköztára</p>
+  </div>
+  <div class="part">I. rész — A fordító mint reviewer</div>
+  <a href="#f00"><span class="hex">0x00</span>Hogyan olvass egy hibát</a>
+  <a href="#f01"><span class="hex">0x01</span>E0382: az elmozgatott érték</a>
+  <a href="#f02"><span class="hex">0x02</span>Kölcsönzési ütközések</a>
+  <a href="#f03"><span class="hex">0x03</span>Lógó referenciák, élettartamok</a>
+  <a href="#f04"><span class="hex">0x04</span>Típushibák: E0308, E0277</a>
+  <div class="part">II. rész — Hibakeresés</div>
+  <a href="#f05"><span class="hex">0x05</span>dbg! és eprintln!</a>
+  <a href="#f06"><span class="hex">0x06</span>Pánik, unwrap és backtrace</a>
+  <a href="#f07"><span class="hex">0x07</span>Strukturált naplózás</a>
+  <a href="#f08"><span class="hex">0x08</span>Igazi debugger</a>
+  <a href="#f09"><span class="hex">0x09</span>Összefoglaló és továbblépés</a>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="heroinner">
+    <div class="eyebrow">error[E0382] → rustc --explain</div>
+    <h1>A fordító <em>a barátod</em></h1>
+    <p class="lead">A Rust-magabiztosság igazi próbája nem a szintaxis, hanem hogy elolvasol egy fordítóhibát — és tudod a választ. Plusz: a hibakeresés teljes eszköztára a <code>dbg!</code>-tól a debuggerig.</p>
+    <div class="meta">
+      <span><b>10</b> fejezet</span>
+      <span><b>~30</b> kód- és hibapélda</span>
+      <span><b>Szint:</b> középhaladó</span>
+      <span><b>Épít rá:</b> tulajdonjog, referenciák, élettartamok</span>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+
+<!-- ============ 0x00 ============ -->
+<section class="fejezet" id="f00">
+<div class="fejcim"><span class="hex">0x00</span><h2>Hogyan olvass egy hibát</h2></div>
+
+<p>A Rust hírhedt arról, hogy „veszekszik veled". Pedig a fordító a <strong>legszigorúbb, de legkorrektebb code reviewer</strong>, akivel valaha dolgozni fogsz: nem fordít le hibás kódot, de cserébe pontosan megmondja, mi a baj, és gyakran azt is, hogyan javítsd. A magabiztosság kulcsa nem a hibák elkerülése — hanem hogy gyorsan elolvasod és megérted őket.</p>
+
+<p>Nézzünk egy egyszerű hibát, és boncoljuk fel:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let x = 5;
+    x = 6; // ❌
+}</code></pre></div>
+
+<div class="kimenet hiba">error[E0384]: cannot assign twice to immutable variable `x`
+ --> src/main.rs:3:5
+  |
+2 |     let x = 5;
+  |         - first assignment to `x`
+3 |     x = 6;
+  |     ^^^^^ cannot assign twice to immutable variable
+  |
+help: consider making this binding mutable
+  |
+2 |     let mut x = 5;
+  |         +++</div>
+
+<p>Egy Rust-hiba mindig ugyanazt a felépítést követi. Olvasd <strong>fentről lefelé</strong>:</p>
+<ul>
+<li><code>error[E0384]</code> — a hiba <strong>kódja</strong>. Ezzel kereshetsz: <code>rustc --explain E0384</code> egész oldalas magyarázatot ad példákkal.</li>
+<li>A kód utáni mondat a <strong>tömör üzenet</strong>: „nem adhatsz kétszer értéket egy változatlan változónak".</li>
+<li><code>--&gt;</code> a <strong>helyszín</strong>: fájl, sor, oszlop.</li>
+<li>A <code>|</code> oszlop a <strong>forráskódot</strong> mutatja, a <code>^^^</code> és <code>-</code> jelek pontosan rámutatnak a hibás és a kapcsolódó részekre.</li>
+<li>A <code>help:</code> és <code>note:</code> sorok a <strong>megoldást</strong> kínálják — itt épp a <code>+++</code> azt jelzi, hová írj <code>mut</code>-ot.</li>
+</ul>
+
+<div class="doboz tipp"><span class="dcim">Három szokás, ami sokat segít</span>
+<p><strong>1.</strong> Mindig az <em>első</em> hibát javítsd, majd fordíts újra — a többi gyakran csak a láncreakció. <strong>2.</strong> Használd a <code>cargo check</code>-et a leggyorsabb visszajelzésért (nem generál gépi kódot). <strong>3.</strong> A <code>cargo clippy</code> a hibákon túl stílus- és logikai figyelmeztetéseket is ad. A rust-analyzer pedig mindezt gépelés közben, az editorban mutatja.</p></div>
+</section>
+
+<!-- ============ 0x01 ============ -->
+<section class="fejezet" id="f01">
+<div class="fejcim"><span class="hex">0x01</span><h2>E0382: az elmozgatott érték</h2></div>
+
+<p>Ez a kezdők <strong>első számú</strong> hibája, és egyben a tulajdonjogi modell lényege. Nézd:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let s = String::from("szia");
+    let s2 = s;       // s MOVE-olt s2-be
+    println!("{s}");  // ❌ s már nem érvényes
+}</code></pre></div>
+
+<div class="kimenet hiba">error[E0382]: borrow of moved value: `s`
+ --> src/main.rs:4:15
+  |
+2 |     let s = String::from("szia");
+  |         - move occurs because `s` has type `String`, which does not implement the `Copy` trait
+3 |     let s2 = s;
+  |              - value moved here
+4 |     println!("{s}");
+  |               ^^^ value borrowed here after move</div>
+
+<p>A kulcsmondat: <em>„does not implement the <code>Copy</code> trait"</em>. A <code>String</code> a heap-en tárol adatot, ezért az értékadás <strong>elköltözteti</strong> (move) a tulajdont — nem másol. A régi név (<code>s</code>) ezután érvénytelen. (Az olcsó típusok — egészek, <code>bool</code>, <code>char</code>, <code>&amp;T</code> — <code>Copy</code>-k, azoknál ez nem történik meg.)</p>
+
+<h3>Három javítás — a szándékod szerint</h3>
+<p><strong>1. Ha tényleg két független adat kell — klónozz:</strong></p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">let s = String::from("szia");
+let s2 = s.clone();    // ÚJ, független másolat — két tulajdonos
+println!("{s} / {s2}"); // mindkettő él</code></pre></div>
+
+<p><strong>2. Ha csak olvasni akarod — kölcsönözz:</strong></p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">let s = String::from("szia");
+let s2 = &amp;s;          // csak KÖLCSÖN — nincs mozgatás
+println!("{s} / {s2}"); // mindkettő olvasható</code></pre></div>
+
+<div class="doboz figyelem"><span class="dcim">Ne klónozz reflexből!</span>
+<p>A <code>.clone()</code> a leggyorsabb mód, hogy egy <code>E0382</code> eltűnjön — de gyakran felesleges másolás. Először kérdezd meg: <em>tényleg kell két példány, vagy csak olvasni akarom?</em> Ha olvasni — <code>&amp;</code>. A reflexszerű klónozás működő, de pazarló kódot szül.</p></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x01</div>
+<p>Az alábbi kód <code>E0382</code>-vel elszáll. Írd át úgy, hogy lefusson, és <strong>mindkét</strong> <code>println!</code> működjön (mindkét névnek a saját adata kell).</p>
+<div class="kod"><div class="kodfej"><span class="fajl">hibás kód</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let nev = String::from("Anna");
+    let masolat = nev;
+    println!("{nev}");
+    println!("{masolat}");
+}</code></pre></div>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let nev = String::from("Anna");
+    let masolat = nev.clone(); // klón: két független String
+    println!("{nev}");
+    println!("{masolat}");
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x02 ============ -->
+<section class="fejezet" id="f02">
+<div class="fejcim"><span class="hex">0x02</span><h2>Kölcsönzési ütközések</h2></div>
+
+<p>A borrow checker aranyszabálya: egy adatra egyszerre <strong>vagy egyetlen módosító (<code>&amp;mut</code>) kölcsön</strong> lehet, <strong>vagy tetszőleges sok olvasó (<code>&amp;</code>) kölcsön</strong> — de a kettő együtt soha. Ez a két leggyakoribb ütközés.</p>
+
+<h3>E0502 — olvasó és módosító egyszerre</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let mut v = vec![1, 2, 3];
+    let elso = &amp;v[0];   // olvasó (immutable) kölcsön
+    v.push(4);          // ❌ módosító kölcsön, amíg `elso` él
+    println!("{elso}");
+}</code></pre></div>
+
+<div class="kimenet hiba">error[E0502]: cannot borrow `v` as mutable because it is also borrowed as immutable
+ --> src/main.rs:4:5
+  |
+3 |     let elso = &amp;v[0];
+  |                -- immutable borrow occurs here
+4 |     v.push(4);
+  |     ^^^^^^^^^ mutable borrow occurs here
+5 |     println!("{elso}");
+  |               ------ immutable borrow later used here</div>
+
+<p>Ez nem szőrszálhasogatás: a <code>push</code> <em>újraallokálhatja</em> a vektort, így <code>elso</code> egy felszabadított memóriára mutatna — pontosan ezt a hibát (dangling pointer) előzi meg a fordító.</p>
+
+<div class="doboz melyseg"><span class="dcim">A megoldás kulcsa: a kölcsön az UTOLSÓ használatáig él (NLL)</span>
+<p>A „non-lexical lifetimes" óta a kölcsön nem a blokk végéig, hanem az utolsó <em>felhasználásáig</em> tart. Ha az <code>elso</code>-t a <code>push</code> <strong>előtt</strong> használod fel, az ütközés eltűnik:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let mut v = vec![1, 2, 3];
+    let elso = &amp;v[0];
+    println!("{elso}"); // `elso` utolsó használata — a kölcsön ITT véget ér
+    v.push(4);          // ✅ most már szabad módosítani
+}</code></pre></div></div>
+
+<h3>E0499 — két módosító kölcsön</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let mut s = String::from("hello");
+    let r1 = &amp;mut s;
+    let r2 = &amp;mut s; // ❌ második módosító kölcsön egyszerre
+    println!("{r1} {r2}");
+}</code></pre></div>
+
+<div class="kimenet hiba">error[E0499]: cannot borrow `s` as mutable more than once at a time
+ --> src/main.rs:4:14
+  |
+3 |     let r1 = &amp;mut s;
+  |              ------ first mutable borrow occurs here
+4 |     let r2 = &amp;mut s;
+  |              ^^^^^^ second mutable borrow occurs here
+5 |     println!("{r1} {r2}");
+  |               ---- first borrow later used here</div>
+
+<p>A javítás ugyanaz a gondolat: ne éljen egyszerre két módosító kölcsön. Használd az egyiket, fejezd be, aztán jöhet a másik — vagy gondold át, tényleg kell-e két párhuzamos hozzáférés.</p>
+</section>
+
+<!-- ============ 0x03 ============ -->
+<section class="fejezet" id="f03">
+<div class="fejcim"><span class="hex">0x03</span><h2>Lógó referenciák, élettartamok</h2></div>
+
+<p>A Rustban <strong>lehetetlen</strong> lógó (dangling) referenciát létrehozni — a fordító nem engedi. Két tipikus hibában találkozol ezzel.</p>
+
+<h3>E0515 — referencia egy lokális változóra</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn koszonto(nev: &amp;str) -&gt; &amp;str {
+    let s = format!("Szia, {nev}!");
+    &amp;s // ❌ s a függvény végén megsemmisül — a referencia lógna
+}</code></pre></div>
+
+<div class="kimenet hiba">error[E0515]: cannot return reference to local variable `s`
+ --> src/main.rs:3:5
+  |
+3 |     &amp;s
+  |     ^^ returns a reference to data owned by the current function</div>
+
+<p>A megoldás: ne referenciát adj vissza egy helyi adatra, hanem <strong>a tulajdont</strong> magát:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn koszonto(nev: &amp;str) -&gt; String {
+    format!("Szia, {nev}!") // ✅ tulajdont adunk vissza, nem referenciát
+}</code></pre></div>
+
+<h3>E0106 — hiányzó élettartam</h3>
+<p>Ha egy függvény referenciát ad vissza, de <em>több</em> bemenete is van, a fordító nem tudja, melyikből származik a kimenet élettartama:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn leghosszabb(a: &amp;str, b: &amp;str) -&gt; &amp;str {
+    if a.len() &gt; b.len() { a } else { b } // ❌
+}</code></pre></div>
+
+<div class="kimenet hiba">error[E0106]: missing lifetime specifier
+ --> src/main.rs:1:37
+  |
+1 | fn leghosszabb(a: &amp;str, b: &amp;str) -&gt; &amp;str {
+  |                   ----     ----     ^ expected named lifetime parameter
+  |
+  = help: this function's return type contains a borrowed value, but the
+          signature does not say whether it is borrowed from `a` or `b`
+help: consider introducing a named lifetime parameter
+  |
+1 | fn leghosszabb&lt;'a&gt;(a: &amp;'a str, b: &amp;'a str) -&gt; &amp;'a str {
+  |               ++++     ++          ++          ++</div>
+
+<p>A <code>help:</code> szó szerint megírja a javítást — vezess be egy <code>'a</code> élettartamot, és kösd hozzá a bemeneteket és a kimenetet:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn leghosszabb&lt;'a&gt;(a: &amp;'a str, b: &amp;'a str) -&gt; &amp;'a str {
+    if a.len() &gt; b.len() { a } else { b }
+}</code></pre></div>
+
+<div class="doboz tipp"><span class="dcim">Miért nem kell mindig kiírni?</span>
+<p>Egyetlen bemeneti referenciánál a fordító <em>kitalálja</em> (élettartam-elízió), ezért az <code>fn elso_szo(s: &amp;str) -&gt; &amp;str</code> kiírás nélkül is fordul. Csak akkor kér tőled <code>'a</code>-t, ha tényleg többértelmű — pont mint fent.</p></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x03</div>
+<p>Ez a függvény <code>E0515</code>-tel nem fordul. Javítsd ki a legkisebb változtatással, hogy működjön.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">hibás kód</span><button class="masol">Másolás</button></div><pre><code class="rust">fn cimke(szam: u32) -&gt; &amp;str {
+    let s = format!("#{szam}");
+    &amp;s
+}</code></pre></div>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">fn cimke(szam: u32) -&gt; String {
+    format!("#{szam}") // tulajdont adunk vissza
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x04 ============ -->
+<section class="fejezet" id="f04">
+<div class="fejcim"><span class="hex">0x04</span><h2>Típushibák: E0308, E0277</h2></div>
+
+<h3>E0308 — nem egyező típusok</h3>
+<p>A legtöbbet látott hiba. A fordító pontosan megmondja, mit várt és mit kapott.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let x: i32 = "42"; // ❌ ez &amp;str, nem i32
+    println!("{x}");
+}</code></pre></div>
+
+<div class="kimenet hiba">error[E0308]: mismatched types
+ --> src/main.rs:2:18
+  |
+2 |     let x: i32 = "42";
+  |            ---   ^^^^ expected `i32`, found `&amp;str`
+  |            |
+  |            expected due to this</div>
+
+<p>A javítás: alakítsd át a megfelelő típusra (itt <code>.parse()</code>-szal):</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">let x: i32 = "42".parse().unwrap(); // &amp;str → i32</code></pre></div>
+
+<h3>E0277 — nem teljesül egy trait-feltétel</h3>
+<p>Akkor jön, ha egy típus nem tud valamit, amit elvársz tőle — például kiíratni:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">struct Pont { x: i32, y: i32 }
+
+fn main() {
+    let p = Pont { x: 1, y: 2 };
+    println!("{}", p); // ❌ a Pont nem implementál Display-t
+}</code></pre></div>
+
+<div class="kimenet hiba">error[E0277]: `Pont` doesn't implement `std::fmt::Display`
+ --> src/main.rs:5:20
+  |
+5 |     println!("{}", p);
+  |                    ^ `Pont` cannot be formatted with the default formatter
+  |
+  = help: the trait `std::fmt::Display` is not implemented for `Pont`
+  = note: in format strings you may be able to use `{:?}` (or {:#?}
+          for pretty-print) instead</div>
+
+<div class="doboz tipp"><span class="dcim">Olvasd el a note: sort — gyakran kész a válasz</span>
+<p>A fenti <code>note:</code> szó szerint megmondja: használj <code>{:?}</code>-t. Ahhoz a típusnak <code>Debug</code>-ot kell tudnia, amit egyetlen <code>#[derive(Debug)]</code> sorral megkapsz:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">#[derive(Debug)] // legenerálja a Debug implementációt
+struct Pont { x: i32, y: i32 }
+
+fn main() {
+    let p = Pont { x: 1, y: 2 };
+    println!("{p:?}"); // Pont { x: 1, y: 2 }
+}</code></pre></div></div>
+
+<div class="gyakorlat"><div class="gcim">⚙ Gyakorlat 0x04</div>
+<p>Az alábbi kód <code>E0277</code>-tel nem fordul, mert a <code>Szin</code> nem írható ki. Javítsd ki úgy, hogy lefusson és kiírja a struktúrát (a <code>{:?}</code> formátum is megengedett).</p>
+<div class="kod"><div class="kodfej"><span class="fajl">hibás kód</span><button class="masol">Másolás</button></div><pre><code class="rust">struct Szin { r: u8, g: u8, b: u8 }
+
+fn main() {
+    let c = Szin { r: 255, g: 100, b: 0 };
+    println!("{}", c);
+}</code></pre></div>
+<details><summary>Megoldás</summary>
+<div class="kod"><div class="kodfej"><span class="fajl">megoldás</span><button class="masol">Másolás</button></div><pre><code class="rust">#[derive(Debug)]
+struct Szin { r: u8, g: u8, b: u8 }
+
+fn main() {
+    let c = Szin { r: 255, g: 100, b: 0 };
+    println!("{c:?}"); // Szin { r: 255, g: 100, b: 0 }
+}</code></pre></div>
+</details></div>
+</section>
+
+<!-- ============ 0x05 ============ -->
+<section class="fejezet" id="f05">
+<div class="fejcim"><span class="hex">0x05</span><h2>dbg! és eprintln!</h2></div>
+
+<p>Itt kezdődik a második rész: ha a kód lefordul, de nem azt csinálja, amit vársz. A leggyorsabb eszköz a <code>dbg!</code> makró — sokkal jobb, mint a sima <code>println!</code>.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let v = vec![1, 2, 3];
+    let osszeg: i32 = v.iter().sum();
+
+    dbg!(&amp;v);                    // kiírja a helyet, a kifejezést ÉS az értéket
+    let dupla = dbg!(osszeg * 2); // a dbg! VISSZAADJA az értéket → láncba illeszthető
+
+    eprintln!("a duplája: {dupla}"); // eprintln! a STDERR-re megy
+}</code></pre></div>
+
+<div class="kimenet">[src/main.rs:5:5] &amp;v = [
+    1,
+    2,
+    3,
+]
+[src/main.rs:6:17] osszeg * 2 = 12
+a duplája: 12</div>
+
+<p>Miért jobb, mint a <code>println!</code>? Mert (1) kiírja a <strong>fájlt és sort</strong>, (2) kiírja magát a <strong>kifejezést</strong> is, nemcsak az értékét, (3) szép, többsoros (<code>{:#?}</code>) formában mutatja, és (4) <strong>visszaadja</strong> az értéket, így bármilyen részkifejezést körbecsomagolhatsz vele a logika módosítása nélkül.</p>
+
+<div class="doboz figyelem"><span class="dcim">stdout vs. stderr</span>
+<p>Az <code>eprintln!</code> a <em>standard hibakimenetre</em> (stderr) ír, a <code>println!</code> a <em>standard kimenetre</em> (stdout). Diagnosztikát mindig <code>eprintln!</code>-nel írj ki — így nem keveredik a program „valódi" kimenetével, és külön átirányítható.</p></div>
+
+<h3>A Debug derive — enélkül nincs {:?}</h3>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">#[derive(Debug)] // KELL, hogy a {:?} és a dbg! működjön a saját típusodra
+struct Jatekos { nev: String, pont: u32 }
+
+fn main() {
+    let j = Jatekos { nev: "Anna".into(), pont: 100 };
+    println!("{j:?}");  // Jatekos { nev: "Anna", pont: 100 }
+    println!("{j:#?}"); // ugyanez, szépen tördelve több sorba
+}</code></pre></div>
+</section>
+
+<!-- ============ 0x06 ============ -->
+<section class="fejezet" id="f06">
+<div class="fejcim"><span class="hex">0x06</span><h2>Pánik, unwrap és backtrace</h2></div>
+
+<p>A <strong>pánik</strong> a program szabályozott összeomlása futásidőben. Az üzenete elárulja, hol és miért történt.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    let v = vec![1, 2, 3];
+    let x = v[10]; // ❌ futásidejű pánik: nincs 10. index
+    println!("{x}");
+}</code></pre></div>
+
+<div class="kimenet hiba">thread 'main' panicked at src/main.rs:3:13:
+index out of bounds: the len is 3 but the index is 10
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace</div>
+
+<p>Az üzenet megadja a <strong>helyet</strong> (<code>src/main.rs:3:13</code>) és az <strong>okot</strong>. A hívási lánc megtekintéséhez állítsd be a <code>RUST_BACKTRACE</code> környezeti változót:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">terminál</span><button class="masol">Másolás</button></div><pre><code class="bash">RUST_BACKTRACE=1 cargo run</code></pre></div>
+
+<div class="kimenet">thread 'main' panicked at src/main.rs:3:13:
+index out of bounds: the len is 3 but the index is 10
+stack backtrace:
+   0: rust_begin_unwind
+   2: core::panicking::panic_bounds_check
+   3: myapp::main
+   4: core::ops::function::FnOnce::call_once
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.</div>
+
+<h3>unwrap vs. expect</h3>
+<p>Az <code>unwrap()</code> pánikol, ha az érték <code>None</code> vagy <code>Err</code> — de néma. Az <code>expect("...")</code> ugyanezt teszi, csak <strong>beszédes üzenettel</strong>. Mindig <code>expect</code>-et használj, és írd le, <em>miért</em> bízol benne, hogy nem hibázhat:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">fn main() {
+    // ha mégis hibázik, az üzenet azonnal elárulja a feltételezésedet:
+    let kor: i32 = "30".parse().expect("a kor mezőnek számnak kell lennie");
+    println!("{kor}");
+}</code></pre></div>
+
+<div class="doboz melyseg"><span class="dcim">Pánik vagy Result?</span>
+<p>A pánik a „ez sosem fordulhat elő, és ha mégis, az programhiba" eseteknek való (pl. egy invariáns sérülése). A <em>várható</em> hibákat (hiányzó fájl, rossz felhasználói input) ne pánikkal kezeld, hanem <code>Result</code>-tal és a <code>?</code> operátorral — lásd a <a href="rust-mintaillesztes-konverziok-tutorial.html">mintaillesztés + konverziók</a> modult.</p></div>
+</section>
+
+<!-- ============ 0x07 ============ -->
+<section class="fejezet" id="f07">
+<div class="fejcim"><span class="hex">0x07</span><h2>Strukturált naplózás</h2></div>
+
+<p>A <code>dbg!</code> gyors helyi piszkálásra való — kiveszed, mielőtt commitolsz. Ami a kódban <em>marad</em>, az legyen rendes napló, szintekkel. A bevett megoldás a <code>log</code> homlokzat (facade) + egy backend, pl. az <code>env_logger</code>.</p>
+<div class="kod"><div class="kodfej"><span class="fajl">terminál</span><button class="masol">Másolás</button></div><pre><code class="bash">cargo add log env_logger</code></pre></div>
+
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">use log::{info, warn, error, debug};
+
+fn main() {
+    env_logger::init(); // a RUST_LOG környezeti változó vezérli, mi látszik
+
+    info!("alkalmazás indul");
+    debug!("részletes adat: {}", 42);
+    warn!("valami gyanús");
+    error!("hiba történt");
+}</code></pre></div>
+
+<p>A szintet a <code>RUST_LOG</code> állítja — <strong>újrafordítás nélkül</strong>:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">terminál</span><button class="masol">Másolás</button></div><pre><code class="bash">RUST_LOG=debug cargo run</code></pre></div>
+
+<div class="kimenet">[2026-06-23T10:00:00Z INFO  myapp] alkalmazás indul
+[2026-06-23T10:00:00Z DEBUG myapp] részletes adat: 42
+[2026-06-23T10:00:00Z WARN  myapp] valami gyanús
+[2026-06-23T10:00:00Z ERROR myapp] hiba történt</div>
+
+<div class="doboz tipp"><span class="dcim">És az async / nagyobb projektek? — tracing</span>
+<p>Aszinkron kódhoz és komolyabb alkalmazásokhoz a modern választás a <code>tracing</code> (+ <code>tracing-subscriber</code>): nemcsak üzeneteket, hanem strukturált mezőket és időzített „span"-eket is kezel. A <strong>Bevy is ezt használja belül</strong>, így ismerős lesz:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">src/main.rs</span><button class="masol">Másolás</button></div><pre><code class="rust">tracing::info!(jatekos = "Anna", pont = 100, "szint teljesítve");</code></pre></div></div>
+</section>
+
+<!-- ============ 0x08 ============ -->
+<section class="fejezet" id="f08">
+<div class="fejcim"><span class="hex">0x08</span><h2>Igazi debugger</h2></div>
+
+<p>Amikor a <code>dbg!</code> kevés — lépésenként akarsz haladni, megállni egy soron, megnézni minden változót — előveszel egy debuggert. A Rust az <strong>lldb</strong>-vel és a <strong>gdb</strong>-vel is megy, és szállít hozzájuk Rust-barát wrappert (<code>rust-lldb</code>, <code>rust-gdb</code>), ami szépen jeleníti meg a std típusokat.</p>
+
+<div class="kod"><div class="kodfej"><span class="fajl">terminál — lldb a parancssorból</span><button class="masol">Másolás</button></div><pre><code class="bash"># előbb sima (debug) fordítás kell — a --release optimalizál és kioptimalizálja a változókat!
+cargo build
+rust-lldb target/debug/myapp
+# (lldb) b main.rs:10   # töréspont a 10. sorra
+# (lldb) run            # indítás
+# (lldb) next           # következő sor (rövidítve: n)
+# (lldb) print x        # változó értéke (p x)
+# (lldb) continue       # tovább a következő töréspontig (c)</code></pre></div>
+
+<h3>VS Code + CodeLLDB — a kényelmes út</h3>
+<p>A legtöbben editorból debugolnak. Telepítsd a <strong>CodeLLDB</strong> bővítményt, tegyél egy töréspontot a sor mellé kattintva, és indíts <code>F5</code>-tel. A változókat egy panel mutatja, lépni a vezérlősorral tudsz. Egy minimális indító-konfiguráció:</p>
+<div class="kod"><div class="kodfej"><span class="fajl">.vscode/launch.json</span><button class="masol">Másolás</button></div><pre><code class="json">{
+  "type": "lldb",
+  "request": "launch",
+  "name": "Debug (cargo)",
+  "cargo": { "args": ["build", "--bin=myapp"] },
+  "args": []
+}</code></pre></div>
+
+<div class="doboz figyelem"><span class="dcim">Mindig debug-módban debugolj</span>
+<p>A <code>--release</code> build optimalizál: változókat összevon vagy eltüntet, függvényeket beágyaz (inline), így a debugger zavaros képet ad. A sima <code>cargo build</code> (debug profil) megőrzi a debug-információt — ezt használd hibakereséshez.</p></div>
+</section>
+
+<!-- ============ 0x09 ============ -->
+<section class="fejezet" id="f09">
+<div class="fejcim"><span class="hex">0x09</span><h2>Összefoglaló és továbblépés</h2></div>
+
+<p>Ezzel teljes a kép: olvasod a fordító üzeneteit, és van eszközöd, ha a lefordult kód mégsem viselkedik jól. Ez a két képesség együtt adja a Rust-magabiztosságot.</p>
+
+<h3>Hibakód-puska</h3>
+<table>
+<tr><th>Kód</th><th>Mit jelent</th><th>Tipikus javítás</th></tr>
+<tr><td><code>E0382</code></td><td>Elmozgatott érték használata</td><td><code>.clone()</code> vagy <code>&amp;</code> kölcsön</td></tr>
+<tr><td><code>E0502</code></td><td>Olvasó és módosító kölcsön egyszerre</td><td>Olvasó kölcsönt használd el előbb (NLL)</td></tr>
+<tr><td><code>E0499</code></td><td>Két módosító kölcsön egyszerre</td><td>Időben válaszd szét őket</td></tr>
+<tr><td><code>E0515</code></td><td>Referencia lokális változóra</td><td>Adj vissza tulajdont (pl. <code>String</code>)</td></tr>
+<tr><td><code>E0106</code></td><td>Hiányzó élettartam</td><td>Vezess be <code>'a</code>-t</td></tr>
+<tr><td><code>E0308</code></td><td>Nem egyező típusok</td><td>Konvertálj (pl. <code>.parse()</code>)</td></tr>
+<tr><td><code>E0277</code></td><td>Nem teljesül egy trait-feltétel</td><td><code>#[derive(...)]</code> vagy implementáld</td></tr>
+</table>
+
+<h3>Melyik hibakereső eszköz mikor?</h3>
+<table>
+<tr><th>Helyzet</th><th>Eszköz</th></tr>
+<tr><td>Gyors „mi az értéke itt?"</td><td><code>dbg!</code> / <code>eprintln!</code></td></tr>
+<tr><td>Összeomlott — hol és miért?</td><td>pánik-üzenet + <code>RUST_BACKTRACE=1</code></td></tr>
+<tr><td>Ami a kódban marad, szintekkel</td><td><code>log</code>+<code>env_logger</code>, ill. <code>tracing</code></td></tr>
+<tr><td>Lépésenként, változókat nézve</td><td>debugger (lldb / CodeLLDB)</td></tr>
+</table>
+
+<div class="doboz tipp"><span class="dcim">A trilógia vége — és a kezdet</span>
+<p>Ez volt a három hiánypótló modul utolsó darabja: <a href="rust-mintaillesztes-konverziok-tutorial.html">mintaillesztés + konverziók</a>, <a href="rust-string-iterator-tutorial.html">String + iterátorok</a>, és most a fordítóhibák + hibakeresés. Együtt a nagy <a href="rust-tutorial_hu.html">Rust-tananyaggal</a> ezek lefedik a magabiztos mozgáshoz szükséges hétköznapi réteget.</p></div>
+
+<h3>Merre tovább?</h3>
+<p>Innen már nem olvasni kell, hanem <strong>csinálni</strong>:</p>
+<ul>
+<li><strong>rustlings</strong> — csináld végig; pont a fordítóhibákon keresztül tanít, ahogy ez a modul.</li>
+<li><strong>Saját kis projektek</strong> — egy CLI-eszköz <code>clap</code>-pel és <code>anyhow</code>-val, egy parser, egy kis játéklogika.</li>
+<li><strong>Vissza a Bevyhez</strong> — a játékfejlesztéshez a teherhordó képesség a <em>tulajdonjog és kölcsönzés folyékony kezelése</em> (ez vesz elő a <code>system</code>-ekben). Ha a 0x01–0x02 hibák már elsőre érthetők, készen állsz.</li>
+</ul>
+<p>A fordító nem ellenfél. Néhány hét után azon kapod magad, hogy már az ő szabályai szerint tervezel — és onnantól más nyelveken is jobb kódot írsz. 🦀</p>
+
+<footer>
+Rust-kohó — magyar nyelvű Rust tananyag · Kiegészítő modul: fordítóhibák és hibakeresés · A kódpéldák szabadon felhasználhatók.<br>
+A hivatalos dokumentáció: <a href="https://doc.rust-lang.org">doc.rust-lang.org</a> · Hibakód-magyarázat: <code>rustc --explain EXXXX</code>
+</footer>
+</section>
+
+</div><!-- /page -->
+</main>
+</div><!-- /layout -->
+
+<script>
+/* ---------- egyszerű Rust/Bash szintaxiskiemelő ---------- */
+(function(){
+  const KW = new Set(("fn let mut const static if else match for while loop in break continue return "+
+    "struct enum impl trait type where pub use mod crate super self Self as move ref dyn async await "+
+    "unsafe extern union true false").split(" "));
+  const TYPES = new Set(("i8 i16 i32 i64 i128 isize u8 u16 u32 u64 u128 usize f32 f64 bool char str "+
+    "String Vec Option Some None Result Ok Err Box Rc Arc RefCell Cell Mutex HashMap HashSet BTreeMap "+
+    "VecDeque Ordering Duration Iterator Display Debug Clone Copy Default From Into TryFrom TryInto AsRef "+
+    "FromStr Path PathBuf Error ParseIntError PartialEq Eq PartialOrd Ord Add Hash File Formatter").split(" "));
+
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+  function highlightRust(src){
+    let out = "", i = 0, n = src.length;
+    while(i < n){
+      const c = src[i];
+      // kommentek
+      if(c === "/" && src[i+1] === "/"){
+        let j = src.indexOf("\n", i); if(j < 0) j = n;
+        out += '<span class="k-com">'+esc(src.slice(i,j))+'</span>'; i = j; continue;
+      }
+      // stringek
+      if(c === '"'){
+        let j = i+1;
+        while(j < n && (src[j] !== '"' || src[j-1] === "\\")) j++;
+        out += '<span class="k-str">'+esc(src.slice(i,j+1))+'</span>'; i = j+1; continue;
+      }
+      // char literál / élettartam
+      if(c === "'"){
+        const m = /^'(\\.|[^'\\]){1}'/.exec(src.slice(i));
+        if(m){ out += '<span class="k-str">'+esc(m[0])+'</span>'; i += m[0].length; continue; }
+        const l = /^'[A-Za-z_][A-Za-z0-9_]*/.exec(src.slice(i));
+        if(l){ out += '<span class="k-life">'+esc(l[0])+'</span>'; i += l[0].length; continue; }
+        out += esc(c); i++; continue;
+      }
+      // szám
+      if(/[0-9]/.test(c)){
+        const m = /^[0-9][0-9_]*(\.[0-9_]+)?([eE][+-]?[0-9]+)?(_?[iuf](8|16|32|64|128|size)?)?|^0x[0-9A-Fa-f_]+|^0b[01_]+/.exec(src.slice(i));
+        if(m){ out += '<span class="k-num">'+esc(m[0])+'</span>'; i += m[0].length; continue; }
+      }
+      // azonosító / kulcsszó / makró / fn-hívás
+      if(/[A-Za-z_]/.test(c)){
+        const m = /^[A-Za-z_][A-Za-z0-9_]*/.exec(src.slice(i));
+        const word = m[0]; const after = src[i+word.length];
+        if(after === "!"){ out += '<span class="k-mac">'+word+'!</span>'; i += word.length+1; continue; }
+        if(KW.has(word)){ out += '<span class="k-kw">'+word+'</span>'; }
+        else if(TYPES.has(word) || /^[A-Z]/.test(word)){ out += '<span class="k-type">'+word+'</span>'; }
+        else if(after === "("){ out += '<span class="k-fn">'+word+'</span>'; }
+        else { out += word; }
+        i += word.length; continue;
+      }
+      out += esc(c); i++;
+    }
+    return out;
+  }
+
+  function highlightBash(src){
+    return src.split("\n").map(line=>{
+      const h = line.indexOf("#");
+      if(h >= 0){
+        return esc(line.slice(0,h)) + '<span class="k-com">'+esc(line.slice(h))+'</span>';
+      }
+      return esc(line);
+    }).join("\n");
+  }
+
+  document.querySelectorAll("pre code").forEach(el=>{
+    const raw = el.textContent;
+    if(el.classList.contains("rust")) el.innerHTML = highlightRust(raw);
+    else if(el.classList.contains("bash")) el.innerHTML = highlightBash(raw);
+  });
+
+  /* ---------- másolás gombok ---------- */
+  document.querySelectorAll(".kod").forEach(blokk=>{
+    const gomb = blokk.querySelector(".masol");
+    const kod = blokk.querySelector("pre code");
+    if(!gomb || !kod) return;
+    gomb.addEventListener("click", ()=>{
+      navigator.clipboard.writeText(kod.textContent).then(()=>{
+        const regi = gomb.textContent;
+        gomb.textContent = "Másolva ✓";
+        setTimeout(()=>{ gomb.textContent = regi; }, 1400);
+      });
+    });
+  });
+
+  /* ---------- aktív fejezet a sidebarban ---------- */
+  const linkek = Array.from(document.querySelectorAll("#sidebar a"));
+  const fejezetek = Array.from(document.querySelectorAll("section.fejezet"));
+  function frissit(){
+    let aktiv = fejezetek[0];
+    for(const f of fejezetek){
+      if(f.getBoundingClientRect().top <= 120) aktiv = f;
+    }
+    linkek.forEach(a=>a.classList.toggle("active", a.getAttribute("href") === "#"+aktiv.id));
+  }
+  document.addEventListener("scroll", frissit, {passive:true});
+  frissit();
+})();
+</script>
+</body>
+</html>
