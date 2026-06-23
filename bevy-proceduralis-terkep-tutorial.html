@@ -186,11 +186,12 @@
       <a href="#walk"><span class="num">06</span>Részeg séta</a>
       <a href="#bsp"><span class="num">07</span>BSP dungeon</a>
       <a href="#flood"><span class="num">08</span>Összefüggőség (flood fill)</a>
-      <a href="#auto"><span class="num">09</span>Autotiling: adatból kép</a>
-      <a href="#bevy"><span class="num">10</span>Bevy integráció</a>
-      <a href="#full"><span class="num">11</span>Komplett minta</a>
-      <a href="#tips"><span class="num">12</span>Tippek & buktatók</a>
-      <a href="#tldr"><span class="num">13</span>TL;DR</a>
+      <a href="#features"><span class="num">09</span>Kitüntetett objektumok</a>
+      <a href="#auto"><span class="num">10</span>Autotiling: adatból kép</a>
+      <a href="#bevy"><span class="num">11</span>Bevy integráció</a>
+      <a href="#full"><span class="num">12</span>Komplett minta</a>
+      <a href="#tips"><span class="num">13</span>Tippek & buktatók</a>
+      <a href="#tldr"><span class="num">14</span>TL;DR</a>
     </nav>
   </aside>
 
@@ -617,8 +618,147 @@ fn keep_largest_region(map: &amp;mut Map) {
     </section>
 
     <!-- 09 -->
+    <section id="features">
+      <div class="sec-head"><span class="idx">09</span><h2>Kitüntetett objektumok elhelyezése</h2></div>
+      <p>A procedurális alapréteg mindenhol „egyforma" — de a játékhoz gyakran <strong>pontosan N kitüntetett dolog</strong> kell: 5 bánya, 1 boss-szoba, a kijárat, néhány kincs. A kulcs, hogy ezt <strong>ne ugyanabban a lépésben</strong> oldd meg, mint az alapterepet, hanem egy <strong>későbbi passzban</strong>, a már kész és validált rácsra.</p>
+      <div class="box note"><span class="lbl">A passz-modell</span><p>A generálás passzok sorozata, és a feature-ök egy <em>későbbi</em> rétegben kerülnek a kész terepre — azután, hogy az összefüggőség (08) már garantált:</p>
+      <pre><code class="text">1. Alapterep         (CA / noise / BSP)   -> mi fal, mi padló
+2. Összefüggőség      (flood fill, 08)      -> biztosan járható
+3. Feature-placement  (bányák, POI-k)       &lt;- EZ a passz
+4. Spawn / loot / ellenség
+5. Megjelenítés       (autotiling, 10)</code></pre></div>
+
+      <h3>Hol éljen a feature az adatban?</h3>
+      <p>Két szint, és általában mindkettőt használod:</p>
+      <ul>
+        <li><strong>Strukturális rész &rarr; a tile-grid.</strong> Amit a bánya <em>kiváj</em> (egy szoba, egy akna), az <code class="inl">Tile</code> írás a <code class="inl">Map</code>-be — esetleg új típus (<code class="inl">Tile::OreVein</code>), ha az autotiling vagy az ütközés másképp kezeli.</li>
+        <li><strong>Logikai rész &rarr; külön réteg.</strong> Maga a „bánya mint objektum" (mennyi érc, interakció) nem tile — ez egy entitás saját komponenssel. A tile-grid maradjon szűken „mi járható".</li>
+      </ul>
+      <p>Hüvelykujjszabály: ami a falakat/padlót befolyásolja &rarr; grid; aminek saját állapota vagy viselkedése van &rarr; entitás.</p>
+
+      <h3>Reject sampling — próbáld és dobd el</h3>
+      <p>A „pontosan N darab, szétszórva, megszorításokkal" esetre a bevált eszköz a <strong>reject sampling</strong>: húzz egy véletlen pozíciót a <em>seedelt</em> RNG-ből, ellenőrizd a feltételeket, fogadd el vagy próbálj újat — egy felső próbaszám-korláttal, hogy ne pörögjön örökké, ha nincs elég hely.</p>
+      <pre><code class="rust">use rand::Rng;
+
+/// Pontosan `count` bánya elhelyezése. Feltételek: padló, elérhetőség,
+/// és minimális távolság a már elhelyezett bányáktól.
+fn place_mines(
+    map: &amp;Map,
+    rng: &amp;mut StdRng,
+    reachable: &amp;[bool],   // a 08-as flood fill `seen` tömbje: elérhető-e a cella
+    count: usize,
+    min_dist: i32,
+) -&gt; Vec&lt;IVec2&gt; {
+    let mut mines: Vec&lt;IVec2&gt; = Vec::new();
+    let max_attempts = count * 200;     // védőkorlát a végtelen ciklus ellen
+
+    for _ in 0..max_attempts {
+        if mines.len() == count { break; }
+
+        let p = IVec2::new(
+            rng.gen_range(0..map.width),
+            rng.gen_range(0..map.height),
+        );
+
+        if map.get(p.x, p.y) != Tile::Floor { continue; }    // 1) járható padló
+        if !reachable[map.idx(p.x, p.y)] { continue; }        // 2) nem zárt zseb
+        if mines.iter().any(|m| m.distance_squared(p) &lt; min_dist * min_dist) {
+            continue;                                         // 3) ne csomósodjon
+        }
+        mines.push(p);
+    }
+    mines   // ha &lt; count jött ki: lazíts a min_dist-en, vagy regenerálj
+}</code></pre>
+      <p>A három <code class="inl">continue</code> a lényeg — mindegyik egy megszorítás. A <code class="inl">min_dist</code> adja a szép szétterítést, különben a bányák egymásra csúsznának. A 2. feltétel külön figyelmet érdemel: ha a 08-ban már a <strong>legnagyobb régiót tartottad meg</strong>, akkor minden <code class="inl">Floor</code> elérhető, és a <code class="inl">reachable</code> ellenőrzés elhagyható; ha viszont meghagytál kisebb zsebeket, ez akadályozza meg, hogy egy bánya elérhetetlen üregbe kerüljön.</p>
+      <p>Néhány hasznos variáció ugyanezen a cikluson:</p>
+      <ul>
+        <li><strong>Súlyozott elhelyezés.</strong> Ha a bánya logikusan kőhöz/hegyhez tartozik, ne uniform húzz: használd a 04-es zaj magasság-rétegét alkalmassági pontszámként, és a köves cellákat preferáld. Így a feature <em>összenő</em> az alapréteggel, nem ül rajta idegenül.</li>
+        <li><strong>Régió-kvóta.</strong> Oszd a térképet 3×3 zónára, és zónánként engedj max 1-2 bányát — garantáltan minden tájra jut, nem csomósodik egy sarokba.</li>
+        <li><strong>Poisson-disk / blue noise.</strong> Csak ha <em>sok</em> (50+) feature-t szórsz egyenletesen (fák, ércfoltok). 5 bányához a reject sampling bőven elég és egyszerűbb.</li>
+      </ul>
+
+      <h3>Több csempés feature: prefab-stamp</h3>
+      <p>Ha egy bánya nem egy cella, hanem egy kis kézzel tervezett szoba, akkor <strong>prefab-stamp</strong>-elsz: van egy minta, ellenőrzöd hogy elfér, beírod a gridbe, majd bekötöd egy folyosóval.</p>
+      <pre><code class="rust">// '#'=fal, '.'=padló, 'O'=ércpont (ide spawnolsz interaktív entitást),
+// '^'=bejárat (innen vájj folyosót a legközelebbi padlóig)
+const MINE_PREFAB: &amp;[&amp;str] = &amp;[
+    "#######",
+    "#.....#",
+    "#.O.O.#",
+    "#..^..#",
+    "###.###",
+];
+
+fn stamp_prefab(map: &amp;mut Map, top_left: IVec2, prefab: &amp;[&amp;str]) {
+    for (dy, row) in prefab.iter().enumerate() {
+        for (dx, ch) in row.chars().enumerate() {
+            let x = top_left.x + dx as i32;
+            let y = top_left.y + dy as i32;
+            match ch {
+                '#' =&gt; map.set(x, y, Tile::Wall),
+                _   =&gt; map.set(x, y, Tile::Floor),   // '.', 'O', '^' mind járható
+            }
+        }
+    }
+}</code></pre>
+      <p>A teljes folyamat négy lépés: <strong>(1)</strong> az elhelyezés előtt nézd meg, hogy a prefab teljes téglalapja elfér-e és nem ír-e felül egy másik fontos feature-t; <strong>(2)</strong> stamp-eld be; <strong>(3)</strong> vájj folyosót a <code class="inl">^</code> bejárattól a legközelebbi járható padlóig; <strong>(4)</strong> <strong>futtasd újra a flood fillt</strong> — egy beágyazott fal-blokk könnyen elzárhatott egy átjárót. Így a <em>szoba</em> mindig ugyanaz marad (kézi design), a <em>helye</em> viszont procedurális.</p>
+
+      <div class="demo">
+        <div class="dh">▶ Demó: reject sampling — pontosan N bánya</div>
+        <div class="dd">Egy sejtautomata-barlang, a legnagyobb régióra szűrve (így minden padló elérhető egymásból). A bányákat reject samplinggel helyezzük el; a halvány körök a minimális távolságot mutatják. Told fel a darabszámot vagy a min. távolságot — egy ponton túl már nem fér el mind, és az „elhelyezve" kevesebb lesz a „kértnél" (ilyenkor pirosra vált).</div>
+        <canvas id="featCanvas" width="720" height="420"></canvas>
+        <div class="ctrls">
+          <label>Bányák (kért):
+            <input type="range" id="featCount" min="1" max="18" value="6">
+            <span class="val" id="featCountVal">6</span>
+          </label>
+          <label>Min. távolság:
+            <input type="range" id="featDist" min="2" max="22" value="8">
+            <span class="val" id="featDistVal">8</span>
+          </label>
+          <button id="featGen">↻ új barlang</button>
+        </div>
+        <div class="readout">
+          <div><b>Elhelyezve</b><span id="featPlaced">—</span></div>
+          <div><b>Kért</b><span id="featAsked">—</span></div>
+          <div><b>Próbálkozás</b><span id="featTries">—</span></div>
+        </div>
+      </div>
+
+      <h3>Bevy: a feature-ök a megjelenítés előtt</h3>
+      <p>A bányák külön entitások (saját komponenssel), és a térkép-csempék <strong>fölött</strong> jelennek meg (<code class="inl">z = 1</code>). A passzok pedig egyetlen <code class="inl">.chain()</code>-ben futnak, a megjelenítés elé fűzve:</p>
+      <pre><code class="rust">#[derive(Component)]
+struct Mine { ore: u32 }
+
+fn place_features(
+    mut commands: Commands,
+    map: Res&lt;Map&gt;,
+    mut rng: ResMut&lt;WorldRng&gt;,
+    reach: Res&lt;Reachable&gt;,   // a flood fill eredménye resource-ként
+) {
+    for p in place_mines(&amp;map, &amp;mut rng.0, &amp;reach.0, 5, 8) {
+        commands.spawn((
+            Mine { ore: 100 },
+            Sprite::from_color(Color::srgb(0.85, 0.62, 0.25), Vec2::splat(TILE)),
+            // z = 1: a csempék (z = 0) FÖLÖTT jelenjen meg
+            Transform::from_xyz(p.x as f32 * TILE, p.y as f32 * TILE, 1.0),
+        ));
+    }
+}
+
+app.add_systems(Startup, (
+    setup_camera,
+    generate_world,        // terep -&gt; Map
+    ensure_connectivity,   // flood fill -&gt; Reachable
+    place_features,        // &lt;- a bányák ide, a megjelenítés ELŐTT
+    spawn_tiles,           // autotiling / sprite-ok
+).chain());</code></pre>
+      <div class="box warn"><span class="lbl">Két dolog, amit könnyű elrontani</span><p><strong>Determinizmus:</strong> a feature-placement <em>ugyanabból</em> a seedelt RNG-ből húzzon, a generálási lánc fix pontján (02). Ha külön <code class="inl">thread_rng()</code>-et használsz a bányákhoz, ugyanaz a seed más bányákat ad — odavész a reprodukálhatóság. <strong>Garantáld vagy dobd el:</strong> a „pontosan 5" kemény megszorítás — ha a reject sampling nem talál 5 érvényes helyet (kicsi vagy szűk pálya), ne ragadj be: vagy lazíts a <code class="inl">min_dist</code>-en, vagy nyilvánítsd a pályát érvénytelenné, és <strong>regenerálj új seeddel</strong> (a 08-as „regen-amíg-jó" minta).</p></div>
+    </section>
+
+    <!-- 10 -->
     <section id="auto">
-      <div class="sec-head"><span class="idx">09</span><h2>Autotiling: a nyers adatból szép kép</h2></div>
+      <div class="sec-head"><span class="idx">10</span><h2>Autotiling: a nyers adatból szép kép</h2></div>
       <p>Itt találkozik a két fázis. A generálás után a térképed cellái „fal" vagy „padló" — de ha ezt nyers blokként rajzolod ki, lépcsős, otromba lesz. Az <strong>autotiling</strong> minden cellához a <strong>szomszédai alapján</strong> választ csempét: egyenes fal-szakasz, belső sarok, külső sarok, vég. A játékos sima körvonalat lát, te meg egyetlen adat-rácsot tartasz karban.</p>
       <p>A mag egy <strong>bitmaszk</strong>: minden cellához egy kis számot számolsz, ahol minden bit egy szomszéd „ugyanolyan terep-e?" kérdésére felel. A 4 fő irányból egy 0..15 közötti szám jön, ami egyenesen indexel egy 16 elemű csempe-táblát:</p>
       <pre><code class="rust">// 4-bites él-maszk: É, K, D, NY szomszéd ugyanolyan-e, mint a cella.
@@ -655,9 +795,9 @@ fn tile_index(mask: u8) -&gt; usize {
       </div>
     </section>
 
-    <!-- 10 -->
+    <!-- 11 -->
     <section id="bevy">
-      <div class="sec-head"><span class="idx">10</span><h2>Bevy integráció</h2></div>
+      <div class="sec-head"><span class="idx">11</span><h2>Bevy integráció</h2></div>
       <p>Most kösd be a Bevybe. A kulcsdöntés a <strong>mikor</strong> és a <strong>szétválasztás</strong>: a generálás <em>egyszeri, nehéz</em> művelet, ezért a <code class="inl">Startup</code>-ba vagy egy állapot <code class="inl">OnEnter</code>-jébe való — soha nem az <code class="inl">Update</code>-be vagy <code class="inl">FixedUpdate</code>-be. A <code class="inl">Map</code> resource a tiszta adat; a sprite-ok ettől külön, levezetett megjelenítés.</p>
       <pre><code class="rust">const TILE: f32 = 16.0;
 
@@ -718,9 +858,9 @@ app.add_systems(Startup, (setup_camera, generate_world, spawn_tiles).chain());</
       <div class="box note"><span class="lbl">Adat vs. megjelenítés — ismerős?</span><p>Ez ugyanaz a szétválasztás, mint a <a href="bevy-tile-editor-tutorial.html">tile-editor tutorialban</a>: a <code class="inl">LevelData</code>/<code class="inl">Map</code> az igazság, a vizuál pedig egyirányú levezetés belőle. A generálás csak egy újabb író a <code class="inl">Map</code>-be — pont mint az editor ecsetje.</p></div>
     </section>
 
-    <!-- 11 -->
+    <!-- 12 -->
     <section id="full">
-      <div class="sec-head"><span class="idx">11</span><h2>Komplett minta — összerakva</h2></div>
+      <div class="sec-head"><span class="idx">12</span><h2>Komplett minta — összerakva</h2></div>
       <p>Egy minimál, de teljes váz: seedelt sejtautomata-barlang, összefüggőség-garancia, színes render, és <kbd>R</kbd>-re újragenerálás. Ez a csontváz skálázható egy igazi roguelike-ká.</p>
       <pre><code class="rust">use bevy::prelude::*;
 use rand::{rngs::StdRng, SeedableRng, Rng};
@@ -810,9 +950,9 @@ fn on_keypress(keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;, mut seed: ResMut&lt;
       <div class="box tip"><span class="lbl">A regen újrahívásáról</span><p>Egy rendszert nem hívunk meg kézzel egy másikból (a paraméterei a sémához kötöttek). Élesben a tiszta minta: tedd a generálást egy <code class="inl">AppState::Generating</code> állapot <code class="inl">OnEnter</code>-jébe, és <kbd>R</kbd>-re csak állítsd <code class="inl">NextState</code>-tel oda vissza. Az állapotgép-mintát a <a href="bevy-scene-valtas-tutorial.html">scene-váltás tutorial</a> részletezi; ott a generálás egyszerűen egy „jelenet", amibe be- és kiléphetsz.</p></div>
     </section>
 
-    <!-- 12 -->
+    <!-- 13 -->
     <section id="tips">
-      <div class="sec-head"><span class="idx">12</span><h2>Gyakorlati tippek & buktatók</h2></div>
+      <div class="sec-head"><span class="idx">13</span><h2>Gyakorlati tippek & buktatók</h2></div>
       <div class="box tip"><span class="lbl">Tedd</span><p>A generálás a <code class="inl">Startup</code>-ba vagy egy állapot <code class="inl">OnEnter</code>-jébe való — egyszer fut, nem frame-enként. Lásd az <a href="bevy-idozites.html">időzítés tutorialt</a> a schedule-ök különbségéről.</p></div>
       <div class="box warn"><span class="lbl">Ne</span><p>Ne keverd az adatot és a megjelenítést. Az ütközés, a pathfinding és az AI a <code class="inl">Map</code>-ből dolgozik; az autotiling csak a felszín. Ha a logikád a kirajzolt csempe-indexet kérdezi, később minden vizuális finomítás eltöri a játékmenetet.</p></div>
       <div class="box tip"><span class="lbl">Tedd</span><p>Mindig <strong>garantáld a játszhatóságot</strong> generálás után: flood fillel ellenőrizd az összefüggőséget (08), és ha a feltételek nem teljesülnek, köss össze régiókat vagy regenerálj új seeddel.</p></div>
@@ -823,9 +963,9 @@ fn on_keypress(keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;, mut seed: ResMut&lt;
       <div class="box tip"><span class="lbl">Tedd</span><p>A keretet zárd le: a pálya legszélső cellái legyenek mindig fal. A <code class="inl">get()</code> „határon túl = fal" trükkje ezt a vizsgálatoknál megadja, de a tényleges szélső cellákat is állítsd fixen falra, hogy a játékos ne sétálhasson le a térképről.</p></div>
     </section>
 
-    <!-- 13 -->
+    <!-- 14 -->
     <section id="tldr">
-      <div class="sec-head"><span class="idx">13</span><h2>TL;DR</h2></div>
+      <div class="sec-head"><span class="idx">14</span><h2>TL;DR</h2></div>
       <div class="tldr">
         <h3>A lényeg egy kártyán</h3>
         <ul>
@@ -838,6 +978,7 @@ fn on_keypress(keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;, mut seed: ResMut&lt;
           <li><strong>Részeg séta:</strong> egy ásó kiváj &rarr; garantáltan összefüggő üreg.</li>
           <li><strong>BSP:</strong> rekurzív felosztás &rarr; szobás-folyosós kazamata.</li>
           <li><strong>Flood fill:</strong> generálás után ellenőrizd az összefüggőséget; tartsd a legnagyobb régiót vagy köss össze.</li>
+          <li><strong>Kitüntetett objektumok:</strong> külön passz a kész terepre — reject sampling padló + elérhetőség + min. távolság megszorításokkal; több csempés feature = prefab-stamp + folyosó.</li>
           <li><strong>Autotiling:</strong> szomszéd-bitmaszk &rarr; csempe-index. Részletek: <a href="csempe-bitmaszkolas.html">bitmaszkolás</a>, <a href="bevy-dual-grid-tutorial.html">dual-grid</a>.</li>
           <li><strong>Bevy:</strong> generálj <code class="inl">Startup</code>/<code class="inl">OnEnter</code>-ben; nagy pályán <code class="inl">bevy_ecs_tilemap</code>.</li>
         </ul>
@@ -918,6 +1059,7 @@ document.addEventListener("DOMContentLoaded", function(){
   initNoiseDemo();
   initCaDemo();
   initWalkDemo();
+  initFeatureDemo();
   initAutoDemo();
 });
 
@@ -1267,6 +1409,130 @@ function initAutoDemo(){
   rawBtn.addEventListener("click", function(){ setMode("raw"); });
   tileBtn.addEventListener("click", function(){ setMode("tile"); });
   genBtn.addEventListener("click", function(){ seed++; generate(); draw(); });
+  generate(); draw();
+}
+
+/* ===================== DEMÓ 6: feature placement (reject sampling) ===================== */
+function initFeatureDemo(){
+  var cv = document.getElementById("featCanvas");
+  if(!cv) return;
+  var ctx = cv.getContext("2d");
+  var GW = 60, GH = 35;
+  var countS = document.getElementById("featCount");
+  var distS  = document.getElementById("featDist");
+  var countV = document.getElementById("featCountVal");
+  var distV  = document.getElementById("featDistVal");
+  var genBtn = document.getElementById("featGen");
+  var placedOut = document.getElementById("featPlaced");
+  var askedOut  = document.getElementById("featAsked");
+  var triesOut  = document.getElementById("featTries");
+  var pal = palette();
+  var mask, seed = 5;   // mask: 1=fal, 0=padló (csak a legnagyobb régió padló)
+
+  function getC(g,x,y){ if(x<0||y<0||x>=GW||y>=GH) return 1; return g[y*GW+x]; }
+
+  // sejtautomata-barlang + legnagyobb régió megtartása
+  function generate(){
+    var rng = mulberry32(seed);
+    var grid = new Uint8Array(GW*GH);
+    for(var y=0;y<GH;y++) for(var x=0;x<GW;x++){
+      var edge = (x===0||y===0||x===GW-1||y===GH-1);
+      grid[y*GW+x] = (edge || rng() < 0.45) ? 1 : 0;
+    }
+    for(var s=0;s<5;s++){
+      var next = new Uint8Array(GW*GH);
+      for(var yy=0;yy<GH;yy++) for(var xx=0;xx<GW;xx++){
+        var w=0;
+        for(var dy=-1;dy<=1;dy++) for(var dx=-1;dx<=1;dx++){
+          if(dx===0&&dy===0) continue; w += getC(grid,xx+dx,yy+dy);
+        }
+        next[yy*GW+xx] = (w>=5)?1:0;
+      }
+      grid = next;
+    }
+    mask = keepLargest(grid);
+  }
+
+  // flood fill (BFS): csak a legnagyobb padló-régiót tartja meg, a többit fallá
+  function keepLargest(grid){
+    var seen = new Uint8Array(grid.length);
+    var best = null, bestSize = 0;
+    for(var i=0;i<grid.length;i++){
+      if(grid[i]===0 && !seen[i]){
+        var region=[], q=[i]; seen[i]=1;
+        while(q.length){
+          var c=q.pop(); region.push(c);
+          var cx=c%GW, cy=(c/GW)|0;
+          var nb=[[1,0],[-1,0],[0,1],[0,-1]];
+          for(var k=0;k<4;k++){
+            var nx=cx+nb[k][0], ny=cy+nb[k][1];
+            if(nx<0||ny<0||nx>=GW||ny>=GH) continue;
+            var ni=ny*GW+nx;
+            if(grid[ni]===0 && !seen[ni]){ seen[ni]=1; q.push(ni); }
+          }
+        }
+        if(region.length>bestSize){ bestSize=region.length; best=region; }
+      }
+    }
+    var keep = new Uint8Array(grid.length); keep.fill(1);
+    if(best) for(var j=0;j<best.length;j++) keep[best[j]]=0;
+    return keep;
+  }
+
+  // reject sampling: padló + min. távolság, felső próbaszám-korláttal
+  function placeMines(count, minDist){
+    var rng = mulberry32(seed*1000 + 7);   // stabil a csúszka-állításkor, új a barlangra
+    var mines=[], tries=0, maxA=count*300;
+    while(mines.length<count && tries<maxA){
+      tries++;
+      var x=(rng()*GW)|0, y=(rng()*GH)|0;
+      if(mask[y*GW+x]!==0) continue;          // padló?
+      var ok=true;
+      for(var m=0;m<mines.length;m++){
+        var dx=mines[m].x-x, dy=mines[m].y-y;
+        if(dx*dx+dy*dy < minDist*minDist){ ok=false; break; }
+      }
+      if(ok) mines.push({x:x,y:y});
+    }
+    return { mines:mines, tries:tries };
+  }
+
+  function draw(){
+    var count = parseInt(countS.value,10);
+    var minDist = parseInt(distS.value,10);
+    var cw = cv.width/GW, ch = cv.height/GH;
+    ctx.fillStyle = pal.bg; ctx.fillRect(0,0,cv.width,cv.height);
+    for(var y=0;y<GH;y++) for(var x=0;x<GW;x++){
+      ctx.fillStyle = mask[y*GW+x] ? pal.wall : pal.floor;
+      ctx.fillRect(Math.floor(x*cw), Math.floor(y*ch), Math.ceil(cw), Math.ceil(ch));
+    }
+    var res = placeMines(count, minDist);
+    // halvány min-távolság körök (sugár = min_dist/2, így két kör épp nem fed át)
+    ctx.strokeStyle = "rgba(242,193,78,.35)"; ctx.lineWidth = 1;
+    for(var i=0;i<res.mines.length;i++){
+      ctx.beginPath();
+      ctx.arc((res.mines[i].x+0.5)*cw, (res.mines[i].y+0.5)*ch, minDist*cw*0.5, 0, Math.PI*2);
+      ctx.stroke();
+    }
+    // bányák
+    for(var j=0;j<res.mines.length;j++){
+      var bx=res.mines[j].x*cw, by=res.mines[j].y*ch;
+      ctx.fillStyle = pal.amber;
+      ctx.fillRect(Math.floor(bx), Math.floor(by), Math.ceil(cw), Math.ceil(ch));
+      ctx.fillStyle = pal.pink;
+      ctx.fillRect(Math.floor(bx+cw*0.28), Math.floor(by+ch*0.28), Math.ceil(cw*0.44), Math.ceil(ch*0.44));
+    }
+    placedOut.textContent = res.mines.length;
+    askedOut.textContent = count;
+    triesOut.textContent = res.tries;
+    placedOut.style.color = (res.mines.length < count) ? pal.pink : pal.cyan;
+  }
+
+  countS.addEventListener("input", function(){ countV.textContent = countS.value; draw(); });
+  distS.addEventListener("input", function(){ distV.textContent = distS.value; draw(); });
+  genBtn.addEventListener("click", function(){ seed++; generate(); draw(); });
+  countV.textContent = countS.value;
+  distV.textContent = distS.value;
   generate(); draw();
 }
 </script>
