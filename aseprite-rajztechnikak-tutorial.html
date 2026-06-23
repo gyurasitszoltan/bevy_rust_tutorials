@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aseprite — Rajztechnikák: line art, anti-aliasing, árnyékolás, körvonal (magyar)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13;
+  --bg-deep:#0b110c;
+  --panel:#1a241b;
+  --panel-2:#162017;
+  --ink:#e9e3cd;
+  --muted:#9caa90;
+  --grass:#7ecb52;
+  --grass-hi:#a5e87d;
+  --grass-dk:#4e8f33;
+  --dirt:#c99c66;
+  --dirt-dk:#9a6e43;
+  --water:#6cc8d9;
+  --stone:#9aa0aa;
+  --concrete:#cacac3;
+  --lava:#ff7a3c;
+  --ice:#bfe0f0;
+  --line:#2d3b2c;
+  --line-hi:#41543e;
+  --shadow:rgba(0,0,0,.45);
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  font-size:16.5px;
+  line-height:1.7;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px);
+}
+::selection{background:var(--grass-dk);color:#fff}
+
+/* ---------- SIDEBAR ---------- */
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);
+  background:var(--bg-deep);
+  border-right:3px solid var(--line);
+  overflow-y:auto;z-index:30;
+  padding:22px 0 40px;
+}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{
+  padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px;
+}
+.logo .title{
+  font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;
+  color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15;
+}
+.logo .sub{
+  font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em;
+}
+.logo .badge{
+  display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;
+  color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;
+  box-shadow:2px 2px 0 var(--shadow);
+}
+.logo .badge.alt{background:var(--water);color:#06181c;margin-left:6px}
+.nav-part{
+  font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);
+  padding:16px 20px 6px;text-transform:uppercase;
+}
+.nav a{
+  display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;
+  font-size:14px;position:relative;border-left:4px solid transparent;
+  transition:color .12s,background .12s;
+}
+.nav a::before{
+  content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);
+  transition:opacity .12s,left .12s;
+}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{
+  color:var(--grass-hi);background:rgba(126,203,82,.10);
+  border-left-color:var(--grass);font-weight:600;
+}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{
+  display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;
+  background:var(--grass);color:#10180f;border:none;padding:8px 14px;
+  box-shadow:3px 3px 0 var(--shadow);text-decoration:none;
+  transition:transform .08s,box-shadow .08s;
+}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+.btn.water{background:var(--water);color:#06181c}
+
+.menu-toggle{
+  display:none;position:fixed;top:14px;left:14px;z-index:40;
+  font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;
+  background:var(--panel);color:var(--ink);border:3px solid var(--line);
+  box-shadow:3px 3px 0 var(--shadow);
+}
+
+/* ---------- FŐ TARTALOM ---------- */
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{
+  font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;
+  text-transform:uppercase;margin-bottom:14px;
+}
+.hero h1{
+  font-family:"Pixelify Sans";font-weight:700;font-size:clamp(32px,5vw,52px);
+  line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px;
+}
+.hero h1 .g{color:var(--grass-hi)}
+.hero h1 .d{color:var(--dirt)}
+.hero h1 .w{color:var(--water)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{
+  border:3px solid var(--line);background:var(--bg-deep);padding:14px;
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow);
+}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0;border:2px solid var(--line);background:#0c120d}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6;flex:1;min-width:220px}
+.hero-strip .cap b{color:var(--grass)}
+
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{
+  font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);text-transform:uppercase;
+}
+.ch-eyebrow{
+  font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);
+  text-transform:uppercase;margin-bottom:8px;
+}
+h2{
+  font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;
+  color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px;
+}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);margin:34px 0 12px}
+p{margin-bottom:14px}
+p+p{margin-top:2px}
+strong{color:#fff}
+em{color:var(--dirt)}
+a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}
+li{margin-bottom:7px}
+code:not(pre code){
+  font-family:"IBM Plex Mono";font-size:.86em;background:#0c120d;
+  color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap;
+}
+.ui{
+  font-family:"IBM Plex Mono";font-size:.86em;background:#0d181b;
+  color:var(--water);padding:2px 7px;border:1px solid #2a4a52;white-space:nowrap;font-weight:500;
+}
+.kbd{
+  font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);
+  border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink);
+}
+
+ol.steps{list-style:none;margin:20px 0;counter-reset:st}
+ol.steps>li{
+  counter-increment:st;position:relative;padding:4px 0 14px 52px;margin-bottom:6px;
+  border-left:3px solid var(--line);margin-left:16px;
+}
+ol.steps>li::before{
+  content:counter(st);position:absolute;left:-19px;top:0;
+  width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+  font-family:"Pixelify Sans";font-size:17px;color:#10180f;background:var(--grass);box-shadow:2px 2px 0 var(--shadow);
+}
+ol.steps>li:last-child{border-left-color:transparent}
+
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{
+  font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;
+  padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase;
+}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--grass)}
+.diagram pre .di{color:var(--dirt)}
+.diagram pre .wa{color:var(--water)}
+.diagram pre .st{color:var(--stone)}
+.diagram pre .lv{color:var(--lava)}
+.diagram pre .mu{color:var(--muted)}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+
+.info-box{margin:24px 0;border:3px solid #2a4a52;background:#0d181b;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.info-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.info-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.info-box p:last-child{margin-bottom:0}
+.info-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.info-box ul{font-size:15px;color:#cfdbd5}
+
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--grass);margin-bottom:4px}
+.note.warn .n-tag{color:var(--dirt)}
+
+.shot{margin:24px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.shot img{display:block;width:100%;height:auto;image-rendering:auto}
+.shot .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.55;padding:9px 13px;border-top:2px dashed var(--line-hi)}
+.shot .cap b{color:var(--grass)}
+.shot.small{max-width:360px}
+/* Aseprite UI-képek: natív méret, középre, élesen */
+.shot.ui{display:flex;flex-direction:column;align-items:center;background:#243b3d}
+.shot.ui img{width:auto;max-width:100%;image-rendering:pixelated}
+.shot.ui .cap{width:100%;background:var(--bg-deep)}
+
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+.on{color:var(--grass-hi);font-weight:600}
+.off{color:var(--dirt)}
+
+.playground{margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
+  background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);
+  border-bottom:3px solid var(--grass-dk);padding:10px 14px;
+}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em}
+.playground .pg-tag{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted)}
+.playground .pg-body{padding:16px;display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#0c120d;touch-action:none;max-width:100%}
+.playground .pg-side{flex:1;min-width:240px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:1.9}
+.canvas-col{display:flex;flex-direction:column;gap:6px;align-items:center}
+.canvas-col .clab{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted)}
+.canvas-pair{display:flex;gap:14px;flex-wrap:wrap}
+
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--dirt);letter-spacing:.06em;margin:14px 0 4px;text-transform:uppercase}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0}
+.tbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:5px 12px;transition:all .1s}
+.tbtn:hover{color:var(--ink)}
+.tbtn.active{background:var(--grass);color:#10180f;border-color:var(--grass);font-weight:600}
+.tbtn.wa.active{background:var(--water);color:#06181c;border-color:var(--water)}
+input[type=range]{width:100%;accent-color:var(--grass);margin:6px 0 2px;cursor:pointer}
+.rng-val{font-family:"IBM Plex Mono";font-size:13px;color:var(--grass-hi)}
+
+.pal-strip{display:flex;flex-wrap:wrap;gap:0;margin:8px 0 2px;border:2px solid var(--line)}
+.pal-sw{width:26px;height:26px;image-rendering:pixelated}
+
+footer{margin-top:90px;border-top:3px solid var(--line);padding-top:24px;font-size:13.5px;color:var(--muted)}
+footer .pix{font-family:"Pixelify Sans";color:var(--grass);font-size:15px}
+footer a{color:var(--water)}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}
+  .menu-toggle{display:block}
+  .main{margin-left:0}
+  .wrap{padding:0 20px 100px}
+  .hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,#7ecb52,#a5e87d);
+  box-shadow:0 0 10px rgba(126,203,82,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">ASEPRITE<br>RAJZTECHNIKÁK</div>
+    <div class="sub">line art · AA · árnyékolás · körvonal · magyarul</div>
+    <span class="badge">Aseprite</span><span class="badge alt">TECHNIKA</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I · A tiszta vonal</div>
+    <a href="#ch1">1 · A pixel rajz kézművessége</a>
+    <a href="#ch2">2 · Line art &amp; a lépcsők</a>
+    <div class="nav-part">II · Térfogat és lágyítás</div>
+    <a href="#ch3">3 · Kézi anti-aliasing</a>
+    <a href="#ch4">4 · Árnyékolás (shading)</a>
+    <a href="#ch5">5 · Color ramp &amp; hue-shift</a>
+    <div class="nav-part">III · A sziluett &amp; lezárás</div>
+    <a href="#ch6">6 · Körvonalazás (outline)</a>
+    <a href="#ch7">7 · Összefoglaló &amp; tovább</a>
+  </nav>
+  <div class="dl-box">
+    <p>Ez a lecke az <a href="aseprite-alapok-tutorial.html" style="color:var(--water)">Aseprite alapok</a> folytatása. Nyisd meg mellé a programot, és próbáld ki te is!</p>
+    <a class="btn secondary" href="https://www.aseprite.org/docs/shading/" target="_blank" rel="noopener">↗ docs: Shading ink</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// középhaladó tutorial · magyar nyelven · ~35 perc · az Aseprite alapok folytatása</div>
+  <h1>A pixel rajz <span class="g">kézművessége</span><br><span class="w">vonal</span>, <span class="d">fény</span> és forma</h1>
+  <p class="lead">Az eszközöket már ismered — most a <strong>készség</strong> jön. Négy technika emel egy lapos kis rajzot kész pixel arttá: <strong>tiszta vonal</strong> (line art), <strong>kézi anti-aliasing</strong>, <strong>árnyékolás</strong> (shading + color ramp) és <strong>körvonalazás</strong> (outline). Mindegyikhez van interaktív demó — tekergesd, és nézd, mi történik.</p>
+  <div class="hero-strip">
+    <canvas id="heroCanvas" width="200" height="172" style="width:200px;height:172px"></canvas>
+    <div class="cap" id="heroCap">↑ Élő minta: ugyanaz a golyó négy fázisban épül fel — <b id="heroPhase">lapos szín</b>.<br>Lapos → árnyékolt → hue-shiftelt → kész (körvonal + csúcsfény). Pontosan ezt tanuljuk meg.</div>
+  </div>
+</header>
+
+<!-- ================= I. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ I. rész — A tiszta vonal</span></div>
+
+<!-- ===== 1 ===== -->
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>A pixel rajz kézművessége</h2>
+
+  <p>Az <a href="aseprite-alapok-tutorial.html">alapok-leckében</a> megtanultuk az eszközöket. De a pixel art nem az eszközökről szól — hanem arról, hogyan rakod le a <em>kevés</em> pixelt úgy, hogy a forma tiszta és olvasható legyen. Négy alapkészség van, és ez a lecke mind a négyet végigveszi:</p>
+
+  <table>
+    <tr><th>Készség</th><th>Mit old meg</th><th>Fejezet</th></tr>
+    <tr><td><strong>Line art</strong></td><td>Tiszta, egyenletes vonal — nincsenek csúnya „lépcsők” (jaggies).</td><td>2.</td></tr>
+    <tr><td><strong>Anti-aliasing</strong></td><td>A lépcsők lágyítása köztes árnyalatokkal — kézzel.</td><td>3.</td></tr>
+    <tr><td><strong>Árnyékolás</strong></td><td>Térfogat és fény: color ramp, fényforrás, hue-shift.</td><td>4–5.</td></tr>
+    <tr><td><strong>Körvonalazás</strong></td><td>A sziluett kiemelése: külső/belső, fekete vs. selout.</td><td>6.</td></tr>
+  </table>
+
+  <div class="info-box">
+    <div class="tag">▸ Két Aseprite-eszköz, amire végig támaszkodunk</div>
+    <p><strong>1. A Pencil mindig éles.</strong> A ceruza sosem simít — minden pixel kemény szélű. Ez pixel arthoz <em>szándékos</em>: te döntesz minden képpontról. Ezért az anti-aliasingot is <strong>kézzel</strong> csináljuk (3. fejezet).</p>
+    <p><strong>2. Az ink (festék) módok.</strong> A <span class="ui">Context Bar</span> ink-legördülőjében válthatsz festékmódot. A legtöbbször a <em>Simple Ink</em> kell, de van egy különleges, pixel-art-ra szabott mód: a <strong>Shading</strong> — ezt a 4. fejezetben használjuk árnyékolásra.</p>
+  </div>
+
+  <div class="shot ui small">
+    <img src="assets/aseprite/inks.png" alt="Aseprite ink-módok legördülő: Simple Ink, Alpha Compositing, Copy Alpha+Color, Lock Alpha, Shading">
+    <div class="cap">Az <b>ink-módok</b> a Context Bar legördülőjében: <code>Simple Ink</code>, <code>Alpha Compositing</code>, <code>Copy Alpha+Color</code>, <code>Lock Alpha</code>, <b>Shading</b>. A <code>Same in all Tools</code> beállítja, hogy minden eszköz ugyanazt használja-e.</div>
+  </div>
+</section>
+
+<!-- ===== 2 ===== -->
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>Line art &amp; a lépcsők</h2>
+
+  <p>Pixelekből nem lehet tökéletes átlót rajzolni — a ferde vonal mindig <strong>lépcsőkből</strong> áll. A profi line art titka nem a lépcsők eltüntetése, hanem hogy <strong>egyenletesek</strong> legyenek: azonos hosszúságú szakaszok, ugyanabban a ritmusban. Az egyenetlen lépcső (hol 1, hol 4 pixel) és a <strong>dupla pixel</strong> (a sarkon kilógó képpont) az, ami „amatőrnek” láttatja a vonalat — ezeket hívják <em>jaggies</em>-nek.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Az „1-2-3” szabály</div>
+<pre>
+  <span class="gr">JÓ</span>  — azonos hosszú szakaszok:   <span class="gr">██  ██  ██  ██</span>   <span class="mu">(mind 2 hosszú, lépcsőzve)</span>
+  <span class="lv">ROSSZ</span> — kapkodó, egyenetlen:      <span class="lv">█  ████ █   ██</span>   <span class="mu">(1,4,1,2… + kilógó pixel)</span>
+</pre>
+    <div class="d-cap">Tartsd a szakaszok hosszát konzisztensnek (mind 2, vagy mind 3…). Ahol a hossz „ugrik”, ott törik meg a szem számára a vonal.</div>
+  </div>
+
+  <div class="info-box">
+    <div class="tag">▸ Aseprite-segítség: Pixel-perfect</div>
+    <p>A <strong>Pencil</strong> aktív állapotában a Context Bar <span class="ui">Pixel-perfect</span> kapcsolója automatikusan kidobja a szabadkézi vonal „dupla sarok” pixeleit — a vonal egy képpont vékony marad, lépcsők nélküli könyökökkel. Nagy segítség, de a szakaszok <em>ritmusát</em> neked kell jól adagolnod.</p>
+  </div>
+
+  <!-- DEMÓ: jaggies -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Jaggies — jó vs. rossz vonal</span>
+      <span class="pg-tag">kapcsold a hibajelölést</span>
+    </div>
+    <div class="pg-body">
+      <div class="canvas-pair">
+        <div class="canvas-col"><canvas id="jagGood" width="180" height="180" style="width:180px;height:180px"></canvas><div class="clab">JÓ — konzisztens</div></div>
+        <div class="canvas-col"><canvas id="jagBad" width="180" height="180" style="width:180px;height:180px"></canvas><div class="clab">ROSSZ — egyenetlen</div></div>
+      </div>
+      <div class="pg-side">
+        <p>Ugyanaz a ferde vonal kétféleképp. Bal: minden szakasz 3 pixel, szabályos ritmus. Jobb: kapkodó szakaszhosszak + két kilógó „dupla” pixel.</p>
+        <div class="ctl-label">Hibajelölés</div>
+        <div class="btn-row">
+          <button class="tbtn" id="jagMark">⚠ Mutasd a hibákat</button>
+        </div>
+        <p class="legend" style="margin-top:12px">A bekapcsolt jelölés a jobb oldali vonal problémás pixeleit kereteli: a <strong>dupla sarkokat</strong> és az <strong>ugráló szakaszhosszt</strong>. A bal oldali vonalon nincs mit jelölni — az a cél.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= II. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ II. rész — Térfogat és lágyítás</span></div>
+
+<!-- ===== 3 ===== -->
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>Kézi anti-aliasing</h2>
+
+  <p>Az <strong>anti-aliasing</strong> (AA) a lépcsős élek lágyítása <em>köztes árnyalatokkal</em>: a vonal színe és a háttér közötti félárnyékot teszünk a lépcső „belső sarkába”, így távolról a szem simább élt lát. Mivel a Pencil nem simít, ezt <strong>kézzel</strong> rakod le — innen a „selective” (válogatós) AA elnevezés.</p>
+
+  <ul>
+    <li><strong>1-színű AA:</strong> egyetlen köztes árnyalat a sarkokban — tiszta, takarékos. A leggyakoribb.</li>
+    <li><strong>2-színű AA:</strong> két átmeneti szint a hosszabb lépcsőkön — simább, de könnyen „elmosódottá” válik.</li>
+  </ul>
+
+  <div class="note warn">
+    <div class="n-tag">▲ Mértékkel!</div>
+    Kis sprite-on (16–32 px) a túl sok AA <strong>elmossa</strong> a formát és „koszos” lesz. A külső sziluettet gyakran jobb élesen hagyni (hogy elváljon a háttértől), és AA-t inkább a <em>belső</em> éleken használni. Az AA háttér-függő: ha a sprite különböző háttereken lesz, a külső AA rosszul mutathat.
+  </div>
+
+  <!-- DEMÓ: AA -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Anti-aliasing egy íven</span>
+      <span class="pg-tag">nagyítva + valós méret</span>
+    </div>
+    <div class="pg-body">
+      <div class="canvas-col">
+        <canvas id="aaBig" width="240" height="240" style="width:240px;height:240px"></canvas>
+        <div class="clab">nagyítva (a köztes pixelek)</div>
+        <canvas id="aaSmall" width="60" height="60" style="width:60px;height:60px"></canvas>
+        <div class="clab">valós méret — így „simul”</div>
+      </div>
+      <div class="pg-side">
+        <p>Egy ferde ív széle. Kapcsold be az AA-t: a lépcsők sarkába köztes árnyalat kerül. Figyeld a kis (valós méretű) képet — onnan tűnik simábbnak.</p>
+        <div class="ctl-label">Él lágyítása</div>
+        <div class="btn-row">
+          <button class="tbtn active" data-aa="0">Nyers (kemény)</button>
+          <button class="tbtn" data-aa="1">1-színű AA</button>
+          <button class="tbtn" data-aa="2">2-színű AA</button>
+        </div>
+        <p class="legend" style="margin-top:12px">A „nyers” él csak alapszín + üres — kemény lépcsők. Az <strong>1-színű AA</strong> egy félárnyalatot tesz a sarkokba; a <strong>2-színű</strong> kettőt. Nézd, ahogy a 2-színű már-már „homályos” — ezért bánj vele óvatosan.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 4 ===== -->
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>Árnyékolás (shading)</h2>
+
+  <p>Az árnyékolás adja a <strong>térfogatot</strong>: a lapos folt gömbbé, a vonalakból tárgy lesz. Három döntés kell hozzá:</p>
+  <ol class="steps">
+    <li><strong>Fényforrás iránya.</strong> Dönts el egy irányt (pl. bal-fent), és <em>tartsd</em> az egész képen. A fény felőli oldal világos, a túloldal sötét.</li>
+    <li><strong>Color ramp.</strong> Néhány árnyalatból álló sor, sötéttől világosig (erről az 5. fejezet). Ezekkel „lépdelsz” a felületen.</li>
+    <li><strong>Kerüld a pillow shadingot.</strong> Ha minden élről befelé sötétítesz (a fényforrás iránya nélkül), „párnás”, lapos lesz a forma. A fénynek <em>iránya</em> van!</li>
+  </ol>
+
+  <h3>A Shading ink mód</h3>
+  <p>Itt jön az Aseprite egyik gyöngyszeme. A <strong>Shading</strong> ink módban kijelölsz egy <em>shade</em>-et a Color Bar-ban (egy sötét→világos színsort), és festéskor a <strong>bal klikk sötétebbre, a jobb klikk világosabbra</strong> lépteti a pixelt a rampen belül. Nem színt választasz — hanem „irányt”: sötétítesz vagy világosítasz, mindig a paletta-rampedet követve.</p>
+
+  <div class="shot ui small">
+    <img src="assets/aseprite/shading_ref.png" alt="Shading ink referencia: egy sötéttől világosig tartó színsor, bal klikk sötétebb, jobb klikk világosabb">
+    <div class="cap">A <b>Shading</b> ink shade-je: egy sötét→világos színsor. <b>Left click</b> = lépés a sötét vég felé (árnyék), <b>Right click</b> = a világos vég felé (csúcsfény). Egy színsoron belül „gyúrod” a formát.</div>
+  </div>
+
+  <!-- DEMÓ: shading -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Fényforrás &amp; forma</span>
+      <span class="pg-tag">forgasd a fényt</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="shadeCanvas" width="220" height="220" style="width:220px;height:220px"></canvas>
+      <div class="pg-side">
+        <p>Egy golyó, a kijelölt ramppel árnyékolva. Forgasd a fényt, állítsd a lépcsők számát, és váltsd át „pillow” módra, hogy lásd a hibát.</p>
+        <div class="ctl-label">Fény iránya <span class="rng-val" id="shadeAngVal">225°</span></div>
+        <input type="range" id="shadeAng" min="0" max="360" value="225">
+        <div class="ctl-label">Ramp-lépcsők <span class="rng-val" id="shadeStepVal">4</span></div>
+        <input type="range" id="shadeStep" min="2" max="6" value="4">
+        <div class="ctl-label">Árnyékolás módja</div>
+        <div class="btn-row">
+          <button class="tbtn active" data-shmode="directional">Irányított (jó)</button>
+          <button class="tbtn" data-shmode="pillow">Pillow (rossz)</button>
+        </div>
+        <div class="pal-strip" id="shadeRamp"></div>
+        <p class="legend" style="margin-top:12px">Az <strong>irányított</strong> módban a fény egy irányból jön — a golyó térbeli lesz. A <strong>pillow</strong> minden szélről befelé sötétít: lapos, „párnás”. Kevesebb lépcső = retróbb, több = lágyabb.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 5 ===== -->
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Color ramp &amp; hue-shift</h2>
+
+  <p>A <strong>color ramp</strong> az árnyalat-sorod: néhány szín a sötéttől a világosig. A kezdő hibája, hogy a rampet úgy csinálja, hogy <em>csak a világosságot</em> (lightness) változtatja — ettől szürkés, élettelen lesz. A profi trükk a <strong>hue-shift</strong>: az árnyékot a <em>hidegebb</em> (kék/lila), a fényt a <em>melegebb</em> (sárga/narancs) szín felé tolja. Ráadásul a telítettséget is hangolja. Így a ramp „él”.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A hue-shift szabálya</div>
+<pre>
+  <span class="mu">árnyék  ◀────────── alapszín ──────────▶  csúcsfény</span>
+  <span class="wa">hidegebb</span>                                  <span class="lv">melegebb</span>
+  <span class="wa">(hue → kék/lila)</span>          <span class="mu">+</span>          <span class="lv">(hue → sárga)</span>
+  <span class="mu">sötétebb, telítettebb</span>           <span class="mu">világosabb, kicsit fakóbb</span>
+</pre>
+    <div class="d-cap">Nem csak le-fel a világossággal: oldalra is told a színezetet. Ez a különbség egy „lapos” és egy „festői” ramp között.</div>
+  </div>
+
+  <!-- DEMÓ: ramp / hue-shift -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Hue-shift A/B</span>
+      <span class="pg-tag">told el a színezetet</span>
+    </div>
+    <div class="pg-body">
+      <div class="canvas-pair">
+        <div class="canvas-col"><canvas id="rampFlat" width="150" height="150" style="width:150px;height:150px"></canvas><div class="pal-strip" id="rampFlatStrip"></div><div class="clab">csak világosság</div></div>
+        <div class="canvas-col"><canvas id="rampShift" width="150" height="150" style="width:150px;height:150px"></canvas><div class="pal-strip" id="rampShiftStrip"></div><div class="clab">hue-shifttel</div></div>
+      </div>
+      <div class="pg-side">
+        <p>Ugyanaz a golyó, ugyanannyi lépcsővel — bal oldalt hue-shift nélkül (csak világosság), jobb oldalt hue-shifttel.</p>
+        <div class="ctl-label">Hue-shift mértéke <span class="rng-val" id="hsVal">38°</span></div>
+        <input type="range" id="hsRange" min="0" max="70" value="38">
+        <div class="ctl-label">Alapszín</div>
+        <div class="btn-row">
+          <button class="tbtn wa active" data-hue="18">Piros-narancs</button>
+          <button class="tbtn wa" data-hue="140">Zöld</button>
+          <button class="tbtn wa" data-hue="210">Kék</button>
+        </div>
+        <p class="legend" style="margin-top:12px">Told a csúszkát: a jobb oldali ramp árnyékai a hideg, csúcsfényei a meleg felé csúsznak — a golyó azonnal „életre kel”. A bal oldali ugyanazzal a világossággal fakó marad.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= III. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ III. rész — A sziluett &amp; lezárás</span></div>
+
+<!-- ===== 6 ===== -->
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Körvonalazás (outline)</h2>
+
+  <p>A körvonal a sprite <strong>sziluettjét</strong> emeli ki, hogy elváljon a háttértől. Két fő döntés van: hol (külső vagy belső) és milyen színnel (fekete vagy „selout”).</p>
+
+  <table>
+    <tr><th>Típus</th><th>Mit csinál</th><th>Mikor</th></tr>
+    <tr><td><strong>Külső (outer)</strong></td><td>A sziluetten kívül fut körbe — a sprite „kicsit nagyobb” lesz.</td><td>Ikonok, UI-elemek, erős elválasztás.</td></tr>
+    <tr><td><strong>Belső (inner)</strong></td><td>A forma peremén belül — a méret marad, lágyabb hatás.</td><td>Karakterek, ahol fontos a pontos méret.</td></tr>
+    <tr><td><strong>Fekete</strong></td><td>Kemény, „rajzfilmes” kontúr. Erős, de néha túl nehéz.</td><td>Élénk, kontrasztos stílushoz.</td></tr>
+    <tr><td><strong>Selout</strong> (színes)</td><td>A körvonal a szomszéd szín sötétebb/telítettebb változata, nem fekete.</td><td>Lágyabb, „festői” stílus; természetesebb.</td></tr>
+  </table>
+
+  <div class="info-box">
+    <div class="tag">▸ Selout = „selective outline”</div>
+    <p>A <strong>selout</strong> azt jelenti, hogy a körvonal színe <em>követi</em> az alatta lévő színt: egy zöld rész mellett sötétzöld, egy piros mellett sötétvörös a kontúr. Sőt, ahol erős a fény, ott a körvonal akár ki is hagyható. Ettől a sprite nem „kivágott matrica”, hanem szervesebb. Próbáld ki lent, és váltogasd a hátteret — látni fogod, miért nem mindig a fekete a jó.</p>
+  </div>
+
+  <!-- DEMÓ: outline -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Körvonal &amp; háttér</span>
+      <span class="pg-tag">váltsd a hátteret is</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="outCanvas" width="200" height="200" style="width:200px;height:200px"></canvas>
+      <div class="pg-side">
+        <p>Egy árnyékolt golyó, különböző körvonalakkal. Váltsd a hátteret, hogy lásd, melyik körvonal hol olvasható jól.</p>
+        <div class="ctl-label">Körvonal</div>
+        <div class="btn-row">
+          <button class="tbtn" data-out="none">Nincs</button>
+          <button class="tbtn active" data-out="black">Fekete</button>
+          <button class="tbtn" data-out="selout">Selout (színes)</button>
+        </div>
+        <div class="ctl-label">Pozíció</div>
+        <div class="btn-row">
+          <button class="tbtn active" data-outpos="outer">Külső</button>
+          <button class="tbtn" data-outpos="inner">Belső</button>
+        </div>
+        <div class="ctl-label">Háttér</div>
+        <div class="btn-row">
+          <button class="tbtn wa active" data-bg="dark">Sötét</button>
+          <button class="tbtn wa" data-bg="light">Világos</button>
+          <button class="tbtn wa" data-bg="mid">Tarka</button>
+        </div>
+        <p class="legend" style="margin-top:12px">Tedd <strong>sötét</strong> háttérre a <strong>fekete</strong> körvonalat — szinte eltűnik. A <strong>selout</strong> minden háttéren megtartja a formát, mert a saját színeihez igazodik.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 7 ===== -->
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>Összefoglaló &amp; merre tovább?</h2>
+
+  <p>A négy technika együtt csinál egy lapos foltból kész sprite-ot:</p>
+  <ol class="steps">
+    <li><strong>Line art</strong> — konzisztens lépcsők, nincs dupla pixel; segít a <span class="ui">Pixel-perfect</span>.</li>
+    <li><strong>Anti-aliasing</strong> — kézi köztes árnyalatok, mértékkel, főleg belső éleken.</li>
+    <li><strong>Árnyékolás</strong> — egy fényforrás-irány, color ramp, a <strong>Shading</strong> ink; kerüld a pillow shadingot.</li>
+    <li><strong>Color ramp</strong> — hue-shift: hideg árnyék, meleg fény, nem csak világosság.</li>
+    <li><strong>Körvonal</strong> — sziluett kiemelése; fekete vagy selout, külső vagy belső.</li>
+  </ol>
+
+  <div class="info-box">
+    <div class="tag">▸ Következő leckék</div>
+    <ul>
+      <li><strong>Dithering kézzel</strong> — átmenetek kevés színnel, amikor két ramp-lépcső közt „pötyögsz”. Szépen folytatja az árnyékolást — vö. a <a href="pixelover-dithering-tutorial.html">PixelOver dithering</a> leckével (ott shader csinálja, itt te).</li>
+      <li><strong>Animáció mélyebben</strong> — járásciklus, tag-ek, időzítés (a <a href="aseprite-alapok-tutorial.html">alapokban</a> már belekóstoltunk).</li>
+      <li><strong>Tilemap editor</strong> — csempe-alapú pályarajzolás.</li>
+    </ul>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▸ Gyakorlótipp</div>
+    Rajzolj egy 32×32-es almát (vagy bármilyen tárgyat) ebben a sorrendben: <strong>line art → base szín → árnyékolás ramppel → hue-shift → selout körvonal → kevés AA</strong>. Pont ezt a sorrendet mutatja fent a hero-golyó. Ha minden lépésnél megállsz és összeveted, gyorsan rögzül.
+  </div>
+
+  <footer>
+    <p class="pix">Aseprite — Rajztechnikák</p>
+    <p>Középhaladó tutorial magyarul. A <b>Shading ink</b> és az ink-módok a hivatalos <a href="https://www.aseprite.org/docs/shading/" target="_blank" rel="noopener">aseprite.org/docs</a> alapján; a screenshotok a hivatalos dokumentációból valók. A line art, anti-aliasing, hue-shift és selout általános pixel-art technikák — a demók saját, böngészőben futó szemléltetések.</p>
+  </footer>
+</section>
+
+</div><!-- /wrap -->
+</div><!-- /main -->
+
+<script>
+(function(){
+"use strict";
+var reduce = (window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches);
+
+/* =====================================================================
+   KÖZÖS: HSL→RGB, ramp-generátor, gömb-árnyékoló motor
+   ===================================================================== */
+function hsl2rgb(h,s,l){
+  h=(((h%360)+360)%360)/360;
+  var r,g,b;
+  if(s<=0){ r=g=b=l; }
+  else{
+    var q=l<0.5? l*(1+s) : l+s-l*s, p=2*l-q;
+    var hue2=function(t){ if(t<0)t+=1; if(t>1)t-=1; if(t<1/6)return p+(q-p)*6*t; if(t<1/2)return q; if(t<2/3)return p+(q-p)*(2/3-t)*6; return p; };
+    r=hue2(h+1/3); g=hue2(h); b=hue2(h-1/3);
+  }
+  return [Math.round(r*255),Math.round(g*255),Math.round(b*255)];
+}
+function mix(a,b,t){ return [Math.round(a[0]+(b[0]-a[0])*t),Math.round(a[1]+(b[1]-a[1])*t),Math.round(a[2]+(b[2]-a[2])*t)]; }
+function css(c){ return "rgb("+c[0]+","+c[1]+","+c[2]+")"; }
+
+// ramp: sötét(0) → világos(steps-1). hueShift fok: sötét hidegebb, világos melegebb.
+function makeRamp(baseHue, sat, steps, hueShift){
+  var r=[];
+  for(var i=0;i<steps;i++){
+    var t = steps>1 ? i/(steps-1) : 0.5;        // 0 sötét .. 1 világos
+    var L = 0.16 + 0.70*t;
+    var hue = baseHue + hueShift*(t-0.5)*2;      // t=0:-shift (hideg), t=1:+shift (meleg)
+    var s = Math.max(0, sat - Math.abs(t-0.5)*0.22);
+    r.push(hsl2rgb(hue, s, L));
+  }
+  return r;
+}
+
+// gömb logikai gridre számolva, nagy pixelekkel rajzolva
+// opts: {ramp, light:[lx,ly,lz](norm), mode, outline:'none'|'black'|'selout', outpos:'outer'|'inner', highlight}
+function shadeBall(ctx, ox, oy, Rlog, PS, opts){
+  var ramp=opts.ramp, steps=ramp.length, D=2*Rlog+1, C=Rlog, Rb=Rlog-2;
+  var lvl=new Int16Array(D*D); for(var z=0;z<lvl.length;z++) lvl[z]=-1;  // -1 kívül
+  for(var gy=0;gy<D;gy++)for(var gx=0;gx<D;gx++){
+    var dx=(gx-C)/Rb, dy=(gy-C)/Rb, r2=dx*dx+dy*dy;
+    if(r2>1) continue;
+    var diff;
+    if(opts.mode==='pillow'){ diff=1-Math.sqrt(r2); }
+    else if(opts.mode==='flat'){ diff=0.62; }
+    else { var nz=Math.sqrt(1-r2); var d=dx*opts.light[0]+dy*opts.light[1]+nz*opts.light[2]; diff=0.12+0.9*Math.max(0,d); }
+    var idx=Math.floor(diff*steps); if(idx<0)idx=0; if(idx>steps-1)idx=steps-1;
+    lvl[gy*D+gx]=idx;
+  }
+  // körvonal jelölése (-2)
+  if(opts.outline && opts.outline!=='none'){
+    var base=lvl.slice(0);
+    if(opts.outpos==='inner'){
+      for(var iy=0;iy<D;iy++)for(var ix=0;ix<D;ix++){
+        if(base[iy*D+ix]<0) continue;
+        var bedge = (ix===0||iy===0||ix===D-1||iy===D-1)
+          || base[iy*D+ix-1]<0||base[iy*D+ix+1]<0||base[(iy-1)*D+ix]<0||base[(iy+1)*D+ix]<0;
+        if(bedge) lvl[iy*D+ix]=-2;
+      }
+    } else { // outer
+      for(var oy2=0;oy2<D;oy2++)for(var ox2=0;ox2<D;ox2++){
+        if(base[oy2*D+ox2]>=0) continue;
+        var nb=(ox2>0&&base[oy2*D+ox2-1]>=0)||(ox2<D-1&&base[oy2*D+ox2+1]>=0)||(oy2>0&&base[(oy2-1)*D+ox2]>=0)||(oy2<D-1&&base[(oy2+1)*D+ox2]>=0);
+        if(nb) lvl[oy2*D+ox2]=-2;
+      }
+    }
+  }
+  // render
+  for(var ry=0;ry<D;ry++)for(var rx=0;rx<D;rx++){
+    var v=lvl[ry*D+rx]; if(v===-1) continue;
+    var c;
+    if(v===-2){
+      if(opts.outline==='black') c=[24,20,30];
+      else { // selout: a legsötétebb ramp-szín még sötétebb/telítettebb változata
+        var d0=ramp[0]; c=mix(d0,[12,10,22],0.45);
+      }
+    } else c=ramp[v];
+    ctx.fillStyle=css(c);
+    ctx.fillRect(ox+rx*PS, oy+ry*PS, PS, PS);
+  }
+  // csúcsfény (kis világos folt a fény felőli oldalon)
+  if(opts.highlight && opts.light){
+    var hx=C + Math.round(opts.light[0]*Rb*0.5);
+    var hy=C + Math.round(opts.light[1]*Rb*0.5);
+    var spec=mix(ramp[steps-1],[255,255,255],0.55);
+    ctx.fillStyle=css(spec);
+    [[0,0],[1,0],[0,1]].forEach(function(o){
+      var px=hx+o[0], py=hy+o[1];
+      if(px>=0&&py>=0&&px<D&&py<D && lvl[py*D+px]>=0) ctx.fillRect(ox+px*PS,oy+py*PS,PS,PS);
+    });
+  }
+}
+function lightFromAngle(a){
+  var rad=a*Math.PI/180, lx=Math.cos(rad)*0.8, ly=Math.sin(rad)*0.8, lz=0.55;
+  var m=Math.sqrt(lx*lx+ly*ly+lz*lz); return [lx/m,ly/m,lz/m];
+}
+function paintStrip(elId, ramp){
+  var el=document.getElementById(elId); if(!el) return;
+  var h=""; for(var i=0;i<ramp.length;i++) h+='<span class="pal-sw" style="background:'+css(ramp[i])+'"></span>';
+  el.innerHTML=h;
+}
+function clearBg(ctx,w,h,col){
+  if(col){ ctx.fillStyle=col; ctx.fillRect(0,0,w,h); return; }
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle="rgba(255,255,255,.035)";
+  for(var gy=0;gy<h;gy+=14)for(var gx=0;gx<w;gx+=14) if(((gx/14)+(gy/14))&1) ctx.fillRect(gx,gy,14,14);
+}
+
+/* =====================================================================
+   1) HERO — golyó 4 fázisban
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("heroCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var Rlog=11, PS=7, ox=Math.round((cv.width-(2*Rlog+1)*PS)/2), oy=Math.round((cv.height-(2*Rlog+1)*PS)/2);
+  var L=lightFromAngle(225);
+  var phaseNames=["lapos szín","árnyékolás (fakó ramp)","hue-shift","kész: körvonal + csúcsfény"];
+  var phaseEl=document.getElementById("heroPhase");
+  function drawPhase(p){
+    clearBg(ctx,cv.width,cv.height,null);
+    if(p===0){ shadeBall(ctx,ox,oy,Rlog,PS,{ramp:[hsl2rgb(18,0.6,0.5)],mode:'flat'}); }
+    else if(p===1){ shadeBall(ctx,ox,oy,Rlog,PS,{ramp:makeRamp(18,0.55,4,0),light:L,mode:'directional'}); }
+    else if(p===2){ shadeBall(ctx,ox,oy,Rlog,PS,{ramp:makeRamp(18,0.7,4,40),light:L,mode:'directional'}); }
+    else { shadeBall(ctx,ox,oy,Rlog,PS,{ramp:makeRamp(18,0.7,4,40),light:L,mode:'directional',outline:'selout',outpos:'outer',highlight:true}); }
+    if(phaseEl) phaseEl.textContent=phaseNames[p];
+  }
+  if(reduce){ drawPhase(3); return; }
+  var p=0, hold=0;
+  drawPhase(0);
+  setInterval(function(){ p=(p+1)%4; drawPhase(p); }, 1400);
+})();
+
+/* =====================================================================
+   2) DEMÓ — jaggies (jó vs rossz vonal)
+   ===================================================================== */
+(function(){
+  var good=document.getElementById("jagGood"), bad=document.getElementById("jagBad");
+  if(!good||!bad) return;
+  var gctx=good.getContext("2d"), bctx=bad.getContext("2d");
+  var N=15, PS=good.width/N;
+  var COL=[126,203,82], COLB=[255,122,60];
+  // jó vonal: minden szakasz 3 hosszú, lépcsőzve
+  function goodPix(){ var p=[],x=0,y=1; for(var s=0;s<5;s++){ for(var k=0;k<3;k++){ if(x<N&&y<N)p.push([x,y]); x++; } y++; } return p; }
+  // rossz: egyenetlen szakaszok + 2 dupla pixel
+  function badPix(){ var segs=[2,4,1,3,2], p=[],x=0,y=1; for(var s=0;s<segs.length;s++){ for(var k=0;k<segs[s];k++){ if(x<N&&y<N)p.push([x,y]); x++; } y++; } return p; }
+  var doubles=[[6,3],[10,5]];  // kilógó dupla pixelek (hibák)
+  function badErrors(){ // a hiba-cellák: a duplák + a szakaszváltások könyökei
+    return doubles.concat([[2,2],[6,4],[7,4]]);
+  }
+  function draw(ctx, pix, col, marks, errs){
+    clearBg(ctx,ctx.canvas.width,ctx.canvas.height,null);
+    ctx.fillStyle="rgb("+col[0]+","+col[1]+","+col[2]+")";
+    pix.forEach(function(c){ ctx.fillRect(c[0]*PS,c[1]*PS,PS,PS); });
+    if(marks&&errs){
+      ctx.strokeStyle="#ff5a5a"; ctx.lineWidth=2;
+      errs.forEach(function(c){ ctx.strokeRect(c[0]*PS+1.5,c[1]*PS+1.5,PS-3,PS-3); });
+    }
+  }
+  var gp=goodPix(), bp=badPix().concat(doubles), marks=false;
+  function render(){ draw(gctx,gp,COL,false,null); draw(bctx,bp,COLB,marks,badErrors()); }
+  var btn=document.getElementById("jagMark");
+  if(btn) btn.addEventListener("click",function(){ marks=!marks; btn.classList.toggle("active",marks); render(); });
+  render();
+})();
+
+/* =====================================================================
+   3) DEMÓ — anti-aliasing egy íven
+   ===================================================================== */
+(function(){
+  var big=document.getElementById("aaBig"), small=document.getElementById("aaSmall");
+  if(!big||!small) return;
+  var bctx=big.getContext("2d"), sctx=small.getContext("2d");
+  var N=20, PS=big.width/N, SPS=small.width/N;
+  var BASE=[110,150,230], BG=[12,18,13];
+  var aa=0;
+  // egy ív: minden x-re a "kitöltési magasság" (coverage az adott oszlopban)
+  function edgeY(x){ // 0..N, ahol a görbe van (negyedkör-szerű)
+    var t=x/(N-1); return N*(1 - Math.sqrt(Math.max(0,1-(1-t)*(1-t)))); // ív bal-felül
+  }
+  function render(){
+    clearBg(bctx,big.width,big.height,null);
+    for(var x=0;x<N;x++){
+      var ey=edgeY(x);
+      for(var y=0;y<N;y++){
+        // coverage: mennyire van a pixel a görbe "alatt" (a kitöltött oldalon)
+        var cov = (y+1)-ey; if(cov<0)cov=0; if(cov>1)cov=1;
+        var c=null;
+        if(aa===0){ if(cov>=0.5) c=BASE; }
+        else if(aa===1){ if(cov>=0.6) c=BASE; else if(cov>=0.25) c=mix(BG,BASE,0.5); }
+        else { if(cov>=0.7) c=BASE; else if(cov>=0.45) c=mix(BG,BASE,0.66); else if(cov>=0.2) c=mix(BG,BASE,0.33); }
+        if(c){ bctx.fillStyle=css(c); bctx.fillRect(x*PS,y*PS,PS,PS); }
+      }
+    }
+    // valós méretű előnézet
+    sctx.clearRect(0,0,small.width,small.height);
+    sctx.fillStyle=css(BG); sctx.fillRect(0,0,small.width,small.height);
+    for(var x2=0;x2<N;x2++){
+      var ey2=edgeY(x2);
+      for(var y2=0;y2<N;y2++){
+        var cov2=(y2+1)-ey2; if(cov2<0)cov2=0; if(cov2>1)cov2=1;
+        var c2=null;
+        if(aa===0){ if(cov2>=0.5)c2=BASE; }
+        else if(aa===1){ if(cov2>=0.6)c2=BASE; else if(cov2>=0.25)c2=mix(BG,BASE,0.5); }
+        else { if(cov2>=0.7)c2=BASE; else if(cov2>=0.45)c2=mix(BG,BASE,0.66); else if(cov2>=0.2)c2=mix(BG,BASE,0.33); }
+        if(c2){ sctx.fillStyle=css(c2); sctx.fillRect(x2*SPS,y2*SPS,SPS,SPS); }
+      }
+    }
+  }
+  document.querySelectorAll("[data-aa]").forEach(function(b){
+    b.addEventListener("click",function(){
+      document.querySelectorAll("[data-aa]").forEach(function(x){x.classList.remove("active");});
+      b.classList.add("active"); aa=+b.dataset.aa; render();
+    });
+  });
+  render();
+})();
+
+/* =====================================================================
+   4) DEMÓ — shading (fény-irány, lépcsők, pillow)
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("shadeCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var Rlog=12, PS=8, ox=Math.round((cv.width-(2*Rlog+1)*PS)/2), oy=ox;
+  var ang=225, steps=4, mode='directional';
+  function render(){
+    clearBg(ctx,cv.width,cv.height,null);
+    var ramp=makeRamp(28,0.7,steps,38), L=lightFromAngle(ang);
+    shadeBall(ctx,ox,oy,Rlog,PS,{ramp:ramp,light:L,mode:mode,highlight:(mode==='directional')});
+    paintStrip("shadeRamp",ramp);
+    // fény-jelző pötty (csak irányított módban)
+    if(mode==='directional'){
+      var cx=ox+(Rlog+0.5)*PS, cy=oy+(Rlog+0.5)*PS, rr=(Rlog+5)*PS;
+      var lx=Math.cos(ang*Math.PI/180), ly=Math.sin(ang*Math.PI/180);
+      ctx.fillStyle="#ffcd75"; ctx.beginPath(); ctx.arc(cx+lx*rr,cy+ly*rr,5,0,7); ctx.fill();
+    }
+  }
+  var ar=document.getElementById("shadeAng"), av=document.getElementById("shadeAngVal");
+  if(ar) ar.addEventListener("input",function(){ ang=+ar.value; av.textContent=ang+"°"; render(); });
+  var sr=document.getElementById("shadeStep"), sv=document.getElementById("shadeStepVal");
+  if(sr) sr.addEventListener("input",function(){ steps=+sr.value; sv.textContent=steps; render(); });
+  document.querySelectorAll("[data-shmode]").forEach(function(b){
+    b.addEventListener("click",function(){
+      document.querySelectorAll("[data-shmode]").forEach(function(x){x.classList.remove("active");});
+      b.classList.add("active"); mode=b.dataset.shmode; render();
+    });
+  });
+  render();
+})();
+
+/* =====================================================================
+   5) DEMÓ — color ramp / hue-shift (A/B)
+   ===================================================================== */
+(function(){
+  var flat=document.getElementById("rampFlat"), shift=document.getElementById("rampShift");
+  if(!flat||!shift) return;
+  var fctx=flat.getContext("2d"), sctx=shift.getContext("2d");
+  var Rlog=9, PS=7;
+  var fox=Math.round((flat.width-(2*Rlog+1)*PS)/2), foy=fox;
+  var hs=38, baseHue=18;
+  var L=lightFromAngle(225);
+  function render(){
+    var rFlat=makeRamp(baseHue,0.62,5,0), rShift=makeRamp(baseHue,0.72,5,hs);
+    clearBg(fctx,flat.width,flat.height,null);
+    clearBg(sctx,shift.width,shift.height,null);
+    shadeBall(fctx,fox,foy,Rlog,PS,{ramp:rFlat,light:L,mode:'directional',highlight:true});
+    shadeBall(sctx,fox,foy,Rlog,PS,{ramp:rShift,light:L,mode:'directional',highlight:true});
+    paintStrip("rampFlatStrip",rFlat); paintStrip("rampShiftStrip",rShift);
+  }
+  var hr=document.getElementById("hsRange"), hv=document.getElementById("hsVal");
+  if(hr) hr.addEventListener("input",function(){ hs=+hr.value; hv.textContent=hs+"°"; render(); });
+  document.querySelectorAll("[data-hue]").forEach(function(b){
+    b.addEventListener("click",function(){
+      document.querySelectorAll("[data-hue]").forEach(function(x){x.classList.remove("active");});
+      b.classList.add("active"); baseHue=+b.dataset.hue; render();
+    });
+  });
+  render();
+})();
+
+/* =====================================================================
+   6) DEMÓ — outline (típus, pozíció, háttér)
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("outCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var Rlog=10, PS=8, ox=Math.round((cv.width-(2*Rlog+1)*PS)/2), oy=ox;
+  var out='black', outpos='outer', bg='dark';
+  var BGS={dark:"#0c120d", light:"#cfe0c2", mid:"#7a5a86"};
+  var L=lightFromAngle(225);
+  function render(){
+    if(bg==='mid'){
+      // tarka háttér: két szín sávozva
+      ctx.fillStyle="#7a5a86"; ctx.fillRect(0,0,cv.width,cv.height);
+      ctx.fillStyle="#4a8f6a"; for(var i=0;i<cv.width;i+=28) ctx.fillRect(i,0,14,cv.height);
+    } else { ctx.fillStyle=BGS[bg]; ctx.fillRect(0,0,cv.width,cv.height); }
+    var ramp=makeRamp(140,0.6,4,36);
+    shadeBall(ctx,ox,oy,Rlog,PS,{ramp:ramp,light:L,mode:'directional',outline:out,outpos:outpos,highlight:true});
+  }
+  document.querySelectorAll("[data-out]").forEach(function(b){
+    b.addEventListener("click",function(){ document.querySelectorAll("[data-out]").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); out=b.dataset.out; render(); });
+  });
+  document.querySelectorAll("[data-outpos]").forEach(function(b){
+    b.addEventListener("click",function(){ document.querySelectorAll("[data-outpos]").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); outpos=b.dataset.outpos; render(); });
+  });
+  document.querySelectorAll("[data-bg]").forEach(function(b){
+    b.addEventListener("click",function(){ document.querySelectorAll("[data-bg]").forEach(function(x){x.classList.remove("active");}); b.classList.add("active"); bg=b.dataset.bg; render(); });
+  });
+  render();
+})();
+
+/* =====================================================================
+   7) Scrollspy + mobil menü
+   ===================================================================== */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){
+  var pos=window.scrollY+140, active=0;
+  for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i;
+  links.forEach(function(a,i){a.classList.toggle("active",i===active);});
+}
+window.addEventListener("scroll",spy,{passive:true});
+spy();
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>

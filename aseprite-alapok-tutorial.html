@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aseprite — Alapok &amp; első lépések · kezdő tutorial (magyar)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13;
+  --bg-deep:#0b110c;
+  --panel:#1a241b;
+  --panel-2:#162017;
+  --ink:#e9e3cd;
+  --muted:#9caa90;
+  --grass:#7ecb52;
+  --grass-hi:#a5e87d;
+  --grass-dk:#4e8f33;
+  --dirt:#c99c66;
+  --dirt-dk:#9a6e43;
+  --water:#6cc8d9;
+  --stone:#9aa0aa;
+  --concrete:#cacac3;
+  --lava:#ff7a3c;
+  --ice:#bfe0f0;
+  --line:#2d3b2c;
+  --line-hi:#41543e;
+  --shadow:rgba(0,0,0,.45);
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  font-size:16.5px;
+  line-height:1.7;
+}
+/* finom scanline-textúra a háttérben */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px);
+}
+::selection{background:var(--grass-dk);color:#fff}
+
+/* ---------- SIDEBAR ---------- */
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);
+  background:var(--bg-deep);
+  border-right:3px solid var(--line);
+  overflow-y:auto;z-index:30;
+  padding:22px 0 40px;
+}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{
+  padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px;
+}
+.logo .title{
+  font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;
+  color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15;
+}
+.logo .sub{
+  font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em;
+}
+.logo .badge{
+  display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;
+  color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;
+  box-shadow:2px 2px 0 var(--shadow);
+}
+.logo .badge.alt{background:var(--water);color:#06181c;margin-left:6px}
+.nav-part{
+  font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);
+  padding:16px 20px 6px;text-transform:uppercase;
+}
+.nav a{
+  display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;
+  font-size:14px;position:relative;border-left:4px solid transparent;
+  transition:color .12s,background .12s;
+}
+.nav a::before{
+  content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);
+  transition:opacity .12s,left .12s;
+}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{
+  color:var(--grass-hi);background:rgba(126,203,82,.10);
+  border-left-color:var(--grass);font-weight:600;
+}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{
+  display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;
+  background:var(--grass);color:#10180f;border:none;padding:8px 14px;
+  box-shadow:3px 3px 0 var(--shadow);text-decoration:none;
+  transition:transform .08s,box-shadow .08s;
+}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+.btn.water{background:var(--water);color:#06181c}
+
+/* hamburger mobilra */
+.menu-toggle{
+  display:none;position:fixed;top:14px;left:14px;z-index:40;
+  font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;
+  background:var(--panel);color:var(--ink);border:3px solid var(--line);
+  box-shadow:3px 3px 0 var(--shadow);
+}
+
+/* ---------- FŐ TARTALOM ---------- */
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+
+/* HERO */
+.hero{
+  padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px;
+}
+.hero .eyebrow{
+  font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;
+  text-transform:uppercase;margin-bottom:14px;
+}
+.hero h1{
+  font-family:"Pixelify Sans";font-weight:700;font-size:clamp(32px,5vw,52px);
+  line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);
+  margin-bottom:18px;
+}
+.hero h1 .g{color:var(--grass-hi)}
+.hero h1 .d{color:var(--dirt)}
+.hero h1 .w{color:var(--water)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{
+  border:3px solid var(--line);background:var(--bg-deep);padding:14px;
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  box-shadow:4px 4px 0 var(--shadow);
+}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0;border:2px solid var(--line);background:#0c120d}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6;flex:1;min-width:220px}
+.hero-strip .cap b{color:var(--grass)}
+
+/* SZEKCIÓK */
+section{padding-top:56px}
+.part-divider{
+  margin-top:72px;padding:14px 0 0;
+  border-top:3px dashed var(--line-hi);
+}
+.part-divider .pd-label{
+  font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);
+  text-transform:uppercase;
+}
+.ch-eyebrow{
+  font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);
+  text-transform:uppercase;margin-bottom:8px;
+}
+h2{
+  font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;
+  color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px;
+}
+h3{
+  font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);
+  margin:34px 0 12px;
+}
+p{margin-bottom:14px}
+p+p{margin-top:2px}
+strong{color:#fff}
+em{color:var(--dirt)}
+a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}
+li{margin-bottom:7px}
+code:not(pre code){
+  font-family:"IBM Plex Mono";font-size:.86em;background:#0c120d;
+  color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap;
+}
+/* menü-útvonal / UI-felirat (pl. File ▸ New…) */
+.ui{
+  font-family:"IBM Plex Mono";font-size:.86em;background:#0d181b;
+  color:var(--water);padding:2px 7px;border:1px solid #2a4a52;white-space:nowrap;
+  font-weight:500;
+}
+/* gyorsbillentyű */
+.kbd{
+  font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);
+  border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink);
+}
+
+/* SZÁMOZOTT LÉPÉSEK */
+ol.steps{list-style:none;margin:20px 0;counter-reset:st}
+ol.steps>li{
+  counter-increment:st;position:relative;padding:4px 0 14px 52px;margin-bottom:6px;
+  border-left:3px solid var(--line);margin-left:16px;
+}
+ol.steps>li::before{
+  content:counter(st);position:absolute;left:-19px;top:0;
+  width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+  font-family:"Pixelify Sans";font-size:17px;color:#10180f;background:var(--grass);
+  box-shadow:2px 2px 0 var(--shadow);
+}
+ol.steps>li:last-child{border-left-color:transparent}
+
+/* ASCII / BEÁLLÍTÁS ÁBRA */
+.diagram{
+  margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);
+  box-shadow:4px 4px 0 var(--shadow);
+}
+.diagram .d-head{
+  font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;
+  padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase;
+}
+.diagram pre{
+  overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";
+  font-size:13px;line-height:1.5;color:var(--ink);
+}
+.diagram pre .gr{color:var(--grass)}
+.diagram pre .di{color:var(--dirt)}
+.diagram pre .wa{color:var(--water)}
+.diagram pre .st{color:var(--stone)}
+.diagram pre .lv{color:var(--lava)}
+.diagram pre .mu{color:var(--muted)}
+.diagram .d-cap{
+  font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55;
+}
+
+/* INFÓ doboz (kék) */
+.info-box{
+  margin:24px 0;border:3px solid #2a4a52;background:#0d181b;
+  box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px;
+}
+.info-box .tag{
+  font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;
+  margin-bottom:8px;text-transform:uppercase;
+}
+.info-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.info-box p:last-child{margin-bottom:0}
+.info-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.info-box ul{font-size:15px;color:#cfdbd5}
+
+/* TIPP / FIGYELEM doboz */
+.note{
+  margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);
+  background:var(--panel);padding:12px 16px;font-size:15px;
+}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{
+  font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--grass);margin-bottom:4px;
+}
+.note.warn .n-tag{color:var(--dirt)}
+
+/* SCREENSHOT (figure) */
+.shot{
+  margin:24px 0;border:3px solid var(--line);background:var(--bg-deep);
+  box-shadow:4px 4px 0 var(--shadow);
+}
+.shot img{display:block;width:100%;height:auto;image-rendering:auto}
+.shot .cap{
+  font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.55;
+  padding:9px 13px;border-top:2px dashed var(--line-hi);
+}
+.shot .cap b{color:var(--grass)}
+.shot.small{max-width:360px}
+/* Aseprite UI-képek: kis felbontásúak — natív méreten, középre, hogy élesek maradjanak */
+.shot.ui{display:flex;flex-direction:column;align-items:center;background:#243b3d}
+.shot.ui img{width:auto;max-width:100%}
+.shot.ui .cap{width:100%;background:var(--bg-deep)}
+
+/* TÁBLÁZAT */
+table{
+  width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;
+  border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow);
+}
+th{
+  background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;
+  color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);
+  letter-spacing:.04em;
+}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+.on{color:var(--grass-hi);font-weight:600}
+.off{color:var(--dirt)}
+
+/* JÁTSZÓTÉR / DEMÓK */
+.playground{
+  margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);
+  box-shadow:5px 5px 0 var(--shadow);
+}
+.playground .pg-head{
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
+  background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);
+  border-bottom:3px solid var(--grass-dk);padding:10px 14px;
+}
+.playground .pg-title{
+  font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em;
+}
+.playground .pg-tag{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted)}
+.playground .pg-body{padding:16px;display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{
+  image-rendering:pixelated;border:3px solid var(--line);background:#0c120d;
+  touch-action:none;max-width:100%;
+}
+.playground .pg-side{flex:1;min-width:240px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:1.9}
+
+/* vezérlők */
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--dirt);letter-spacing:.06em;margin:14px 0 4px;text-transform:uppercase}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0}
+.tbtn{
+  font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);
+  color:var(--muted);border:2px solid var(--line-hi);padding:5px 12px;transition:all .1s;
+}
+.tbtn:hover{color:var(--ink)}
+.tbtn.active{background:var(--grass);color:#10180f;border-color:var(--grass);font-weight:600}
+.tbtn.wa.active{background:var(--water);color:#06181c;border-color:var(--water)}
+input[type=range]{width:100%;accent-color:var(--grass);margin:6px 0 2px;cursor:pointer}
+.rng-val{font-family:"IBM Plex Mono";font-size:13px;color:var(--grass-hi)}
+
+/* paletta-csík + szín-swatchek */
+.pal-strip{display:flex;flex-wrap:wrap;gap:0;margin:8px 0 2px;border:2px solid var(--line)}
+.pal-sw{width:26px;height:26px;image-rendering:pixelated;cursor:pointer;position:relative}
+.pal-sw.fg::after{content:"F";position:absolute;left:2px;top:-1px;font-family:"IBM Plex Mono";font-size:10px;color:#fff;text-shadow:0 0 2px #000,0 0 2px #000}
+.pal-sw.bg::before{content:"B";position:absolute;right:2px;bottom:-2px;font-family:"IBM Plex Mono";font-size:10px;color:#fff;text-shadow:0 0 2px #000,0 0 2px #000}
+.swatch-row{display:flex;gap:10px;align-items:center;margin:6px 0}
+.swatch{width:34px;height:34px;border:2px solid var(--line-hi);image-rendering:pixelated}
+.swatch-lab{font-family:"IBM Plex Mono";font-size:12px;color:var(--muted);line-height:1.3}
+.swatch-lab b{color:var(--ink)}
+/* filmszalag (animáció-demó) */
+.filmstrip{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0}
+.filmstrip canvas{border:2px solid var(--line-hi);cursor:pointer;background:#0c120d}
+.filmstrip canvas.cur{border-color:var(--grass);box-shadow:0 0 0 2px var(--grass)}
+
+footer{
+  margin-top:90px;border-top:3px solid var(--line);padding-top:24px;
+  font-size:13.5px;color:var(--muted);
+}
+footer .pix{font-family:"Pixelify Sans";color:var(--grass);font-size:15px}
+footer a{color:var(--water)}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}
+  .menu-toggle{display:block}
+  .main{margin-left:0}
+  .wrap{padding:0 20px 100px}
+  .hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<!-- olvasási haladásjelző (progress bar) -->
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,#7ecb52,#a5e87d);
+  box-shadow:0 0 10px rgba(126,203,82,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">ASEPRITE<br>ALAPOK</div>
+    <div class="sub">pixel art &amp; animáció · kezdő tutorial · magyarul</div>
+    <span class="badge">Aseprite</span><span class="badge alt">KEZDŐ</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I · Bevezető</div>
+    <a href="#ch1">1 · Mi az az Aseprite?</a>
+    <a href="#ch2">2 · A kezelőfelület</a>
+    <div class="nav-part">II · Az első sprite</div>
+    <a href="#ch3">3 · Új sprite létrehozása</a>
+    <a href="#ch4">4 · A rajzeszközök</a>
+    <a href="#ch5">5 · Színek és a paletta</a>
+    <a href="#ch6">6 · Rétegek és a Timeline</a>
+    <a href="#ch7">7 · Az első animáció</a>
+    <a href="#ch8">8 · Navigáció, mentés, export</a>
+    <div class="nav-part">III · Tovább</div>
+    <a href="#ch9">9 · Összefoglaló &amp; merre tovább?</a>
+  </nav>
+  <div class="dl-box">
+    <p>Ez a lecke az Aseprite hivatalos dokumentációja alapján készült. Nyisd meg mellé a programot, és csináld végig te is:</p>
+    <a class="btn secondary" href="https://www.aseprite.org/docs/" target="_blank" rel="noopener">↗ aseprite.org/docs</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// kezdő tutorial · magyar nyelven · ~30 perc · a hivatalos docs alapján</div>
+  <h1>Rajzolj és <span class="g">animálj</span><br>pixel artot — <span class="w">Aseprite</span>, első lépések</h1>
+  <p class="lead">Az Aseprite a pixel art és a <strong>frame-by-frame animáció</strong> klasszikus szerkesztője. Itt nem egy kész képet alakítasz át — itt <em>te magad rajzolsz</em>, pixelről pixelre, és életre kelted a kis sprite-jaidat. Ebben a leckében végigmegyünk a teljes felületen, és a semmiből készítjük el az első rajzodat és animációdat.</p>
+  <div class="hero-strip">
+    <canvas id="heroCanvas" width="200" height="170" style="width:200px;height:170px"></canvas>
+    <div class="cap" id="heroCap">↑ Élő minta: a kis slime előbb <b>megrajzolódik</b> pixelről pixelre, aztán <b>életre kel</b> — pislog és pattog.<br>Pontosan ez az Aseprite két szuperereje: rajzolás <em>és</em> animáció, egy helyen.</div>
+  </div>
+</header>
+
+<!-- ================= I. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Bevezető</span></div>
+
+<!-- ================= 1. FEJEZET ================= -->
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>Mi az az Aseprite?</h2>
+
+  <p>Az <strong>Aseprite</strong> egy asztali alkalmazás (Windows / macOS / Linux), amivel <strong>pixel artot</strong> és <strong>animációt</strong> készíthetsz — a klasszikus 8- és 16-bites korszak esztétikájában. Ez a pixel-szerkesztők „kézműves” fajtája: minden pixelt te raksz le, egy egész eszközkészlettel (ceruza, radír, festékesvödör), rétegeken és animációs kockákon dolgozva.</p>
+
+  <div class="info-box">
+    <div class="tag">▸ Aseprite vs. PixelOver — két ellentétes filozófia</div>
+    <p>Ha láttad a <a href="pixelover-elso-lepesek-2d-tutorial.html">PixelOver-leckét</a>, fontos a különbség: a <strong>PixelOver egy kész képet</strong> (rajzot, 3D rendert) alakít át pixel-art stílusúvá, roncsolásmentes <em>shaderrel</em> — ott „<em>betöltesz → beállítasz → exportálsz</em>”.</p>
+    <p>Az <strong>Aseprite-ban a nulláról, kézzel rajzolsz</strong> — itt „<em>rajzolj → színezz → animálj → exportálj</em>”. A PixelOver <em>átalakít</em>, az Aseprite <em>alkot</em>. A kettő remekül kiegészíti egymást: a PixelOverrel gyorsan pixelesíthetsz egy meglévő illusztrációt, az Aseprite-ban pedig az utolsó pixelig kézben tartod az eredményt.</p>
+  </div>
+
+  <h3>Mire jó?</h3>
+  <ul>
+    <li><strong>Sprite-ok és ikonok</strong> játékhoz — karakterek, tárgyak, csempék (tile-ok).</li>
+    <li><strong>Animációk</strong> — járásciklus, robbanás, pislogás —, mind frame-by-frame, beépített idővonallal.</li>
+    <li><strong>Pixel-pontos kontroll</strong> — minden képpontot te döntesz el; nincs „elmosódás”, nincs automatika.</li>
+  </ul>
+
+  <div class="note warn">
+    <div class="n-tag">▲ Beszerzés</div>
+    Az Aseprite <strong>fizetős</strong> program (megvásárolható a hivatalos oldalon, a Steamen és az itch.io-n). Ugyanakkor a <strong>forráskódja nyíltan elérhető</strong> a GitHubon, és a licenc megengedi, hogy <strong>saját használatra magad lefordítsd</strong> — a kész, kényelmes telepítő az, amiért fizetsz. A tanuláshoz ez a lecke önmagában is végigvihető: a lenti interaktív demók a böngészőben szimulálják a legfontosabb funkciókat.
+  </div>
+
+  <p>Ez a tutorial az Aseprite hivatalos <a href="https://www.aseprite.org/docs/" target="_blank" rel="noopener">dokumentációját</a> követi, magyarul, kibővítve interaktív demókkal, hogy ne csak olvasd, hanem ki is próbáld, amit tanulsz.</p>
+</section>
+
+<!-- ================= 2. FEJEZET ================= -->
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>A kezelőfelület — gyors körkép</h2>
+
+  <p>Mielőtt rajzolnánk, ismerjük meg a képernyőt. Az Aseprite felülete néhány jól elkülönülő zónából áll — ezekhez újra és újra visszanyúlunk:</p>
+
+  <div class="shot ui">
+    <img src="assets/aseprite/workspace.png" alt="Az Aseprite munkafelülete feliratozva: menüsor, eszköztár, színsáv, vászon, idővonal, állapotsor">
+    <div class="cap">Az Aseprite munkafelülete (a hivatalos docs annotált ábrája). A főbb zónák körbe vannak feliratozva — ezeket nézzük most végig.</div>
+  </div>
+
+  <table>
+    <tr><th>Zóna</th><th>Mit csinál</th></tr>
+    <tr><td><strong>Menu Bar</strong> (menüsor)</td><td>Felül: <span class="ui">File</span>, <span class="ui">Edit</span>, <span class="ui">Sprite</span>, <span class="ui">Layer</span>, <span class="ui">Frame</span>, <span class="ui">Select</span>, <span class="ui">View</span>, <span class="ui">Help</span>. Minden parancs innen elérhető.</td></tr>
+    <tr><td><strong>Tool Bar</strong> (eszköztár)</td><td>Jobb oldalt a függőleges ikonsor: ceruza, radír, festékesvödör, kijelölés, nagyító… (4. fejezet).</td></tr>
+    <tr><td><strong>Sprite Editor</strong> + <strong>Canvas</strong></td><td>A középső nagy terület: itt látod és rajzolod a sprite-ot. A <em>Canvas</em> maga a kép területe.</td></tr>
+    <tr><td><strong>Color Bar</strong> (színsáv)</td><td>Bal oldalt a paletta + a <em>Color Picker</em> (színkör), legalul az <strong>Foreground</strong> és <strong>Background</strong> szín (5. fejezet).</td></tr>
+    <tr><td><strong>Context Bar</strong></td><td>A vászon fölötti vékony sáv: az <em>épp aktív eszköz</em> beállításai (pl. ecsetméret, <em>Pixel-perfect</em> mód).</td></tr>
+    <tr><td><strong>Timeline</strong> (idővonal)</td><td>Lent: a rétegek (Layers) és az animációs kockák (Frames). Alapból rejtett — a <span class="kbd">Tab</span> billentyűvel vagy a <span class="ui">View ▸ Timeline</span> paranccsal hozod elő (6–7. fejezet).</td></tr>
+    <tr><td><strong>Status Bar</strong> (állapotsor)</td><td>Legalul: a sprite neve, mérete, az aktuális frame és annak időtartama — hasznos infók egy pillantásra.</td></tr>
+  </table>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A felület térképe — hova nyúlsz, miért</div>
+<pre>
+  <span class="mu">┌─ </span><span class="wa">Menu Bar:</span> <span class="wa">File · Edit · Sprite · Layer · Frame · Select · View · Help</span> <span class="mu">─┐</span>
+  <span class="mu">├──────────┬───────────────────────────────────────────┬──────────┤</span>
+  <span class="mu">│</span> <span class="di">COLOR</span>    <span class="mu">│</span>  <span class="mu">[ Context Bar — az aktív eszköz beállításai ]</span>  <span class="mu">│</span> <span class="st">TOOL</span>     <span class="mu">│</span>
+  <span class="mu">│</span> <span class="di">BAR</span>      <span class="mu">│</span>                                           <span class="mu">│</span> <span class="st">BAR</span>      <span class="mu">│</span>
+  <span class="mu">│</span> <span class="di">paletta</span>  <span class="mu">│</span>          <span class="gr">VÁSZON (Canvas)</span>                  <span class="mu">│</span> <span class="st">ceruza</span>   <span class="mu">│</span>
+  <span class="mu">│</span> <span class="di">+ szín-</span>  <span class="mu">│</span>          <span class="gr">– ide rajzolsz –</span>                 <span class="mu">│</span> <span class="st">radír</span>    <span class="mu">│</span>
+  <span class="mu">│</span> <span class="di">picker</span>   <span class="mu">│</span>                                           <span class="mu">│</span> <span class="st">vödör…</span>   <span class="mu">│</span>
+  <span class="mu">│</span> <span class="di">FG / BG</span>  <span class="mu">├───────────────────────────────────────────┤</span>          <span class="mu">│</span>
+  <span class="mu">│</span> <span class="di">szín</span>     <span class="mu">│</span>  <span class="lv">TIMELINE — rétegek (Layers) + kockák (Frames)</span><span class="mu">│</span>          <span class="mu">│</span>
+  <span class="mu">├──────────┴───────────────────────────────────────────┴──────────┤</span>
+  <span class="mu">└─ </span><span class="wa">Status Bar:</span> <span class="mu">sprite neve · méret · aktuális frame · időtartam ───────┘</span>
+</pre>
+    <div class="d-cap">Bal: <b>Color Bar</b> (paletta + FG/BG). Jobb: <b>Tool Bar</b>. Közép: <b>Canvas</b> + alatta a <b>Timeline</b>. Fent <b>Menu</b> + <b>Context Bar</b>, lent <b>Status Bar</b>.</div>
+  </div>
+
+  <p>Megvan a térkép — most töltsünk be egy üres lapot, és kezdjünk rajzolni.</p>
+</section>
+
+<!-- ================= II. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ II. rész — Az első sprite</span></div>
+
+<!-- ================= 3. FEJEZET ================= -->
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>Új sprite létrehozása</h2>
+
+  <p>Indítsd a programot, és hozz létre egy üres sprite-ot:</p>
+  <ol class="steps">
+    <li>Felső menü: <span class="ui">File ▸ New…</span>, <em>vagy</em> a <span class="kbd">Ctrl</span>+<span class="kbd">N</span> (macOS: <span class="kbd">⌘</span>+<span class="kbd">N</span>) gyorsbillentyű.</li>
+    <li>Felugrik a <strong>New Sprite</strong> ablak — állítsd be a méretet, a színmódot és a hátteret.</li>
+  </ol>
+
+  <div class="shot ui small">
+    <img src="assets/aseprite/newsprite.png" alt="A New Sprite párbeszédablak: Size (Width, Height), Color Mode (RGBA, Grayscale, Indexed), Background">
+    <div class="cap">A <b>New Sprite</b> ablak: felül a <b>Size</b> (Width × Height), középen a <b>Color Mode</b>, alul a <b>Background</b>.</div>
+  </div>
+
+  <table>
+    <tr><th>Mező</th><th>Mit állíts be</th><th>Miért</th></tr>
+    <tr><td><strong>Size › Width / Height</strong></td><td class="mono">pl. 32 × 32</td><td>A sprite mérete <em>pixelben</em>. Pixel arthoz kicsi a jó — 16, 32, 64 px tipikus. (A mezőkbe matematikai kifejezést is írhatsz, pl. <code>16*2</code>.)</td></tr>
+    <tr><td><strong>Color Mode › RGBA</strong></td><td><span class="on">ezt válaszd</span></td><td>Teljes szín + átlátszóság (alfa). Kezdőként szabadon használhatsz bármilyen színt — ez a legkényelmesebb.</td></tr>
+    <tr><td><strong>Color Mode › Grayscale</strong></td><td class="mono">szürke</td><td>Csak szürkeárnyalat + alfa. Ritka, speciális eset.</td></tr>
+    <tr><td><strong>Color Mode › Indexed</strong></td><td class="mono">paletta-alapú</td><td>Minden pixel egy <em>paletta-indexre</em> mutat (max 256 szín). A klasszikus, retró pixel-art mód — erről az 5. fejezetben.</td></tr>
+    <tr><td><strong>Background</strong></td><td class="mono">Transparent</td><td><em>Transparent</em> = átlátszó lap (kockás minta), sprite-okhoz ez kell. A <em>White</em>/<em>Black</em> tömör háttér-réteget ad.</td></tr>
+  </table>
+
+  <p>Nyomd meg az <span class="ui">OK</span> gombot. Megnyílik egy üres, átlátszó vászon — készen áll az első pixelekre.</p>
+
+  <div class="note">
+    <div class="n-tag">▸ Tipp</div>
+    Kezdj <strong>kicsiben</strong>. Egy 32×32-es karakter sokkal barátságosabb tanulni, mint egy 256×256-os. A pixel art lényege épp a kevés, jól megválasztott pixel — és kis vásznon gyorsan látod az eredményt.
+  </div>
+</section>
+
+<!-- ================= 4. FEJEZET ================= -->
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>A rajzeszközök</h2>
+
+  <p>A jobb oldali <strong>Tool Bar</strong> tartalmazza az eszközöket. A legfontosabb szabály: <strong>bal egérgomb = Foreground szín</strong>, <strong>jobb egérgomb = Background szín</strong>. Így két színnel is festhetsz váltogatás nélkül.</p>
+
+  <table>
+    <tr><th>Eszköz</th><th>Gyorsbillentyű</th><th>Mit csinál</th></tr>
+    <tr><td><strong>Pencil</strong> (ceruza)</td><td><span class="kbd">B</span></td><td>Szabadkézi rajz, pixelenként. A fő eszköz.</td></tr>
+    <tr><td><strong>Eraser</strong> (radír)</td><td><span class="kbd">E</span></td><td>Töröl (átlátszóra).</td></tr>
+    <tr><td><strong>Paint Bucket</strong> (vödör)</td><td><span class="kbd">G</span></td><td>Kitölti az összefüggő, azonos színű területet.</td></tr>
+    <tr><td><strong>Eyedropper</strong> (pipetta)</td><td><span class="kbd">I</span> / <span class="kbd">Alt</span></td><td>Színt vesz le a vászonról (FG-be). Bármely eszköz közben az <span class="kbd">Alt</span> ezt hívja.</td></tr>
+    <tr><td><strong>Line / Rectangle / Ellipse</strong></td><td><span class="kbd">L</span> / <span class="kbd">U</span> / <span class="kbd">Shift</span>+<span class="kbd">U</span></td><td>Egyenes, téglalap, ellipszis rajzolása.</td></tr>
+    <tr><td><strong>Move</strong> (mozgatás)</td><td><span class="kbd">V</span></td><td>A réteg tartalmának arrébb tolása.</td></tr>
+  </table>
+
+  <div class="info-box">
+    <div class="tag">▸ A Context Bar és a „Pixel-perfect” mód</div>
+    <p>Amikor a <strong>Pencil</strong> aktív, a vászon fölötti <strong>Context Bar</strong>-on bekapcsolhatod a <strong>Pixel-perfect</strong> opciót. Ez automatikusan eltünteti a szabadkézi vonalak „dupla sarkait” (azokat a csúnya L-alakú lépcsőket), így tisztább, egyenletes vonalat húzol. Próbáld ki lent a demóban!</p>
+  </div>
+
+  <!-- ===== DEMÓ: pixel-rajzoló ===== -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Mini pixel-rajzoló</span>
+      <span class="pg-tag">bal=FG · jobb=BG · rajzolj!</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="drawCanvas" width="384" height="384" style="width:384px;height:384px"></canvas>
+      <div class="pg-side">
+        <p>Egy igazi mini-vászon (16×16). <strong>Bal klikk</strong> a Foreground, <strong>jobb klikk</strong> a Background színnel fest. Válassz eszközt és színt, és rajzolj!</p>
+
+        <div class="ctl-label">Eszköz</div>
+        <div class="btn-row">
+          <button class="tbtn active" data-tool="pencil">✏ Pencil (B)</button>
+          <button class="tbtn" data-tool="eraser">⌫ Eraser (E)</button>
+          <button class="tbtn" data-tool="bucket">🪣 Bucket (G)</button>
+          <button class="tbtn" data-tool="picker">⛏ Picker (I)</button>
+        </div>
+
+        <div class="ctl-label">Paletta — kattints: bal=FG, jobb=BG</div>
+        <div class="pal-strip" id="drawPal"></div>
+        <div class="swatch-row">
+          <div class="swatch" id="fgSw" title="Foreground"></div>
+          <div class="swatch-lab">Foreground<br><b id="fgLab">—</b></div>
+          <div class="swatch" id="bgSw" title="Background" style="margin-left:8px"></div>
+          <div class="swatch-lab">Background<br><b id="bgLab">—</b></div>
+          <button class="tbtn" id="swapBtn" style="margin-left:auto" title="Csere (X)">⇄ X</button>
+        </div>
+
+        <div class="ctl-label">Kapcsolók</div>
+        <div class="btn-row">
+          <button class="tbtn active" data-tog="ppf">Pixel-perfect</button>
+          <button class="tbtn active" data-tog="grid">Rács</button>
+          <button class="tbtn" id="clearBtn">🗑 Törlés</button>
+        </div>
+
+        <p class="legend" style="margin-top:12px">Kapcsold <strong>ki</strong> a Pixel-perfect-et, és húzz egy lapos átlós vonalat — megjelennek a dupla sarkok. Kapcsold vissza: eltűnnek. Pont ezt csinálja az igazi Context Bar-kapcsoló.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 5. FEJEZET ================= -->
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Színek és a paletta</h2>
+
+  <p>A bal oldali <strong>Color Bar</strong> a színek otthona. Legalul a két aktív szín: a <strong>Foreground</strong> (bal klikk fest vele) és a <strong>Background</strong> (jobb klikk). A kettőt az <span class="kbd">X</span> billentyűvel cseréled meg.</p>
+
+  <div class="shot ui small">
+    <img src="assets/aseprite/color-bar.png" alt="Az Aseprite Color Bar-ja: paletta, Color Picker színkör, Foreground és Background szín">
+    <div class="cap">A <b>Color Bar</b>: felül a <b>paletta</b>, alatta a <b>Color Picker</b> (színkör), legalul a <b>Foreground</b> (#000000) és <b>Background</b> (#FFFFFF) szín.</div>
+  </div>
+
+  <p>A paletta minden színének van egy <strong>indexe</strong> (0-tól 255-ig). A <em>Foreground</em> színmezőre kattintva felugrik a részletes szín-választó, ahol RGB- vagy HSB-csúszkákkal, illetve hexa-kóddal (pl. <code>ff0000</code>) is megadhatod a színt:</p>
+
+  <div class="shot ui small">
+    <img src="assets/aseprite/color-popup.png" alt="A szín-választó popup: Index, RGB, HSB, Gray, Mask fülek, R/G/B csúszkák, hexa mező">
+    <div class="cap">A szín-popup fülei: <b>Index · RGB · HSB · Gray · Mask</b>. Itt az R/G/B csúszkákkal vagy a hexa mezővel (<code>ff0000</code>) állítod a pontos színt.</div>
+  </div>
+
+  <div class="info-box">
+    <div class="tag">▸ RGB mód vs. Indexed mód — mit jelent a paletta?</div>
+    <p><strong>RGB(A) módban</strong> a paletta csak egy kényelmes „szín-fiók”: bármilyen színt használhatsz, és ha a palettát módosítod, a kép <em>nem</em> változik (a pixelek a konkrét RGB-értéket tárolják).</p>
+    <p><strong>Indexed módban</strong> minden pixel egy paletta-<em>indexet</em> tárol, nem színt. Ezért ha kicseréled vagy elforgatod a palettát, az egész kép <strong>átszíneződik</strong> — a sprite a palettától függ. Csak a palettában lévő színeket használhatod (a paletta szerkesztése: <span class="ui">Edit Palette</span> gomb / <span class="kbd">F4</span>). Próbáld ki a demóban, mi a különbség!</p>
+  </div>
+
+  <!-- ===== DEMÓ: RGB vs Indexed ===== -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · RGB vs. Indexed</span>
+      <span class="pg-tag">forgasd a palettát</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="modeCanvas" width="240" height="200" style="width:240px;height:200px"></canvas>
+      <div class="pg-side">
+        <p>Ugyanaz a kis slime, kétféle színmódban. Nyomd meg a <strong>„Paletta forgatása”</strong> gombot, és figyeld a képet:</p>
+        <div class="ctl-label">Színmód</div>
+        <div class="btn-row">
+          <button class="tbtn wa active" data-mode="indexed">Indexed</button>
+          <button class="tbtn wa" data-mode="rgb">RGB</button>
+        </div>
+        <div class="ctl-label">Aktuális paletta</div>
+        <div class="pal-strip" id="modePal"></div>
+        <div class="btn-row" style="margin-top:8px">
+          <button class="tbtn" id="rotPal">↻ Paletta forgatása</button>
+          <button class="tbtn" id="resetPal">⟲ Vissza</button>
+        </div>
+        <p class="legend" style="margin-top:12px"><strong>Indexed:</strong> a paletta forgatása <em>átszínezi</em> a slime-ot — a pixelek indexre mutatnak. <strong>RGB:</strong> ugyanaz a gomb nem változtat semmit a képen, mert a pixelek a konkrét színt tárolják.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 6. FEJEZET ================= -->
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Rétegek és a Timeline</h2>
+
+  <p>Az alsó <strong>Timeline</strong> (idővonal) az Aseprite szíve. Egy rácsot látsz benne: a sorok a <strong>rétegek (Layers)</strong>, az oszlopok az animációs <strong>kockák (Frames)</strong>. A kettő metszéspontja egy <strong>cel</strong> — ez tárolja a tényleges rajzot.</p>
+
+  <div class="shot ui">
+    <img src="assets/aseprite/sprite-components.png" alt="A sprite felépítése: Tags, Frames, Layers, Cels, üres és linkelt cellák">
+    <div class="cap">A sprite részei a Timeline-on: <b>Tags</b> (Walk, Run), <b>Frames</b> (1–5), <b>Layers</b> (Layer 2 / Layer 1 / Background), és a metszéspontokban a <b>Cels</b>.</div>
+  </div>
+
+  <table>
+    <tr><th>Fogalom</th><th>Mit jelent</th></tr>
+    <tr><td><strong>Layer</strong> (réteg)</td><td>Mint a fóliák egymáson: külön rajzolhatsz pl. hátteret, karaktert, fényeket. A <em>Background</em> egy speciális, tömör (nem átlátszó) réteg. A szem-ikon = láthatóság, a lakat = zárolás.</td></tr>
+    <tr><td><strong>Frame</strong> (kocka)</td><td>Az animáció egy pillanatképe. Mindegyiknek van <em>időtartama</em> ezredmásodpercben — ez szabja meg a sebességet (FPS).</td></tr>
+    <tr><td><strong>Cel</strong></td><td>Egy réteg és egy frame keresztezése = ahova ténylegesen rajzolsz. Lehet <em>üres</em> (Empty Cel), <em>tartalmas</em> (Cel with Content), vagy <em>linkelt</em> (Linked Cels — ugyanaz a kép több frame-en, egyszerre szerkeszthető).</td></tr>
+    <tr><td><strong>Tag</strong> (címke)</td><td>Frame-tartomány elnevezése (pl. <code>Walk</code>, <code>Run</code>) — így egy sprite-ban több animációt is elkülöníthetsz.</td></tr>
+  </table>
+
+  <div class="note">
+    <div class="n-tag">▸ Hol a Timeline?</div>
+    Ha nem látod az idővonalat, hozd elő a <span class="kbd">Tab</span> billentyűvel, vagy a <span class="ui">View ▸ Timeline</span> menüponttal.
+  </div>
+</section>
+
+<!-- ================= 7. FEJEZET ================= -->
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>Az első animáció</h2>
+
+  <p>Az animáció lényege: rajzolj több frame-et, mindegyiken kicsit más pózban, majd játszd le őket gyorsan egymás után. A teljes folyamat:</p>
+
+  <ol class="steps">
+    <li>Rajzold meg az <strong>első kockát</strong> a vászonra.</li>
+    <li>Adj hozzá <strong>új frame-et</strong>: <span class="ui">Frame ▸ New Frame</span>, vagy <span class="kbd">Alt</span>+<span class="kbd">N</span>. (Az új kocka az előző másolatából indul — onnan módosítod tovább.)</li>
+    <li>Lépkedj a kockák között a <span class="kbd">,</span> és <span class="kbd">.</span> (vessző/pont) billentyűkkel, és rajzold meg a következő pózt.</li>
+    <li>Kapcsold be az <strong>Onion skin</strong>-t, hogy áttetszően lásd az előző/következő kockát — így könnyebb folytonos mozgást rajzolni.</li>
+    <li>Játszd le: <span class="kbd">Enter</span> (vagy a Timeline ▶ gombja). A sebességet a frame-ek <em>időtartama</em> adja.</li>
+  </ol>
+
+  <!-- ===== DEMÓ: frame-by-frame lejátszó ===== -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Frame-by-frame lejátszó</span>
+      <span class="pg-tag">pattogó labda · 8 kocka</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="animCanvas" width="240" height="240" style="width:240px;height:240px"></canvas>
+      <div class="pg-side">
+        <p>Egy 8 kockás pattogó-labda animáció. Indítsd el, állítsd a sebességet, és kapcsold be az onion skint!</p>
+
+        <div class="ctl-label">Kockák (kattints egyre)</div>
+        <div class="filmstrip" id="filmstrip"></div>
+
+        <div class="btn-row" style="margin-top:8px">
+          <button class="tbtn active" id="playBtn">▶ Play (Enter)</button>
+          <button class="tbtn" id="prevBtn">◀ előző (,)</button>
+          <button class="tbtn" id="nextBtn">következő (.) ▶</button>
+        </div>
+
+        <div class="ctl-label">Sebesség <span class="rng-val" id="fpsVal">8 FPS</span></div>
+        <input type="range" id="fpsRng" min="1" max="24" value="8">
+
+        <div class="ctl-label">Onion skin</div>
+        <div class="btn-row">
+          <button class="tbtn" data-tog="onion">Onion skin be/ki</button>
+        </div>
+
+        <p class="legend" style="margin-top:12px">Az <strong>onion skin</strong> az előző kockát kékes, a következőt pirosas árnyalattal mutatja a háttérben — pont mint az igazi Aseprite. Lépj kézzel a <span class="kbd">,</span>/<span class="kbd">.</span> gombokkal, és figyeld a „szellemképeket”.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 8. FEJEZET ================= -->
+<section id="ch8">
+  <div class="ch-eyebrow">8. fejezet</div>
+  <h2>Navigáció, mentés és export</h2>
+
+  <h3>Navigáció a vásznon</h3>
+  <ul>
+    <li><strong>Nagyítás:</strong> <span class="kbd">Z</span> (nagyító eszköz), vagy <span class="kbd">+</span>/<span class="kbd">−</span>, vagy az egérgörgő.</li>
+    <li><strong>Pásztázás (pan):</strong> tartsd a <span class="kbd">Space</span>-t és húzd az egeret (vagy a középső egérgomb).</li>
+  </ul>
+
+  <h3>Mentés vs. exportálás</h3>
+  <p>Ez a két dolog <em>nem</em> ugyanaz — és érdemes mindig a natív formátumban menteni a munkát:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Mentés vs. Export</div>
+<pre>
+  <span class="gr">File ▸ Save</span> <span class="mu">(Ctrl+S)</span>          <span class="mu">→</span>  <span class="wa">.aseprite</span>   <span class="mu">minden adat megmarad (rétegek, kockák, tag-ek)</span>
+  <span class="gr">File ▸ Save As…</span>              <span class="mu">→</span>  <span class="wa">.png / .gif</span> <span class="mu">egy kép / animált GIF — megosztáshoz</span>
+  <span class="gr">File ▸ Export ▸ Sprite Sheet</span>  <span class="mu">→</span>  <span class="wa">atlasz</span>      <span class="mu">az összes kocka egy képen — JÁTÉKMOTORHOZ</span>
+</pre>
+    <div class="d-cap">A <b>.aseprite</b> a „forrásfájlod” — mindig ezt mentsd. A <b>PNG/GIF</b> a kész termék. A <b>Sprite Sheet</b> a játékfejlesztés hídja.</div>
+  </div>
+
+  <div class="info-box">
+    <div class="tag">▸ Híd a Bevy-sorozathoz</div>
+    <p>Ha játékot fejlesztesz, az <span class="ui">File ▸ Export ▸ Export Sprite Sheet</span> a kulcs: az összes animációs kockát egyetlen <strong>atlasz-képbe</strong> rendezi. Pontosan ezt tölti be a játékmotor egy <em>texture atlas</em>-ként, és lépteti a kockáit — ahogy a <a href="bevy-animaciok-tutorial.html">Bevy animációk</a> és a <a href="bevy-sprite-tutorial.html">Bevy sprite</a> leckében is láthatod. Itt rajzolod, ott életre kel a játékban.</p>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">▲ Figyelem mentéskor</div>
+    Ha a sprite-odnak több rétege vagy több kockája van, és sima <strong>PNG</strong>-be mentenéd, az Aseprite figyelmeztet: a PNG csak <em>egy</em>, lapított képet tud tárolni. Animációhoz <strong>GIF</strong>-et vagy <strong>Sprite Sheet</strong>-et exportálj, a szerkeszthető eredetit pedig tartsd meg <code>.aseprite</code>-ként.
+  </div>
+</section>
+
+<!-- ================= III. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Tovább</span></div>
+
+<!-- ================= 9. FEJEZET ================= -->
+<section id="ch9">
+  <div class="ch-eyebrow">9. fejezet</div>
+  <h2>Összefoglaló &amp; merre tovább?</h2>
+
+  <p>Gratulálok — végigvitted az Aseprite teljes alap-munkafolyamatát! Amit megtanultál:</p>
+  <ol class="steps">
+    <li><strong>Felület</strong>: Menu / Tool / Color Bar, Canvas, Timeline, Status Bar.</li>
+    <li><strong>Új sprite</strong>: <span class="ui">File ▸ New…</span> — méret, Color Mode (RGBA), Background = Transparent.</li>
+    <li><strong>Rajz</strong>: Pencil/Eraser/Bucket/Picker, bal=FG / jobb=BG, Pixel-perfect.</li>
+    <li><strong>Színek</strong>: paletta + FG/BG (<span class="kbd">X</span> csere), RGB vs. Indexed mód.</li>
+    <li><strong>Réteg &amp; kocka</strong>: Layers / Frames / Cels a Timeline-on.</li>
+    <li><strong>Animáció</strong>: új frame (<span class="kbd">Alt</span>+<span class="kbd">N</span>), onion skin, lejátszás (<span class="kbd">Enter</span>).</li>
+    <li><strong>Mentés/Export</strong>: <code>.aseprite</code> forrás, PNG/GIF/Sprite Sheet kimenet.</li>
+  </ol>
+
+  <div class="info-box">
+    <div class="tag">▸ Következő leckék (tervezett)</div>
+    <ul>
+      <li><strong>Rajztechnikák</strong> — line art, kézi anti-aliasing, árnyékolás (shading), körvonalazás.</li>
+      <li><strong>Dithering kézzel</strong> — átmenetek kevés színnel (a <a href="pixelover-dithering-tutorial.html">PixelOver-dithering</a> párja, csak itt te rajzolod).</li>
+      <li><strong>Animáció mélyebben</strong> — járásciklus, tag-ek, loop / ping-pong, frame-időzítés.</li>
+      <li><strong>Tilemap editor</strong> — csempe-alapú pályarajzolás (Aseprite 1.3+).</li>
+      <li><strong>Export pipeline → Bevy</strong> — Sprite Sheet-től a kész játék-animációig.</li>
+    </ul>
+  </div>
+
+  <p>A legjobb tipp a végére: <strong>csak rajzolj</strong>. A pixel art az ismétlésből jön — nyiss egy 32×32-es lapot, és csinálj egy kis tárgyat (kard, szív, érme), majd próbálj belőle 4 kockás animációt. A fenti demókban máris mindent kipróbálhatsz, ami ehhez kell.</p>
+
+  <footer>
+    <p class="pix">Aseprite — Alapok &amp; első lépések</p>
+    <p>Kezdő tutorial magyarul, a hivatalos <a href="https://www.aseprite.org/docs/" target="_blank" rel="noopener">aseprite.org/docs</a> alapján. A képernyőképek a hivatalos dokumentációból származnak. Az interaktív demók saját, böngészőben futó szemléltetések.</p>
+  </footer>
+</section>
+
+</div><!-- /wrap -->
+</div><!-- /main -->
+
+<script>
+(function(){
+"use strict";
+var reduce = (window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches);
+
+/* =====================================================================
+   0) Közös: Sweetie 16 paletta + egy kis slime sprite (index-map)
+   ===================================================================== */
+function hx(h){ return [parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)]; }
+var SWEETIE = ["1a1c2c","5d275d","b13e53","ef7d57","ffcd75","a7f070","38b764","257179","29366f","3b5dc9","41a6f6","73eff7","f4f4f4","94b0c2","566c86","333c57"];
+var SW_RGB = SWEETIE.map(hx);
+
+// slime index-paletta (külön, az 5. fejezet demójához is)
+// 0 = átlátszó, 1 = körvonal, 2 = test, 3 = highlight, 4 = szemfehér, 5 = pupilla
+var SLIME_PAL_BASE = ["00000000","2a1e3f","6abe30","b6e84a","ffffff","20203a"];
+function palToRGBA(hexArr){
+  return hexArr.map(function(h){
+    if(h.length>=8 && h.substr(6,2)==="00") return null; // átlátszó
+    return [parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)];
+  });
+}
+
+// procedurálisan generált slime: kupola + szemek + highlight + körvonal
+function buildSlime(W,H){
+  var idx=new Array(W*H).fill(0);
+  var cx=(W-1)/2, ry=H*0.62, cy=H-1-ry*0.5;
+  // test (lekerekített kupola, lapos aljjal)
+  for(var y=0;y<H;y++)for(var x=0;x<W;x++){
+    var dx=(x-cx)/(W*0.46), dy=(y-cy)/ry;
+    var inside = (dx*dx+dy*dy)<=1;
+    if(y>=H-1) inside = Math.abs(x-cx) <= W*0.40;     // lapos alj
+    if(inside) idx[y*W+x]=2;
+  }
+  // highlight (bal-felső)
+  for(var y2=0;y2<H;y2++)for(var x2=0;x2<W;x2++){
+    if(idx[y2*W+x2]!==2) continue;
+    var hx2=(x2-cx)+ (W*0.18), hy2=(y2-cy)+ (H*0.12);
+    if(hx2*hx2*1.3 + hy2*hy2 < (W*0.16)*(W*0.16)) idx[y2*W+x2]=3;
+  }
+  // szemek (két fehér + pupilla)
+  function eye(ex,ey){
+    for(var oy=-1;oy<=1;oy++)for(var ox=-1;ox<=1;ox++){
+      var px=ex+ox, py=ey+oy; if(px<0||py<0||px>=W||py>=H) continue;
+      if(ox*ox+oy*oy<=2 && idx[py*W+px]) idx[py*W+px]=4;
+    }
+    if(idx[ey*W+ex]) idx[ey*W+ex]=5;
+    if(idx[(ey)*W+ex+1]!==undefined && idx[ey*W+ex+1]) idx[ey*W+ex+1]=5;
+  }
+  eye(Math.round(cx-W*0.18), Math.round(cy));
+  eye(Math.round(cx+W*0.20), Math.round(cy));
+  // körvonal: test-pixel, aminek van átlátszó ortogonális szomszédja v. a szélén van
+  var out=idx.slice(0);
+  for(var y3=0;y3<H;y3++)for(var x3=0;x3<W;x3++){
+    if(!idx[y3*W+x3]) continue;
+    var edge = x3===0||y3===0||x3===W-1||y3===H-1
+      || !idx[y3*W+(x3-1)] || !idx[y3*W+(x3+1)]
+      || !idx[(y3-1)*W+x3] || !idx[(y3+1)*W+x3];
+    if(edge) out[y3*W+x3]=1;
+  }
+  return {w:W,h:H,idx:out};
+}
+
+// index-map kirajzolása canvasra adott paletta + pixelméret + opcionális blink/scaleY
+function drawIdxMap(ctx, map, pal, px, ox, oy, opt){
+  opt=opt||{};
+  var sy=opt.scaleY||1, blink=opt.blink||false;
+  var W=map.w, H=map.h;
+  var drawH = Math.round(H*sy), off = (H-drawH); // squash: alulról nő
+  for(var y=0;y<H;y++)for(var x=0;x<W;x++){
+    var v=map.idx[y*W+x];
+    if(blink && (v===4||v===5)) v=2;            // pislogásnál a szem eltűnik
+    if(!v) continue;
+    var c=pal[v]; if(!c) continue;
+    ctx.fillStyle="rgb("+c[0]+","+c[1]+","+c[2]+")";
+    var yy = oy + off*px + Math.round(y*sy)*px;
+    ctx.fillRect(ox + x*px, yy, px, Math.max(px,Math.ceil(px*sy)));
+  }
+  if(blink){ // csukott szem: vékony vonal
+    ctx.fillStyle="rgb("+pal[1][0]+","+pal[1][1]+","+pal[1][2]+")";
+  }
+}
+
+var SLIME = buildSlime(16,13);
+
+/* =====================================================================
+   1) HERO — önrajzoló + animálódó slime
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("heroCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var pal=palToRGBA(SLIME_PAL_BASE);
+  var PX=10, OX=(cv.width-SLIME.w*PX)/2, OY=(cv.height-SLIME.h*PX)/2 - 4;
+
+  // a kirajzolandó (nem üres) pixelek listája — felülről lefelé, balról jobbra
+  var order=[];
+  for(var y=0;y<SLIME.h;y++)for(var x=0;x<SLIME.w;x++) if(SLIME.idx[y*SLIME.w+x]) order.push(y*SLIME.w+x);
+
+  function bg(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    // halvány kockás "átlátszó" háttér
+    ctx.fillStyle="rgba(255,255,255,.035)";
+    for(var gy=0;gy<cv.height;gy+=14)for(var gx=0;gx<cv.width;gx+=14) if(((gx/14)+(gy/14))&1) ctx.fillRect(gx,gy,14,14);
+  }
+  function drawPartial(n, opt){
+    bg();
+    opt=opt||{};
+    var sy=opt.scaleY||1, blink=opt.blink||false, bob=opt.bob||0;
+    var off=(SLIME.h - SLIME.h*sy);
+    for(var k=0;k<n;k++){
+      var p=order[k], x=p%SLIME.w, y=(p/SLIME.w)|0, v=SLIME.idx[p];
+      if(blink && (v===4||v===5)) v=2;
+      var c=pal[v]; if(!c) continue;
+      ctx.fillStyle="rgb("+c[0]+","+c[1]+","+c[2]+")";
+      ctx.fillRect(OX + x*PX, OY + bob + Math.round((off+y*sy))*PX, PX, PX);
+    }
+    // ceruza-hegy az utolsó lerakott pixelnél (rajzolás közben)
+    if(opt.pen && n>0 && n<order.length){
+      var lp=order[n-1], lx=lp%SLIME.w, ly=(lp/SLIME.w)|0;
+      ctx.fillStyle="#ffcd75"; ctx.fillRect(OX+lx*PX+PX-3, OY+bob+ly*PX-3, 6, 6);
+    }
+  }
+
+  var phase="draw", t=0, drawn=0, animT=0;
+  function step(){
+    if(reduce){ drawPartial(order.length,{}); return; }
+    if(phase==="draw"){
+      drawn += Math.max(1, Math.round(order.length/60));
+      if(drawn>=order.length){ drawn=order.length; phase="hold"; t=0; }
+      drawPartial(drawn,{pen:true});
+    } else if(phase==="hold"){
+      t++; drawPartial(order.length,{}); if(t>30){ phase="live"; animT=0; }
+    } else if(phase==="live"){
+      animT+=0.06;
+      var sq=1+0.10*Math.sin(animT*2.2);          // squash & stretch
+      var bob=Math.round(-3*Math.abs(Math.sin(animT*1.1))*PX/PX*3);
+      var blink = (Math.sin(animT*0.9)>0.97);
+      drawPartial(order.length,{scaleY:1/sq, bob:bob+ (sq-1)* -SLIME.h*PX*0.5, blink:blink});
+      if(animT>7){ phase="clear"; t=0; }
+    } else if(phase==="clear"){
+      t++; var n=Math.max(0, order.length-Math.round(order.length*t/25));
+      drawPartial(n,{});
+      if(n<=0){ phase="draw"; drawn=0; }
+    }
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+})();
+
+/* =====================================================================
+   2) DEMÓ — mini pixel-rajzoló (4. fejezet)
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("drawCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var N=16, PX=cv.width/N;
+  var grid=new Array(N*N).fill(-1);  // -1 = átlátszó, különben paletta-index
+  var tool="pencil", fg=2, bg=8, ppf=true, showGrid=true;
+  var drawing=false, curBtn=0, stroke=[];
+
+  // paletta UI
+  var palEl=document.getElementById("drawPal");
+  function buildPal(){
+    var h="";
+    for(var i=0;i<SW_RGB.length;i++){
+      var c=SW_RGB[i];
+      h+='<span class="pal-sw" data-i="'+i+'" style="background:rgb('+c[0]+','+c[1]+','+c[2]+')"></span>';
+    }
+    palEl.innerHTML=h;
+    refreshPalSel();
+    palEl.querySelectorAll(".pal-sw").forEach(function(sw){
+      sw.addEventListener("click",function(e){ e.preventDefault(); fg=+sw.dataset.i; refreshSw(); refreshPalSel(); });
+      sw.addEventListener("contextmenu",function(e){ e.preventDefault(); bg=+sw.dataset.i; refreshSw(); refreshPalSel(); });
+    });
+  }
+  function refreshPalSel(){
+    palEl.querySelectorAll(".pal-sw").forEach(function(sw){
+      var i=+sw.dataset.i; sw.classList.toggle("fg",i===fg); sw.classList.toggle("bg",i===bg);
+    });
+  }
+  function hexOf(i){ return "#"+SWEETIE[i]; }
+  function refreshSw(){
+    var f=SW_RGB[fg], b=SW_RGB[bg];
+    var fgSw=document.getElementById("fgSw"), bgSw=document.getElementById("bgSw");
+    fgSw.style.background="rgb("+f[0]+","+f[1]+","+f[2]+")";
+    bgSw.style.background="rgb("+b[0]+","+b[1]+","+b[2]+")";
+    document.getElementById("fgLab").textContent=hexOf(fg);
+    document.getElementById("bgLab").textContent=hexOf(bg);
+  }
+
+  function render(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    // kockás átlátszó háttér
+    for(var y=0;y<N;y++)for(var x=0;x<N;x++){
+      ctx.fillStyle = ((x+y)&1)? "#10160f" : "#0c120d";
+      ctx.fillRect(x*PX,y*PX,PX,PX);
+    }
+    // pixelek
+    for(var i=0;i<grid.length;i++){
+      if(grid[i]<0) continue;
+      var c=SW_RGB[grid[i]], x2=i%N, y2=(i/N)|0;
+      ctx.fillStyle="rgb("+c[0]+","+c[1]+","+c[2]+")";
+      ctx.fillRect(x2*PX,y2*PX,PX,PX);
+    }
+    // rács
+    if(showGrid){
+      ctx.strokeStyle="rgba(255,255,255,.08)"; ctx.lineWidth=1;
+      for(var g=0;g<=N;g++){
+        ctx.beginPath(); ctx.moveTo(g*PX,0); ctx.lineTo(g*PX,cv.height); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0,g*PX); ctx.lineTo(cv.width,g*PX); ctx.stroke();
+      }
+    }
+  }
+
+  function cellFromEvent(e){
+    var r=cv.getBoundingClientRect();
+    var x=Math.floor((e.clientX-r.left)/r.width*N);
+    var y=Math.floor((e.clientY-r.top)/r.height*N);
+    if(x<0||y<0||x>=N||y>=N) return null;
+    return {x:x,y:y,i:y*N+x};
+  }
+  function paintCell(i,btn){
+    if(tool==="pencil") grid[i]= (btn===2? bg : fg);
+    else if(tool==="eraser") grid[i]=-1;
+  }
+  // pixel-perfect: az utolsó 3 húzáspont közül a "könyök" törlése
+  function pixelPerfect(){
+    if(!ppf || stroke.length<3) return;
+    var a=stroke[stroke.length-3], b=stroke[stroke.length-2], c=stroke[stroke.length-1];
+    var diag = Math.abs(a.x-c.x)===1 && Math.abs(a.y-c.y)===1;
+    var elbow = (b.x===a.x&&b.y===c.y) || (b.y===a.y&&b.x===c.x);
+    if(diag && elbow){ grid[b.i]=-1; stroke.splice(stroke.length-2,1); }
+  }
+  function line(x0,y0,x1,y1,btn){ // Bresenham — köztes cellák kitöltése
+    var dx=Math.abs(x1-x0), dy=Math.abs(y1-y0), sx=x0<x1?1:-1, sy=y0<y1?1:-1, err=dx-dy;
+    while(true){
+      var i=y0*N+x0; paintCell(i,btn);
+      stroke.push({x:x0,y:y0,i:i}); pixelPerfect();
+      if(x0===x1&&y0===y1) break;
+      var e2=2*err; if(e2>-dy){err-=dy;x0+=sx;} if(e2<dx){err+=dx;y0+=sy;}
+    }
+  }
+  function flood(i,btn){
+    var target=grid[i], rep=(btn===2?bg:fg); if(target===rep) return;
+    var st=[i];
+    while(st.length){
+      var k=st.pop(); if(grid[k]!==target) continue; grid[k]=rep;
+      var x=k%N,y=(k/N)|0;
+      if(x>0)st.push(k-1); if(x<N-1)st.push(k+1); if(y>0)st.push(k-N); if(y<N-1)st.push(k+N);
+    }
+  }
+
+  var last=null;
+  function down(e){
+    var c=cellFromEvent(e); if(!c) return;
+    curBtn = (e.button===2 || e.buttons===2)?2:0;
+    if(tool==="picker"){ if(grid[c.i]>=0){ if(curBtn===2) bg=grid[c.i]; else fg=grid[c.i]; refreshSw(); refreshPalSel(); } return; }
+    if(tool==="bucket"){ flood(c.i,curBtn); render(); return; }
+    drawing=true; stroke=[]; last=c;
+    paintCell(c.i,curBtn); stroke.push({x:c.x,y:c.y,i:c.i}); render();
+    try{ cv.setPointerCapture(e.pointerId); }catch(_){}
+  }
+  function move(e){
+    if(!drawing) return;
+    var c=cellFromEvent(e); if(!c) return;
+    if(last && (c.x!==last.x||c.y!==last.y)){ line(last.x,last.y,c.x,c.y,curBtn); last=c; render(); }
+  }
+  function up(){ drawing=false; last=null; stroke=[]; }
+
+  cv.addEventListener("pointerdown",down);
+  cv.addEventListener("pointermove",move);
+  window.addEventListener("pointerup",up);
+  cv.addEventListener("contextmenu",function(e){ e.preventDefault(); });
+
+  // eszköz-gombok
+  document.querySelectorAll("[data-tool]").forEach(function(b){
+    b.addEventListener("click",function(){
+      document.querySelectorAll("[data-tool]").forEach(function(x){x.classList.remove("active");});
+      b.classList.add("active"); tool=b.dataset.tool;
+    });
+  });
+  // kapcsolók
+  document.querySelectorAll("#ch4 [data-tog]").forEach(function(b){
+    b.addEventListener("click",function(){
+      var k=b.dataset.tog;
+      if(k==="ppf"){ ppf=!ppf; b.classList.toggle("active",ppf); }
+      if(k==="grid"){ showGrid=!showGrid; b.classList.toggle("active",showGrid); render(); }
+    });
+  });
+  document.getElementById("clearBtn").addEventListener("click",function(){ grid.fill(-1); render(); });
+  document.getElementById("swapBtn").addEventListener("click",function(){ var t=fg;fg=bg;bg=t; refreshSw(); refreshPalSel(); });
+
+  buildPal(); refreshSw(); render();
+})();
+
+/* =====================================================================
+   3) DEMÓ — RGB vs Indexed (5. fejezet)
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("modeCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var mode="indexed", shift=0;
+  var base=palToRGBA(SLIME_PAL_BASE);
+  var palEl=document.getElementById("modePal");
+  var PX=12, OX=(cv.width-SLIME.w*PX)/2, OY=(cv.height-SLIME.h*PX)/2;
+
+  // a "forgatható" rész csak a látható testszínek (1..3), a szem marad
+  function curPal(){
+    if(mode==="rgb") return base;            // RGB: a kép sosem változik
+    // indexed: a test/körvonal/highlight színeit forgatjuk a Sweetie palettán
+    var p=base.slice(0);
+    var tones=[ SW_RGB[(2+shift)%16], SW_RGB[(0+shift)%16], SW_RGB[(5+shift)%16] ];
+    p[1]=tones[1]; p[2]=tones[0]; p[3]=tones[2];
+    return p;
+  }
+  function bg(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.fillStyle="rgba(255,255,255,.035)";
+    for(var gy=0;gy<cv.height;gy+=14)for(var gx=0;gx<cv.width;gx+=14) if(((gx/14)+(gy/14))&1) ctx.fillRect(gx,gy,14,14);
+  }
+  function render(){
+    bg();
+    var pal=curPal();
+    for(var y=0;y<SLIME.h;y++)for(var x=0;x<SLIME.w;x++){
+      var v=SLIME.idx[y*SLIME.w+x]; if(!v) continue;
+      var c=pal[v]; if(!c) continue;
+      ctx.fillStyle="rgb("+c[0]+","+c[1]+","+c[2]+")";
+      ctx.fillRect(OX+x*PX, OY+y*PX, PX, PX);
+    }
+    // paletta-csík (csak a forgatott 3 tónus + szem)
+    var show = (mode==="rgb")? [base[2],base[1],base[3],base[4]] : [pal[2],pal[1],pal[3],pal[4]];
+    var h="";
+    for(var i=0;i<show.length;i++){ var cc=show[i]; if(!cc){h+='';continue;} h+='<span class="pal-sw" style="cursor:default;background:rgb('+cc[0]+','+cc[1]+','+cc[2]+')"></span>'; }
+    palEl.innerHTML=h;
+  }
+  document.querySelectorAll("[data-mode]").forEach(function(b){
+    b.addEventListener("click",function(){
+      document.querySelectorAll("[data-mode]").forEach(function(x){x.classList.remove("active");});
+      b.classList.add("active"); mode=b.dataset.mode; render();
+    });
+  });
+  document.getElementById("rotPal").addEventListener("click",function(){ shift=(shift+1)%16; render(); });
+  document.getElementById("resetPal").addEventListener("click",function(){ shift=0; render(); });
+  render();
+})();
+
+/* =====================================================================
+   4) DEMÓ — frame-by-frame lejátszó (7. fejezet), pattogó labda
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("animCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var GW=20, GH=20, NF=8, PX=cv.width/GW;
+  var frames=[];   // mindegyik: Int8Array(GW*GH) színindexel (0 üres,1 labda,2 fény,3 árnyék)
+  var COL={1:[239,125,87],2:[255,205,117],3:[40,30,60]};
+
+  // egy frame generálása: a labda y-pozíciója + squash a talajnál
+  function genFrame(f){
+    var g=new Int8Array(GW*GH);
+    var t=f/NF;
+    var h=Math.abs(Math.sin(t*Math.PI));        // 0 (talaj) .. 1 (tető)
+    var groundY=GH-3;
+    var cy = 4 + (groundY-4)*(1-h);             // minél kisebb h, annál lejjebb
+    var squash = (h<0.12)? 1-(0.12-h)*2.2 : 1;  // talajnál lapul
+    var rx=3.2/Math.max(squash,0.5), ry=3.2*squash;
+    var ccx=GW/2, ccy=cy;
+    for(var y=0;y<GH;y++)for(var x=0;x<GW;x++){
+      var dx=(x-ccx+0.5)/rx, dy=(y-ccy+0.5)/ry;
+      if(dx*dx+dy*dy<=1){
+        var hl=((x-ccx)<-0.5 && (y-ccy)<-0.5 && dx*dx+dy*dy<0.45);
+        g[y*GW+x]= hl?2:1;
+      }
+    }
+    // talaj-árnyék
+    var shW=Math.round(3*(0.5+h*0.5));
+    for(var sx=-shW;sx<=shW;sx++){ var px=Math.round(GW/2+sx); if(px>=0&&px<GW) g[groundY*GW+px]=3; }
+    return g;
+  }
+  for(var i=0;i<NF;i++) frames.push(genFrame(i));
+
+  function drawFrame(g,scale,ox,oy,alpha,tint){
+    for(var y=0;y<GH;y++)for(var x=0;x<GW;x++){
+      var v=g[y*GW+x]; if(!v) continue;
+      var c=COL[v];
+      if(tint){ c=[ Math.round(c[0]*0.4+tint[0]*0.6), Math.round(c[1]*0.4+tint[1]*0.6), Math.round(c[2]*0.4+tint[2]*0.6) ]; }
+      ctx.globalAlpha=alpha; ctx.fillStyle="rgb("+c[0]+","+c[1]+","+c[2]+")";
+      ctx.fillRect(ox+x*scale, oy+y*scale, scale, scale);
+    }
+    ctx.globalAlpha=1;
+  }
+
+  var cur=0, playing=true, fps=8, onion=false, acc=0, lastTs=0;
+  function render(){
+    ctx.fillStyle="#0c120d"; ctx.fillRect(0,0,cv.width,cv.height);
+    // talajvonal
+    ctx.fillStyle="#1c2a1b"; ctx.fillRect(0,(GH-2)*PX,cv.width,2);
+    if(onion){
+      var prev=(cur-1+NF)%NF, next=(cur+1)%NF;
+      drawFrame(frames[prev],PX,0,0,0.28,[80,140,255]);
+      drawFrame(frames[next],PX,0,0,0.22,[255,90,90]);
+    }
+    drawFrame(frames[cur],PX,0,0,1,null);
+    paintStrip();
+  }
+
+  // filmszalag
+  var strip=document.getElementById("filmstrip"), thumbs=[];
+  (function buildStrip(){
+    for(var f=0;f<NF;f++){
+      var c=document.createElement("canvas"); c.width=GW*2; c.height=GH*2;
+      c.style.width="40px"; c.style.height="40px"; c.dataset.f=f;
+      strip.appendChild(c); thumbs.push(c);
+      var tctx=c.getContext("2d");
+      tctx.fillStyle="#0c120d"; tctx.fillRect(0,0,c.width,c.height);
+      c.addEventListener("click",function(){ cur=+this.dataset.f; playing=false; pBtn.classList.remove("active"); render(); });
+    }
+  })();
+  // a thumbök kirajzolása (tiszta menet)
+  thumbs.forEach(function(c,f){
+    var tctx=c.getContext("2d"); tctx.fillStyle="#0c120d"; tctx.fillRect(0,0,c.width,c.height);
+    var g=frames[f];
+    for(var y=0;y<GH;y++)for(var x=0;x<GW;x++){ var v=g[y*GW+x]; if(!v) continue; var cc=COL[v]; tctx.fillStyle="rgb("+cc[0]+","+cc[1]+","+cc[2]+")"; tctx.fillRect(x*2,y*2,2,2); }
+  });
+  function paintStrip(){ thumbs.forEach(function(c,f){ c.classList.toggle("cur",f===cur); }); }
+
+  var pBtn=document.getElementById("playBtn");
+  pBtn.addEventListener("click",function(){ playing=!playing; pBtn.classList.toggle("active",playing); });
+  document.getElementById("prevBtn").addEventListener("click",function(){ playing=false;pBtn.classList.remove("active"); cur=(cur-1+NF)%NF; render(); });
+  document.getElementById("nextBtn").addEventListener("click",function(){ playing=false;pBtn.classList.remove("active"); cur=(cur+1)%NF; render(); });
+  var fpsRng=document.getElementById("fpsRng");
+  fpsRng.addEventListener("input",function(){ fps=+fpsRng.value; document.getElementById("fpsVal").textContent=fps+" FPS"; });
+  document.querySelectorAll("#ch7 [data-tog]").forEach(function(b){
+    b.addEventListener("click",function(){ onion=!onion; b.classList.toggle("active",onion); render(); });
+  });
+
+  function loop(ts){
+    if(playing && !reduce){
+      if(!lastTs) lastTs=ts;
+      acc += (ts-lastTs)/1000; lastTs=ts;
+      var spf=1/fps;
+      while(acc>=spf){ cur=(cur+1)%NF; acc-=spf; }
+      render();
+    } else { lastTs=ts; }
+    requestAnimationFrame(loop);
+  }
+  render();
+  if(!reduce) requestAnimationFrame(loop);
+})();
+
+/* =====================================================================
+   5) Scrollspy + mobil menü
+   ===================================================================== */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){
+  var pos=window.scrollY+140, active=0;
+  for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i;
+  links.forEach(function(a,i){a.classList.toggle("active",i===active);});
+}
+window.addEventListener("scroll",spy,{passive:true});
+spy();
+
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>
