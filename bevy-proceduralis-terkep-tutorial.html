@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Procedurális tile-térkép generálás autotilinggel — Bevy 0.18</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#10101a; --panel:#1a1a28; --panel2:#21212f; --code-bg:#14141f;
+    --ink:#e3e3ec; --muted:#8b8b9e; --border:#2c2c40;
+    --cyan:#56d4c4; --amber:#f2c14e; --pink:#ec6a9c; --green:#8ce99a; --red:#ff6b6b; --violet:#a78bfa;
+    --kw:#ec6a9c; --ty:#56d4c4; --str:#8ce99a; --com:#6b6b80; --mac:#f2c14e; --num:#f4a259;
+    --sidebar-w:260px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    background-image:radial-gradient(var(--border) 1px, transparent 1px);
+    background-size:22px 22px;
+    color:var(--ink);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--cyan);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ---- layout ---- */
+  .shell{display:flex;max-width:1400px;margin:0 auto}
+  .sidebar{
+    width:var(--sidebar-w);flex:0 0 var(--sidebar-w);
+    position:sticky;top:0;height:100vh;overflow-y:auto;
+    padding:28px 18px;border-right:2px solid var(--border);
+    background:linear-gradient(180deg,var(--panel) 0%,var(--bg) 100%);
+  }
+  .sidebar h2{
+    font-family:"Pixelify Sans",sans-serif;font-size:18px;font-weight:700;
+    color:var(--amber);letter-spacing:.5px;margin-bottom:4px;
+  }
+  .sidebar .sub{font-size:11px;color:var(--muted);font-family:"JetBrains Mono",monospace;margin-bottom:20px}
+  .nav a{
+    display:block;color:var(--muted);font-size:13.5px;padding:7px 10px;
+    border-left:3px solid transparent;border-radius:0 4px 4px 0;transition:all .12s;
+    text-decoration:none;
+  }
+  .nav a .num{font-family:"JetBrains Mono",monospace;color:var(--border);font-size:11px;margin-right:8px}
+  .nav a:hover{color:var(--ink);background:var(--panel2);text-decoration:none}
+  .nav a.active{color:var(--ink);border-left-color:var(--pink);background:var(--panel2)}
+  .nav a.active .num{color:var(--pink)}
+
+  .main{flex:1 1 auto;min-width:0;padding:48px 56px 120px}
+
+  /* ---- hero ---- */
+  .hero{margin-bottom:56px;border:2px solid var(--border);background:var(--panel);
+    padding:38px 36px;position:relative;box-shadow:6px 6px 0 rgba(0,0,0,.35)}
+  .hero .eyebrow{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--pink);
+    letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+  .hero h1{font-family:"Pixelify Sans",sans-serif;font-size:42px;font-weight:700;
+    line-height:1.1;color:var(--ink);margin-bottom:16px}
+  .hero h1 .hl{color:var(--amber)}
+  .hero p{color:var(--muted);font-size:16px;max-width:640px}
+  .hero .chips{margin-top:22px;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font-family:"JetBrains Mono",monospace;font-size:11.5px;padding:4px 10px;
+    border:1px solid var(--border);background:var(--code-bg);color:var(--cyan);border-radius:3px}
+
+  /* ---- sections ---- */
+  section{margin-bottom:54px;scroll-margin-top:24px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;
+    padding-bottom:12px;border-bottom:2px solid var(--border)}
+  .sec-head .idx{font-family:"Pixelify Sans",sans-serif;font-size:26px;color:var(--pink);
+    flex:0 0 auto}
+  .sec-head h2{font-family:"Pixelify Sans",sans-serif;font-size:27px;font-weight:700;color:var(--ink)}
+  h3{font-family:"Pixelify Sans",sans-serif;font-size:19px;color:var(--amber);
+    margin:26px 0 12px}
+  p{margin:0 0 14px}
+  .main p{font-size:15.5px}
+  ul,ol{margin:0 0 16px 22px}
+  li{margin-bottom:7px;font-size:15.5px}
+  strong{color:var(--ink);font-weight:600}
+  code.inl{font-family:"JetBrains Mono",monospace;font-size:13px;background:var(--code-bg);
+    border:1px solid var(--border);padding:1.5px 6px;border-radius:3px;color:var(--cyan)}
+
+  /* ---- code blocks ---- */
+  pre{background:var(--code-bg);border:1px solid var(--border);border-left:3px solid var(--cyan);
+    padding:16px 18px;overflow-x:auto;margin:0 0 18px;border-radius:0 4px 4px 0;
+    box-shadow:3px 3px 0 rgba(0,0,0,.25)}
+  pre code{font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1.6;color:var(--ink);white-space:pre}
+  .k{color:var(--kw)} .t{color:var(--ty)} .s{color:var(--str)}
+  .c{color:var(--com);font-style:italic} .m{color:var(--mac)} .n{color:var(--num)}
+
+  /* ---- callouts ---- */
+  .box{border:1px solid var(--border);border-left:4px solid var(--cyan);background:var(--panel);
+    padding:14px 18px;margin:0 0 18px;border-radius:0 4px 4px 0}
+  .box.tip{border-left-color:var(--green)} .box.tip .lbl{color:var(--green)}
+  .box.warn{border-left-color:var(--red)} .box.warn .lbl{color:var(--red)}
+  .box.note{border-left-color:var(--violet)} .box.note .lbl{color:var(--violet)}
+  .box .lbl{font-family:"JetBrains Mono",monospace;font-size:11px;text-transform:uppercase;
+    letter-spacing:1.5px;color:var(--cyan);display:block;margin-bottom:6px}
+  .box p:last-child{margin-bottom:0}
+
+  /* ---- table ---- */
+  .tbl-wrap{overflow-x:auto;margin:0 0 18px}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:480px}
+  th,td{border:1px solid var(--border);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);font-family:"Pixelify Sans",sans-serif;color:var(--amber);font-weight:700}
+  td:first-child{font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--cyan);white-space:nowrap}
+  tr:nth-child(even) td{background:rgba(255,255,255,.012)}
+
+  /* ---- demos ---- */
+  .demo{border:2px solid var(--border);background:var(--panel);padding:18px;margin:0 0 20px;
+    border-radius:4px;box-shadow:4px 4px 0 rgba(0,0,0,.3)}
+  .demo .dh{font-family:"Pixelify Sans",sans-serif;color:var(--amber);font-size:15px;margin-bottom:4px}
+  .demo .dd{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .demo canvas{display:block;width:100%;background:var(--code-bg);border:1px solid var(--border);
+    border-radius:3px;image-rendering:pixelated}
+  .ctrls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px;
+    font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--muted)}
+  .ctrls label{display:flex;align-items:center;gap:8px}
+  .ctrls input[type=range]{accent-color:var(--pink);width:140px}
+  .ctrls .val{color:var(--cyan);min-width:60px;display:inline-block}
+  .ctrls button{font-family:"JetBrains Mono",monospace;font-size:12px;background:var(--panel2);
+    color:var(--ink);border:1px solid var(--border);padding:6px 12px;border-radius:3px;cursor:pointer}
+  .ctrls button:hover{border-color:var(--pink);color:var(--pink)}
+  .ctrls button.on{border-color:var(--cyan);color:var(--cyan);background:var(--code-bg)}
+  .readout{display:flex;gap:22px;flex-wrap:wrap;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:12.5px}
+  .readout b{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:400}
+  .readout span{color:var(--cyan);font-size:17px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--muted)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .legend i{width:13px;height:13px;border-radius:2px;display:inline-block;border:1px solid rgba(255,255,255,.15)}
+
+  /* ---- tldr ---- */
+  .tldr{border:2px dashed var(--pink);background:var(--panel);padding:24px 28px;border-radius:4px}
+  .tldr h3{margin-top:0;color:var(--pink)}
+  .tldr ul{list-style:none;margin-left:0}
+  .tldr li{padding-left:26px;position:relative}
+  .tldr li::before{content:"▸";position:absolute;left:0;color:var(--amber)}
+
+  footer{margin-top:60px;padding-top:24px;border-top:2px solid var(--border);
+    color:var(--muted);font-size:12.5px;font-family:"JetBrains Mono",monospace;text-align:center}
+
+  /* ---- responsive ---- */
+  .menu-btn{display:none}
+  @media(max-width:920px){
+    .sidebar{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:transform .2s;
+      box-shadow:8px 0 24px rgba(0,0,0,.5)}
+    .sidebar.open{transform:translateX(0)}
+    .main{padding:64px 22px 100px}
+    .hero{padding:26px 22px} .hero h1{font-size:30px}
+    .sec-head h2{font-size:21px} .sec-head .idx{font-size:20px}
+    .menu-btn{display:flex;position:fixed;top:14px;left:14px;z-index:50;
+      font-family:"Pixelify Sans",sans-serif;background:var(--pink);color:#10101a;border:none;
+      padding:8px 14px;border-radius:4px;cursor:pointer;font-size:15px;box-shadow:3px 3px 0 rgba(0,0,0,.4)}
+  }
+</style>
+</head>
+<body>
+<!-- olvasási haladásjelző (progress bar) -->
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,#56d4c4,#8ce99a);
+  box-shadow:0 0 10px rgba(86,212,196,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-btn" id="menuBtn">☰ menü</button>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <h2>BEVY · PROC-GEN</h2>
+    <div class="sub">// térkép + autotiling</div>
+    <nav class="nav" id="nav">
+      <a href="#intro"><span class="num">00</span>Miért procedurális?</a>
+      <a href="#data"><span class="num">01</span>A térkép mint adat</a>
+      <a href="#seed"><span class="num">02</span>Seed és determinizmus</a>
+      <a href="#noise-vs"><span class="num">03</span>Fehér zaj — a rossz út</a>
+      <a href="#noise"><span class="num">04</span>Zaj-alapú világtérkép</a>
+      <a href="#ca"><span class="num">05</span>Sejtautomata (barlangok)</a>
+      <a href="#walk"><span class="num">06</span>Részeg séta</a>
+      <a href="#bsp"><span class="num">07</span>BSP dungeon</a>
+      <a href="#flood"><span class="num">08</span>Összefüggőség (flood fill)</a>
+      <a href="#auto"><span class="num">09</span>Autotiling: adatból kép</a>
+      <a href="#bevy"><span class="num">10</span>Bevy integráció</a>
+      <a href="#full"><span class="num">11</span>Komplett minta</a>
+      <a href="#tips"><span class="num">12</span>Tippek & buktatók</a>
+      <a href="#tldr"><span class="num">13</span>TL;DR</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="hero">
+      <div class="eyebrow">Bevy 0.18 · Rust · gyakorlati útmutató</div>
+      <h1>Procedurális <span class="hl">tile-térkép</span><br>generálás <span class="hl">autotilinggel</span></h1>
+      <p>Hogyan generálj végtelen sok, mégis játszható pályát kódból — zajjal, sejtautomatával, részeg sétával és BSP-vel —, majd hogyan változtasd a nyers rácsot szép, összeillő csempékké. Öt interaktív demóval, amik a böngészőben mutatják meg, mi történik valójában.</p>
+      <div class="chips">
+        <span class="chip">Perlin / value noise</span>
+        <span class="chip">cellular automata</span>
+        <span class="chip">drunkard's walk</span>
+        <span class="chip">BSP</span>
+        <span class="chip">flood fill</span>
+        <span class="chip">autotiling</span>
+      </div>
+    </header>
+
+    <!-- 00 -->
+    <section id="intro">
+      <div class="sec-head"><span class="idx">00</span><h2>Miért procedurális?</h2></div>
+      <p>A <strong>procedurális generálás</strong> azt jelenti, hogy a pályát nem kézzel rakod ki egy editorban, hanem <strong>egy algoritmus állítja elő</strong> futásidőben — minden indításkor más barlangot, más szigetet, más kazamatát. Ez adja a roguelike-ok újrajátszhatóságát, egy survival játék végtelen világát, vagy csak azt a kényelmet, hogy nem kell 200 pályát kézzel megrajzolnod.</p>
+      <p>A munka <strong>két, élesen elkülönülő fázisból</strong> áll, és a tutorial végig ezt a kettőt választja szét:</p>
+      <ol>
+        <li><strong>Generálás (adat).</strong> Egy algoritmus eldönti, <em>mi van hol</em>: fal vagy padló, víz vagy föld. Az eredmény egy egyszerű rács — számok egy tömbben. Itt dől el a játszhatóság.</li>
+        <li><strong>Autotiling (megjelenítés).</strong> A nyers rácsból <em>szép kép</em> lesz: a szomszédság alapján minden cellához a megfelelő él-, sarok- vagy átmenet-csempét választjuk. Itt dől el, hogy jól néz-e ki.</li>
+      </ol>
+      <p>Ez a szétválasztás nem stiláris döntés, hanem a téma gerince. Az ütközés, a pathfinding és az AI mind az <strong>adatból</strong> dolgozik; az autotiling csak a felszín. Ha összekevered a kettőt, később minden megjelenítési finomítás eltöri a játékmenetet.</p>
+      <div class="box note"><span class="lbl">Mi épül és mi nem</span><p>Ez a tutorial a <strong>generálásra</strong> fókuszál — ez az, amiről a sorozatban még nem volt szó. Az autotilingot (09) a generált adatra alkalmazott záró lépésként mutatom be; a maszk-számítás mély részleteit a <a href="csempe-bitmaszkolas.html">csempe-bitmaszkolás</a> és a <a href="bevy-dual-grid-tutorial.html">dual-grid</a> tutorial tárgyalja.</p></div>
+      <div class="box note"><span class="lbl">Verzió & függőségek</span><p>A kód Bevy <strong>0.18</strong>-ra készült. A generáláshoz két crate kell:</p>
+      <pre><code class="toml">[dependencies]
+bevy  = "0.18"
+rand  = "0.8"   # seedelhető véletlenszám-generátor
+noise = "0.9"   # Perlin / fBm zaj</code></pre>
+      </div>
+    </section>
+
+    <!-- 01 -->
+    <section id="data">
+      <div class="sec-head"><span class="idx">01</span><h2>A térkép mint adat</h2></div>
+      <p>Mielőtt bármit generálnánk, kell egy hely, ahova generálunk. A térkép a <strong>források forrása</strong> (single source of truth): egy lapos rács, amibe minden algoritmus ír, és amiből a megjelenítés meg az ütközés is olvas.</p>
+      <p>Egy 2D rácsot a leghatékonyabb <strong>egyetlen lapos <code class="inl">Vec</code>-ben</strong> tárolni, és az <code class="inl">(x, y)</code> koordinátát egy indexszé alakítani. Ez gyorsabb és egyszerűbb, mint a <code class="inl">Vec&lt;Vec&lt;T&gt;&gt;</code>:</p>
+      <pre><code class="rust">use bevy::prelude::*;
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Tile {
+    Wall,   // tömör — itt nem lehet járni
+    Floor,  // járható
+}
+
+#[derive(Resource, Clone)]
+struct Map {
+    width: i32,
+    height: i32,
+    tiles: Vec&lt;Tile&gt;,   // hossza = width * height
+}
+
+impl Map {
+    fn new(width: i32, height: i32) -&gt; Self {
+        // alapból minden fal — a generálás majd kivájja a padlót
+        Self { width, height, tiles: vec![Tile::Wall; (width * height) as usize] }
+    }
+
+    // (x, y) -&gt; lapos index. Ez a kulcs-képlet: sor * szélesség + oszlop
+    fn idx(&amp;self, x: i32, y: i32) -&gt; usize {
+        (y * self.width + x) as usize
+    }
+
+    fn in_bounds(&amp;self, x: i32, y: i32) -&gt; bool {
+        x &gt;= 0 &amp;&amp; y &gt;= 0 &amp;&amp; x &lt; self.width &amp;&amp; y &lt; self.height
+    }
+
+    fn set(&amp;mut self, x: i32, y: i32, t: Tile) {
+        if self.in_bounds(x, y) {
+            let i = self.idx(x, y);
+            self.tiles[i] = t;
+        }
+    }
+}</code></pre>
+      <p>A legfontosabb döntés a <code class="inl">get</code>-ben rejlik. Mit adjon vissza, ha a kért cella a <strong>rácson kívül</strong> van? Ha azt mondjuk, „a rácson túl minden fal", akkor a pálya széle automatikusan tömör keretet kap, és minden szomszéd-vizsgáló algoritmus (sejtautomata, autotiling) természetesen viselkedik a szélen — nincs külön peremeset-kód.</p>
+      <pre><code class="rust">impl Map {
+    // A határon túl FAL. Ez egyetlen sor, de fél tutorialnyi peremesetet spórol meg.
+    fn get(&amp;self, x: i32, y: i32) -&gt; Tile {
+        if self.in_bounds(x, y) {
+            self.tiles[self.idx(x, y)]
+        } else {
+            Tile::Wall
+        }
+    }
+}</code></pre>
+      <div class="box tip"><span class="lbl">Miért i32, nem usize?</span><p>A koordinátákat <code class="inl">i32</code>- vel tartjuk, mert a szomszéd-vizsgálatok folyton számolnak <code class="inl">x - 1</code>-et és <code class="inl">y - 1</code>-et. <code class="inl">usize</code>-zal egy <code class="inl">0 - 1</code> alulcsordulna és pánikolna; <code class="inl">i32</code>-vel egyszerűen <code class="inl">-1</code> lesz, amit az <code class="inl">in_bounds</code> szépen kiszűr. Csak az indexelés pillanatában váltunk <code class="inl">usize</code>-ra.</p></div>
+    </section>
+
+    <!-- 02 -->
+    <section id="seed">
+      <div class="sec-head"><span class="idx">02</span><h2>Seed és determinizmus</h2></div>
+      <p>A „véletlen" a proc-genben ravasz fogalom. Nem igazi véletlent akarsz, hanem <strong>reprodukálható véletlent</strong>: ugyanaz a <em>seed</em> (kezdőszám) mindig pontosan ugyanazt a pályát adja. Ez nélkülözhetetlen, mert:</p>
+      <ul>
+        <li><strong>Hibajelentés.</strong> „A 8472-es seeden a játékos beragad" — és te pontosan ugyanazt a pályát kapod vissza.</li>
+        <li><strong>Daily run / megosztás.</strong> Egy szám elég, hogy két játékos ugyanazt a világot kapja.</li>
+        <li><strong>Mentés.</strong> Elég a seedet elmenteni, nem a teljes térképet — a generálás újra előállítja.</li>
+      </ul>
+      <p>A <code class="inl">rand</code> crate <code class="inl">StdRng</code>-je pont ezt adja: egy seedelhető generátort, amit egy resource-ban hordozol körbe.</p>
+      <pre><code class="rust">use rand::prelude::*;
+use rand::rngs::StdRng;
+use rand::SeedableRng;
+
+#[derive(Resource)]
+struct WorldRng(StdRng);
+
+// Egy konkrét seedből — ugyanaz a szám, ugyanaz a pálya, mindig.
+let seed: u64 = 8472;
+let mut rng = StdRng::seed_from_u64(seed);
+
+// A három leggyakoribb hívás generáláshoz:
+let p: f64  = rng.gen_range(0.0..1.0);   // valószínűséghez
+let coin    = rng.gen_bool(0.45);        // 45% esély true-ra
+let x: i32  = rng.gen_range(0..80);      // egész tartomány [0, 80)</code></pre>
+      <div class="box warn"><span class="lbl">rand 0.9-es átnevezés</span><p>A fenti az elterjedt <code class="inl">rand 0.8</code> API. A <code class="inl">rand 0.9</code>-ben a <code class="inl">gen_range</code> &rarr; <code class="inl">random_range</code>, a <code class="inl">gen_bool</code> &rarr; <code class="inl">random_bool</code> lett (mert a <code class="inl">gen</code> foglalt kulcsszó lesz). A logika ugyanaz, csak a nevek mások — nézd meg, melyik verziót húzza be a Bevyd.</p></div>
+      <div class="box tip"><span class="lbl">Egy RNG, sorrendben</span><p>Egyetlen RNG-t használj az egész pályához, és mindig <strong>ugyanabban a sorrendben</strong> kérj tőle számokat. Ha menet közben átrendezed a generálási lépéseket, ugyanaz a seed más pályát ad — ez meglepő tud lenni. A determinizmus a seedből <em>és</em> a hívási sorrendből együtt jön.</p></div>
+    </section>
+
+    <!-- 03 -->
+    <section id="noise-vs">
+      <div class="sec-head"><span class="idx">03</span><h2>Fehér zaj — és miért rossz út</h2></div>
+      <p>A legnaivabb ötlet: menj végig minden cellán, és dobj egy érmét, hogy fal legyen-e vagy padló. Ezt hívják <strong>fehér zajnak</strong> (white noise) — minden cella független a szomszédjától.</p>
+      <pre><code class="rust">fn random_fill(map: &amp;mut Map, rng: &amp;mut StdRng, wall_chance: f64) {
+    for y in 0..map.height {
+        for x in 0..map.width {
+            let t = if rng.gen_bool(wall_chance) { Tile::Wall } else { Tile::Floor };
+            map.set(x, y, t);
+        }
+    }
+}</code></pre>
+      <p>Futtasd le, és azonnal látod a bajt: <strong>„só és bors"</strong> — szétszórt pontok, semmi szerkezet. Nincsenek barlangok, járatok, szobák; nincs hely, ahol a karakter járhatna, mert minden járható cellát azonnal körbevesz egy fal. Játszhatatlan.</p>
+      <p>Ettől még nem haszontalan: a fehér zaj a <strong>kiindulópont</strong> sok algoritmushoz. A sejtautomata (05) éppen ezt a sót-borsot simítja organikus barlanggá. De önmagában a fehér zaj soha nem pálya.</p>
+
+      <div class="demo">
+        <div class="dh">▶ Demó: fehér zaj</div>
+        <div class="dd">Minden cella független érmedobás. Húzd a fal-arányt, és nézd: bárhova állítod, sosem lesz belőle összefüggő tér — csak zaj. Ezt javítja majd a 05-ös sejtautomata.</div>
+        <canvas id="whiteCanvas" width="720" height="420"></canvas>
+        <div class="ctrls">
+          <label>Fal-arány:
+            <input type="range" id="whiteWall" min="20" max="70" value="45">
+            <span class="val" id="whiteWallVal">45%</span>
+          </label>
+          <button id="whiteGen">↻ új véletlen</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 -->
+    <section id="noise">
+      <div class="sec-head"><span class="idx">04</span><h2>Zaj-alapú világtérkép</h2></div>
+      <p>A fehér zaj baja a függetlenség. A megoldás a <strong>koherens zaj</strong> (Perlin, Simplex, value noise): olyan függvény, ahol a közeli pontok <em>hasonló</em> értéket adnak, a távoliak meg eltérőt — folytonos, sima dombok és völgyek egy értékmezőben.</p>
+      <p>A trükk: a zaj egy <strong>magasságtérképet</strong> ad (minden cellához egy 0..1 szám), te pedig <strong>küszöbökkel</strong> vágod biome-okra. Tengerszint alatt víz, fölötte fű, magasan hegy, a tetején hó:</p>
+      <pre><code class="rust">use noise::{NoiseFn, Perlin};
+
+fn generate_heightmap(map: &amp;mut Map, seed: u32, scale: f64, sea_level: f64) {
+    let perlin = Perlin::new(seed);
+    for y in 0..map.height {
+        for x in 0..map.width {
+            // a skála "nagyítja" a zajt: kisebb = nagyobb, lágyabb formák
+            let nx = x as f64 * scale;
+            let ny = y as f64 * scale;
+            // a Perlin -1..1 között ad; toljuk 0..1-be
+            let h = perlin.get([nx, ny]) * 0.5 + 0.5;
+
+            let t = if h &lt; sea_level { Tile::Water } else { Tile::Floor };
+            map.set(x, y, t);
+        }
+    }
+}</code></pre>
+      <p>Egyetlen Perlin-réteg sima, de kicsit „buborékos". Igazi terephez <strong>több oktávot</strong> rétegzel egymásra (fractal Brownian motion, fBm): minden oktáv kétszer akkora frekvencián és fele akkora amplitúdón ad részletet — a nagy formákra finomabb érdesség kerül.</p>
+      <pre><code class="rust">use noise::{Fbm, Perlin, MultiFractal, NoiseFn};
+
+fn make_fbm(seed: u32, octaves: usize, scale: f64) -&gt; Fbm&lt;Perlin&gt; {
+    Fbm::&lt;Perlin&gt;::new(seed)
+        .set_octaves(octaves)     // hány réteg részlet (3–6 jó)
+        .set_frequency(scale)     // alap "nagyítás"
+        .set_persistence(0.5)     // minden oktáv fele olyan erős
+        .set_lacunarity(2.0)      // minden oktáv kétszer sűrűbb
+}</code></pre>
+      <p>Több küszöbbel pedig gazdag biome-skálát kapsz egyetlen magasság-számból:</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Magasság (h)</th><th>Biome</th><th>Tipikus szerep</th></tr></thead>
+        <tbody>
+          <tr><td>&lt; 0.30</td><td>mély víz</td><td>óceán, áthatolhatatlan</td></tr>
+          <tr><td>0.30 – 0.40</td><td>sekély víz</td><td>part menti, hajózható</td></tr>
+          <tr><td>0.40 – 0.46</td><td>homok / part</td><td>átmenet, kikötők</td></tr>
+          <tr><td>0.46 – 0.65</td><td>fű / síkság</td><td>fő játéktér</td></tr>
+          <tr><td>0.65 – 0.80</td><td>erdő</td><td>sűrűbb, fedezék</td></tr>
+          <tr><td>0.80 – 0.92</td><td>kő / hegy</td><td>akadály, bányászat</td></tr>
+          <tr><td>&gt; 0.92</td><td>hó</td><td>csúcs, ritka</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="demo">
+        <div class="dh">▶ Demó: zaj-alapú világ</div>
+        <div class="dd">fBm magasságtérkép biome-küszöbökkel (a JS itt saját value-noise-t használ, de a logika azonos a Perlinével). A <strong>skála</strong> nagyítja a formákat, a <strong>tengerszint</strong> tolja a víz/föld arányt, az <strong>oktávok</strong> adják a részletességet.</div>
+        <canvas id="noiseCanvas" width="720" height="420"></canvas>
+        <div class="ctrls">
+          <label>Skála:
+            <input type="range" id="noiseScale" min="2" max="20" value="7">
+            <span class="val" id="noiseScaleVal">7</span>
+          </label>
+          <label>Tengerszint:
+            <input type="range" id="noiseSea" min="10" max="70" value="38">
+            <span class="val" id="noiseSeaVal">0.38</span>
+          </label>
+          <label>Oktávok:
+            <input type="range" id="noiseOct" min="1" max="6" value="4">
+            <span class="val" id="noiseOctVal">4</span>
+          </label>
+          <button id="noiseGen">↻ új seed</button>
+        </div>
+        <div class="legend" id="noiseLegend"></div>
+      </div>
+      <div class="box tip"><span class="lbl">A zaj nem csak magasság</span><p>Ugyanezt a technikát használhatod nedvesség-, hőmérséklet- vagy érc-térképhez is, külön seeddel. Két-három zajréteg keresztezéséből (magasság × nedvesség) jönnek a klasszikus biome-mátrixok: forró+száraz = sivatag, hideg+nedves = tundra.</p></div>
+    </section>
+
+    <!-- 05 -->
+    <section id="ca">
+      <div class="sec-head"><span class="idx">05</span><h2>Sejtautomata — organikus barlangok</h2></div>
+      <p>Ez a kedvencem, mert döbbenetesen egyszerű és mégis gyönyörű eredményt ad. A <strong>sejtautomata</strong> (cellular automata) a 03-as fehér zajból indul, majd néhány <strong>simítási lépéssel</strong> organikus barlanggá olvasztja. A szabály egyetlen mondat:</p>
+      <div class="box note"><span class="lbl">A „4-5 szabály"</span><p>Minden cellát átírunk a 8 szomszédja alapján: ha <strong>5 vagy több</strong> szomszédja fal, legyen fal; különben padló. A fal vonzza a falat, a nyílt tér a nyílt teret — a zaj néhány lépés alatt összeáll tömbökké.</p></div>
+      <p>Két dolog kritikus. Először: <strong>egyszerre olvasol és írsz</strong>, ezért dupla bufferre van szükség — egy másolatból olvasod a szomszédokat, és az új térképbe írsz. Ha helyben módosítanál, a már átírt cellák meghamisítanák a többi számolását.</p>
+      <pre><code class="rust">// Hány fal van a 8 szomszéd között? A get() a határon túl falat ad,
+// így a pálya széle magától tömör marad — nincs peremeset.
+fn count_wall_neighbors(map: &amp;Map, x: i32, y: i32) -&gt; u8 {
+    let mut count = 0;
+    for dy in -1..=1 {
+        for dx in -1..=1 {
+            if dx == 0 &amp;&amp; dy == 0 { continue; }       // önmagát nem
+            if map.get(x + dx, y + dy) == Tile::Wall { count += 1; }
+        }
+    }
+    count
+}
+
+// Egy simítási lépés: ÚJ térképet ad vissza (dupla buffer!).
+fn smooth_step(map: &amp;Map) -&gt; Map {
+    let mut next = map.clone();
+    for y in 0..map.height {
+        for x in 0..map.width {
+            let walls = count_wall_neighbors(map, x, y);
+            let t = if walls &gt;= 5 { Tile::Wall } else { Tile::Floor };
+            next.set(x, y, t);
+        }
+    }
+    next
+}</code></pre>
+      <p>Másodszor: a teljes recept fehér zaj + néhány lépés. A kezdeti fal-arány és a lépésszám hangolja az eredményt — kevés lépés érdes, sok lépés gömbölyű:</p>
+      <pre><code class="rust">fn generate_cave(map: &amp;mut Map, rng: &amp;mut StdRng) {
+    // 1) só-bors kiindulás, ~45% fal
+    random_fill(map, rng, 0.45);
+    // 2) 4–5 simítás összeolvasztja barlanggá
+    for _ in 0..5 {
+        *map = smooth_step(map);
+    }
+}</code></pre>
+
+      <div class="demo">
+        <div class="dh">▶ Demó: sejtautomata lépésről lépésre</div>
+        <div class="dd">Indítsd a fehér zajból, és nyomd a „simítás" gombot — figyeld, ahogy a só-bors barlanggá olvad. A kezdeti fal-arány drámaian változtatja az eredményt: 40% alatt nyílt termek, 50% fölött szűk járatok.</div>
+        <canvas id="caCanvas" width="720" height="420"></canvas>
+        <div class="ctrls">
+          <label>Kezdeti fal:
+            <input type="range" id="caFill" min="35" max="60" value="45">
+            <span class="val" id="caFillVal">45%</span>
+          </label>
+          <button id="caStep">simítás (1 lépés)</button>
+          <button id="caAuto">auto (5×)</button>
+          <button id="caReset">↻ új zaj</button>
+        </div>
+        <div class="readout">
+          <div><b>Simítási lépés</b><span id="caSteps">0</span></div>
+          <div><b>Padló-arány</b><span id="caFloor">—</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 06 -->
+    <section id="walk">
+      <div class="sec-head"><span class="idx">06</span><h2>Részeg séta — garantáltan összefüggő</h2></div>
+      <p>A sejtautomata szép, de nem garantálja, hogy a barlangok össze vannak kötve (erről szól a 08). A <strong>részeg séta</strong> (drunkard's walk) ezt a problémát kerüli meg: egy „ásó" elindul a térkép közepéről, és véletlenszerű irányokba botorkálva <strong>kivájja</strong> maga után a padlót. Mivel egyetlen folytonos úton halad, a kivájt tér <strong>mindig összefüggő</strong>.</p>
+      <pre><code class="rust">fn drunkards_walk(map: &amp;mut Map, rng: &amp;mut StdRng, steps: u32) {
+    // középről indul
+    let mut x = map.width / 2;
+    let mut y = map.height / 2;
+
+    for _ in 0..steps {
+        map.set(x, y, Tile::Floor);        // kivájjuk az aktuális cellát
+        match rng.gen_range(0..4) {         // véletlen lépés 4 irányba
+            0 =&gt; x += 1,
+            1 =&gt; x -= 1,
+            2 =&gt; y += 1,
+            _ =&gt; y -= 1,
+        }
+        // bent maradunk, 1 cellás kerettel a szélen
+        x = x.clamp(1, map.width - 2);
+        y = y.clamp(1, map.height - 2);
+    }
+}</code></pre>
+      <p>A lépésszám szabja meg, mennyit váj ki: a térkép celláinak nagyjából 40–50%-a kellemes „barlang-folyosó" érzetet ad. A jellegzetes szerves, kanyargós alakzat a séta sajátja.</p>
+      <div class="box tip"><span class="lbl">Variációk</span><p>Több ásó párhuzamosan (mind a középről) szélesebb termeket nyit. Ha az ásó néha „súlyozottan" tartja az előző irányát, hosszabb, egyenesebb folyosók lesznek. Ha az irányváltáskor néha 2×2-t váj, vastagabb járatokat kapsz. Ezek apró módosítások ugyanazon a cikluson.</p></div>
+
+      <div class="demo">
+        <div class="dh">▶ Demó: részeg séta</div>
+        <div class="dd">Az ásó a közepéről indul (rózsaszín pötty) és véletlenül botorkál. Húzd fel a „kivájás" csúszkát, és nézd, ahogy a folyosók kitöltik a teret — de mindig egyetlen összefüggő rendszerként.</div>
+        <canvas id="walkCanvas" width="720" height="420"></canvas>
+        <div class="ctrls">
+          <label>Kivájás cél:
+            <input type="range" id="walkPct" min="10" max="60" value="38">
+            <span class="val" id="walkPctVal">38%</span>
+          </label>
+          <button id="walkAnim">▶ animáció</button>
+          <button id="walkGen">↻ új séta</button>
+        </div>
+        <div class="readout">
+          <div><b>Kivájt padló</b><span id="walkFloor">—</span></div>
+          <div><b>Lépések</b><span id="walkSteps">0</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 07 -->
+    <section id="bsp">
+      <div class="sec-head"><span class="idx">07</span><h2>BSP dungeon — szobák és folyosók</h2></div>
+      <p>A barlang-algoritmusok organikusak. De ha klasszikus, <strong>szögletes kazamatát</strong> akarsz — különálló szobák folyosókkal összekötve —, a <strong>BSP</strong> (binary space partitioning, bináris térfelosztás) a bevált eszköz. A logika rekurzív:</p>
+      <ol>
+        <li>Vedd az egész térképet egy téglalapként.</li>
+        <li>Vágd <strong>ketté</strong> — véletlenszerűen vízszintesen vagy függőlegesen, véletlen helyen.</li>
+        <li><strong>Ismételd</strong> mindkét félre, amíg elég kicsik nem lesznek.</li>
+        <li>A levél-téglalapokba rajzolj egy-egy <strong>szobát</strong> (kicsit kisebbet a téglalapnál, hogy legyen fal-keret).</li>
+        <li>A testvér-csomópontok szobáit kösd össze egy <strong>folyosóval</strong>.</li>
+      </ol>
+      <p>Az eredmény egy fa, aminek a levelei a szobák — sosem fednek át, és a fa garantálja az összeköttetést.</p>
+      <pre><code class="rust">#[derive(Clone, Copy)]
+struct Rect { x: i32, y: i32, w: i32, h: i32 }
+
+fn split(r: Rect, rng: &amp;mut StdRng, depth: u32, rooms: &amp;mut Vec&lt;Rect&gt;) {
+    // megállás: elég mély vagy elég kicsi -&gt; ez egy levél, ide jön szoba
+    if depth == 0 || (r.w &lt; 14 &amp;&amp; r.h &lt; 14) {
+        rooms.push(carve_room(r, rng));
+        return;
+    }
+    // döntsd el az irányt; a jóval hosszabb oldal mentén vágj
+    let vertical = if r.w as f32 / r.h as f32 &gt; 1.25 { true }
+                   else if r.h as f32 / r.w as f32 &gt; 1.25 { false }
+                   else { rng.gen_bool(0.5) };
+
+    if vertical {
+        let cut = rng.gen_range(r.w / 3 ..= r.w * 2 / 3);
+        split(Rect { w: cut, ..r }, rng, depth - 1, rooms);
+        split(Rect { x: r.x + cut, w: r.w - cut, ..r }, rng, depth - 1, rooms);
+    } else {
+        let cut = rng.gen_range(r.h / 3 ..= r.h * 2 / 3);
+        split(Rect { h: cut, ..r }, rng, depth - 1, rooms);
+        split(Rect { y: r.y + cut, h: r.h - cut, ..r }, rng, depth - 1, rooms);
+    }
+}</code></pre>
+      <p>A szoba kivájása egyszerű: a téglalapon belül egy véletlen, kicsit kisebb terület padlóra állítása. A folyosó pedig két szoba középpontját köti össze egy „L" alakú (előbb vízszintes, majd függőleges) vájattal:</p>
+      <pre><code class="rust">fn carve_corridor(map: &amp;mut Map, a: IVec2, b: IVec2) {
+    // vízszintes szakasz a.x -&gt; b.x az a.y soron
+    for x in a.x.min(b.x) ..= a.x.max(b.x) { map.set(x, a.y, Tile::Floor); }
+    // függőleges szakasz a.y -&gt; b.y a b.x oszlopon
+    for y in a.y.min(b.y) ..= a.y.max(b.y) { map.set(b.x, y, Tile::Floor); }
+}</code></pre>
+      <div class="box note"><span class="lbl">Mikor melyik algoritmus?</span><p><strong>Sejtautomata</strong> &rarr; természetes barlang, bánya. <strong>Részeg séta</strong> &rarr; szerves, garantáltan összefüggő üreg. <strong>BSP</strong> &rarr; épített, szobás kazamata, börtön, épület. <strong>Zaj</strong> &rarr; szabadtéri világtérkép, szigetek, biome-ok. Sok játék <em>kombinálja</em> őket: BSP a szobákra, majd sejtautomata-„kopás" az éleken, hogy ne legyenek tökéletesen szögletesek.</p></div>
+    </section>
+
+    <!-- 08 -->
+    <section id="flood">
+      <div class="sec-head"><span class="idx">08</span><h2>Összefüggőség — flood fill</h2></div>
+      <p>A sejtautomata és a zaj egy alattomos hibát rejt: a pálya <strong>szigetekre szakadhat</strong>. Lehet két gyönyörű barlangod, amik közt nincs átjárás — a játékos beragad, a kulcs elérhetetlen. A generálás után <strong>mindig ellenőrizd</strong>, hogy a járható tér összefügg-e.</p>
+      <p>Az eszköz a <strong>flood fill</strong> (elöntés): egy padlócellából indulva BFS-sel bejárod az összes elérhető padlót. Ezzel megtalálod a régiókat, és a legnagyobbon kívül mindent betömhetsz fallal — vagy folyosóval összekötheted őket.</p>
+      <pre><code class="rust">use std::collections::VecDeque;
+
+// Egy régió (összefüggő padló-folt) feltérképezése egy kezdőpontból.
+fn flood_region(map: &amp;Map, start: IVec2, seen: &amp;mut Vec&lt;bool&gt;) -&gt; Vec&lt;IVec2&gt; {
+    let mut region = Vec::new();
+    let mut queue = VecDeque::new();
+    queue.push_back(start);
+    seen[map.idx(start.x, start.y)] = true;
+
+    while let Some(p) = queue.pop_front() {
+        region.push(p);
+        // 4 fő irány (nem átló — a járás 4-szomszédos)
+        for d in [IVec2::new(1,0), IVec2::new(-1,0), IVec2::new(0,1), IVec2::new(0,-1)] {
+            let n = p + d;
+            if map.get(n.x, n.y) == Tile::Floor &amp;&amp; !seen[map.idx(n.x, n.y)] {
+                seen[map.idx(n.x, n.y)] = true;
+                queue.push_back(n);
+            }
+        }
+    }
+    region
+}
+
+// Tartsd meg a legnagyobb régiót, a többit töltsd fel fallal.
+fn keep_largest_region(map: &amp;mut Map) {
+    let mut seen = vec![false; map.tiles.len()];
+    let mut regions: Vec&lt;Vec&lt;IVec2&gt;&gt; = Vec::new();
+
+    for y in 0..map.height {
+        for x in 0..map.width {
+            if map.get(x, y) == Tile::Floor &amp;&amp; !seen[map.idx(x, y)] {
+                regions.push(flood_region(map, IVec2::new(x, y), &amp;mut seen));
+            }
+        }
+    }
+    // a legnagyobb régió indexe
+    if let Some(biggest) = regions.iter().enumerate().max_by_key(|(_, r)| r.len()).map(|(i, _)| i) {
+        for (i, region) in regions.iter().enumerate() {
+            if i != biggest {
+                for p in region { map.set(p.x, p.y, Tile::Wall); }
+            }
+        }
+    }
+}</code></pre>
+      <div class="box tip"><span class="lbl">Kapcsolat a pathfindinggel</span><p>Ugyanez a bejárás bizonyítja, hogy két konkrét pont elérhető-e egymásból — pont, amit a <a href="bevy-pathfinding-tutorial.html">pathfinding tutorial</a> A*-ja is használ. A generálási fázisban olcsó BFS-szel garantálod, hogy a játszhatóság feltételei (start, kijárat, kulcsok egy régióban legyenek) teljesüljenek — még mielőtt egyetlen csempét is kirajzolnál.</p></div>
+      <div class="box warn"><span class="lbl">A „garantáld vagy dobd el" minta</span><p>Néha egyszerűbb a régiókat összekötni (legközelebbi padlópárokat folyosóval), néha a leghatékonyabb a <strong>regen-amíg-jó</strong>: generálj, ellenőrizd a feltételeket (pl. legnagyobb régió &gt; a térkép 40%-a), és ha nem felel meg, új seeddel próbáld újra. Pár iteráció alatt mindig kijön egy jó pálya.</p></div>
+    </section>
+
+    <!-- 09 -->
+    <section id="auto">
+      <div class="sec-head"><span class="idx">09</span><h2>Autotiling: a nyers adatból szép kép</h2></div>
+      <p>Itt találkozik a két fázis. A generálás után a térképed cellái „fal" vagy „padló" — de ha ezt nyers blokként rajzolod ki, lépcsős, otromba lesz. Az <strong>autotiling</strong> minden cellához a <strong>szomszédai alapján</strong> választ csempét: egyenes fal-szakasz, belső sarok, külső sarok, vég. A játékos sima körvonalat lát, te meg egyetlen adat-rácsot tartasz karban.</p>
+      <p>A mag egy <strong>bitmaszk</strong>: minden cellához egy kis számot számolsz, ahol minden bit egy szomszéd „ugyanolyan terep-e?" kérdésére felel. A 4 fő irányból egy 0..15 közötti szám jön, ami egyenesen indexel egy 16 elemű csempe-táblát:</p>
+      <pre><code class="rust">// 4-bites él-maszk: É, K, D, NY szomszéd ugyanolyan-e, mint a cella.
+fn four_bit_mask(map: &amp;Map, x: i32, y: i32) -&gt; u8 {
+    let me = map.get(x, y);
+    let same = |nx: i32, ny: i32| (map.get(nx, ny) == me) as u8;
+    (same(x, y - 1) &lt;&lt; 0)   // észak  -&gt; 1. bit
+  | (same(x + 1, y) &lt;&lt; 1)   // kelet  -&gt; 2. bit
+  | (same(x, y + 1) &lt;&lt; 2)   // dél    -&gt; 4. bit
+  | (same(x - 1, y) &lt;&lt; 3)   // nyugat -&gt; 8. bit
+}
+
+// A 0..15 maszk az atlasz egy konkrét csempéjére mutat.
+// (A 16 -&gt; index táblát a csempe-atlaszod elrendezése adja.)
+fn tile_index(mask: u8) -&gt; usize {
+    TILE_LOOKUP[mask as usize]
+}</code></pre>
+      <p>Bevyben a kirajzolás ekkor egy atlasz-sprite, aminek az indexét a maszk adja:</p>
+      <pre><code class="rust">Sprite::from_atlas_image(
+    atlas_image.clone(),
+    TextureAtlas { layout: layout.clone(), index: tile_index(mask) },
+)</code></pre>
+      <div class="box note"><span class="lbl">Itt csak a kapcsolódás van</span><p>A 4-bites maszk a belépő. A teljes kép — a <strong>8-bites</strong> (sarokcsempés) maszk, a 47/256 redukció, a több tereptípus közti átmenetek, a komplett érték&rarr;csempe tábla — a <a href="csempe-bitmaszkolas.html">csempe-bitmaszkolás</a> tutorialban van. Egy elegáns alternatíva, ami csak 16 csempével ad sima eredményt, a <a href="bevy-dual-grid-tutorial.html">dual-grid</a> (és a <a href="bevy-dual-grid-advanced.html">PRO változata</a> több tereppel). Mindkettő ugyanarra a generált adatra épül, amit itt előállítottál.</p></div>
+
+      <div class="demo">
+        <div class="dh">▶ Demó: ugyanaz az adat, kétféleképp</div>
+        <div class="dd">Egy sejtautomata-barlang. Válts a „nyers blokkok" és az „autotile (élsimítás)" között — ugyanaz a rács, csak a megjelenítés más. A simítás a szomszédság alapján kerekíti le a külső sarkokat; a 8-bites atlasz a belső sarkokat is kezelné.</div>
+        <canvas id="autoCanvas" width="720" height="420"></canvas>
+        <div class="ctrls">
+          <button id="autoRaw" class="on">nyers blokkok</button>
+          <button id="autoTile">autotile (élsimítás)</button>
+          <button id="autoGen">↻ új barlang</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section id="bevy">
+      <div class="sec-head"><span class="idx">10</span><h2>Bevy integráció</h2></div>
+      <p>Most kösd be a Bevybe. A kulcsdöntés a <strong>mikor</strong> és a <strong>szétválasztás</strong>: a generálás <em>egyszeri, nehéz</em> művelet, ezért a <code class="inl">Startup</code>-ba vagy egy állapot <code class="inl">OnEnter</code>-jébe való — soha nem az <code class="inl">Update</code>-be vagy <code class="inl">FixedUpdate</code>-be. A <code class="inl">Map</code> resource a tiszta adat; a sprite-ok ettől külön, levezetett megjelenítés.</p>
+      <pre><code class="rust">const TILE: f32 = 16.0;
+
+#[derive(Component)]
+struct MapTile;   // jelölő, hogy egyszerre tudjuk despawnolni
+
+// 1) GENERÁLÁS: csak adatot állít elő, semmit nem rajzol.
+fn generate_world(mut commands: Commands) {
+    let mut rng = StdRng::seed_from_u64(8472);
+    let mut map = Map::new(80, 50);
+
+    random_fill(&amp;mut map, &amp;mut rng, 0.45);
+    for _ in 0..5 { map = smooth_step(&amp;map); }
+    keep_largest_region(&amp;mut map);   // játszhatóság garantálva
+
+    commands.insert_resource(map);   // ez a forrás mindenki másnak
+}
+
+// 2) MEGJELENÍTÉS: a Map-ból sprite-okat told ki.
+fn spawn_tiles(mut commands: Commands, map: Res&lt;Map&gt;) {
+    for y in 0..map.height {
+        for x in 0..map.width {
+            let color = match map.get(x, y) {
+                Tile::Wall  =&gt; Color::srgb(0.16, 0.16, 0.22),
+                Tile::Floor =&gt; Color::srgb(0.45, 0.62, 0.40),
+            };
+            commands.spawn((
+                Sprite::from_color(color, Vec2::splat(TILE)),
+                Transform::from_xyz(x as f32 * TILE, y as f32 * TILE, 0.0),
+                MapTile,
+            ));
+        }
+    }
+}</code></pre>
+      <p>A két rendszert sorrendben kötöd be — előbb az adat, aztán a kép —, és így a kamerát a térkép közepére állíthatod:</p>
+      <pre><code class="rust">fn setup_camera(mut commands: Commands) {
+    commands.spawn((
+        Camera2d,
+        Transform::from_xyz(80.0 * TILE / 2.0, 50.0 * TILE / 2.0, 0.0),
+    ));
+}
+
+app.add_systems(Startup, (setup_camera, generate_world, spawn_tiles).chain());</code></pre>
+      <p>Az újragenerálás ugyanaz a tánc visszafelé: töröld a régi csempéket, generálj újra, rajzold ki. A jelölő-komponens miatt a despawn egy sor:</p>
+      <pre><code class="rust">fn regenerate(
+    keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    mut commands: Commands,
+    tiles: Query&lt;Entity, With&lt;MapTile&gt;&gt;,
+    mut seed: Local&lt;u64&gt;,
+) {
+    if keys.just_pressed(KeyCode::KeyR) {
+        for e in &amp;tiles { commands.entity(e).despawn(); }  // régi kép el
+        *seed += 1;                                          // új seed
+        // ... generate_world(*seed) + spawn_tiles újrafuttatása ...
+    }
+}</code></pre>
+      <div class="box warn"><span class="lbl">Egy sprite / csempe nem skálázódik</span><p>A fenti, csempénként egy entitás megközelítés tiszta tanulni, de egy 80×50-es pálya már 4000 entitás, egy nagy világ tízezrek — ez megfekszi a rendelőt. Élesben a <a href="https://github.com/StarArawn/bevy_ecs_tilemap">bevy_ecs_tilemap</a> a válasz: <strong>chunkokba</strong> vonja a csempéket, és egyetlen mesh-ként rajzol egy chunkot. Az adatmodell (a <code class="inl">Map</code>) ettől nem változik — csak a megjelenítő rétegét cseréled.</p></div>
+      <div class="box note"><span class="lbl">Adat vs. megjelenítés — ismerős?</span><p>Ez ugyanaz a szétválasztás, mint a <a href="bevy-tile-editor-tutorial.html">tile-editor tutorialban</a>: a <code class="inl">LevelData</code>/<code class="inl">Map</code> az igazság, a vizuál pedig egyirányú levezetés belőle. A generálás csak egy újabb író a <code class="inl">Map</code>-be — pont mint az editor ecsetje.</p></div>
+    </section>
+
+    <!-- 11 -->
+    <section id="full">
+      <div class="sec-head"><span class="idx">11</span><h2>Komplett minta — összerakva</h2></div>
+      <p>Egy minimál, de teljes váz: seedelt sejtautomata-barlang, összefüggőség-garancia, színes render, és <kbd>R</kbd>-re újragenerálás. Ez a csontváz skálázható egy igazi roguelike-ká.</p>
+      <pre><code class="rust">use bevy::prelude::*;
+use rand::{rngs::StdRng, SeedableRng, Rng};
+
+const W: i32 = 80;
+const H: i32 = 50;
+const TILE: f32 = 16.0;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Tile { Wall, Floor }
+
+#[derive(Resource, Clone)]
+struct Map { width: i32, height: i32, tiles: Vec&lt;Tile&gt; }
+
+impl Map {
+    fn new(w: i32, h: i32) -&gt; Self { Self { width: w, height: h, tiles: vec![Tile::Wall; (w*h) as usize] } }
+    fn idx(&amp;self, x: i32, y: i32) -&gt; usize { (y * self.width + x) as usize }
+    fn in_bounds(&amp;self, x: i32, y: i32) -&gt; bool { x &gt;= 0 &amp;&amp; y &gt;= 0 &amp;&amp; x &lt; self.width &amp;&amp; y &lt; self.height }
+    fn get(&amp;self, x: i32, y: i32) -&gt; Tile { if self.in_bounds(x,y) { self.tiles[self.idx(x,y)] } else { Tile::Wall } }
+    fn set(&amp;mut self, x: i32, y: i32, t: Tile) { if self.in_bounds(x,y) { let i = self.idx(x,y); self.tiles[i] = t; } }
+}
+
+#[derive(Component)] struct MapTile;
+#[derive(Resource)] struct Seed(u64);
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .insert_resource(Seed(8472))
+        .add_systems(Startup, (setup_camera, regen).chain())
+        .add_systems(Update, on_keypress)
+        .run();
+}
+
+fn setup_camera(mut commands: Commands) {
+    commands.spawn((Camera2d, Transform::from_xyz(W as f32*TILE/2.0, H as f32*TILE/2.0, 0.0)));
+}
+
+// teljes regenerálás: adat + kép, egy helyen
+fn regen(mut commands: Commands, seed: Res&lt;Seed&gt;, old: Query&lt;Entity, With&lt;MapTile&gt;&gt;) {
+    for e in &amp;old { commands.entity(e).despawn(); }
+
+    let mut rng = StdRng::seed_from_u64(seed.0);
+    let mut map = Map::new(W, H);
+
+    // 1) só-bors
+    for y in 0..H { for x in 0..W {
+        map.set(x, y, if rng.gen_bool(0.45) { Tile::Wall } else { Tile::Floor });
+    }}
+    // 2) simítás
+    for _ in 0..5 {
+        let mut next = map.clone();
+        for y in 0..H { for x in 0..W {
+            let mut walls = 0;
+            for dy in -1..=1 { for dx in -1..=1 {
+                if (dx, dy) != (0, 0) &amp;&amp; map.get(x+dx, y+dy) == Tile::Wall { walls += 1; }
+            }}
+            next.set(x, y, if walls &gt;= 5 { Tile::Wall } else { Tile::Floor });
+        }}
+        map = next;
+    }
+
+    // 3) kirajzolás
+    for y in 0..H { for x in 0..W {
+        let color = match map.get(x, y) {
+            Tile::Wall  =&gt; Color::srgb(0.16, 0.16, 0.22),
+            Tile::Floor =&gt; Color::srgb(0.45, 0.62, 0.40),
+        };
+        commands.spawn((
+            Sprite::from_color(color, Vec2::splat(TILE)),
+            Transform::from_xyz(x as f32*TILE, y as f32*TILE, 0.0),
+            MapTile,
+        ));
+    }}
+
+    commands.insert_resource(map);
+}
+
+// R -&gt; új seed -&gt; újragenerálás
+fn on_keypress(keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;, mut seed: ResMut&lt;Seed&gt;,
+               commands: Commands, old: Query&lt;Entity, With&lt;MapTile&gt;&gt;) {
+    if keys.just_pressed(KeyCode::KeyR) {
+        seed.0 += 1;
+        regen(commands, Res::from(seed.into_inner_ref()), old); // illusztráció — lásd a jegyzetet
+    }
+}</code></pre>
+      <div class="box tip"><span class="lbl">A regen újrahívásáról</span><p>Egy rendszert nem hívunk meg kézzel egy másikból (a paraméterei a sémához kötöttek). Élesben a tiszta minta: tedd a generálást egy <code class="inl">AppState::Generating</code> állapot <code class="inl">OnEnter</code>-jébe, és <kbd>R</kbd>-re csak állítsd <code class="inl">NextState</code>-tel oda vissza. Az állapotgép-mintát a <a href="bevy-scene-valtas-tutorial.html">scene-váltás tutorial</a> részletezi; ott a generálás egyszerűen egy „jelenet", amibe be- és kiléphetsz.</p></div>
+    </section>
+
+    <!-- 12 -->
+    <section id="tips">
+      <div class="sec-head"><span class="idx">12</span><h2>Gyakorlati tippek & buktatók</h2></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>A generálás a <code class="inl">Startup</code>-ba vagy egy állapot <code class="inl">OnEnter</code>-jébe való — egyszer fut, nem frame-enként. Lásd az <a href="bevy-idozites.html">időzítés tutorialt</a> a schedule-ök különbségéről.</p></div>
+      <div class="box warn"><span class="lbl">Ne</span><p>Ne keverd az adatot és a megjelenítést. Az ütközés, a pathfinding és az AI a <code class="inl">Map</code>-ből dolgozik; az autotiling csak a felszín. Ha a logikád a kirajzolt csempe-indexet kérdezi, később minden vizuális finomítás eltöri a játékmenetet.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>Mindig <strong>garantáld a játszhatóságot</strong> generálás után: flood fillel ellenőrizd az összefüggőséget (08), és ha a feltételek nem teljesülnek, köss össze régiókat vagy regenerálj új seeddel.</p></div>
+      <div class="box warn"><span class="lbl">Vigyázz</span><p>Egy sprite / csempe nem skálázódik — nagy pályán <code class="inl">bevy_ecs_tilemap</code> (chunkolt mesh). A naiv megközelítés 80×50-ig elmegy tanulni, fölötte fékez.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>Mentsd a <strong>seedet</strong>, ne a kész térképet. Egy <code class="inl">u64</code> elég, hogy bárki reprodukálja a pályát — hibajelentéshez, daily runhoz, mentéshez egyaránt.</p></div>
+      <div class="box warn"><span class="lbl">Vigyázz</span><p>A determinizmus a seedből <em>és</em> a hívási sorrendből együtt jön. Ha átrendezed a generálási lépéseket vagy beszúrsz egy új RNG-hívást, ugyanaz a seed más pályát ad. Tartsd stabilan a sorrendet.</p></div>
+      <div class="box note"><span class="lbl">Kombinálj</span><p>A legjobb pályák több algoritmust rétegeznek: BSP a szobákra + sejtautomata-kopás az éleken; zaj a biome-okra + részeg séta a barlangbejáratokra. Mindegyik ugyanabba a <code class="inl">Map</code>-be ír — ez a szétválasztás haszna.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>A keretet zárd le: a pálya legszélső cellái legyenek mindig fal. A <code class="inl">get()</code> „határon túl = fal" trükkje ezt a vizsgálatoknál megadja, de a tényleges szélső cellákat is állítsd fixen falra, hogy a játékos ne sétálhasson le a térképről.</p></div>
+    </section>
+
+    <!-- 13 -->
+    <section id="tldr">
+      <div class="sec-head"><span class="idx">13</span><h2>TL;DR</h2></div>
+      <div class="tldr">
+        <h3>A lényeg egy kártyán</h3>
+        <ul>
+          <li><strong>Két fázis:</strong> generálás (adat: mi van hol) és autotiling (megjelenítés: hogy néz ki). Soha ne keverd.</li>
+          <li><strong>Map = lapos <code class="inl">Vec&lt;Tile&gt;</code></strong>, <code class="inl">idx = y*w + x</code>; a <code class="inl">get()</code> a határon túl falat ad — fél tutorialnyi peremesetet spórol.</li>
+          <li><strong>Seed = reprodukálhatóság:</strong> <code class="inl">StdRng::seed_from_u64</code>; mentsd a seedet, ne a térképet.</li>
+          <li><strong>Fehér zaj</strong> önmagában játszhatatlan — de jó kiindulás a sejtautomatához.</li>
+          <li><strong>Zaj (Perlin/fBm)</strong> + küszöbök &rarr; szabadtéri biome-világ; több oktáv = több részlet.</li>
+          <li><strong>Sejtautomata:</strong> só-bors + a „4-5 szabály" pár lépése &rarr; organikus barlang (dupla buffer!).</li>
+          <li><strong>Részeg séta:</strong> egy ásó kiváj &rarr; garantáltan összefüggő üreg.</li>
+          <li><strong>BSP:</strong> rekurzív felosztás &rarr; szobás-folyosós kazamata.</li>
+          <li><strong>Flood fill:</strong> generálás után ellenőrizd az összefüggőséget; tartsd a legnagyobb régiót vagy köss össze.</li>
+          <li><strong>Autotiling:</strong> szomszéd-bitmaszk &rarr; csempe-index. Részletek: <a href="csempe-bitmaszkolas.html">bitmaszkolás</a>, <a href="bevy-dual-grid-tutorial.html">dual-grid</a>.</li>
+          <li><strong>Bevy:</strong> generálj <code class="inl">Startup</code>/<code class="inl">OnEnter</code>-ben; nagy pályán <code class="inl">bevy_ecs_tilemap</code>.</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer>
+      Bevy 0.18 · Procedurális tile-térkép + autotiling · egyetlen fájlos HTML · készült offline használatra
+    </footer>
+  </main>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- Rust + TOML szintaxiskiemelő ---------- */
+function highlightRust(src){
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  var token = /(\/\/[^\n]*)|("(?:[^"\\]|\\.)*")|(\b(?:fn|let|mut|for|in|if|else|match|struct|enum|impl|trait|pub|use|mod|return|self|Self|as|where|move|loop|while|break|continue|const|static|ref|dyn|crate|true|false)\b)|(\b[A-Z][A-Za-z0-9_]*\b)|(\b[a-z_][A-Za-z0-9_]*!)|(\b\d[\d_]*\.?\d*(?:f32|f64|u32|i32|u8|usize)?\b)/g;
+  var out="", last=0, m;
+  while((m=token.exec(src))!==null){
+    out += esc(src.slice(last, m.index));
+    var text = esc(m[0]);
+    if(m[1]) out += '<span class="c">'+text+'</span>';
+    else if(m[2]) out += '<span class="s">'+text+'</span>';
+    else if(m[3]) out += '<span class="k">'+text+'</span>';
+    else if(m[4]) out += '<span class="t">'+text+'</span>';
+    else if(m[5]) out += '<span class="m">'+text+'</span>';
+    else if(m[6]) out += '<span class="n">'+text+'</span>';
+    last = token.lastIndex;
+  }
+  out += esc(src.slice(last));
+  return out;
+}
+function highlightToml(src){
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  return esc(src)
+    .replace(/(#[^\n]*)/g,'<span class="c">$1</span>')
+    .replace(/(&quot;[^&]*&quot;|"[^"]*")/g,'<span class="s">$1</span>')
+    .replace(/^(\s*)([A-Za-z0-9_\-]+)(\s*=)/gm,'$1<span class="t">$2</span>$3')
+    .replace(/(\[[^\]]+\])/g,'<span class="m">$1</span>');
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+  document.querySelectorAll("pre code.rust").forEach(function(el){
+    el.innerHTML = highlightRust(el.textContent);
+  });
+  document.querySelectorAll("pre code.toml").forEach(function(el){
+    el.innerHTML = highlightToml(el.textContent);
+  });
+
+  /* scrollspy */
+  var links = Array.prototype.slice.call(document.querySelectorAll("#nav a"));
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute("href").slice(1)] = a; });
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){
+        links.forEach(function(a){ a.classList.remove("active"); });
+        var act = map[e.target.id];
+        if(act) act.classList.add("active");
+      }
+    });
+  }, { rootMargin: "-20% 0px -70% 0px" });
+  document.querySelectorAll("section").forEach(function(s){ obs.observe(s); });
+
+  /* mobil menü */
+  var btn = document.getElementById("menuBtn");
+  var sb = document.getElementById("sidebar");
+  if(btn){
+    btn.addEventListener("click", function(){ sb.classList.toggle("open"); });
+    document.querySelectorAll("#nav a").forEach(function(a){
+      a.addEventListener("click", function(){ sb.classList.remove("open"); });
+    });
+  }
+
+  initWhiteDemo();
+  initNoiseDemo();
+  initCaDemo();
+  initWalkDemo();
+  initAutoDemo();
+});
+
+/* ===================== közös segédek ===================== */
+// determinisztikus, seedelhető RNG (mulberry32)
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function palette(){
+  var css = getComputedStyle(document.documentElement);
+  function c(n,f){ return css.getPropertyValue(n).trim() || f; }
+  return {
+    bg:   c("--code-bg","#14141f"),
+    wall: c("--panel2","#21212f"),
+    floor:c("--green","#8ce99a"),
+    pink: c("--pink","#ec6a9c"),
+    cyan: c("--cyan","#56d4c4"),
+    amber:c("--amber","#f2c14e"),
+    muted:c("--muted","#8b8b9e"),
+    border:c("--border","#2c2c40")
+  };
+}
+
+/* ===================== DEMÓ 1: fehér zaj ===================== */
+function initWhiteDemo(){
+  var cv = document.getElementById("whiteCanvas");
+  if(!cv) return;
+  var ctx = cv.getContext("2d");
+  var GW = 60, GH = 35;
+  var wallSlider = document.getElementById("whiteWall");
+  var wallVal = document.getElementById("whiteWallVal");
+  var genBtn = document.getElementById("whiteGen");
+  var pal = palette();
+  var seed = 1;
+
+  function draw(){
+    var wallChance = parseInt(wallSlider.value,10)/100;
+    var rng = mulberry32(seed);
+    var cw = cv.width/GW, ch = cv.height/GH;
+    ctx.fillStyle = pal.bg; ctx.fillRect(0,0,cv.width,cv.height);
+    for(var y=0;y<GH;y++){
+      for(var x=0;x<GW;x++){
+        var wall = rng() < wallChance;
+        ctx.fillStyle = wall ? pal.wall : pal.floor;
+        ctx.fillRect(Math.floor(x*cw), Math.floor(y*ch), Math.ceil(cw), Math.ceil(ch));
+      }
+    }
+  }
+  wallSlider.addEventListener("input", function(){ wallVal.textContent = wallSlider.value + "%"; draw(); });
+  genBtn.addEventListener("click", function(){ seed++; draw(); });
+  draw();
+}
+
+/* ===================== DEMÓ 2: zaj-világ ===================== */
+function makeValueNoise(seed){
+  function hash(x,y){
+    var h = (x*374761393) ^ (y*668265263) ^ (seed*2147483647);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296; // 0..1
+  }
+  function smooth(t){ return t*t*(3-2*t); }
+  return function(x,y){
+    var x0 = Math.floor(x), y0 = Math.floor(y);
+    var fx = smooth(x-x0), fy = smooth(y-y0);
+    var v00=hash(x0,y0), v10=hash(x0+1,y0), v01=hash(x0,y0+1), v11=hash(x0+1,y0+1);
+    var a = v00 + (v10-v00)*fx;
+    var b = v01 + (v11-v01)*fx;
+    return a + (b-a)*fy; // 0..1
+  };
+}
+function fbm(noise, x, y, octaves){
+  var sum=0, amp=1, freq=1, norm=0;
+  for(var i=0;i<octaves;i++){ sum += noise(x*freq, y*freq)*amp; norm += amp; amp *= 0.5; freq *= 2; }
+  return sum/norm; // 0..1
+}
+var BIOMES = [
+  { max:0.30, name:"mély víz",   col:"#1b3a6b" },
+  { max:0.40, name:"sekély víz", col:"#2f6fb0" },
+  { max:0.46, name:"part",       col:"#d8c489" },
+  { max:0.65, name:"fű",         col:"#5aa15a" },
+  { max:0.80, name:"erdő",       col:"#2f7d46" },
+  { max:0.92, name:"hegy",       col:"#7a7480" },
+  { max:1.01, name:"hó",         col:"#e9eef2" }
+];
+function initNoiseDemo(){
+  var cv = document.getElementById("noiseCanvas");
+  if(!cv) return;
+  var ctx = cv.getContext("2d");
+  var GW = 90, GH = 52;
+  var scaleS = document.getElementById("noiseScale");
+  var seaS   = document.getElementById("noiseSea");
+  var octS   = document.getElementById("noiseOct");
+  var scaleV = document.getElementById("noiseScaleVal");
+  var seaV   = document.getElementById("noiseSeaVal");
+  var octV   = document.getElementById("noiseOctVal");
+  var genBtn = document.getElementById("noiseGen");
+  var legend = document.getElementById("noiseLegend");
+  var seed = 12345;
+
+  legend.innerHTML = BIOMES.map(function(b){
+    return '<span><i style="background:'+b.col+'"></i>'+b.name+'</span>';
+  }).join("");
+
+  function biomeFor(h, sea){
+    // a tengerszint eltolja a víz/föld határt
+    var hh = h;
+    if(hh < sea) return BIOMES[ hh < sea*0.6 ? 0 : 1 ];
+    // a víz fölötti tartományt nyújtjuk ki a maradék biome-okra
+    var t = (hh - sea) / (1 - sea);
+    if(t < 0.10) return BIOMES[2];
+    if(t < 0.45) return BIOMES[3];
+    if(t < 0.70) return BIOMES[4];
+    if(t < 0.90) return BIOMES[5];
+    return BIOMES[6];
+  }
+
+  function draw(){
+    var scale = parseInt(scaleS.value,10)/100; // 0.02..0.20
+    var sea = parseInt(seaS.value,10)/100;
+    var oct = parseInt(octS.value,10);
+    var noise = makeValueNoise(seed);
+    var cw = cv.width/GW, ch = cv.height/GH;
+    for(var y=0;y<GH;y++){
+      for(var x=0;x<GW;x++){
+        var h = fbm(noise, x*scale, y*scale, oct);
+        var b = biomeFor(h, sea);
+        ctx.fillStyle = b.col;
+        ctx.fillRect(Math.floor(x*cw), Math.floor(y*ch), Math.ceil(cw), Math.ceil(ch));
+      }
+    }
+  }
+  scaleS.addEventListener("input", function(){ scaleV.textContent = scaleS.value; draw(); });
+  seaS.addEventListener("input", function(){ seaV.textContent = (parseInt(seaS.value,10)/100).toFixed(2); draw(); });
+  octS.addEventListener("input", function(){ octV.textContent = octS.value; draw(); });
+  genBtn.addEventListener("click", function(){ seed = Math.floor(mulberry32(seed)()*1e9)+1; draw(); });
+  scaleV.textContent = scaleS.value;
+  seaV.textContent = (parseInt(seaS.value,10)/100).toFixed(2);
+  octV.textContent = octS.value;
+  draw();
+}
+
+/* ===================== DEMÓ 3: sejtautomata ===================== */
+function initCaDemo(){
+  var cv = document.getElementById("caCanvas");
+  if(!cv) return;
+  var ctx = cv.getContext("2d");
+  var GW = 80, GH = 48;
+  var fillS = document.getElementById("caFill");
+  var fillV = document.getElementById("caFillVal");
+  var stepBtn = document.getElementById("caStep");
+  var autoBtn = document.getElementById("caAuto");
+  var resetBtn = document.getElementById("caReset");
+  var stepsOut = document.getElementById("caSteps");
+  var floorOut = document.getElementById("caFloor");
+  var pal = palette();
+  var grid, steps, seed = 7;
+
+  function newNoise(){
+    var wall = parseInt(fillS.value,10)/100;
+    var rng = mulberry32(seed);
+    grid = new Uint8Array(GW*GH);
+    for(var y=0;y<GH;y++) for(var x=0;x<GW;x++){
+      // a szélen mindig fal
+      var edge = (x===0||y===0||x===GW-1||y===GH-1);
+      grid[y*GW+x] = (edge || rng() < wall) ? 1 : 0;
+    }
+    steps = 0;
+  }
+  function getC(g,x,y){ if(x<0||y<0||x>=GW||y>=GH) return 1; return g[y*GW+x]; }
+  function smooth(){
+    var next = new Uint8Array(GW*GH);
+    for(var y=0;y<GH;y++) for(var x=0;x<GW;x++){
+      var walls = 0;
+      for(var dy=-1;dy<=1;dy++) for(var dx=-1;dx<=1;dx++){
+        if(dx===0&&dy===0) continue;
+        walls += getC(grid,x+dx,y+dy);
+      }
+      next[y*GW+x] = (walls >= 5) ? 1 : 0;
+    }
+    grid = next; steps++;
+  }
+  function draw(){
+    var cw = cv.width/GW, ch = cv.height/GH;
+    ctx.fillStyle = pal.bg; ctx.fillRect(0,0,cv.width,cv.height);
+    var floor = 0;
+    for(var y=0;y<GH;y++) for(var x=0;x<GW;x++){
+      var wall = grid[y*GW+x];
+      if(!wall) floor++;
+      ctx.fillStyle = wall ? pal.wall : pal.floor;
+      ctx.fillRect(Math.floor(x*cw), Math.floor(y*ch), Math.ceil(cw), Math.ceil(ch));
+    }
+    stepsOut.textContent = steps;
+    floorOut.textContent = Math.round(floor/(GW*GH)*100) + "%";
+  }
+  fillS.addEventListener("input", function(){ fillV.textContent = fillS.value + "%"; newNoise(); draw(); });
+  stepBtn.addEventListener("click", function(){ smooth(); draw(); });
+  autoBtn.addEventListener("click", function(){ for(var i=0;i<5;i++) smooth(); draw(); });
+  resetBtn.addEventListener("click", function(){ seed++; newNoise(); draw(); });
+  newNoise(); draw();
+}
+
+/* ===================== DEMÓ 4: részeg séta ===================== */
+function initWalkDemo(){
+  var cv = document.getElementById("walkCanvas");
+  if(!cv) return;
+  var ctx = cv.getContext("2d");
+  var GW = 70, GH = 42;
+  var pctS = document.getElementById("walkPct");
+  var pctV = document.getElementById("walkPctVal");
+  var animBtn = document.getElementById("walkAnim");
+  var genBtn = document.getElementById("walkGen");
+  var floorOut = document.getElementById("walkFloor");
+  var stepsOut = document.getElementById("walkSteps");
+  var pal = palette();
+  var grid, px, py, stepCount, seed = 3, rng, target, anim = null;
+
+  function reset(){
+    grid = new Uint8Array(GW*GH); // 0 = fal
+    px = (GW/2)|0; py = (GH/2)|0;
+    stepCount = 0;
+    rng = mulberry32(seed);
+    target = Math.floor(GW*GH * parseInt(pctS.value,10)/100);
+    grid[py*GW+px] = 1;
+  }
+  function step(){
+    grid[py*GW+px] = 1;
+    var dir = (rng()*4)|0;
+    if(dir===0) px++; else if(dir===1) px--; else if(dir===2) py++; else py--;
+    px = Math.max(1, Math.min(GW-2, px));
+    py = Math.max(1, Math.min(GH-2, py));
+    stepCount++;
+  }
+  function carved(){ var c=0; for(var i=0;i<grid.length;i++) c+=grid[i]; return c; }
+  function runAll(){
+    while(carved() < target && stepCount < GW*GH*8) step();
+  }
+  function draw(){
+    var cw = cv.width/GW, ch = cv.height/GH;
+    ctx.fillStyle = pal.bg; ctx.fillRect(0,0,cv.width,cv.height);
+    for(var y=0;y<GH;y++) for(var x=0;x<GW;x++){
+      ctx.fillStyle = grid[y*GW+x] ? pal.floor : pal.wall;
+      ctx.fillRect(Math.floor(x*cw), Math.floor(y*ch), Math.ceil(cw), Math.ceil(ch));
+    }
+    // ásó
+    ctx.fillStyle = pal.pink;
+    ctx.fillRect(Math.floor(px*cw), Math.floor(py*ch), Math.ceil(cw), Math.ceil(ch));
+    floorOut.textContent = Math.round(carved()/(GW*GH)*100) + "%";
+    stepsOut.textContent = stepCount;
+  }
+  function stopAnim(){ if(anim){ cancelAnimationFrame(anim); anim=null; animBtn.classList.remove("on"); animBtn.textContent="▶ animáció"; } }
+  function animate(){
+    animBtn.classList.add("on"); animBtn.textContent="⏸ állj";
+    function tick(){
+      for(var i=0;i<40 && carved()<target;i++) step();
+      draw();
+      if(carved() < target && stepCount < GW*GH*8){ anim = requestAnimationFrame(tick); }
+      else { stopAnim(); }
+    }
+    anim = requestAnimationFrame(tick);
+  }
+  pctS.addEventListener("input", function(){ pctV.textContent = pctS.value + "%"; stopAnim(); reset(); runAll(); draw(); });
+  genBtn.addEventListener("click", function(){ stopAnim(); seed++; reset(); runAll(); draw(); });
+  animBtn.addEventListener("click", function(){ if(anim){ stopAnim(); } else { reset(); draw(); animate(); } });
+  reset(); runAll(); draw();
+}
+
+/* ===================== DEMÓ 5: autotiling ===================== */
+function initAutoDemo(){
+  var cv = document.getElementById("autoCanvas");
+  if(!cv) return;
+  var ctx = cv.getContext("2d");
+  var GW = 48, GH = 28;
+  var rawBtn = document.getElementById("autoRaw");
+  var tileBtn = document.getElementById("autoTile");
+  var genBtn = document.getElementById("autoGen");
+  var pal = palette();
+  var grid, mode = "raw", seed = 99;
+
+  function getC(g,x,y){ if(x<0||y<0||x>=GW||y>=GH) return 1; return g[y*GW+x]; }
+  function generate(){
+    var rng = mulberry32(seed);
+    grid = new Uint8Array(GW*GH);
+    for(var y=0;y<GH;y++) for(var x=0;x<GW;x++){
+      var edge = (x===0||y===0||x===GW-1||y===GH-1);
+      grid[y*GW+x] = (edge || rng() < 0.46) ? 1 : 0;
+    }
+    for(var s=0;s<5;s++){
+      var next = new Uint8Array(GW*GH);
+      for(var yy=0;yy<GH;yy++) for(var xx=0;xx<GW;xx++){
+        var w=0;
+        for(var dy=-1;dy<=1;dy++) for(var dx=-1;dx<=1;dx++){
+          if(dx===0&&dy===0) continue; w += getC(grid,xx+dx,yy+dy);
+        }
+        next[yy*GW+xx] = (w>=5)?1:0;
+      }
+      grid = next;
+    }
+  }
+  function drawRaw(){
+    var cw = cv.width/GW, ch = cv.height/GH;
+    ctx.fillStyle = pal.bg; ctx.fillRect(0,0,cv.width,cv.height);
+    for(var y=0;y<GH;y++) for(var x=0;x<GW;x++){
+      ctx.fillStyle = grid[y*GW+x] ? pal.wall : pal.floor;
+      ctx.fillRect(Math.floor(x*cw), Math.floor(y*ch), Math.ceil(cw)+0.5, Math.ceil(ch)+0.5);
+    }
+  }
+  function drawAuto(){
+    var cw = cv.width/GW, ch = cv.height/GH;
+    // padló-háttér
+    ctx.fillStyle = pal.floor; ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.fillStyle = pal.wall;
+    var r = Math.min(cw,ch)*0.5;
+    for(var y=0;y<GH;y++) for(var x=0;x<GW;x++){
+      if(!grid[y*GW+x]) continue;
+      var px = x*cw, py = y*ch;
+      // a 4 él-szomszéd: külső sarkot kerekítünk, ahol mindkét él nyitott (padló)
+      var n = getC(grid,x,y-1)===0;
+      var s = getC(grid,x,y+1)===0;
+      var e = getC(grid,x+1,y)===0;
+      var w = getC(grid,x-1,y)===0;
+      var tl = (n&&w)?r:0, tr=(n&&e)?r:0, br=(s&&e)?r:0, bl=(s&&w)?r:0;
+      roundRect(ctx, px-0.5, py-0.5, cw+1, ch+1, tl, tr, br, bl);
+      ctx.fill();
+    }
+  }
+  function roundRect(c,x,y,w,h,tl,tr,br,bl){
+    c.beginPath();
+    c.moveTo(x+tl,y);
+    c.lineTo(x+w-tr,y); c.quadraticCurveTo(x+w,y,x+w,y+tr);
+    c.lineTo(x+w,y+h-br); c.quadraticCurveTo(x+w,y+h,x+w-br,y+h);
+    c.lineTo(x+bl,y+h); c.quadraticCurveTo(x,y+h,x,y+h-bl);
+    c.lineTo(x,y+tl); c.quadraticCurveTo(x,y,x+tl,y);
+    c.closePath();
+  }
+  function draw(){ if(mode==="raw") drawRaw(); else drawAuto(); }
+  function setMode(m){
+    mode = m;
+    rawBtn.classList.toggle("on", m==="raw");
+    tileBtn.classList.toggle("on", m==="tile");
+    draw();
+  }
+  rawBtn.addEventListener("click", function(){ setMode("raw"); });
+  tileBtn.addEventListener("click", function(){ setMode("tile"); });
+  genBtn.addEventListener("click", function(){ seed++; generate(); draw(); });
+  generate(); draw();
+}
+</script>
+</body>
+</html>
