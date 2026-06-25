@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Biomok egy procedurális világban — identitás, határok, progresszió · Bevy 0.18</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#10101a; --panel:#1a1a28; --panel2:#21212f; --code-bg:#14141f;
+    --ink:#e3e3ec; --muted:#8b8b9e; --border:#2c2c40;
+    --cyan:#56d4c4; --amber:#f2c14e; --pink:#ec6a9c; --green:#8ce99a; --red:#ff6b6b; --violet:#a78bfa;
+    --kw:#ec6a9c; --ty:#56d4c4; --str:#8ce99a; --com:#6b6b80; --mac:#f2c14e; --num:#f4a259;
+    --sidebar-w:260px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    background-image:radial-gradient(var(--border) 1px, transparent 1px);
+    background-size:22px 22px;
+    color:var(--ink);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--cyan);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ---- layout ---- */
+  .shell{display:flex;max-width:1400px;margin:0 auto}
+  .sidebar{
+    width:var(--sidebar-w);flex:0 0 var(--sidebar-w);
+    position:sticky;top:0;height:100vh;overflow-y:auto;
+    padding:28px 18px;border-right:2px solid var(--border);
+    background:linear-gradient(180deg,var(--panel) 0%,var(--bg) 100%);
+  }
+  .sidebar h2{
+    font-family:"Pixelify Sans",sans-serif;font-size:18px;font-weight:700;
+    color:var(--amber);letter-spacing:.5px;margin-bottom:4px;
+  }
+  .sidebar .sub{font-size:11px;color:var(--muted);font-family:"JetBrains Mono",monospace;margin-bottom:20px}
+  .nav a{
+    display:block;color:var(--muted);font-size:13.5px;padding:7px 10px;
+    border-left:3px solid transparent;border-radius:0 4px 4px 0;transition:all .12s;
+    text-decoration:none;
+  }
+  .nav a .num{font-family:"JetBrains Mono",monospace;color:var(--border);font-size:11px;margin-right:8px}
+  .nav a:hover{color:var(--ink);background:var(--panel2);text-decoration:none}
+  .nav a.active{color:var(--ink);border-left-color:var(--pink);background:var(--panel2)}
+  .nav a.active .num{color:var(--pink)}
+
+  .main{flex:1 1 auto;min-width:0;padding:48px 56px 120px}
+
+  /* ---- hero ---- */
+  .hero{margin-bottom:56px;border:2px solid var(--border);background:var(--panel);
+    padding:38px 36px;position:relative;box-shadow:6px 6px 0 rgba(0,0,0,.35)}
+  .hero .eyebrow{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--pink);
+    letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+  .hero h1{font-family:"Pixelify Sans",sans-serif;font-size:42px;font-weight:700;
+    line-height:1.1;color:var(--ink);margin-bottom:16px}
+  .hero h1 .hl{color:var(--amber)}
+  .hero p{color:var(--muted);font-size:16px;max-width:640px}
+  .hero .chips{margin-top:22px;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font-family:"JetBrains Mono",monospace;font-size:11.5px;padding:4px 10px;
+    border:1px solid var(--border);background:var(--code-bg);color:var(--cyan);border-radius:3px}
+
+  /* ---- sections ---- */
+  section{margin-bottom:54px;scroll-margin-top:24px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;
+    padding-bottom:12px;border-bottom:2px solid var(--border)}
+  .sec-head .idx{font-family:"Pixelify Sans",sans-serif;font-size:26px;color:var(--pink);
+    flex:0 0 auto}
+  .sec-head h2{font-family:"Pixelify Sans",sans-serif;font-size:27px;font-weight:700;color:var(--ink)}
+  h3{font-family:"Pixelify Sans",sans-serif;font-size:19px;color:var(--amber);
+    margin:26px 0 12px}
+  p{margin:0 0 14px}
+  .main p{font-size:15.5px}
+  ul,ol{margin:0 0 16px 22px}
+  li{margin-bottom:7px;font-size:15.5px}
+  strong{color:var(--ink);font-weight:600}
+  code.inl{font-family:"JetBrains Mono",monospace;font-size:13px;background:var(--code-bg);
+    border:1px solid var(--border);padding:1.5px 6px;border-radius:3px;color:var(--cyan)}
+
+  /* ---- code blocks ---- */
+  pre{background:var(--code-bg);border:1px solid var(--border);border-left:3px solid var(--cyan);
+    padding:16px 18px;overflow-x:auto;margin:0 0 18px;border-radius:0 4px 4px 0;
+    box-shadow:3px 3px 0 rgba(0,0,0,.25)}
+  pre code{font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1.6;color:var(--ink);white-space:pre}
+  .k{color:var(--kw)} .t{color:var(--ty)} .s{color:var(--str)}
+  .c{color:var(--com);font-style:italic} .m{color:var(--mac)} .n{color:var(--num)}
+
+  /* ---- callouts ---- */
+  .box{border:1px solid var(--border);border-left:4px solid var(--cyan);background:var(--panel);
+    padding:14px 18px;margin:0 0 18px;border-radius:0 4px 4px 0}
+  .box.tip{border-left-color:var(--green)} .box.tip .lbl{color:var(--green)}
+  .box.warn{border-left-color:var(--red)} .box.warn .lbl{color:var(--red)}
+  .box.note{border-left-color:var(--violet)} .box.note .lbl{color:var(--violet)}
+  .box .lbl{font-family:"JetBrains Mono",monospace;font-size:11px;text-transform:uppercase;
+    letter-spacing:1.5px;color:var(--cyan);display:block;margin-bottom:6px}
+  .box p:last-child{margin-bottom:0}
+
+  /* ---- table ---- */
+  .tbl-wrap{overflow-x:auto;margin:0 0 18px}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:480px}
+  th,td{border:1px solid var(--border);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);font-family:"Pixelify Sans",sans-serif;color:var(--amber);font-weight:700}
+  td:first-child{font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--cyan);white-space:nowrap}
+  tr:nth-child(even) td{background:rgba(255,255,255,.012)}
+
+  /* ---- demos ---- */
+  .demo{border:2px solid var(--border);background:var(--panel);padding:18px;margin:0 0 20px;
+    border-radius:4px;box-shadow:4px 4px 0 rgba(0,0,0,.3)}
+  .demo .dh{font-family:"Pixelify Sans",sans-serif;color:var(--amber);font-size:15px;margin-bottom:4px}
+  .demo .dd{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .demo canvas{display:block;width:100%;background:var(--code-bg);border:1px solid var(--border);
+    border-radius:3px;image-rendering:pixelated}
+  .ctrls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px;
+    font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--muted)}
+  .ctrls label{display:flex;align-items:center;gap:8px}
+  .ctrls input[type=range]{accent-color:var(--pink);width:140px}
+  .ctrls .val{color:var(--cyan);min-width:60px;display:inline-block}
+  .ctrls button{font-family:"JetBrains Mono",monospace;font-size:12px;background:var(--panel2);
+    color:var(--ink);border:1px solid var(--border);padding:6px 12px;border-radius:3px;cursor:pointer}
+  .ctrls button:hover{border-color:var(--pink);color:var(--pink)}
+  .ctrls button.on{border-color:var(--cyan);color:var(--cyan);background:var(--code-bg)}
+  .readout{display:flex;gap:22px;flex-wrap:wrap;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:12.5px}
+  .readout b{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:400}
+  .readout span{color:var(--cyan);font-size:17px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--muted)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .legend i{width:13px;height:13px;border-radius:2px;display:inline-block;border:1px solid rgba(255,255,255,.15)}
+  /* klíma-mátrix legenda */
+  .matrix{display:grid;grid-template-columns:auto repeat(3,1fr);gap:5px;margin-top:14px;
+    font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--muted);max-width:520px}
+  .matrix .cell{padding:7px 6px;border-radius:3px;color:#10101a;font-weight:600;text-align:center;line-height:1.25;
+    border:1px solid rgba(255,255,255,.12)}
+  .matrix .axis{display:flex;align-items:center;justify-content:center;color:var(--amber);
+    font-family:"Pixelify Sans",sans-serif;font-size:12px}
+  .matrix .corner{color:var(--muted);font-size:9px;text-align:center;align-self:end}
+
+  /* ---- tldr ---- */
+  .tldr{border:2px dashed var(--pink);background:var(--panel);padding:24px 28px;border-radius:4px}
+  .tldr h3{margin-top:0;color:var(--pink)}
+  .tldr ul{list-style:none;margin-left:0}
+  .tldr li{padding-left:26px;position:relative}
+  .tldr li::before{content:"\25B8";position:absolute;left:0;color:var(--amber)}
+
+  footer{margin-top:60px;padding-top:24px;border-top:2px solid var(--border);
+    color:var(--muted);font-size:12.5px;font-family:"JetBrains Mono",monospace;text-align:center}
+
+  /* ---- responsive ---- */
+  .menu-btn{display:none}
+  @media(max-width:920px){
+    .sidebar{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:transform .2s;
+      box-shadow:8px 0 24px rgba(0,0,0,.5)}
+    .sidebar.open{transform:translateX(0)}
+    .main{padding:64px 22px 100px}
+    .hero{padding:26px 22px} .hero h1{font-size:30px}
+    .sec-head h2{font-size:21px} .sec-head .idx{font-size:20px}
+    .menu-btn{display:flex;position:fixed;top:14px;left:14px;z-index:50;
+      font-family:"Pixelify Sans",sans-serif;background:var(--pink);color:#10101a;border:none;
+      padding:8px 14px;border-radius:4px;cursor:pointer;font-size:15px;box-shadow:3px 3px 0 rgba(0,0,0,.4)}
+  }
+</style>
+</head>
+<body>
+<!-- olvasási haladásjelző (progress bar) -->
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,#8ce99a,#f2c14e);
+  box-shadow:0 0 10px rgba(140,233,154,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-btn" id="menuBtn">&#9776; menü</button>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <h2>BEVY · BIOMOK</h2>
+    <div class="sub">// identitás + progresszió</div>
+    <nav class="nav" id="nav">
+      <a href="#intro"><span class="num">00</span>Miért biomok?</a>
+      <a href="#data"><span class="num">01</span>A biom mint adat</a>
+      <a href="#oneaxis"><span class="num">02</span>Egy tengely kevés</a>
+      <a href="#matrix"><span class="num">03</span>Klíma-mátrix</a>
+      <a href="#borders"><span class="num">04</span>Természetes határok</a>
+      <a href="#progress"><span class="num">05</span>A progresszió problémája</a>
+      <a href="#difficulty"><span class="num">06</span>Nehézség-mező + a 7 biom</a>
+      <a href="#identity"><span class="num">07</span>Biom-identitás</a>
+      <a href="#populate"><span class="num">08</span>Mi tölti meg? (spawn)</a>
+      <a href="#edges"><span class="num">09</span>Átmenetek & szegélyek</a>
+      <a href="#bevy"><span class="num">10</span>Bevy integráció</a>
+      <a href="#full"><span class="num">11</span>Komplett minta</a>
+      <a href="#tips"><span class="num">12</span>Tippek & buktatók</a>
+      <a href="#tldr"><span class="num">13</span>TL;DR</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="hero">
+      <div class="eyebrow">Bevy 0.18 · Rust · világépítés</div>
+      <h1>Biomok — a procedurális világ<br><span class="hl">identitása</span> és <span class="hl">progressziója</span></h1>
+      <p>A nyers zaj még csak terep. A <strong>biom</strong> az, ami értelmet ad neki: minden tájnak saját arcot, saját nehézséget és saját jutalmat. Ebben a leckében nem új térképet generálunk — a <a href="bevy-proceduralis-terkep-tutorial.html">procedurális térkép tutorial</a> erre megtanított —, hanem egy <strong>réteget építünk fölé</strong>, ami a véletlent irányított, felfedezésre hívó világgá szervezi. Öt interaktív demóval.</p>
+      <div class="chips">
+        <span class="chip">Biome enum + def-tábla</span>
+        <span class="chip">hőmérséklet × nedvesség</span>
+        <span class="chip">domain warping</span>
+        <span class="chip">nehézség-progresszió</span>
+        <span class="chip">súlyozott spawn</span>
+        <span class="chip">data-driven</span>
+      </div>
+    </header>
+
+    <!-- 00 -->
+    <section id="intro">
+      <div class="sec-head"><span class="idx">00</span><h2>Miért biomok?</h2></div>
+      <p>A procedurális generálás kétélű fegyver. A véletlen adja az újrajátszhatóságot — minden indításkor más világ —, de ha <strong>semmi nem fogja meg</strong>, a világ céltalanná válik: végtelen, egyforma terep, ahol nincs hova tartani, és nincs miért. A játékos elindul egy irányba, és ugyanazt látja, mint az ellenkező irányban.</p>
+      <p>A <strong>biom</strong> erre a gyógyír. Egy biom nem más, mint a térkép egy <em>címkézett régiója</em>, amihez saját <strong>identitás</strong> (paletta, csempék, növényzet, hangulat), saját <strong>nehézség</strong> és saját <strong>tartalom</strong> (lények, nyersanyagok, struktúrák) tartozik. Három dolgot old meg egyszerre:</p>
+      <ul>
+        <li><strong>Változatosság.</strong> A havas fenyves nem ugyanaz az élmény, mint a forró sivatag. A szem és a játékmenet is felfrissül a határ átlépésekor.</li>
+        <li><strong>Progresszió.</strong> Ha a biomok <em>növekvő nehézségűek</em>, és a játékos nagyjából a <em>helyes sorrendben</em> találkozik velük, a céltalan bóklászásból irányított utazás lesz — felfedezés cél felé.</li>
+        <li><strong>Jutalom.</strong> Ha a nehezebb biomok jobb nyersanyagot adnak, a felfedezés kockázat–jutalom döntéssé válik. Megéri-e tovább menni? Ez tartja mozgásban a játékost.</li>
+      </ul>
+      <div class="box note"><span class="lbl">A lecke gerince</span><p>Egy biom-réteg három, élesen szétváló kérdésre felel — és a tutorial végig ezt a hármat választja szét: <strong>(1) Mező</strong> — milyen folytonos jellemzők alapján döntünk (hőmérséklet, nedvesség, nehézség)? <strong>(2) Identitás</strong> — a címkéből hogyan lesz szín, csempe, lény? <strong>(3) Progresszió</strong> — hogyan rendezzük el a biomokat úgy, hogy a felfedezés iránnyal bírjon, mégse legyen unalmasan lineáris?</p></div>
+      <div class="box note"><span class="lbl">Mire épül & függőségek</span><p>Ez a lecke a <a href="bevy-proceduralis-terkep-tutorial.html">procedurális generálást</a> feltételezi (zaj/fBm, seed-determinizmus, flood fill, feature-placement) — innen a <code class="inl">Map</code>, a <code class="inl">StdRng</code> és az fBm. A kód Bevy <strong>0.18</strong>-ra készült, ugyanazokkal a crate-ekkel:</p>
+      <pre><code class="toml">[dependencies]
+bevy  = "0.18"
+rand  = "0.8"   # seedelhető RNG (spawn-táblákhoz)
+noise = "0.9"   # Perlin / fBm — hőmérséklet- és nedvesség-mezőkhöz</code></pre>
+      </div>
+    </section>
+
+    <!-- 01 -->
+    <section id="data">
+      <div class="sec-head"><span class="idx">01</span><h2>A biom mint adat</h2></div>
+      <p>Mielőtt eldöntenénk, <em>hol</em> van melyik biom, döntsük el, <em>mi</em> egy biom. A kulcs ugyanaz a szétválasztás, mint a térkép-generálásnál: a biom egy <strong>sima címke</strong> (egy <code class="inl">enum</code>), és minden, ami abból következik — szín, nehézség, lények —, egy <strong>külön adattáblában</strong> él. Ez a „data-driven" megközelítés: új biom = egy enum-variáns + egy sor a táblában, kódlogika átírása nélkül.</p>
+      <pre><code class="rust">use bevy::prelude::*;
+
+/// A 7 biom — a világ "identitás-címkéi". Olcsó, Copy enum:
+/// könnyű másolni, match-elni, tömbben tárolni.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Biome {
+    EasyRainforest,                  // spawn-közeli, könnyű
+    Meadow, Rainforest, Shrubland,   // középső gyűrű
+    Snowy,  DarkForest, Desert,      // külső gyűrű, nehéz
+}
+
+/// Minden biomhoz EGY adatrekord tartozik. Ez vezérli a teljes
+/// "lefelé" irányt: a render, az ütközés és a spawn ebből olvas.
+struct BiomeDef {
+    name:       &amp;'static str,
+    ground:     Color,   // alap talajszín — a megjelenítés innen olvas
+    difficulty: u8,      // 0 = spawn-közeli, 2 = külső gyűrű
+    decoration: f32,     // dekoráció-sűrűség 0..1 (fű, kő, fa)
+}
+
+fn biome_def(b: Biome) -&gt; BiomeDef {
+    use Biome::*;
+    match b {
+        EasyRainforest =&gt; BiomeDef { name: "Easy Rainforest", ground: Color::srgb(0.51,0.65,0.34), difficulty: 0, decoration: 0.55 },
+        Meadow         =&gt; BiomeDef { name: "Meadow",          ground: Color::srgb(0.60,0.63,0.29), difficulty: 1, decoration: 0.45 },
+        Rainforest     =&gt; BiomeDef { name: "Rainforest",      ground: Color::srgb(0.30,0.48,0.25), difficulty: 1, decoration: 0.80 },
+        Shrubland      =&gt; BiomeDef { name: "Shrubland",       ground: Color::srgb(0.76,0.64,0.37), difficulty: 1, decoration: 0.35 },
+        Snowy          =&gt; BiomeDef { name: "Snowy",           ground: Color::srgb(0.78,0.83,0.84), difficulty: 2, decoration: 0.25 },
+        DarkForest     =&gt; BiomeDef { name: "Dark Forest",     ground: Color::srgb(0.20,0.27,0.19), difficulty: 2, decoration: 0.95 },
+        Desert         =&gt; BiomeDef { name: "Desert",          ground: Color::srgb(0.85,0.77,0.53), difficulty: 2, decoration: 0.15 },
+    }
+}</code></pre>
+      <p>A térképhez pedig egy <strong>biom-réteget</strong> tartunk — a tile-<code class="inl">Map</code> testvérét: ugyanakkora rács, de cellánként egy <code class="inl">Biome</code>-címke. A két réteg külön él, mert külön kérdésre felel: a <code class="inl">Map</code> azt mondja meg, „itt fal van vagy padló", a <code class="inl">BiomeMap</code> azt, „ez itt a sivatag".</p>
+      <pre><code class="rust">/// A biom-térkép a tile-Map TESTVÉRE. Cellánként egy biom-címke.
+#[derive(Resource)]
+struct BiomeMap {
+    width:  i32,
+    height: i32,
+    cells:  Vec&lt;Biome&gt;,
+}
+
+impl BiomeMap {
+    fn get(&amp;self, x: i32, y: i32) -&gt; Biome {
+        self.cells[(y * self.width + x) as usize]
+    }
+}</code></pre>
+      <div class="box tip"><span class="lbl">Miért külön réteg?</span><p>Csábító egy <code class="inl">Tile</code>-ba zsúfolni a biomot is (<code class="inl">Tile::DesertFloor</code>, <code class="inl">Tile::SnowWall</code>…), de ez kombinatorikus robbanás: minden csempe × minden biom. Tartsd a <code class="inl">Tile</code>-t szűken (járható-e?), a <code class="inl">Biome</code>-ot meg külön rétegben — a render majd a kettő <em>kombinációjából</em> választ csempét. Ugyanaz az adat-vs-megjelenítés elv, mint a <a href="bevy-tile-editor-tutorial.html">tile-editor leckében</a>.</p></div>
+    </section>
+
+    <!-- 02 -->
+    <section id="oneaxis">
+      <div class="sec-head"><span class="idx">02</span><h2>Egy tengely kevés</h2></div>
+      <p>A legkézenfekvőbb ötlet: vedd a <a href="bevy-proceduralis-terkep-tutorial.html#noise">zaj-magasságtérképet</a>, és vágd küszöbökkel biomokra — víz, part, fű, erdő, hegy, hó. Ezt a procedurális-térkép lecke már bemutatta, és kiváló <em>terephez</em>: a magasság természetes módon ad óceánt és hegycsúcsot.</p>
+      <p>De biom-<em>identitáshoz</em> az egytengelyes magasság hamar elfogy. Egyetlen szám csak egyetlen, monoton sorrendet ad: alacsony → magas. Nem tudja megkülönböztetni a <strong>forró</strong> alföldet a <strong>hideg</strong> alföldtől, a <strong>száraz</strong> dombot a <strong>nedvestől</strong>. Márpedig pont ez teszi a sivatagot sivataggá és a havast havassá — nem a magasság, hanem a <strong>klíma</strong>.</p>
+      <div class="box note"><span class="lbl">A felismerés</span><p>A biom nem a magasság függvénye, hanem <strong>több, független jellemzőé</strong>. A klasszikus modell (Whittaker biom-diagramja) kettőt használ: <strong>hőmérséklet</strong> és <strong>csapadék</strong>. Ezekből egy 2D mátrix nyílik — és ott már elfér a tundra, a sivatag, az esőerdő egymás mellett, nem egymás <em>fölött</em>. A következő szakasz ezt építi fel.</p></div>
+      <p>A magasság ettől nem felesleges: kiváló <strong>harmadik tengely</strong> (víz a mélyben, kopár szikla a csúcson, a klíma a kettő között), vagy külön vizuális réteg. De a biom <em>gerince</em> a klíma-mátrix lesz.</p>
+    </section>
+
+    <!-- 03 -->
+    <section id="matrix">
+      <div class="sec-head"><span class="idx">03</span><h2>Klíma-mátrix: hőmérséklet × nedvesség</h2></div>
+      <p>A trükk meglepően egyszerű: generálj <strong>két független zajmezőt</strong> külön seeddel — az egyik a hőmérséklet, a másik a nedvesség —, majd a kettő párosából <strong>egy táblázattal</strong> olvasd ki a biomot. Ez a Whittaker-modell játék-változata.</p>
+      <pre><code class="rust">use noise::{Fbm, Perlin, MultiFractal, NoiseFn};
+
+/// Két FÜGGETLEN zajmező. A +9000 seed-eltolás garantálja, hogy a
+/// hőmérséklet és a nedvesség ne korreláljon. (fBm: lásd a proc-gen leckét.)
+fn climate_fields(seed: u32) -&gt; (Fbm&lt;Perlin&gt;, Fbm&lt;Perlin&gt;) {
+    let temp  = Fbm::&lt;Perlin&gt;::new(seed)
+        .set_octaves(4).set_frequency(0.03);
+    let moist = Fbm::&lt;Perlin&gt;::new(seed + 9_000)
+        .set_octaves(4).set_frequency(0.03);
+    (temp, moist)
+}
+
+/// A mátrix: (hőmérséklet, nedvesség) -&gt; biom. A küszöbök hangolhatók;
+/// a sorrend számít — a korábbi ágak "elkapják" az eseteket.
+fn biome_from_climate(temp: f64, moist: f64) -&gt; Biome {
+    use Biome::*;
+    match (temp, moist) {
+        (t, _) if t &lt; 0.30             =&gt; Snowy,       // hideg: minden fagyos
+        (t, m) if t &gt; 0.70 &amp;&amp; m &lt; 0.40  =&gt; Desert,      // forró + száraz
+        (t, _) if t &gt; 0.70             =&gt; Shrubland,    // forró + nyirkosabb
+        (_, m) if m &gt; 0.65             =&gt; Rainforest,   // mérsékelt + nedves
+        (_, m) if m &lt; 0.35             =&gt; Meadow,       // mérsékelt + száraz
+        _                              =&gt; DarkForest,   // mérsékelt + közepes
+    }
+}</code></pre>
+      <p>A mintát cellánként így olvasod ki — a Perlin <code class="inl">-1..1</code> között ad, ezért <code class="inl">0..1</code>-be toljuk:</p>
+      <pre><code class="rust">let t = temp.get([x as f64 * 0.03, y as f64 * 0.03]) * 0.5 + 0.5;
+let m = moist.get([x as f64 * 0.03, y as f64 * 0.03]) * 0.5 + 0.5;
+let biome = biome_from_climate(t, m);</code></pre>
+      <p>Egy 3×3-as nézet a leghasznosabb térkép a fejedben: a sorok a hőmérséklet, az oszlopok a nedvesség. Minden cella egy biom:</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>&nbsp;</th><th>száraz</th><th>mérsékelt</th><th>nedves</th></tr></thead>
+        <tbody>
+          <tr><td>hideg</td><td>tundra</td><td>tajga</td><td>havas erdő</td></tr>
+          <tr><td>mérsékelt</td><td>sztyepp / gyep</td><td>erdő</td><td>esőerdő</td></tr>
+          <tr><td>forró</td><td>sivatag</td><td>cserjés</td><td>trópusi dzsungel</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: klíma-mátrix</div>
+        <div class="dd">Két független zajmező (hőmérséklet + nedvesség) párosa indexel egy 3×3 biom-mátrixot. Told a <strong>hőmérséklet-</strong> vagy a <strong>nedvesség-eltolást</strong>, és nézd, ahogy a világ a forró/hideg, illetve a száraz/nedves sarok felé csúszik — a mátrix jobb alsó sarkából (dzsungel) a bal felsőbe (tundra).</div>
+        <canvas id="climCanvas" width="720" height="420"></canvas>
+        <div class="ctrls">
+          <label>Hőmérséklet:
+            <input type="range" id="climTemp" min="-30" max="30" value="0">
+            <span class="val" id="climTempVal">0.00</span>
+          </label>
+          <label>Nedvesség:
+            <input type="range" id="climMoist" min="-30" max="30" value="0">
+            <span class="val" id="climMoistVal">0.00</span>
+          </label>
+          <label>Skála:
+            <input type="range" id="climScale" min="2" max="14" value="6">
+            <span class="val" id="climScaleVal">6</span>
+          </label>
+          <button id="climGen">&#8635; új seed</button>
+        </div>
+        <div class="matrix" id="climMatrix"></div>
+      </div>
+      <div class="box tip"><span class="lbl">Független ≠ egyenletes</span><p>A két mező legyen <em>független</em> (más seed), különben a forró mindig nedves lenne, és odaveszne a mátrix fele. De nyugodtan adj a <strong>hőmérséklethez globális trendet</strong> — pl. észak felé hűljön —, hogy a sarkok ne véletlenszerűen szóródjanak. A demó <code class="inl">temp</code>-eltolása pont egy ilyen globális trend.</p></div>
+    </section>
+
+    <!-- 04 -->
+    <section id="borders">
+      <div class="sec-head"><span class="idx">04</span><h2>Természetes határok — domain warping</h2></div>
+      <p>Van egy árulkodó jel, amiről azonnal kiszúrod a gyenge biom-rendszert: a határok <strong>egyenesek</strong>. Ha a hőmérsékletet pusztán a kelet–nyugati pozícióból veszed, a sivatag–cserjés határ tökéletes függőleges vonal lesz. A természet nem így néz ki — a határoknak öböleik, félszigeteik, foltjaik vannak.</p>
+      <p>A megoldás a <strong>domain warping</strong> (tartomány-torzítás): mielőtt lekérdeznéd a klímamezőt, told el a mintavételi pontot egy <em>másik</em> zajjal. Vagyis nem azt kérdezed, „milyen a klíma itt", hanem „milyen a klíma egy kicsit arrébb — és arra, amerre a torzító-zaj mutat". Az egyenes küszöbből hullámos, organikus határ lesz, plusz kódlogika nélkül.</p>
+      <pre><code class="rust">/// A pontot egy Perlin-zajjal told el, MIELŐTT lekérdezed a klímát.
+/// `strength` szabja a hullámzás amplitúdóját (cellában).
+fn warp(p: Vec2, w: &amp;Perlin, strength: f32) -&gt; Vec2 {
+    let s = 0.04;
+    let ox = w.get([(p.x * s) as f64,         (p.y * s) as f64        ]) as f32;
+    let oy = w.get([(p.x * s + 100.0) as f64, (p.y * s + 100.0) as f64]) as f32;
+    p + Vec2::new(ox, oy) * strength
+}
+
+// használat: a klímát a TORZÍTOTT koordinátán kérdezd le
+let wp = warp(Vec2::new(x as f32, y as f32), &amp;warp_noise, 18.0);
+let t  = temp.get([wp.x as f64 * 0.03, wp.y as f64 * 0.03]) * 0.5 + 0.5;</code></pre>
+      <p>A <code class="inl">+100.0</code> eltolás a két lekérdezés között azért kell, hogy az x- és y-eltolás a zaj <em>különböző</em> részéből jöjjön — különben átlósan torzulna minden. A torzítás ugyanazt a mezőt használja, csak más helyen mintavételezve, így <strong>determinisztikus</strong> marad: ugyanaz a seed, ugyanazok a határok.</p>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: egyenes vs. torzított határok</div>
+        <div class="dd">Három biom-sáv, pusztán a kelet–nyugati pozícióból. <strong>Nulla torzításnál</strong> mesterséges, függőleges csíkok. Told fel a torzítást — ugyanaz a három biom, de a határok öblökké, félszigetekké, leszakadt foltokká hullámzanak. Ez egyetlen extra zajréteg.</div>
+        <canvas id="warpCanvas" width="720" height="380"></canvas>
+        <div class="ctrls">
+          <label>Torzítás:
+            <input type="range" id="warpStr" min="0" max="50" value="26">
+            <span class="val" id="warpStrVal">0.26</span>
+          </label>
+          <button id="warpGen">&#8635; új seed</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 -->
+    <section id="progress">
+      <div class="sec-head"><span class="idx">05</span><h2>A progresszió problémája</h2></div>
+      <p>A klíma-mátrix gyönyörű, változatos világot ad — de <strong>céltalant</strong>. A biomok véletlenszerűen szóródnak; a sivatag ott lehet a spawn mellett, a könnyű rét meg a térkép túlvégén. A felfedezésnek nincs íve. Itt lép be a <strong>progresszió</strong>: a biomokat nehézség szerint kell elrendezni, és gondoskodni róla, hogy a játékos nagyjából a <em>helyes sorrendben</em> találkozzon velük.</p>
+      <p>Az első ösztön a <strong>lineáris réteg</strong>: a spawn legyen alul, fölötte a könnyű biom, fölötte a közepes, legfelül a nehéz. A progresszió kristálytiszta… de a felfedezés <strong>halálosan unalmas</strong> lesz. Egyetlen tengely mentén haladsz, oda-vissza; balra és jobbra ugyanaz a sáv. A világ egy folyosóvá lapul.</p>
+      <p>A jobb megoldás a <strong>zónás (radiális) elrendezés</strong>: a spawn-pont köré szervezd a nehézséget. A spawn-hoz közel minden könnyű; minél messzebb mész — <em>bármelyik irányba</em> —, annál nehezebb. Így a felfedezés <strong>kétdimenzióssá</strong> válik: minden irány új biomot kínál, de a nehézség mégis kiszámíthatóan nő. (Ezt a mintát népszerűsítette pl. a Core Keeper.)</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Szempont</th><th>Lineáris rétegek</th><th>Zónás (radiális)</th></tr></thead>
+        <tbody>
+          <tr><td>Nehézség forrása</td><td>egyetlen tengely (pl. y)</td><td>spawntól mért távolság</td></tr>
+          <tr><td>Felfedezés</td><td>1D — folyosó, oda-vissza</td><td>2D — minden irány érdekes</td></tr>
+          <tr><td>Progresszió</td><td>tiszta, de merev</td><td>tiszta ÉS szabad</td></tr>
+          <tr><td>Élmény</td><td>hamar unalmas</td><td>iránytalan szabadság + ív</td></tr>
+        </tbody>
+      </table></div>
+      <div class="box note"><span class="lbl">A kulcsgondolat</span><p>Ne a biomot helyezd el közvetlenül, hanem egy <strong>nehézség-mezőt</strong> — egy folytonos „mennyire veszélyes itt" skalárt a térkép fölött. A biom ennek a mezőnek és a klímának a <em>kombinációjából</em> esik ki. Így a progresszió (kontrollált, radiális) és a változatosság (zajos klíma) egymástól függetlenül hangolható. A következő szakasz ezt írja kódba.</p></div>
+    </section>
+
+    <!-- 06 -->
+    <section id="difficulty">
+      <div class="sec-head"><span class="idx">06</span><h2>Nehézség-mező + a 7 biom elrendezése</h2></div>
+      <p>A nehézség-mező egyetlen függvény: minden cellához ad egy <code class="inl">0..1</code> „veszélyesség" értéket. A <strong>radiális</strong> változat a spawntól (a térkép alja-közepe) mért, normált távolság — közel 0, a sarkokban 1:</p>
+      <pre><code class="rust">/// RADIÁLIS nehézség: a spawntól mért távolság. Minden irányban nő.
+fn difficulty_radial(p: IVec2, spawn: Vec2, max_dist: f32) -&gt; f32 {
+    (p.as_vec2().distance(spawn) / max_dist).clamp(0.0, 1.0)
+}
+
+/// LINEÁRIS nehézség (az "első ötlet"): csak a függőleges pozíció.
+/// Tiszta progresszió, de a felfedezés egyetlen tengelyre lapul.
+fn difficulty_linear(p: IVec2, height: i32) -&gt; f32 {
+    1.0 - p.y as f32 / height as f32
+}</code></pre>
+      <p>A 7 biom elrendezése most már két tengely metszete: a <strong>kontrollált</strong> nehézség-gyűrű (közép → külső) és a <strong>zajos</strong> hőmérséklet-sáv (hideg → forró). Pontosan ez adja a referencia-térkép szerkezetét: spawn körül a könnyű esőerdő, középső gyűrűben rét / esőerdő / cserjés, a külső gyűrűben havas / sötét erdő / sivatag.</p>
+      <pre><code class="rust">/// nehézség-gyűrű × hőmérséklet-sáv -&gt; a 7 biom egyike.
+/// Ez köti össze a KONTROLLÁLT tengelyt a ZAJOSSAL.
+fn biome_for(difficulty: f32, temp: f64) -&gt; Biome {
+    use Biome::*;
+    let tier = if difficulty &lt; 0.34 { 0 } else if difficulty &lt; 0.67 { 1 } else { 2 };
+    let band = if temp &lt; 0.40 { 0 } else if temp &lt; 0.66 { 1 } else { 2 }; // hideg/mérs/forró
+    match (tier, band) {
+        (0, _) =&gt; EasyRainforest,   // spawn körül MINDIG könnyű
+        (1, 0) =&gt; Meadow,           // közép + hideg
+        (1, 1) =&gt; Rainforest,       // közép + mérsékelt
+        (1, _) =&gt; Shrubland,        // közép + forró
+        (2, 0) =&gt; Snowy,            // külső + hideg
+        (2, 1) =&gt; DarkForest,       // külső + mérsékelt
+        (2, _) =&gt; Desert,           // külső + forró
+        _      =&gt; Rainforest,
+    }
+}</code></pre>
+      <p>Figyeld meg a <code class="inl">(0, _)</code> ágat: a spawn körüli gyűrűben a hőmérséklet <strong>nem számít</strong> — mindig a könnyű biom jön. Ez szándékos: a kezdő-zóna legyen biztonságos és egységes, függetlenül attól, merre lép ki a játékos. A nehézség a fő tengely; a klíma csak <em>ízesíti</em> a gyűrűket.</p>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: a 7-biom világ — lineáris vs. zónás</div>
+        <div class="dd">A teljes elrendezés, ahogy a kód kiadja. A piros pötty a spawn (alja-közepe). Válts a <strong>zónás</strong> (radiális nehézség) és a <strong>lineáris</strong> (rétegek) elrendezés között — érezd a különbséget. A <strong>nehézség-hőtérkép</strong> a mögöttes mezőt mutatja (zöld = könnyű, piros = nehéz). A határok domain warpinggal hullámzanak.</div>
+        <canvas id="worldCanvas" width="720" height="470"></canvas>
+        <div class="ctrls">
+          <button id="layoutZonal" class="on">zónás (radiális)</button>
+          <button id="layoutLinear">lineáris (rétegek)</button>
+          <button id="heatToggle">nehézség-hőtérkép</button>
+          <button id="worldGen">&#8635; új világ</button>
+        </div>
+        <div class="legend" id="worldLegend"></div>
+      </div>
+      <div class="box tip"><span class="lbl">Keverd a kettőt</span><p>A tiszta radiális is lehet jósolható. Élesben gyakran <strong>kombinálnak</strong>: a radiális alap-nehézséghez adnak egy lassú zaj-réteget („veszély-foltok"), így néha egy nehéz sziget bukkan fel a könnyű zónában — váratlan kihívás és jutalom. A <code class="inl">difficulty</code> ettől még <code class="inl">0..1</code> marad; csak a forrása gazdagabb.</p></div>
+    </section>
+
+    <!-- 07 -->
+    <section id="identity">
+      <div class="sec-head"><span class="idx">07</span><h2>Biom-identitás: a címkéből kép</h2></div>
+      <p>A <code class="inl">BiomeMap</code> kész — most jön az <strong>identitás</strong>: a címkéből látható világ. Mivel mindent a <code class="inl">biome_def</code> tábla vezérel (01), a megjelenítés egyirányú levezetés: olvasd a biomot, kérd le a defjét, rajzolj. A render <strong>soha nem dönt</strong> biomról; csak megjeleníti.</p>
+      <pre><code class="rust">const TILE: f32 = 16.0;
+
+#[derive(Component)] struct MapTile;
+
+/// A talaj kifestése: minden cella a biomja alapszínét kapja.
+fn paint_tiles(mut commands: Commands, biomes: Res&lt;BiomeMap&gt;) {
+    for y in 0..biomes.height {
+        for x in 0..biomes.width {
+            let def = biome_def(biomes.get(x, y));
+            commands.spawn((
+                Sprite::from_color(def.ground, Vec2::splat(TILE)),
+                Transform::from_xyz(x as f32 * TILE, y as f32 * TILE, 0.0),
+                MapTile,
+            ));
+        }
+    }
+}</code></pre>
+      <p>Az identitás persze több a puszta színnél. A <code class="inl">decoration</code> mező vezérli a <strong>dekoráció-sűrűséget</strong>: a sötét erdő tele van fával és aljnövényzettel (<code class="inl">0.95</code>), a sivatag majdnem kopár (<code class="inl">0.15</code>). Ez ugyanaz a <a href="bevy-proceduralis-terkep-tutorial.html#features">reject-sampling / szórás-passz</a>, mint a feature-placement — csak a sűrűséget a biom adja.</p>
+      <p>Mivel az identitás <strong>tisztán adat</strong>, az egész világ „átöltöztethető" egyetlen tábla cseréjével — ősz, alkonyat vagy idegen-bolygó paletta, ugyanarra a generált mezőre. Ezt mutatja a demó:</p>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: ugyanaz az adat, más bőr</div>
+        <div class="dd">Ugyanaz a <code class="inl">BiomeMap</code>, kétféleképp. Az <strong>adat</strong> nézet a nyers biom-régiókat mutatja (lapos kategória-színek); a <strong>render</strong> a <code class="inl">biome_def</code> palettáját + a biomonként eltérő dekoráció-sűrűséget. Válts palettát — a világ <em>szerkezete</em> nem változik, csak a bőre. Ez a data-driven identitás haszna.</div>
+        <canvas id="palCanvas" width="720" height="440"></canvas>
+        <div class="ctrls">
+          <button id="palRender" class="on">render</button>
+          <button id="palData">nyers adat</button>
+          <span style="opacity:.5">|</span>
+          <button id="palAlap" class="on">alap</button>
+          <button id="palOsz">ősz</button>
+          <button id="palIdegen">idegen</button>
+        </div>
+      </div>
+      <div class="box note"><span class="lbl">A render a párosból választ</span><p>Élesben a csempét nem csak a biom, hanem a <strong>(biom, szomszéd-biom)</strong> páros adja — így jön a homokpart a víz mellé, a fűperem az erdő szélére. A maszk-számítás ugyanaz, mint az autotilingnál; csak a „terep" most a biom. Részletek: <a href="csempe-bitmaszkolas.html">csempe-bitmaszkolás</a>, <a href="bevy-dual-grid-tutorial.html">dual-grid</a>. A szegélyekről a 09 szól.</p></div>
+    </section>
+
+    <!-- 08 -->
+    <section id="populate">
+      <div class="sec-head"><span class="idx">08</span><h2>Mi tölti meg? — súlyozott spawn-táblák</h2></div>
+      <p>Egy biom akkor él, ha más <strong>lény</strong> les rád benne, és más <strong>nyersanyagot</strong> hagy maga után. Ez köti össze a nehézséget a jutalommal: a veszélyesebb biom tömöttebb és erősebb lényekkel jár, cserébe ritkább, értékesebb nyersanyaggal — így a felfedezés kockázat–jutalom döntés lesz.</p>
+      <p>Az eszköz a <strong>súlyozott spawn-tábla</strong>: bionként egy lista, amiben minden bejegyzéshez egy súly tartozik. Húzol egy súlyozott véletlent, és az adja, mi kerül oda (vagy semmi). A <code class="inl">Nothing</code> nagy súlya tartja ritkán a tartalmat — nem akarsz minden cellára egy bogarat.</p>
+      <pre><code class="rust">#[derive(Clone, Copy)]
+enum Spawn { Bug, Beetle, ClayPale, ClayRed, Flower, Nothing }
+
+struct Weighted { what: Spawn, weight: u32 }
+const fn w(what: Spawn, weight: u32) -&gt; Weighted { Weighted { what, weight } }
+
+/// Bionként más a "kit/mit találsz". A nehezebb biomok több és erősebb
+/// lényt adnak, cserébe jobb nyersanyagot — ez a felfedezés jutalma.
+fn spawn_table(b: Biome) -&gt; &amp;'static [Weighted] {
+    use Biome::*; use Spawn::*;
+    match b {
+        EasyRainforest =&gt; &amp;[w(Bug,2),   w(Flower,3),               w(Nothing,12)],
+        Meadow         =&gt; &amp;[w(Bug,3),   w(Flower,4), w(ClayPale,2), w(Nothing,10)],
+        Rainforest     =&gt; &amp;[w(Bug,5),   w(Beetle,2), w(Flower,3),  w(Nothing,8)],
+        Shrubland      =&gt; &amp;[w(Beetle,4),w(ClayPale,3),             w(Nothing,8)],
+        Snowy          =&gt; &amp;[w(Bug,4),   w(Beetle,3),               w(Nothing,7)],
+        DarkForest     =&gt; &amp;[w(Beetle,7),w(Flower,2),               w(Nothing,5)],
+        Desert         =&gt; &amp;[w(Beetle,6),w(ClayRed,4),             w(Nothing,6)],
+    }
+}
+
+/// Egy súlyozott húzás: a súlyok összegéből egy szám, majd "leszámoljuk".
+fn weighted_pick(table: &amp;[Weighted], rng: &amp;mut StdRng) -&gt; Spawn {
+    let total: u32 = table.iter().map(|e| e.weight).sum();
+    let mut roll = rng.gen_range(0..total);
+    for e in table {
+        if roll &lt; e.weight { return e.what; }
+        roll -= e.weight;
+    }
+    Spawn::Nothing
+}</code></pre>
+      <p>A betöltő-passz ugyanaz a szórás, mint a dekorációnál: menj végig a cellákon (vagy mintavételezz pontokat), nézd meg a helyi biomot, húzz a táblájából, és ami nem <code class="inl">Nothing</code>, azt spawnold be entitásként a csempék <strong>fölé</strong> (<code class="inl">z = 1</code>).</p>
+      <pre><code class="rust">fn populate_world(
+    mut commands: Commands,
+    biomes: Res&lt;BiomeMap&gt;,
+    mut rng: ResMut&lt;WorldRng&gt;,
+) {
+    for y in 0..biomes.height {
+        for x in 0..biomes.width {
+            // ritkítás: a cellák töredékén próbálkozunk csak
+            if !rng.0.gen_bool(0.12) { continue; }
+            match weighted_pick(spawn_table(biomes.get(x, y)), &amp;mut rng.0) {
+                Spawn::Nothing =&gt; {}
+                other =&gt; spawn_entity(&amp;mut commands, other, x, y),
+            }
+        }
+    }
+}</code></pre>
+      <div class="box tip"><span class="lbl">A táblák a "tervezői" felület</span><p>A spawn-tábla az a hely, ahol a játéktervezés történik — nem a kódban, hanem az adatban. Élesben ezt gyakran egy <a href="bevy-uzenetek-tutorial.html">RON/asset fájlba</a> teszik, hogy a tervező a kód újrafordítása nélkül hangolhassa. A nehézség–jutalom görbe (mennyivel jobb a sivatagi nyersanyag, mint a réti?) tisztán a súlyokban lakik. A run-alapú jutalom-logikáról lásd a <a href="bevy-roguelite-rendszerek-tutorial.html">roguelite-rendszerek</a> leckét.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: biom-vezérelt népesítés</div>
+        <div class="dd">A 7-biom világ, rászórva a tartalom: minden pötty egy súlyozott húzás a <em>helyi</em> biom táblájából. A <strong>lények</strong> körök (zöld = könnyű, sárga = közepes, piros = nehéz gyűrű), a <strong>nyersanyagok</strong> négyzetek. Figyeld: a külső, nehéz gyűrűben sűrűbb és „pirosabb" a lény-eloszlás. Told a sűrűséget, vagy szűrj kategóriára.</div>
+        <canvas id="popCanvas" width="720" height="470"></canvas>
+        <div class="ctrls">
+          <label>Sűrűség:
+            <input type="range" id="popDensity" min="10" max="100" value="45">
+            <span class="val" id="popDensityVal">45%</span>
+          </label>
+          <button id="popAll" class="on">minden</button>
+          <button id="popCre">csak lények</button>
+          <button id="popRes">csak nyersanyag</button>
+          <button id="popGen">&#8635; új világ</button>
+        </div>
+        <div class="readout">
+          <div><b>Lények</b><span id="popCreOut">&mdash;</span></div>
+          <div><b>Nyersanyag</b><span id="popResOut">&mdash;</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 09 -->
+    <section id="edges">
+      <div class="sec-head"><span class="idx">09</span><h2>Átmenetek & szegélyek</h2></div>
+      <p>A domain warping organikus <em>határvonalat</em> ad, de a határ két oldala még mindig élesen vált: a sötét erdő utolsó cellája mellett rögtön a havas első cellája áll. A profi érzethez két dolog kell — <strong>átmeneti sáv</strong> és <strong>szegélycsempe</strong>.</p>
+      <h3>Átmeneti (blend) sáv</h3>
+      <p>A határ közelében keverd a két biom jellemzőit a távolság arányában: a talajszín lerpeljen az egyikből a másikba, a dekoráció-sűrűség is. Így nincs éles vágás, hanem fokozatos átolvadás — pont, mint a valódi ökotónok.</p>
+      <pre><code class="rust">// két biom talajszínének keverése a határ-közelség (0..1) szerint
+let a = biome_def(here).ground;
+let b = biome_def(neighbour).ground;
+let ground = a.mix(&amp;b, blend);   // Bevy Color::mix — lineáris interpoláció</code></pre>
+      <h3>Szegélycsempe (autotiling a biomok közt)</h3>
+      <p>A keskeny, jellegzetes perem — homokpart a víz mellé, fűsáv az erdő szélére — ugyanaz az <strong>autotiling</strong>, mint a térkép-leckében, csak a „terep" most a biom. A maszkot a <strong>szomszédos cellák biomjából</strong> számolod: ahol a szomszéd más biom, oda perem-csempe kerül.</p>
+      <pre><code class="rust">// 4-bites maszk: hány fő-irányú szomszéd MÁS biom, mint én?
+fn border_mask(biomes: &amp;BiomeMap, x: i32, y: i32) -&gt; u8 {
+    let me = biomes.get(x, y);
+    let diff = |nx, ny| (biomes.get(nx, ny) != me) as u8;
+    (diff(x, y-1) &lt;&lt; 0) | (diff(x+1, y) &lt;&lt; 1)
+  | (diff(x, y+1) &lt;&lt; 2) | (diff(x-1, y) &lt;&lt; 3)
+}</code></pre>
+      <div class="box note"><span class="lbl">Ne építsd újra — kösd be</span><p>A maszk → csempe-index leképezés teljes története (8-bites sarkok, 47/256 redukció, több terep közti átmenetek) a <a href="csempe-bitmaszkolas.html">csempe-bitmaszkolás</a> és a <a href="bevy-dual-grid-tutorial.html">dual-grid</a> (+ <a href="bevy-dual-grid-advanced.html">PRO</a>) leckékben van. A biom-réteg pontosan ugyanazt a gépezetet hajtja, csak a bemenete a <code class="inl">Biome</code> a <code class="inl">Tile</code> helyett.</p></div>
+      <div class="box tip"><span class="lbl">Magasság mint perem</span><p>Egy elegáns trükk a „hamis szintkülönbséghez": a magasság-tengelyt (02) is kezelheted szegélyként — a magasabb biom pereme egy lefelé „lelógó" sziklacsempét kap, amit a karakter és a növényzet mindig <em>eltakar</em> (a sprite-ok <code class="inl">z</code>-je nagyobb). Így a 2D top-down világ is kap egy réteg mélységet, külön Y-sorting logika nélkül.</p></div>
+    </section>
+
+    <!-- 10 -->
+    <section id="bevy">
+      <div class="sec-head"><span class="idx">10</span><h2>Bevy integráció</h2></div>
+      <p>Most fűzd láncba. A teljes pipeline ugyanaz a „<strong>előbb adat, aztán kép</strong>" sorrend, mint a térkép-generálásnál — csak most a <code class="inl">BiomeMap</code> az adat, és a render + a populálás a levezetés. Az egész egyszer fut: <code class="inl">Startup</code>-ban vagy egy állapot <code class="inl">OnEnter</code>-jében (lásd az <a href="bevy-idozites.html">időzítés leckét</a>), soha nem az <code class="inl">Update</code>-ben.</p>
+      <pre><code class="rust">#[derive(Resource)] struct WorldSeed(u32);
+#[derive(Resource)] struct WorldRng(StdRng);
+
+#[derive(States, Default, Clone, PartialEq, Eq, Hash, Debug)]
+enum AppState { #[default] Generating, Playing }
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .insert_resource(WorldSeed(8472))
+        .init_state::&lt;AppState&gt;()
+        .add_systems(OnEnter(AppState::Generating), (
+            setup_camera,
+            assign_biomes,    // klímamezők + nehézség -&gt; BiomeMap   (ADAT)
+            paint_tiles,      // BiomeMap -&gt; talaj-sprite-ok          (KÉP)
+            populate_world,   // BiomeMap -&gt; súlyozott spawn          (TARTALOM)
+        ).chain())
+        .run();
+}</code></pre>
+      <p>A szív az <code class="inl">assign_biomes</code>: itt fut össze minden eddigi rész — a klímamező (03), a domain warping (04), a radiális nehézség (06) és a <code class="inl">biome_for</code> lookup. A kimenet egyetlen <code class="inl">BiomeMap</code> resource:</p>
+      <pre><code class="rust">fn assign_biomes(mut commands: Commands, seed: Res&lt;WorldSeed&gt;) {
+    let (w, h) = (96, 64);
+    let (temp, _moist) = climate_fields(seed.0);
+    let warp_noise = Perlin::new(seed.0 + 1);
+
+    let spawn = Vec2::new(w as f32 / 2.0, h as f32); // alja-közepe
+    let max_dist = spawn.length();                   // ~a legtávolabbi sarok
+
+    let mut cells = Vec::with_capacity((w * h) as usize);
+    for y in 0..h {
+        for x in 0..w {
+            let p  = IVec2::new(x, y);
+            let wp = warp(p.as_vec2(), &amp;warp_noise, 18.0);          // hullámos határ
+            let t  = temp.get([wp.x as f64 * 0.03, wp.y as f64 * 0.03]) * 0.5 + 0.5;
+            let d  = difficulty_radial(p, spawn, max_dist);         // radiális progresszió
+            cells.push(biome_for(d, t));
+        }
+    }
+
+    commands.insert_resource(BiomeMap { width: w, height: h, cells });
+    // a WorldRng-t a populáláshoz külön resource-ként ugyanebből a seedből hozd
+    commands.insert_resource(WorldRng(StdRng::seed_from_u64(seed.0 as u64)));
+}</code></pre>
+      <div class="box warn"><span class="lbl">Egy seed, egy sorrend</span><p>Ahogy a térkép-generálásnál: a determinizmus a seedből <em>és</em> a hívási sorrendből együtt jön. A klíma, a warp és a populáló RNG mind a <code class="inl">WorldSeed</code>-ből származzon (akár eltolt seedekkel), és a passzok sorrendje legyen stabil. Ha átrendezed a láncot, ugyanaz a seed más világot ad — mentsd a seedet, ne a kész <code class="inl">BiomeMap</code>-et.</p></div>
+      <div class="box note"><span class="lbl">Generálás mint jelenet</span><p>Az <code class="inl">OnEnter(Generating)</code> minta egyenes folytatása a <a href="bevy-scene-valtas-tutorial.html">scene-váltás leckének</a>: a világépítés egy „jelenet", amibe belépsz, lefuttatod a láncot, majd <code class="inl">NextState(Playing)</code>-gel továbblépsz. Újrageneráláshoz csak lépj vissza <code class="inl">Generating</code>-be — a <code class="inl">DespawnOnExit</code> letakarítja a régi csempéket.</p></div>
+    </section>
+
+    <!-- 11 -->
+    <section id="full">
+      <div class="sec-head"><span class="idx">11</span><h2>Komplett minta — összerakva</h2></div>
+      <p>Egy minimál, de teljes biom-réteg: klímamező + warp + radiális nehézség → <code class="inl">BiomeMap</code>, majd talaj-render. A <code class="inl">Map</code> (fal/padló) generálását a <a href="bevy-proceduralis-terkep-tutorial.html">térkép-lecke</a> adja; ez a csontváz a fölé kerülő réteg.</p>
+      <pre><code class="rust">use bevy::prelude::*;
+use noise::{Fbm, Perlin, MultiFractal, NoiseFn};
+
+const TILE: f32 = 16.0;
+const W: i32 = 96;
+const H: i32 = 64;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Biome { EasyRainforest, Meadow, Rainforest, Shrubland, Snowy, DarkForest, Desert }
+
+#[derive(Resource)]
+struct BiomeMap { width: i32, height: i32, cells: Vec&lt;Biome&gt; }
+impl BiomeMap { fn get(&amp;self, x: i32, y: i32) -&gt; Biome { self.cells[(y*self.width + x) as usize] } }
+
+#[derive(Component)] struct MapTile;
+
+fn ground(b: Biome) -&gt; Color {
+    use Biome::*;
+    match b {
+        EasyRainforest =&gt; Color::srgb(0.51,0.65,0.34),
+        Meadow         =&gt; Color::srgb(0.60,0.63,0.29),
+        Rainforest     =&gt; Color::srgb(0.30,0.48,0.25),
+        Shrubland      =&gt; Color::srgb(0.76,0.64,0.37),
+        Snowy          =&gt; Color::srgb(0.78,0.83,0.84),
+        DarkForest     =&gt; Color::srgb(0.20,0.27,0.19),
+        Desert         =&gt; Color::srgb(0.85,0.77,0.53),
+    }
+}
+
+fn warp(p: Vec2, w: &amp;Perlin, strength: f32) -&gt; Vec2 {
+    let s = 0.04;
+    let ox = w.get([(p.x*s) as f64,        (p.y*s) as f64       ]) as f32;
+    let oy = w.get([(p.x*s+100.0) as f64,  (p.y*s+100.0) as f64 ]) as f32;
+    p + Vec2::new(ox, oy) * strength
+}
+
+fn biome_for(diff: f32, temp: f64) -&gt; Biome {
+    use Biome::*;
+    let tier = if diff &lt; 0.34 { 0 } else if diff &lt; 0.67 { 1 } else { 2 };
+    let band = if temp &lt; 0.40 { 0 } else if temp &lt; 0.66 { 1 } else { 2 };
+    match (tier, band) {
+        (0, _) =&gt; EasyRainforest,
+        (1, 0) =&gt; Meadow, (1, 1) =&gt; Rainforest, (1, _) =&gt; Shrubland,
+        (2, 0) =&gt; Snowy,  (2, 1) =&gt; DarkForest, (2, _) =&gt; Desert,
+        _      =&gt; Rainforest,
+    }
+}
+
+fn assign_biomes(mut commands: Commands) {
+    let seed = 8472u32;
+    let temp = Fbm::&lt;Perlin&gt;::new(seed).set_octaves(4).set_frequency(0.03);
+    let wn   = Perlin::new(seed + 1);
+    let spawn = Vec2::new(W as f32/2.0, H as f32);
+    let max_d = spawn.length();
+
+    let mut cells = Vec::with_capacity((W*H) as usize);
+    for y in 0..H { for x in 0..W {
+        let p  = IVec2::new(x, y);
+        let wp = warp(p.as_vec2(), &amp;wn, 18.0);
+        let t  = temp.get([wp.x as f64*0.03, wp.y as f64*0.03]) * 0.5 + 0.5;
+        let d  = (p.as_vec2().distance(spawn) / max_d).clamp(0.0, 1.0);
+        cells.push(biome_for(d, t));
+    }}
+    commands.insert_resource(BiomeMap { width: W, height: H, cells });
+}
+
+fn paint_tiles(mut commands: Commands, biomes: Res&lt;BiomeMap&gt;) {
+    for y in 0..biomes.height { for x in 0..biomes.width {
+        commands.spawn((
+            Sprite::from_color(ground(biomes.get(x, y)), Vec2::splat(TILE)),
+            Transform::from_xyz(x as f32*TILE, y as f32*TILE, 0.0),
+            MapTile,
+        ));
+    }}
+}
+
+fn setup_camera(mut commands: Commands) {
+    commands.spawn((Camera2d, Transform::from_xyz(W as f32*TILE/2.0, H as f32*TILE/2.0, 0.0)));
+}
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_systems(Startup, (setup_camera, assign_biomes, paint_tiles).chain())
+        .run();
+}</code></pre>
+      <div class="box warn"><span class="lbl">Skálázás</span><p>Csempénként egy entitás 96×64-ig kiváló tanulni, de egy igazi nyílt világhoz <code class="inl">bevy_ecs_tilemap</code> (chunkolt mesh) kell — és a <code class="inl">BiomeMap</code>-et chunkokra bontva, a játékos körül be/kitöltve generálod. Az adatmodell ettől nem változik, csak a megjelenítő réteg.</p></div>
+    </section>
+
+    <!-- 12 -->
+    <section id="tips">
+      <div class="sec-head"><span class="idx">12</span><h2>Gyakorlati tippek & buktatók</h2></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>Tartsd a biomot <strong>külön rétegben</strong> (<code class="inl">BiomeMap</code>), ne olvaszd a <code class="inl">Tile</code>-ba. A <code class="inl">Tile</code> a járhatóság, a <code class="inl">Biome</code> az identitás — a render a kettő kombinációjából választ.</p></div>
+      <div class="box warn"><span class="lbl">Ne</span><p>Ne döntsd el a biomot a <strong>magasságból</strong> egyedül. Egy tengely csak monoton sávokat ad; a klíma-mátrix (hőmérséklet × nedvesség) kell a valódi változatossághoz.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>Válaszd szét a <strong>kontrollált</strong> (nehézség) és a <strong>zajos</strong> (klíma) tengelyt. A progresszió és a változatosság így egymástól függetlenül hangolható — ez a radiális elrendezés titka.</p></div>
+      <div class="box warn"><span class="lbl">Ne</span><p>Ne hagyd egyenesen a határokat. Egy pozícióból vett küszöb függőleges csíkokat ad; egy <strong>domain warp</strong> réteg organikus peremmé töri.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>Kösd a <strong>jutalmat a nehézséghez</strong> a spawn-táblákban: nehezebb biom = több/erősebb lény + ritkább/jobb nyersanyag. Ez teszi a felfedezést kockázat–jutalom döntéssé.</p></div>
+      <div class="box warn"><span class="lbl">Vigyázz</span><p>A determinizmus a seedből <em>és</em> a hívási sorrendből jön. A klíma, a warp és a spawn RNG mind a világ-seedből származzon; a passzok sorrendje legyen stabil. Mentsd a seedet, ne a kész térképet.</p></div>
+      <div class="box note"><span class="lbl">Kezdő-zóna</span><p>A spawn körüli gyűrűben hagyd a klímát „elnyomva" — mindig a könnyű biom jöjjön, függetlenül a hőmérséklettől. A játékos első percei legyenek biztonságosak és egységesek, bármerre indul.</p></div>
+    </section>
+
+    <!-- 13 -->
+    <section id="tldr">
+      <div class="sec-head"><span class="idx">13</span><h2>TL;DR</h2></div>
+      <div class="tldr">
+        <h3>A lényeg egy kártyán</h3>
+        <ul>
+          <li><strong>A biom = réteg a terep fölött:</strong> a nyers zaj terep, a biom adja az identitást, a nehézséget és a tartalmat.</li>
+          <li><strong>Három kérdés:</strong> mező (mi alapján döntünk?), identitás (címkéből kép?), progresszió (hogyan rendezzük el?).</li>
+          <li><strong>Biom mint adat:</strong> sima <code class="inl">enum</code> + <code class="inl">BiomeDef</code> tábla; külön <code class="inl">BiomeMap</code> a tile-Map testvéreként.</li>
+          <li><strong>Egy tengely kevés:</strong> a magasság monoton sávokat ad; a klíma-mátrix (<strong>hőmérséklet × nedvesség</strong>) kell a változatossághoz.</li>
+          <li><strong>Klíma-mátrix:</strong> két független zajmező párosa egy 3×3 táblát indexel — tundrától a dzsungelig.</li>
+          <li><strong>Domain warping:</strong> a mintavételi pontot egy másik zajjal told el → egyenes helyett organikus határ.</li>
+          <li><strong>Progresszió:</strong> lineáris réteg = unalmas folyosó; <strong>radiális</strong> (spawntól mért távolság) = 2D felfedezés tiszta ívvel.</li>
+          <li><strong>A 7 biom:</strong> nehézség-gyűrű × hőmérséklet-sáv lookup — kontrollált tengely metszi a zajosat.</li>
+          <li><strong>Identitás = adat:</strong> a render egyirányú levezetés a <code class="inl">biome_def</code>-ből; az egész világ átöltöztethető egy tábla cseréjével.</li>
+          <li><strong>Tartalom:</strong> bionkénti súlyozott spawn-tábla; nehézség ↔ jutalom; szórás-passz a kész <code class="inl">BiomeMap</code>-re.</li>
+          <li><strong>Átmenetek:</strong> blend-sáv (szín-lerp) + szegély-autotiling a szomszéd-biom maszkjából. Részletek: <a href="csempe-bitmaszkolas.html">bitmaszkolás</a>, <a href="bevy-dual-grid-tutorial.html">dual-grid</a>.</li>
+          <li><strong>Bevy:</strong> <code class="inl">OnEnter(Generating)</code> lánc — adat → kép → tartalom; egy seed, stabil sorrend.</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer>
+      Bevy 0.18 · Biomok: identitás, határok, progresszió · egyetlen fájlos HTML · készült offline használatra
+    </footer>
+  </main>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- Rust + TOML szintaxiskiemelő ---------- */
+function highlightRust(src){
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  var token = /(\/\/[^\n]*)|("(?:[^"\\]|\\.)*")|(\b(?:fn|let|mut|for|in|if|else|match|struct|enum|impl|trait|pub|use|mod|return|self|Self|as|where|move|loop|while|break|continue|const|static|ref|dyn|crate|true|false)\b)|(\b[A-Z][A-Za-z0-9_]*\b)|(\b[a-z_][A-Za-z0-9_]*!)|(\b\d[\d_]*\.?\d*(?:f32|f64|u32|i32|u8|usize)?\b)/g;
+  var out="", last=0, m;
+  while((m=token.exec(src))!==null){
+    out += esc(src.slice(last, m.index));
+    var text = esc(m[0]);
+    if(m[1]) out += '<span class="c">'+text+'</span>';
+    else if(m[2]) out += '<span class="s">'+text+'</span>';
+    else if(m[3]) out += '<span class="k">'+text+'</span>';
+    else if(m[4]) out += '<span class="t">'+text+'</span>';
+    else if(m[5]) out += '<span class="m">'+text+'</span>';
+    else if(m[6]) out += '<span class="n">'+text+'</span>';
+    last = token.lastIndex;
+  }
+  out += esc(src.slice(last));
+  return out;
+}
+function highlightToml(src){
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  return esc(src)
+    .replace(/(#[^\n]*)/g,'<span class="c">$1</span>')
+    .replace(/(&quot;[^&]*&quot;|"[^"]*")/g,'<span class="s">$1</span>')
+    .replace(/^(\s*)([A-Za-z0-9_\-]+)(\s*=)/gm,'$1<span class="t">$2</span>$3')
+    .replace(/(\[[^\]]+\])/g,'<span class="m">$1</span>');
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+  document.querySelectorAll("pre code.rust").forEach(function(el){
+    el.innerHTML = highlightRust(el.textContent);
+  });
+  document.querySelectorAll("pre code.toml").forEach(function(el){
+    el.innerHTML = highlightToml(el.textContent);
+  });
+
+  /* scrollspy */
+  var links = Array.prototype.slice.call(document.querySelectorAll("#nav a"));
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute("href").slice(1)] = a; });
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){
+        links.forEach(function(a){ a.classList.remove("active"); });
+        var act = map[e.target.id];
+        if(act) act.classList.add("active");
+      }
+    });
+  }, { rootMargin: "-20% 0px -70% 0px" });
+  document.querySelectorAll("section").forEach(function(s){ obs.observe(s); });
+
+  /* mobil menü */
+  var btn = document.getElementById("menuBtn");
+  var sb = document.getElementById("sidebar");
+  if(btn){
+    btn.addEventListener("click", function(){ sb.classList.toggle("open"); });
+    document.querySelectorAll("#nav a").forEach(function(a){
+      a.addEventListener("click", function(){ sb.classList.remove("open"); });
+    });
+  }
+
+  initClimateDemo();
+  initWarpDemo();
+  initWorldDemo();
+  initPaletteDemo();
+  initPopDemo();
+});
+
+/* ===================== közös segédek ===================== */
+// determinisztikus, seedelhető RNG (mulberry32)
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+// value noise + fBm (a proc-gen leckéből)
+function makeValueNoise(seed){
+  function hash(x,y){
+    var h = (x*374761393) ^ (y*668265263) ^ (seed*2147483647);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  }
+  function smooth(t){ return t*t*(3-2*t); }
+  return function(x,y){
+    var x0 = Math.floor(x), y0 = Math.floor(y);
+    var fx = smooth(x-x0), fy = smooth(y-y0);
+    var v00=hash(x0,y0), v10=hash(x0+1,y0), v01=hash(x0,y0+1), v11=hash(x0+1,y0+1);
+    var a = v00 + (v10-v00)*fx;
+    var b = v01 + (v11-v01)*fx;
+    return a + (b-a)*fy;
+  };
+}
+function fbm(noise, x, y, octaves){
+  var sum=0, amp=1, freq=1, norm=0;
+  for(var i=0;i<octaves;i++){ sum += noise(x*freq, y*freq)*amp; norm += amp; amp *= 0.5; freq *= 2; }
+  return sum/norm;
+}
+function pal(){
+  var css = getComputedStyle(document.documentElement);
+  function c(n,f){ return css.getPropertyValue(n).trim() || f; }
+  return { bg:c("--code-bg","#14141f"), muted:c("--muted","#8b8b9e"),
+           pink:c("--pink","#ec6a9c"), cyan:c("--cyan","#56d4c4"),
+           amber:c("--amber","#f2c14e"), green:c("--green","#8ce99a"),
+           red:c("--red","#ff6b6b"), ink:c("--ink","#e3e3ec") };
+}
+function hex2rgb(h){ h=h.replace('#',''); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+function lerpHex(a,b,t){ var A=hex2rgb(a),B=hex2rgb(b);
+  return 'rgb('+Math.round(A[0]+(B[0]-A[0])*t)+','+Math.round(A[1]+(B[1]-A[1])*t)+','+Math.round(A[2]+(B[2]-A[2])*t)+')'; }
+function heatColor(d){ return d<0.5 ? lerpHex('8ce99a','f2c14e',d*2) : lerpHex('f2c14e','ff6b6b',(d-0.5)*2); }
+function whenFonts(fn){ if(document.fonts && document.fonts.ready){ document.fonts.ready.then(fn); } }
+
+/* ===================== a 7-biom világ generátora (megosztott) ===================== */
+var NB_COL = {
+  easy:'#82a35e', meadow:'#9aa14a', rain:'#4d7a40', shrub:'#c2a45f',
+  snowy:'#c6d3d6', dark:'#324430', desert:'#d9c486'
+};
+var NB_NAME = {
+  easy:'Easy Rainforest', meadow:'Meadow', rain:'Rainforest', shrub:'Shrubland',
+  snowy:'Snowy', dark:'Dark Forest', desert:'Desert'
+};
+var NB_TIER = { easy:0, meadow:1, rain:1, shrub:1, snowy:2, dark:2, desert:2 };
+var NB_ORDER = ['easy','meadow','rain','shrub','snowy','dark','desert'];
+
+function pickBiome(tier, band){
+  if(tier===0) return 'easy';
+  if(tier===1) return band===0?'meadow':band===1?'rain':'shrub';
+  return band===0?'snowy':band===1?'dark':'desert';
+}
+// visszaadja: {biome:[], diff:Float32, GW, GH, sx, sy}
+function genWorld(seed, layout, GW, GH){
+  var tn = makeValueNoise(seed), wn = makeValueNoise(seed+1313);
+  var biome = new Array(GW*GH), diff = new Float32Array(GW*GH);
+  var sx = GW*0.5, sy = GH-1;                 // spawn: alja-közepe
+  var maxd = Math.sqrt(sx*sx + sy*sy);
+  for(var y=0;y<GH;y++) for(var x=0;x<GW;x++){
+    var wx = (fbm(wn, x*0.05, y*0.05, 3)-0.5)*14;        // domain warp
+    var wy = (fbm(wn, x*0.05+50, y*0.05+50, 3)-0.5)*14;
+    var fx = x+wx, fy = y+wy;
+    var temp = (fx/GW)*0.72 + fbm(tn, x*0.045, y*0.045, 3)*0.28; // bal hideg -> jobb forró
+    temp = Math.max(0,Math.min(1,temp));
+    var d;
+    if(layout==='linear'){ d = 1 - (y/GH); }
+    else { var ddx=(x-sx)+wx*0.6, ddy=(y-sy)+wy*0.6; d = Math.sqrt(ddx*ddx+ddy*ddy)/maxd; }
+    d = Math.max(0,Math.min(1,d));
+    var tier = d<0.34?0:d<0.67?1:2;
+    var band = temp<0.40?0:temp<0.66?1:2;
+    biome[y*GW+x] = pickBiome(tier, band);
+    diff[y*GW+x]  = d;
+  }
+  return { biome:biome, diff:diff, GW:GW, GH:GH, sx:sx, sy:sy };
+}
+// biom-felirat a régiók súlypontjába
+function drawLabels(ctx, world, cw, ch){
+  var sumx={}, sumy={}, cnt={};
+  for(var i=0;i<NB_ORDER.length;i++){ var k=NB_ORDER[i]; sumx[k]=0; sumy[k]=0; cnt[k]=0; }
+  for(var y=0;y<world.GH;y++) for(var x=0;x<world.GW;x++){
+    var k=world.biome[y*world.GW+x]; sumx[k]+=x; sumy[k]+=y; cnt[k]++;
+  }
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.font = "700 15px 'Pixelify Sans', sans-serif";
+  ctx.lineJoin="round";
+  for(var j=0;j<NB_ORDER.length;j++){
+    var key=NB_ORDER[j]; if(cnt[key]<8) continue;
+    var lx=(sumx[key]/cnt[key]+0.5)*cw, ly=(sumy[key]/cnt[key]+0.5)*ch;
+    var name=NB_NAME[key];
+    var lines = name.indexOf(' ')>0 ? name.split(' ') : [name];
+    if(lines.length===2 && (lines[0].length+lines[1].length)<=10){ lines=[name]; } // rövid: egy sor
+    for(var l=0;l<lines.length;l++){
+      var yy=ly + (l - (lines.length-1)/2)*16;
+      ctx.lineWidth=4; ctx.strokeStyle="rgba(10,10,18,.85)"; ctx.strokeText(lines[l], lx, yy);
+      ctx.fillStyle="#f4f4f8"; ctx.fillText(lines[l], lx, yy);
+    }
+  }
+}
+function drawSpawn(ctx, world, cw, ch){
+  ctx.fillStyle="#ff4d4d";
+  var r=Math.max(3, cw*0.7);
+  ctx.beginPath(); ctx.arc(world.sx*cw, (world.sy+0.5)*ch, r, 0, Math.PI*2); ctx.fill();
+  ctx.lineWidth=1.5; ctx.strokeStyle="rgba(10,10,18,.7)"; ctx.stroke();
+}
+
+/* ===================== DEMÓ 1: klíma-mátrix ===================== */
+var CLIM = [
+  // [tempRow: hideg/mérs/forró][moistCol: száraz/mérs/nedves]
+  [{n:'Tundra',c:'#9aa39a'},   {n:'Tajga',c:'#6f8f7a'},   {n:'Havas erdő',c:'#b9cdd0'}],
+  [{n:'Sztyepp',c:'#9aa257'},  {n:'Erdő',c:'#4f8a4a'},    {n:'Esőerdő',c:'#2f6b3a'}],
+  [{n:'Sivatag',c:'#d8c389'},  {n:'Cserjés',c:'#bda35e'}, {n:'Dzsungel',c:'#2c7d4f'}]
+];
+function climBiome(t,m){ var r=t<0.34?0:t<0.67?1:2, c=m<0.34?0:m<0.67?1:2; return CLIM[r][c]; }
+function initClimateDemo(){
+  var cv=document.getElementById("climCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var GW=96, GH=56;
+  var tS=document.getElementById("climTemp"), mS=document.getElementById("climMoist"), sS=document.getElementById("climScale");
+  var tV=document.getElementById("climTempVal"), mV=document.getElementById("climMoistVal"), sV=document.getElementById("climScaleVal");
+  var gen=document.getElementById("climGen"), matrixEl=document.getElementById("climMatrix");
+  var seed=4242;
+
+  // mátrix-legenda felépítése
+  function buildMatrix(){
+    var rows=['hideg','mérsékelt','forró'], cols=['száraz','mérs.','nedves'];
+    var html='<div class="corner">hőm. \\ ned.</div>';
+    for(var c=0;c<3;c++) html+='<div class="axis">'+cols[c]+'</div>';
+    for(var r=0;r<3;r++){
+      html+='<div class="axis">'+rows[r]+'</div>';
+      for(var cc=0;cc<3;cc++){ var b=CLIM[r][cc]; html+='<div class="cell" style="background:'+b.c+'">'+b.n+'</div>'; }
+    }
+    matrixEl.innerHTML=html;
+  }
+  function draw(){
+    var tb=parseInt(tS.value,10)/100, mb=parseInt(mS.value,10)/100;
+    var scale=parseInt(sS.value,10)/100;
+    var tn=makeValueNoise(seed), mn=makeValueNoise(seed+9000);
+    var cw=cv.width/GW, ch=cv.height/GH;
+    for(var y=0;y<GH;y++) for(var x=0;x<GW;x++){
+      var t=Math.max(0,Math.min(1, fbm(tn,x*scale,y*scale,4)+tb));
+      var m=Math.max(0,Math.min(1, fbm(mn,x*scale,y*scale,4)+mb));
+      ctx.fillStyle=climBiome(t,m).c;
+      ctx.fillRect(Math.floor(x*cw),Math.floor(y*ch),Math.ceil(cw),Math.ceil(ch));
+    }
+  }
+  tS.addEventListener("input",function(){ tV.textContent=(parseInt(tS.value,10)/100).toFixed(2); draw(); });
+  mS.addEventListener("input",function(){ mV.textContent=(parseInt(mS.value,10)/100).toFixed(2); draw(); });
+  sS.addEventListener("input",function(){ sV.textContent=sS.value; draw(); });
+  gen.addEventListener("click",function(){ seed=Math.floor(mulberry32(seed)()*1e9)+1; draw(); });
+  buildMatrix();
+  tV.textContent=(parseInt(tS.value,10)/100).toFixed(2);
+  mV.textContent=(parseInt(mS.value,10)/100).toFixed(2);
+  sV.textContent=sS.value;
+  draw();
+}
+
+/* ===================== DEMÓ 2: domain warping ===================== */
+function initWarpDemo(){
+  var cv=document.getElementById("warpCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var GW=96, GH=50;
+  var sS=document.getElementById("warpStr"), sV=document.getElementById("warpStrVal"), gen=document.getElementById("warpGen");
+  var cols=['#6f8f7a','#9aa257','#d8c389'];  // 3 biom-sáv
+  var seed=11;
+  function draw(){
+    var strength=parseInt(sS.value,10)/100;
+    var wn=makeValueNoise(seed);
+    var cw=cv.width/GW, ch=cv.height/GH;
+    for(var y=0;y<GH;y++) for(var x=0;x<GW;x++){
+      var tx=x/GW + (fbm(wn,x*0.06,y*0.06,3)-0.5)*strength*2.2;
+      var idx = tx<0.34?0:tx<0.66?1:2;
+      idx=Math.max(0,Math.min(2,idx));
+      ctx.fillStyle=cols[idx];
+      ctx.fillRect(Math.floor(x*cw),Math.floor(y*ch),Math.ceil(cw),Math.ceil(ch));
+    }
+  }
+  sS.addEventListener("input",function(){ sV.textContent=(parseInt(sS.value,10)/100).toFixed(2); draw(); });
+  gen.addEventListener("click",function(){ seed++; draw(); });
+  sV.textContent=(parseInt(sS.value,10)/100).toFixed(2);
+  draw();
+}
+
+/* ===================== DEMÓ 3: a 7-biom világ (centerpiece) ===================== */
+function initWorldDemo(){
+  var cv=document.getElementById("worldCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var GW=96, GH=62;
+  var zB=document.getElementById("layoutZonal"), lB=document.getElementById("layoutLinear");
+  var hB=document.getElementById("heatToggle"), gen=document.getElementById("worldGen");
+  var legend=document.getElementById("worldLegend");
+  var seed=2026, layout='zonal', heat=false, world;
+
+  legend.innerHTML = NB_ORDER.map(function(k){
+    return '<span><i style="background:'+NB_COL[k]+'"></i>'+NB_NAME[k]+'</span>';
+  }).join("");
+
+  function regen(){ world=genWorld(seed, layout, GW, GH); }
+  function draw(){
+    var cw=cv.width/GW, ch=cv.height/GH;
+    for(var y=0;y<GH;y++) for(var x=0;x<GW;x++){
+      var i=y*GW+x;
+      if(heat){ ctx.fillStyle=heatColor(world.diff[i]); }
+      else {
+        var base=NB_COL[world.biome[i]];
+        // enyhe textúra-zaj a cellán
+        var jit=((Math.sin((x*12.9+y*78.2))*43758.5)%1); jit=(jit<0?jit+1:jit);
+        ctx.fillStyle = jit<0.12 ? lerpHex(base.replace('#',''),'ffffff',0.12)
+                      : jit>0.9  ? lerpHex(base.replace('#',''),'000000',0.10) : base;
+      }
+      ctx.fillRect(Math.floor(x*cw),Math.floor(y*ch),Math.ceil(cw),Math.ceil(ch));
+    }
+    if(!heat) drawLabels(ctx, world, cw, ch);
+    drawSpawn(ctx, world, cw, ch);
+    if(heat){
+      ctx.textAlign="left"; ctx.textBaseline="top";
+      ctx.font="600 12px 'JetBrains Mono', monospace";
+      ctx.fillStyle="rgba(10,10,18,.8)"; ctx.fillRect(8,8,176,22);
+      ctx.fillStyle="#8ce99a"; ctx.fillText("könnyű", 14, 13);
+      ctx.fillStyle="#f2c14e"; ctx.fillText("közepes", 70, 13);
+      ctx.fillStyle="#ff6b6b"; ctx.fillText("nehéz", 138, 13);
+    }
+  }
+  function setLayout(l){ layout=l; zB.classList.toggle("on",l==='zonal'); lB.classList.toggle("on",l==='linear'); regen(); draw(); }
+  zB.addEventListener("click",function(){ setLayout('zonal'); });
+  lB.addEventListener("click",function(){ setLayout('linear'); });
+  hB.addEventListener("click",function(){ heat=!heat; hB.classList.toggle("on",heat); draw(); });
+  gen.addEventListener("click",function(){ seed++; regen(); draw(); });
+  regen(); draw();
+  whenFonts(draw);
+}
+
+/* ===================== DEMÓ 4: identitás — adat vs render ===================== */
+var PALS = {
+  alap:   { easy:'#82a35e', meadow:'#9aa14a', rain:'#4d7a40', shrub:'#c2a45f', snowy:'#c6d3d6', dark:'#324430', desert:'#d9c486' },
+  osz:    { easy:'#c2913f', meadow:'#b5762e', rain:'#8a5a22', shrub:'#caa24a', snowy:'#e7d9c2', dark:'#5a3a1e', desert:'#d8b25e' },
+  idegen: { easy:'#6a8acb', meadow:'#7a6acb', rain:'#3a2f8a', shrub:'#a05fc2', snowy:'#d6c6ea', dark:'#241a55', desert:'#c25f9a' }
+};
+var FLAT = { easy:'#56d4c4', meadow:'#8ce99a', rain:'#3a8f5a', shrub:'#f2c14e', snowy:'#cdd6e0', dark:'#a78bfa', desert:'#ec6a9c' };
+var DECO = { easy:0.5, meadow:0.4, rain:0.82, shrub:0.3, snowy:0.25, dark:0.95, desert:0.12 };
+function initPaletteDemo(){
+  var cv=document.getElementById("palCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var GW=96, GH=58;
+  var rB=document.getElementById("palRender"), dB=document.getElementById("palData");
+  var aB=document.getElementById("palAlap"), oB=document.getElementById("palOsz"), iB=document.getElementById("palIdegen");
+  var view='render', palette='alap';
+  var world=genWorld(7, 'zonal', GW, GH);
+
+  function draw(){
+    var cw=cv.width/GW, ch=cv.height/GH;
+    var P=PALS[palette];
+    for(var y=0;y<GH;y++) for(var x=0;x<GW;x++){
+      var k=world.biome[y*GW+x];
+      ctx.fillStyle = view==='data' ? FLAT[k] : P[k];
+      ctx.fillRect(Math.floor(x*cw),Math.floor(y*ch),Math.ceil(cw),Math.ceil(ch));
+    }
+    if(view==='render'){
+      // dekoráció-szórás biom-sűrűség szerint
+      for(var yy=0;yy<GH;yy++) for(var xx=0;xx<GW;xx++){
+        var key=world.biome[yy*GW+xx];
+        var n=((Math.sin((xx*49.3+yy*91.7))*23421.1)%1); n=(n<0?n+1:n);
+        if(n < DECO[key]*0.16){
+          ctx.fillStyle="rgba(255,255,255,.18)";
+          ctx.fillRect(Math.floor((xx+0.3)*cw),Math.floor((yy+0.3)*ch),Math.max(1,cw*0.35),Math.max(1,ch*0.35));
+        } else if(n>0.985){
+          ctx.fillStyle="rgba(0,0,0,.22)";
+          ctx.fillRect(Math.floor((xx+0.4)*cw),Math.floor((yy+0.4)*ch),Math.max(1,cw*0.3),Math.max(1,ch*0.3));
+        }
+      }
+      drawLabels(ctx, world, cw, ch);
+    } else {
+      ctx.textAlign="left"; ctx.textBaseline="top";
+      ctx.font="600 12px 'JetBrains Mono', monospace";
+      ctx.fillStyle="rgba(10,10,18,.75)"; ctx.fillRect(8,8,232,22);
+      ctx.fillStyle="#e3e3ec"; ctx.fillText("nyers biom-régiók (kategória-szín)", 14, 13);
+    }
+  }
+  function setView(v){ view=v; rB.classList.toggle("on",v==='render'); dB.classList.toggle("on",v==='data'); draw(); }
+  function setPal(p){ palette=p; aB.classList.toggle("on",p==='alap'); oB.classList.toggle("on",p==='osz'); iB.classList.toggle("on",p==='idegen'); if(view==='render') draw(); }
+  rB.addEventListener("click",function(){ setView('render'); });
+  dB.addEventListener("click",function(){ setView('data'); });
+  aB.addEventListener("click",function(){ setPal('alap'); });
+  oB.addEventListener("click",function(){ setPal('osz'); });
+  iB.addEventListener("click",function(){ setPal('idegen'); });
+  draw();
+  whenFonts(draw);
+}
+
+/* ===================== DEMÓ 5: biom-vezérelt népesítés ===================== */
+var POP = {
+  easy:  {cre:0.16, res:'#a6c878'}, meadow:{cre:0.30, res:'#c9b24a'},
+  rain:  {cre:0.55, res:'#6fae5a'}, shrub: {cre:0.42, res:'#caa24a'},
+  snowy: {cre:0.50, res:'#bcd0d4'}, dark:  {cre:0.78, res:'#5a7a4a'},
+  desert:{cre:0.62, res:'#e0c87a'}
+};
+var TIERCOL = ['#8ce99a','#f2c14e','#ff6b6b'];
+function initPopDemo(){
+  var cv=document.getElementById("popCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var GW=96, GH=62;
+  var dS=document.getElementById("popDensity"), dV=document.getElementById("popDensityVal");
+  var allB=document.getElementById("popAll"), creB=document.getElementById("popCre"), resB=document.getElementById("popRes");
+  var gen=document.getElementById("popGen");
+  var creOut=document.getElementById("popCreOut"), resOut=document.getElementById("popResOut");
+  var seed=55, filter='all', world;
+
+  function regen(){ world=genWorld(seed, 'zonal', GW, GH); }
+  function draw(){
+    var cw=cv.width/GW, ch=cv.height/GH;
+    // halvány biom-háttér
+    for(var y=0;y<GH;y++) for(var x=0;x<GW;x++){
+      ctx.fillStyle=lerpHex(NB_COL[world.biome[y*GW+x]].replace('#',''),'14141f',0.45);
+      ctx.fillRect(Math.floor(x*cw),Math.floor(y*ch),Math.ceil(cw),Math.ceil(ch));
+    }
+    var density=parseInt(dS.value,10)/100;
+    var samples=Math.floor(GW*GH*0.5*density);
+    var rng=mulberry32(seed*131+9);
+    var nc=0, nr=0;
+    for(var i=0;i<samples;i++){
+      var x2=(rng()*GW)|0, y2=(rng()*GH)|0;
+      var k=world.biome[y2*GW+x2];
+      var isCre = rng() < POP[k].cre;
+      var cx=(x2+0.5)*cw, cy=(y2+0.5)*ch;
+      if(isCre){
+        nc++;
+        if(filter==='res') continue;
+        ctx.fillStyle=TIERCOL[NB_TIER[k]];
+        ctx.beginPath(); ctx.arc(cx,cy,Math.max(1.6,cw*0.42),0,Math.PI*2); ctx.fill();
+        ctx.lineWidth=1; ctx.strokeStyle="rgba(10,10,18,.55)"; ctx.stroke();
+      } else {
+        nr++;
+        if(filter==='cre') continue;
+        ctx.fillStyle=POP[k].res;
+        var s=Math.max(1.6,cw*0.62);
+        ctx.fillRect(cx-s/2, cy-s/2, s, s);
+        ctx.lineWidth=1; ctx.strokeStyle="rgba(10,10,18,.45)"; ctx.strokeRect(cx-s/2, cy-s/2, s, s);
+      }
+    }
+    creOut.textContent=nc; resOut.textContent=nr;
+    creOut.style.color="#f2c14e"; resOut.style.color="#56d4c4";
+  }
+  function setFilter(f){ filter=f; allB.classList.toggle("on",f==='all'); creB.classList.toggle("on",f==='cre'); resB.classList.toggle("on",f==='res'); draw(); }
+  dS.addEventListener("input",function(){ dV.textContent=dS.value+"%"; draw(); });
+  allB.addEventListener("click",function(){ setFilter('all'); });
+  creB.addEventListener("click",function(){ setFilter('cre'); });
+  resB.addEventListener("click",function(){ setFilter('res'); });
+  gen.addEventListener("click",function(){ seed++; regen(); draw(); });
+  dV.textContent=dS.value+"%";
+  regen(); draw();
+}
+</script>
+</body>
+</html>

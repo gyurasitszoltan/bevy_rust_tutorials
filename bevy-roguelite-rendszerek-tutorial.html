@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roguelite rendszerek Bevy-ben — meta-progresszió &amp; build-szinergiák</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:        #0f1018;
+    --bg-2:      #171926;
+    --panel:     #1a1c28;
+    --panel-2:   #20232f;
+    --border:    #2d3142;
+    --border-2:  #3a3f52;
+    --text:      #d6d7df;
+    --muted:     #8a8d9a;
+    --faint:     #5a5e6e;
+    --amber:     #f4b942;   /* fáklya / arany */
+    --teal:      #4ec9b0;   /* bájital / mágia */
+    --blood:     #e05561;   /* sebzés / halál */
+    --magic:     #b072d6;   /* enchant */
+    --sky:       #5aa9e6;   /* info */
+    --shadow:    #07080d;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+
+  body{
+    font-family:'IBM Plex Sans',sans-serif;
+    background-color:var(--bg);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(255,255,255,.045) 1px, transparent 0);
+    background-size:22px 22px;
+    color:var(--text);
+    line-height:1.7;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ====== LAYOUT ====== */
+  .wrap{
+    display:grid;
+    grid-template-columns:288px 1fr;
+    gap:0;
+    max-width:1280px;
+    margin:0 auto;
+    align-items:start;
+  }
+
+  /* ====== SIDEBAR ====== */
+  .sidebar{
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+    padding:34px 22px 60px 28px;
+    border-right:2px solid var(--border);
+    background:linear-gradient(180deg,var(--bg-2),var(--bg));
+  }
+  .sidebar::-webkit-scrollbar{width:8px}
+  .sidebar::-webkit-scrollbar-thumb{background:var(--border-2)}
+
+  .brand{
+    font-family:'Pixelify Sans',sans-serif;
+    font-size:26px;
+    line-height:1.1;
+    color:var(--amber);
+    letter-spacing:.5px;
+    margin-bottom:4px;
+    text-shadow:2px 2px 0 var(--shadow);
+  }
+  .brand .glyph{color:var(--text)}
+  .brand-sub{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--faint);
+    text-transform:uppercase;
+    letter-spacing:2px;
+    margin-bottom:26px;
+  }
+
+  .nav-label{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:2px;
+    color:var(--faint);
+    margin:22px 0 8px;
+  }
+  nav a{
+    display:block;
+    color:var(--muted);
+    text-decoration:none;
+    font-size:13.5px;
+    padding:6px 10px 6px 14px;
+    border-left:2px solid transparent;
+    transition:all .12s ease;
+  }
+  nav a:hover{color:var(--text);background:var(--panel)}
+  nav a.active{
+    color:var(--amber);
+    border-left-color:var(--amber);
+    background:var(--panel);
+  }
+  nav a .num{
+    font-family:'JetBrains Mono',monospace;
+    color:var(--faint);
+    font-size:11px;
+    margin-right:8px;
+  }
+  nav a.active .num{color:var(--amber)}
+
+  /* ====== MAIN ====== */
+  main{
+    padding:54px 64px 120px;
+    min-width:0;
+  }
+
+  header.hero{
+    border:2px solid var(--border);
+    background:
+      linear-gradient(135deg,var(--panel) 0%,var(--bg-2) 100%);
+    padding:44px 40px;
+    margin-bottom:54px;
+    box-shadow:8px 8px 0 var(--shadow);
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::before{
+    content:"↻";
+    position:absolute;
+    right:-10px;top:-30px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:220px;
+    color:rgba(244,185,66,.06);
+    line-height:1;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--teal);
+    margin-bottom:16px;
+  }
+  h1{
+    font-family:'Pixelify Sans',sans-serif;
+    font-size:clamp(38px,6vw,64px);
+    line-height:1.02;
+    color:var(--text);
+    letter-spacing:.5px;
+    text-shadow:3px 3px 0 var(--shadow);
+    margin-bottom:18px;
+  }
+  h1 .hl{color:var(--amber)}
+  .lede{
+    font-size:18px;
+    color:var(--muted);
+    max-width:62ch;
+  }
+
+  section{margin-bottom:58px;scroll-margin-top:30px}
+
+  h2{
+    font-family:'Pixelify Sans',sans-serif;
+    font-size:32px;
+    color:var(--amber);
+    margin-bottom:18px;
+    padding-bottom:10px;
+    border-bottom:2px solid var(--border);
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+  }
+  h2 .sec-num{
+    font-family:'JetBrains Mono',monospace;
+    font-size:15px;
+    color:var(--faint);
+    background:var(--panel);
+    border:1px solid var(--border);
+    padding:2px 9px;
+  }
+  h3{
+    font-family:'Pixelify Sans',sans-serif;
+    font-size:22px;
+    color:var(--teal);
+    margin:30px 0 12px;
+  }
+  h4{
+    font-family:'IBM Plex Sans',sans-serif;
+    font-weight:600;
+    font-size:16px;
+    color:var(--text);
+    margin:22px 0 8px;
+  }
+
+  p{margin-bottom:14px;color:var(--text)}
+  p.muted{color:var(--muted)}
+
+  strong{color:var(--text);font-weight:600}
+  em{color:var(--teal);font-style:normal}
+
+  a.inline{color:var(--sky);text-decoration:none;border-bottom:1px dashed var(--faint)}
+  a.inline:hover{border-bottom-style:solid}
+
+  ul,ol{margin:0 0 16px 0;padding-left:26px}
+  li{margin-bottom:7px}
+  li::marker{color:var(--amber)}
+  ul.dash{list-style:none;padding-left:0}
+  ul.dash li{position:relative;padding-left:24px}
+  ul.dash li::before{
+    content:"›";
+    position:absolute;left:4px;
+    color:var(--amber);
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700;
+  }
+
+  code{
+    font-family:'JetBrains Mono',monospace;
+    font-size:.88em;
+    background:var(--panel-2);
+    color:var(--teal);
+    padding:1px 6px;
+    border:1px solid var(--border);
+  }
+
+  pre{
+    font-family:'JetBrains Mono',monospace;
+    background:var(--bg-2);
+    border:2px solid var(--border);
+    border-left:4px solid var(--amber);
+    padding:18px 20px;
+    overflow-x:auto;
+    font-size:13.5px;
+    line-height:1.6;
+    margin:18px 0;
+    box-shadow:5px 5px 0 var(--shadow);
+  }
+  pre code{background:none;border:none;color:var(--text);padding:0}
+  .c-kw{color:var(--magic)}
+  .c-fn{color:var(--amber)}
+  .c-ty{color:var(--teal)}
+  .c-cm{color:var(--faint);font-style:italic}
+  .c-st{color:#c2a86b}
+  .c-nm{color:var(--blood)}
+
+  /* callout boxes */
+  .box{
+    border:2px solid var(--border);
+    background:var(--panel);
+    padding:18px 22px;
+    margin:20px 0;
+    box-shadow:5px 5px 0 var(--shadow);
+  }
+  .box .box-title{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    margin-bottom:8px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .box.tip{border-left:4px solid var(--teal)}
+  .box.tip .box-title{color:var(--teal)}
+  .box.warn{border-left:4px solid var(--blood)}
+  .box.warn .box-title{color:var(--blood)}
+  .box.note{border-left:4px solid var(--sky)}
+  .box.note .box-title{color:var(--sky)}
+  .box p:last-child{margin-bottom:0}
+
+  /* definition pills */
+  .pill{
+    display:inline-block;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    background:var(--panel-2);
+    border:1px solid var(--border-2);
+    color:var(--amber);
+    padding:2px 8px;
+    margin:0 4px 4px 0;
+  }
+
+  /* tables */
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin:18px 0;
+    font-size:14.5px;
+    box-shadow:5px 5px 0 var(--shadow);
+  }
+  th,td{
+    border:1px solid var(--border);
+    padding:10px 14px;
+    text-align:left;
+    vertical-align:top;
+  }
+  th{
+    background:var(--panel-2);
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:var(--amber);
+  }
+  td{background:var(--panel)}
+  tr:nth-child(even) td{background:var(--bg-2)}
+  td code{font-size:.82em}
+
+  /* factor grid */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}
+  .card{
+    border:2px solid var(--border);
+    background:var(--panel);
+    padding:16px 18px;
+  }
+  .card h4{margin-top:0;color:var(--amber)}
+  .card.lo h4{color:var(--muted)}
+
+  /* checklist */
+  .check{list-style:none;padding-left:0}
+  .check li{
+    position:relative;padding-left:34px;margin-bottom:11px;
+    border-bottom:1px dotted var(--border);padding-bottom:11px;
+  }
+  .check li::before{
+    content:"[ ]";
+    position:absolute;left:0;top:0;
+    font-family:'JetBrains Mono',monospace;
+    color:var(--amber);font-weight:700;
+  }
+
+  /* ASCII diagram */
+  .diagram{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12.5px;
+    line-height:1.5;
+    background:var(--bg-2);
+    border:2px solid var(--border);
+    border-left:4px solid var(--teal);
+    padding:18px 20px;
+    margin:18px 0;
+    overflow-x:auto;
+    color:var(--muted);
+    box-shadow:5px 5px 0 var(--shadow);
+    white-space:pre;
+  }
+  .diagram b{color:var(--amber);font-weight:400}
+  .diagram .t{color:var(--teal)}
+  .diagram .r{color:var(--blood)}
+
+  hr{border:none;border-top:2px dashed var(--border);margin:40px 0}
+
+  /* ====== INTERAKTÍV DEMÓK ====== */
+  .demo{
+    border:2px solid var(--border-2);
+    background:linear-gradient(135deg,var(--panel) 0%,var(--bg-2) 100%);
+    padding:20px 22px;margin:24px 0;
+    box-shadow:6px 6px 0 var(--shadow);
+  }
+  .demo-label{
+    font-family:'JetBrains Mono',monospace;font-size:10px;
+    letter-spacing:2px;text-transform:uppercase;color:var(--amber);
+    margin-bottom:12px;display:flex;align-items:center;gap:8px;
+  }
+  .demo-label::before{content:"▶";color:var(--teal)}
+  .demo p.muted{font-size:14px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 4px}
+  .btn{
+    font-family:'JetBrains Mono',monospace;font-size:12px;
+    background:var(--panel-2);color:var(--amber);
+    border:2px solid var(--border-2);padding:8px 14px;cursor:pointer;
+    box-shadow:3px 3px 0 var(--shadow);transition:transform .08s,box-shadow .08s;
+  }
+  .btn:hover{background:var(--panel)}
+  .btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--shadow)}
+  .btn.primary{background:var(--amber);color:var(--bg);border-color:var(--amber)}
+  .btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;transform:none}
+  .demo-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+  .statepanel{border:1px solid var(--border);padding:12px 14px;background:var(--bg)}
+  .statepanel.run{border-left:3px solid var(--blood)}
+  .statepanel.meta{border-left:3px solid var(--teal)}
+  .statepanel h5{
+    font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1px;
+    text-transform:uppercase;margin-bottom:10px;color:var(--muted);font-weight:700;
+  }
+  .statepanel.run h5{color:var(--blood)}
+  .statepanel.meta h5{color:var(--teal)}
+  .kv{display:flex;justify-content:space-between;gap:10px;
+    font-family:'JetBrains Mono',monospace;font-size:12.5px;padding:3px 0;
+    border-bottom:1px dotted var(--border)}
+  .kv span:last-child{color:var(--amber);text-align:right}
+  .log{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--muted);
+    margin-top:12px;max-height:96px;overflow-y:auto;line-height:1.55;
+    border-top:1px dashed var(--border);padding-top:8px}
+  .boon-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin:12px 0}
+  .boon{border:2px solid var(--border);background:var(--panel);padding:10px 12px;cursor:pointer;
+    transition:transform .08s;user-select:none}
+  .boon:hover{border-color:var(--border-2)}
+  .boon.on{border-color:var(--amber);background:var(--panel-2);box-shadow:3px 3px 0 var(--shadow)}
+  .boon .bn{font-family:'Pixelify Sans',sans-serif;color:var(--amber);font-size:15px;display:block}
+  .boon .bd{color:var(--muted);font-size:11.5px;line-height:1.4}
+  .synergy{border:2px dashed var(--magic);background:rgba(176,114,214,.08);
+    padding:8px 12px;margin-top:8px;color:var(--magic);font-size:12.5px;
+    font-family:'JetBrains Mono',monospace}
+  .synergy.off{display:none}
+  .bar{height:8px;background:var(--bg-2);border:1px solid var(--border);margin-top:3px}
+  .bar>i{display:block;height:100%;background:var(--amber);transition:width .2s ease}
+
+  footer{
+    border-top:2px solid var(--border);
+    margin-top:60px;
+    padding-top:24px;
+    color:var(--faint);
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+  }
+
+  /* mobile */
+  .menu-btn{display:none}
+  @media(max-width:920px){
+    .wrap{grid-template-columns:1fr}
+    .sidebar{
+      position:fixed;top:0;left:0;width:280px;z-index:50;
+      transform:translateX(-100%);transition:transform .2s ease;
+    }
+    .sidebar.open{transform:translateX(0)}
+    main{padding:30px 22px 90px}
+    .menu-btn{
+      display:flex;align-items:center;gap:8px;
+      position:fixed;top:14px;right:14px;z-index:60;
+      font-family:'JetBrains Mono',monospace;font-size:12px;
+      background:var(--panel);color:var(--amber);
+      border:2px solid var(--border);padding:8px 12px;cursor:pointer;
+      box-shadow:3px 3px 0 var(--shadow);
+    }
+    header.hero{padding:30px 22px}
+    .grid2,.demo-cols{grid-template-columns:1fr}
+    h2{font-size:26px}
+  }
+  @media(prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    *{transition:none!important}
+  }
+</style>
+</head>
+<body>
+
+<!-- olvasási haladásjelző (progress bar) -->
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,var(--amber),var(--blood));
+  box-shadow:0 0 10px rgba(244,185,66,.55);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-btn" id="menuBtn">☰ MENÜ</button>
+
+<div class="wrap">
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><span class="glyph">↻</span> Roguelite</div>
+    <div class="brand-sub">rendszerek&nbsp;·&nbsp;bevy / ecs</div>
+    <div class="nav-label">Tartalom</div>
+    <nav id="nav">
+      <a href="#mirol"><span class="num">00</span>Miről szól ez a lecke?</a>
+      <a href="#ket-vilag"><span class="num">01</span>Run-state vs. persistent-state</a>
+      <a href="#eletciklus"><span class="num">02</span>A futás életciklusa (States)</a>
+      <a href="#run-state"><span class="num">03</span>Run-state: a futás adata</a>
+      <a href="#mentes"><span class="num">04</span>Persistent-state &amp; mentés</a>
+      <a href="#halal"><span class="num">05</span>A halál pillanata</a>
+      <a href="#unlock"><span class="num">06</span>Unlock-pool</a>
+      <a href="#boon-adat"><span class="num">07</span>A boon mint adat</a>
+      <a href="#modifier"><span class="num">08</span>Modifier-aggregáció</a>
+      <a href="#observer"><span class="num">09</span>Viselkedés-boon-ok (Observer)</a>
+      <a href="#szinergia"><span class="num">10</span>Szinergiák &amp; stacking</a>
+      <a href="#szobak"><span class="num">11</span>Run-struktúra: szobagráf</a>
+      <a href="#architektura"><span class="num">12</span>Architektúra &amp; adat-térkép</a>
+      <a href="#buktatok"><span class="num">13</span>Buktatók &amp; checklista</a>
+    </nav>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main>
+    <header class="hero">
+      <div class="eyebrow">Implementációs referencia · Bevy 0.18 / ECS</div>
+      <h1>Roguelite <span class="hl">rendszerek</span> Bevy-ben</h1>
+      <p class="lede">A roguelite-ot nem a műfaji címke teszi, hanem két konkrét rendszer: a <strong>halált túlélő meta-progresszió</strong> (mentés-architektúra) és a futásonként újraépülő <strong>build / szinergia-rendszer</strong>. Ez a lecke ezt a kettőt rakja össze kóddal — a tervezési „miértekért” a <a class="inline" href="roguelike.html">roguelike alapszabályok</a> a párdokumentum.</p>
+    </header>
+
+    <!-- 00 -->
+    <section id="mirol">
+      <h2><span class="sec-num">00</span>Miről szól ez a lecke?</h2>
+      <p>A <a class="inline" href="roguelike.html">roguelike műfaji leírás</a> a <em>tervezésről</em> szólt: mi a permadeath, mit ad a meta-progresszió, hol húzódik a roguelike↔roguelite határ. Ez a lecke a folytatás a másik oldalról — <strong>hogyan építed meg ugyanezt Bevy-ben</strong>. Nem dizájn-tanácsok, hanem konkrét ECS-architektúra, állapotok, mentés, események és observerek.</p>
+
+      <p>A vezérfonál egyetlen kérdés: <strong>mi él egy futáson belül, és mi éli túl a halált?</strong> Erre a két szóra — <em>run-state</em> és <em>persistent-state</em> — fűzünk fel mindent. Ha ezt a szétválasztást tisztán tartod, a roguelite-réteg szinte magától adódik; ha összemosod, a mentésed és a balanszod is szétesik.</p>
+
+      <div class="box note">
+        <div class="box-title">▚ Mit építünk meg?</div>
+        <p>(1) a futás <strong>állapotgépét</strong> és takarítását, (2) a <strong>mentés-architektúrát</strong> (serde + ron), (3) a halál pillanatában a <strong>valuta-jóváírást</strong>, (4) a <strong>feloldás-poolt</strong>, (5) a <strong>statisztika-módosító</strong> boon-okat (aggregáció), (6) a <strong>viselkedés-boon-okat</strong> observerekkel, és (7) a <strong>szinergiákat</strong>. Két interaktív demó is végigvezet a meta-cikluson és a build-laboron.</p>
+      </div>
+
+      <div class="box tip">
+        <div class="box-title">◆ Előfeltételek</div>
+        <p>Bevy 0.18 <code>States</code>, <code>Resource</code>, <code>Component</code> és rendszerek alapszintű ismerete. Az observer-fejezethez érdemes előbb a <a class="inline" href="bevy-observerek-tutorial.html">Bevy observerek</a> leckét átfutni — itt csak a roguelite-specifikus használatra fókuszálunk.</p>
+      </div>
+    </section>
+
+    <!-- 01 -->
+    <section id="ket-vilag">
+      <h2><span class="sec-num">01</span>A két világ: run-state vs. persistent-state</h2>
+      <p>Egy roguelite minden adata pontosan két dobozba esik. Ha minden adatról meg tudod mondani, melyik dobozba tartozik, már félig megírtad a rendszert.</p>
+
+      <div class="grid2">
+        <div class="card">
+          <h4 style="color:var(--blood)">RUN-STATE — eldobható</h4>
+          <p class="muted">Ami egyetlen futáshoz tartozik, és a halállal <strong>nyomtalanul eltűnik</strong>: HP, pozíció, az aktuális szint, a futásban gyűjtött arany, az ebben a futásban felvett build. Ezt nem mented. Ezt minden új futás nulláról építi.</p>
+        </div>
+        <div class="card">
+          <h4 style="color:var(--teal)">PERSISTENT-STATE — mentett</h4>
+          <p class="muted">Ami a futásokon <strong>átível és lemezre kerül</strong>: a meta-valuta, a tartós feloldások, a legmélyebb elért szint, a beállítások. Ez a „profil”. Ez teszi a roguelike-ot roguelite-tá.</p>
+        </div>
+      </div>
+
+      <p>A két doboz közt <strong>pontosan egy híd</strong> visz át: a futás végén bizonyos run-adatokat (pl. a gyűjtött arany egy részét) átemelünk a persistent-state-be. Minden más run-adat megsemmisül. Ez a szigorú egyirányúság a roguelite-architektúra lelke:</p>
+
+      <div class="diagram">  MainMenu
+     │  <span class="t">[Futás indul]</span>
+     ▼
+  ┌─────────────────────────────┐
+  │  <span class="r">RUN-STATE</span> (egy futás élete)   │   HP · pozíció · floor
+  │  entitások + RunState res.  │   gold(run) · build[]
+  └─────────────────────────────┘
+     │  <span class="r">[halál / győzelem]</span>
+     ▼
+  GameOver ── <b>EGYETLEN HÍD</b> ──▶  save.meta_currency += gold/2
+     │                                save.best_depth = max(...)
+     ▼
+  ┌─────────────────────────────┐
+  │  <span class="t">PERSISTENT-STATE</span> (örök)      │   meta_currency · unlocked[]
+  │  SaveData res. + save.ron   │   best_depth · runs_played
+  └─────────────────────────────┘
+     │  <span class="t">[bolt: költés]</span> ──▶ feloldások a következő futás pooljába
+     ▼
+  MainMenu / új futás ↻</div>
+
+      <table>
+        <tr><th>Adat</th><th>Doboz</th><th>Hol tárolod</th><th>Mikor szűnik meg</th></tr>
+        <tr><td>HP, pozíció</td><td>run</td><td>entitás-komponens</td><td>a futás végén (despawn)</td></tr>
+        <tr><td>floor, gold, build</td><td>run</td><td><code>RunState</code> Resource</td><td>a futás végén (remove/overwrite)</td></tr>
+        <tr><td>meta-valuta</td><td>persistent</td><td><code>SaveData</code> Resource + fájl</td><td>soha (csak költéskor csökken)</td></tr>
+        <tr><td>feloldások</td><td>persistent</td><td><code>SaveData</code> Resource + fájl</td><td>soha</td></tr>
+      </table>
+
+      <div class="box warn">
+        <div class="box-title">⚠ A leggyakoribb hiba</div>
+        <p>Run-adatot a persistent dobozban tartani „kényelemből”. Pl. a futás aranya bekerül a <code>SaveData</code>-ba, és elfelejted nullázni → a következő futás örökli. A szabály: <strong>ha kételkedsz, run-state.</strong> Csak az kerül a SaveData-ba, ami szándékosan, a hídon át jut be.</p>
+      </div>
+    </section>
+
+    <!-- 02 -->
+    <section id="eletciklus">
+      <h2><span class="sec-num">02</span>A futás életciklusa (States)</h2>
+      <p>A run-state határait Bevy-ben a <code>States</code> rajzolja meg. Az állapotgép határozza meg, mikor <em>születik</em> és mikor <em>hal</em> egy futás minden adata — az <code>OnEnter</code>/<code>OnExit</code> a két kapu.</p>
+
+      <pre><code><span class="c-kw">#[derive(States, Default, Clone, Eq, PartialEq, Hash, Debug)]</span>
+<span class="c-kw">enum</span> <span class="c-ty">GameState</span> {
+    <span class="c-kw">#[default]</span>
+    <span class="c-ty">MainMenu</span>,
+    <span class="c-ty">InRun</span>,      <span class="c-cm">// aktív futás — itt él a run-state</span>
+    <span class="c-ty">GameOver</span>,   <span class="c-cm">// a futás véget ért (halál vagy győzelem)</span>
+    <span class="c-ty">MetaShop</span>,   <span class="c-cm">// futások közti bolt — itt költöd a valutát</span>
+}</code></pre>
+
+      <p>A bekötés a szokásos: az állapotot regisztráljuk, a futás indítását az <code>OnEnter(InRun)</code>-ba tesszük, a futás-rendszereket pedig <code>run_if(in_state(InRun))</code>-nal kapuzzuk, hogy menüben ne fussanak.</p>
+
+      <pre><code>app.<span class="c-fn">init_state</span>::&lt;<span class="c-ty">GameState</span>&gt;()
+    .<span class="c-fn">add_systems</span>(<span class="c-ty">OnEnter</span>(<span class="c-ty">GameState</span>::<span class="c-ty">InRun</span>), (start_run, spawn_player, generate_first_room))
+    .<span class="c-fn">add_systems</span>(<span class="c-ty">OnExit</span>(<span class="c-ty">GameState</span>::<span class="c-ty">InRun</span>), teardown_run)
+    .<span class="c-fn">add_systems</span>(<span class="c-ty">Update</span>, (player_move, combat, check_death)
+        .<span class="c-fn">run_if</span>(<span class="c-fn">in_state</span>(<span class="c-ty">GameState</span>::<span class="c-ty">InRun</span>)));</code></pre>
+
+      <h3>A run-entitások automatikus takarítása</h3>
+      <p>A futás közben spawnolt entitásokat (játékos, szörnyek, tárgyak a földön) <strong>nem kézzel</strong> takarítjuk. A <code>DespawnOnExit</code> komponenssel megjelölve a Bevy a futás végén — amikor elhagyjuk az <code>InRun</code> állapotot — magától despawnolja őket:</p>
+
+      <pre><code><span class="c-kw">fn</span> <span class="c-fn">spawn_player</span>(<span class="c-kw">mut</span> commands: <span class="c-ty">Commands</span>) {
+    commands.<span class="c-fn">spawn</span>((
+        <span class="c-ty">Player</span>,
+        <span class="c-ty">Health</span> { cur: <span class="c-nm">100</span>, max: <span class="c-nm">100</span> },
+        <span class="c-ty">Build</span>::<span class="c-fn">default</span>(),
+        <span class="c-cm">// EZ a kulcs: a futás végén magától eltűnik</span>
+        <span class="c-ty">DespawnOnExit</span>(<span class="c-ty">GameState</span>::<span class="c-ty">InRun</span>),
+    ));
+}</code></pre>
+
+      <p>Az állapotváltást maga a játéklogika kéri. A halál figyelése pl.:</p>
+
+      <pre><code><span class="c-kw">fn</span> <span class="c-fn">check_death</span>(
+    q: <span class="c-ty">Query</span>&lt;&amp;<span class="c-ty">Health</span>, <span class="c-ty">With</span>&lt;<span class="c-ty">Player</span>&gt;&gt;,
+    <span class="c-kw">mut</span> next: <span class="c-ty">ResMut</span>&lt;<span class="c-ty">NextState</span>&lt;<span class="c-ty">GameState</span>&gt;&gt;,
+) {
+    <span class="c-kw">if let</span> <span class="c-ty">Ok</span>(hp) = q.<span class="c-fn">single</span>() {      <span class="c-cm">// single() Result-ot ad 0.18-ban</span>
+        <span class="c-kw">if</span> hp.cur &lt;= <span class="c-nm">0</span> {
+            next.<span class="c-fn">set</span>(<span class="c-ty">GameState</span>::<span class="c-ty">GameOver</span>);  <span class="c-cm">// → OnExit(InRun) lefut, takarít</span>
+        }
+    }
+}</code></pre>
+
+      <div class="box tip">
+        <div class="box-title">◆ Kapcsolódó</div>
+        <p>Az állapot-mint-jelenet architektúrát (history-stack, fade-átmenetek, perzisztens vs. jelenet-lokális adat) részletesen a <a class="inline" href="bevy-scene-valtas-tutorial.html">jelenetváltás</a> lecke tárgyalja. Itt csak annyit használunk belőle, amennyi a futás-ciklushoz kell. Megjegyzés: 0.18-ban a régi <code>StateScoped</code> helyett a <code>DespawnOnExit</code> a bevett komponens.</p>
+      </div>
+    </section>
+
+    <!-- 03 -->
+    <section id="run-state">
+      <h2><span class="sec-num">03</span>Run-state: a futás adata</h2>
+      <p>Az entitások mellett van a futásnak <em>globális</em> adata is, ami nem köthető egyetlen entitáshoz sem: az aktuális szint, a gyűjtött arany, hány szobát takarítottál ki. Ez egy <strong>Resource</strong>, ami — fontos — csak a futás idejére létezik.</p>
+
+      <pre><code><span class="c-kw">#[derive(Resource, Default)]</span>
+<span class="c-kw">struct</span> <span class="c-ty">RunState</span> {
+    floor: <span class="c-ty">u32</span>,            <span class="c-cm">// hányadik szinten jársz</span>
+    gold: <span class="c-ty">u32</span>,             <span class="c-cm">// EBBEN a futásban gyűjtött arany</span>
+    rooms_cleared: <span class="c-ty">u32</span>,
+    boons: <span class="c-ty">Vec</span>&lt;<span class="c-ty">BoonId</span>&gt;,    <span class="c-cm">// a futás aktuális buildje</span>
+}</code></pre>
+
+      <p>A futás kezdetén beillesztjük (mindig friss, alapértelmezett értékkel), a végén pedig kivesszük. A beillesztés felülír — így ha elfelejtenéd is kivenni, a következő <code>OnEnter</code> tiszta lappal indul:</p>
+
+      <pre><code><span class="c-kw">fn</span> <span class="c-fn">start_run</span>(<span class="c-kw">mut</span> commands: <span class="c-ty">Commands</span>) {
+    commands.<span class="c-fn">insert_resource</span>(<span class="c-ty">RunState</span>::<span class="c-fn">default</span>());  <span class="c-cm">// friss futás</span>
+}
+
+<span class="c-kw">fn</span> <span class="c-fn">teardown_run</span>(<span class="c-kw">mut</span> commands: <span class="c-ty">Commands</span>) {
+    commands.<span class="c-fn">remove_resource</span>::&lt;<span class="c-ty">RunState</span>&gt;();         <span class="c-cm">// a run-state megsemmisül</span>
+}</code></pre>
+
+      <div class="box note">
+        <div class="box-title">▚ Entitás vagy Resource?</div>
+        <p>Ökölszabály: ha az adat <strong>egy konkrét dolgon</strong> ül (HP a játékoson, pozíció egy szörnyön), az <em>komponens</em>, és <code>DespawnOnExit</code> takarítja. Ha az adat a <strong>futás egészéhez</strong> tartozik (arany, szint), az <em>Resource</em>, és kézzel/felülírással takarítod. A kettő együtt adja ki a teljes run-state-et.</p>
+      </div>
+    </section>
+
+    <!-- 04 -->
+    <section id="mentes">
+      <h2><span class="sec-num">04</span>Persistent-state &amp; mentés</h2>
+      <p>A persistent-state egy <code>Resource</code>, ami <strong>egyben szerializálható is</strong> — ugyanaz a struct él a memóriában és a lemezen. A <code>serde</code> adja a (de)szerializálást, a <code>ron</code> egy ember által olvasható, Rust-barát formátum (a JSON helyett — kommenteket és enumokat is kezel).</p>
+
+      <pre><code><span class="c-kw">use</span> serde::{<span class="c-ty">Deserialize</span>, <span class="c-ty">Serialize</span>};
+
+<span class="c-kw">#[derive(Resource, Serialize, Deserialize, Default, Clone)]</span>
+<span class="c-kw">struct</span> <span class="c-ty">SaveData</span> {
+    meta_currency: <span class="c-ty">u32</span>,            <span class="c-cm">// a halált túlélő valuta</span>
+    unlocked: <span class="c-ty">Vec</span>&lt;<span class="c-ty">UnlockId</span>&gt;,     <span class="c-cm">// tartós feloldások</span>
+    best_depth: <span class="c-ty">u32</span>,
+    runs_played: <span class="c-ty">u32</span>,
+}</code></pre>
+
+      <h3>Betöltés &amp; írás</h3>
+      <p>A betöltés hibatűrő: ha nincs fájl vagy sérült, friss profillal indulunk (<code>unwrap_or_default</code>). Az írás <code>to_string_pretty</code>-val olvasható <code>.ron</code>-t ad.</p>
+
+      <pre><code><span class="c-kw">const</span> SAVE_PATH: &amp;<span class="c-ty">str</span> = <span class="c-st">"save.ron"</span>;
+
+<span class="c-kw">fn</span> <span class="c-fn">load_save</span>() -&gt; <span class="c-ty">SaveData</span> {
+    std::fs::<span class="c-fn">read_to_string</span>(SAVE_PATH)
+        .<span class="c-fn">ok</span>()
+        .<span class="c-fn">and_then</span>(|s| ron::<span class="c-fn">from_str</span>(&amp;s).<span class="c-fn">ok</span>())
+        .<span class="c-fn">unwrap_or_default</span>()                <span class="c-cm">// nincs/sérült mentés → friss profil</span>
+}
+
+<span class="c-kw">fn</span> <span class="c-fn">write_save</span>(data: &amp;<span class="c-ty">SaveData</span>) {
+    <span class="c-kw">let</span> cfg = ron::ser::<span class="c-ty">PrettyConfig</span>::<span class="c-fn">default</span>();
+    <span class="c-kw">if let</span> <span class="c-ty">Ok</span>(s) = ron::ser::<span class="c-fn">to_string_pretty</span>(data, cfg) {
+        <span class="c-kw">let</span> _ = std::fs::<span class="c-fn">write</span>(SAVE_PATH, s);  <span class="c-cm">// IO-hibát itt csendben nyelünk</span>
+    }
+}</code></pre>
+
+      <h3>Bekötés: betöltés induláskor, autosave változáskor</h3>
+      <p>A profilt indításkor egyszer betöltjük Resource-ként. Menteni viszont <strong>nem</strong> minden frame-ben akarunk — csak akkor, ha tényleg módosult. A Bevy <code>is_changed()</code> pont ezt adja:</p>
+
+      <pre><code><span class="c-kw">fn</span> <span class="c-fn">setup_save</span>(<span class="c-kw">mut</span> commands: <span class="c-ty">Commands</span>) {
+    commands.<span class="c-fn">insert_resource</span>(<span class="c-fn">load_save</span>());
+}
+
+<span class="c-kw">fn</span> <span class="c-fn">autosave</span>(save: <span class="c-ty">Res</span>&lt;<span class="c-ty">SaveData</span>&gt;) {
+    <span class="c-kw">if</span> save.<span class="c-fn">is_changed</span>() {        <span class="c-cm">// CSAK ha módosult — nem minden tick!</span>
+        <span class="c-fn">write_save</span>(&amp;save);
+    }
+}
+<span class="c-cm">// app.add_systems(PreStartup, setup_save)</span>
+<span class="c-cm">//    .add_systems(Update, autosave);</span></code></pre>
+
+      <div class="box warn">
+        <div class="box-title">⚠ WASM / böngésző</div>
+        <p>A <code>std::fs</code> nem működik böngészőben (wasm). Ha web-re is szállítasz, a perzisztenciát <code>localStorage</code> mögé kell tenni (pl. <code>web_sys</code>-szel vagy egy kis absztrakcióval, ami natívon fájlt, weben <code>localStorage</code>-ot ír). A <code>SaveData</code> szerkezete és a hídlogika változatlan marad — csak az IO-réteget cseréled.</p>
+      </div>
+    </section>
+
+    <!-- 05 -->
+    <section id="halal">
+      <h2><span class="sec-num">05</span>A halál pillanata: a híd</h2>
+      <p>Itt találkozik a két világ. A <code>GameOver</code> állapotba lépéskor lefut egy rendszer, ami a futás eredményéből <strong>kiválogatja</strong>, mi kerüljön át a persistent-state-be. Ez az <em>egyetlen</em> hely, ahol run-adatból mentett adat lesz.</p>
+
+      <pre><code><span class="c-kw">fn</span> <span class="c-fn">on_run_end</span>(
+    run: <span class="c-ty">Res</span>&lt;<span class="c-ty">RunState</span>&gt;,
+    <span class="c-kw">mut</span> save: <span class="c-ty">ResMut</span>&lt;<span class="c-ty">SaveData</span>&gt;,
+) {
+    <span class="c-cm">// a futásban gyűjtött aranyból meta-valuta lesz (itt a fele + szint-bónusz)</span>
+    save.meta_currency += run.gold / <span class="c-nm">2</span> + run.floor * <span class="c-nm">2</span>;
+    save.best_depth = save.best_depth.<span class="c-fn">max</span>(run.floor);
+    save.runs_played += <span class="c-nm">1</span>;
+    <span class="c-cm">// a `save` mostantól is_changed() → az autosave a következő tickben kiírja</span>
+}
+<span class="c-cm">// app.add_systems(OnEnter(GameState::GameOver), on_run_end);</span></code></pre>
+
+      <p>Vedd észre, mi <em>nem</em> történik: a <code>RunState</code> minden más mezője (build, rooms_cleared) <strong>nem</strong> kerül sehova — a futással együtt megsemmisül. Csak az megy át, amit itt explicit átmásolsz. Ez a fegyelem tartja tisztán a mentést, és teszi balanszolhatóvá a meta-réteget.</p>
+
+      <p>Az alábbi demó pontosan ezt mutatja: indíts pár futást, és figyeld, ahogy a bal panel (run-state) minden halállal nullázódik, a jobb (persistent-state) pedig gyűlik. A meta-valutából feloldásokat veszel, amik a következő futást erősítik.</p>
+
+      <div class="demo" id="demo-meta">
+        <div class="demo-label">Demó · a meta-progresszió ciklusa</div>
+        <p class="muted">A <strong style="color:var(--blood)">RUN-STATE</strong> eldobható, a <strong style="color:var(--teal)">PERSISTENT-STATE</strong> mentett. A híd a halál pillanata.</p>
+        <div class="controls">
+          <button class="btn primary" id="m-run">▶ Futás indítása</button>
+          <button class="btn" id="m-buy-hp" disabled>Kezdő HP +20 · 25◆</button>
+          <button class="btn" id="m-buy-fire" disabled>Tűz-boon feloldása · 40◆</button>
+          <button class="btn" id="m-reset">↺ Profil törlése</button>
+        </div>
+        <div class="demo-cols">
+          <div class="statepanel run">
+            <h5>◇ RUN-STATE · eldobható</h5>
+            <div class="kv"><span>Szint (floor)</span><span id="r-floor">—</span></div>
+            <div class="kv"><span>Arany (run)</span><span id="r-gold">—</span></div>
+            <div class="kv"><span>HP</span><span id="r-hp">—</span></div>
+            <div class="kv"><span>Build</span><span id="r-build">—</span></div>
+          </div>
+          <div class="statepanel meta">
+            <h5>◆ PERSISTENT-STATE · save.ron</h5>
+            <div class="kv"><span>Meta-valuta ◆</span><span id="p-cur">0</span></div>
+            <div class="kv"><span>Feloldások</span><span id="p-unlocks">—</span></div>
+            <div class="kv"><span>Legmélyebb szint</span><span id="p-best">0</span></div>
+            <div class="kv"><span>Futások</span><span id="p-runs">0</span></div>
+          </div>
+        </div>
+        <div class="log" id="m-log"></div>
+      </div>
+    </section>
+
+    <!-- 06 -->
+    <section id="unlock">
+      <h2><span class="sec-num">06</span>Unlock-pool: a feloldás architektúrája</h2>
+      <p>A meta-valuta önmagában semmit nem ér — <strong>feloldásokra</strong> költöd, és a feloldások a <em>futás generálását</em> befolyásolják. A kulcsötlet: a futás csak a <strong>feloldott tartalomból</strong> válogat. A SaveData tartalmazza, mi van feloldva; a run-generátor ezt olvassa be inputként.</p>
+
+      <pre><code><span class="c-kw">#[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]</span>
+<span class="c-kw">enum</span> <span class="c-ty">UnlockId</span> {
+    <span class="c-ty">FireBoon</span>,        <span class="c-cm">// új boon kerül a poolba</span>
+    <span class="c-ty">ChainBoon</span>,
+    <span class="c-ty">ExtraStartHp</span>,    <span class="c-cm">// kezdő-bónusz</span>
+    <span class="c-ty">SecondCharacter</span>, <span class="c-cm">// új kezdő-build</span>
+}
+
+<span class="c-cm">// A run-generátor CSAK a feloldott tartalomból válogat:</span>
+<span class="c-kw">fn</span> <span class="c-fn">build_boon_pool</span>(save: &amp;<span class="c-ty">SaveData</span>) -&gt; <span class="c-ty">Vec</span>&lt;<span class="c-ty">BoonId</span>&gt; {
+    <span class="c-kw">let mut</span> pool = <span class="c-fn">vec!</span>[<span class="c-ty">BoonId</span>::<span class="c-ty">Heal</span>, <span class="c-ty">BoonId</span>::<span class="c-ty">Damage</span>]; <span class="c-cm">// alap: mindig benne</span>
+    <span class="c-kw">if</span> save.unlocked.<span class="c-fn">contains</span>(&amp;<span class="c-ty">UnlockId</span>::<span class="c-ty">FireBoon</span>)  { pool.<span class="c-fn">push</span>(<span class="c-ty">BoonId</span>::<span class="c-ty">Fire</span>); }
+    <span class="c-kw">if</span> save.unlocked.<span class="c-fn">contains</span>(&amp;<span class="c-ty">UnlockId</span>::<span class="c-ty">ChainBoon</span>) { pool.<span class="c-fn">push</span>(<span class="c-ty">BoonId</span>::<span class="c-ty">Chain</span>); }
+    pool
+}</code></pre>
+
+      <p>A vásárlás a boltban (<code>MetaShop</code>) egyszerű könyvelés — levonod a valutát, hozzáadod a feloldást. Ez a SaveData-t módosítja, tehát <code>is_changed()</code> → autosave:</p>
+
+      <pre><code><span class="c-kw">fn</span> <span class="c-fn">buy_unlock</span>(save: &amp;<span class="c-kw">mut</span> <span class="c-ty">SaveData</span>, id: <span class="c-ty">UnlockId</span>, cost: <span class="c-ty">u32</span>) -&gt; <span class="c-ty">bool</span> {
+    <span class="c-kw">if</span> save.meta_currency &gt;= cost &amp;&amp; !save.unlocked.<span class="c-fn">contains</span>(&amp;id) {
+        save.meta_currency -= cost;
+        save.unlocked.<span class="c-fn">push</span>(id);
+        <span class="c-nm">true</span>
+    } <span class="c-kw">else</span> { <span class="c-nm">false</span> }
+}</code></pre>
+
+      <div class="box tip">
+        <div class="box-title">◆ Dizájn-kapocs</div>
+        <p>A <a class="inline" href="roguelike.html#meta">roguelike-lecke meta-progresszió fejezete</a> figyelmeztet: a feloldás főleg <strong>változatosságot és opciókat</strong> adjon, ne nyers erőt. Kódban ez azt jelenti, hogy a feloldások többsége <em>új elemet tegyen a poolba</em> (új boon, új karakter), és csak óvatosan adjon közvetlen statbónuszt. A pool-alapú architektúra pont ezt teszi természetessé. A run-generátorhoz lásd a <a class="inline" href="bevy-proceduralis-terkep-tutorial.html">procedurális térkép</a> leckét.</p>
+      </div>
+    </section>
+
+    <!-- 07 -->
+    <section id="boon-adat">
+      <h2><span class="sec-num">07</span>A build-rendszer: a boon mint adat</h2>
+      <p>A roguelite másik fele a <strong>build</strong>: futás közben felvett boon-ok (Hades), ereklyék (Slay the Spire), tárgyak (Isaac), amelyek a karaktered viselkedését alakítják. A futás buildje a <code>RunState.boons</code> (és/vagy a játékos <code>Build</code> komponense) — egy lista, amit a szobák jutalmai töltenek fel.</p>
+
+      <p>A boon-okat <strong>adatként</strong> írjuk le, nem kódba égetve. Egy katalógus minden boonhoz megadja a nevét, leírását és a <em>fajtáját</em> — mert kétféle boon van, és más gépezet mozgatja őket:</p>
+
+      <pre><code><span class="c-kw">#[derive(Clone, Copy, PartialEq, Eq, Hash)]</span>
+<span class="c-kw">enum</span> <span class="c-ty">BoonId</span> { <span class="c-ty">Fire</span>, <span class="c-ty">Chain</span>, <span class="c-ty">Lifesteal</span>, <span class="c-ty">Crit</span>, <span class="c-ty">Swift</span>, <span class="c-ty">Heal</span>, <span class="c-ty">Damage</span> }
+
+<span class="c-kw">struct</span> <span class="c-ty">BoonDef</span> {
+    id: <span class="c-ty">BoonId</span>,
+    name: &amp;<span class="c-st">'static</span> <span class="c-ty">str</span>,
+    desc: &amp;<span class="c-st">'static</span> <span class="c-ty">str</span>,
+    kind: <span class="c-ty">BoonKind</span>,
+}
+
+<span class="c-kw">enum</span> <span class="c-ty">BoonKind</span> {
+    <span class="c-ty">Stat</span>(<span class="c-ty">StatMod</span>),   <span class="c-cm">// passzív statisztika-módosító → aggregálás (08. fejezet)</span>
+    <span class="c-ty">Behavior</span>,        <span class="c-cm">// observerrel kapcsolódik be (09. fejezet)</span>
+}
+
+<span class="c-kw">fn</span> <span class="c-fn">boon_def</span>(id: <span class="c-ty">BoonId</span>) -&gt; <span class="c-ty">BoonDef</span> {
+    <span class="c-kw">match</span> id {
+        <span class="c-ty">BoonId</span>::<span class="c-ty">Damage</span> =&gt; <span class="c-ty">BoonDef</span> { id, name: <span class="c-st">"Élesítés"</span>, desc: <span class="c-st">"+8 sebzés"</span>,
+            kind: <span class="c-ty">BoonKind</span>::<span class="c-ty">Stat</span>(<span class="c-ty">StatMod</span> { flat_damage: <span class="c-nm">8</span>, ..<span class="c-fn">default</span>() }) },
+        <span class="c-ty">BoonId</span>::<span class="c-ty">Crit</span>   =&gt; <span class="c-ty">BoonDef</span> { id, name: <span class="c-st">"Kritikus"</span>, desc: <span class="c-st">"×1.5 sebzés"</span>,
+            kind: <span class="c-ty">BoonKind</span>::<span class="c-ty">Stat</span>(<span class="c-ty">StatMod</span> { damage_mult: <span class="c-nm">1.5</span>, ..<span class="c-fn">default</span>() }) },
+        <span class="c-ty">BoonId</span>::<span class="c-ty">Fire</span>   =&gt; <span class="c-ty">BoonDef</span> { id, name: <span class="c-st">"Tüzes csapás"</span>, desc: <span class="c-st">"minden találat gyújt"</span>,
+            kind: <span class="c-ty">BoonKind</span>::<span class="c-ty">Behavior</span> },
+        <span class="c-cm">// ... a többi</span>
+        _ =&gt; <span class="c-fn">todo!</span>(),
+    }
+}</code></pre>
+
+      <div class="box note">
+        <div class="box-title">▚ Miért adat-vezérelt?</div>
+        <p>Mert a build a játékmenet végtelen variációja. Ha a boon-ok adatok, akkor új boon = új sor a katalógusban, nem új <code>if</code> a harci kódban. A két fajta (<em>Stat</em> és <em>Behavior</em>) pedig két, egymástól független mechanizmusra képez le — a következő két fejezet ezeket építi meg.</p>
+      </div>
+    </section>
+
+    <!-- 08 -->
+    <section id="modifier">
+      <h2><span class="sec-num">08</span>Modifier-aggregáció: a stat-boon-ok</h2>
+      <p>A <em>Stat</em>-boon-ok számokat módosítanak: +sebzés, ×kritikus, +max HP. A trükk: <strong>soha ne módosítsd helyben a karakter statját</strong>, mert akkor nem tudod „levenni” a boont, és a kerekítések halmozódnak. Helyette: tarts egy <strong>alapértéket</strong>, és a build változásakor <strong>számold újra</strong> az összesítettet a nulláról.</p>
+
+      <pre><code><span class="c-kw">#[derive(Clone, Copy, Default)]</span>
+<span class="c-kw">struct</span> <span class="c-ty">StatMod</span> {
+    flat_damage: <span class="c-ty">i32</span>,   <span class="c-cm">// additív: összeadódik</span>
+    damage_mult: <span class="c-ty">f32</span>,   <span class="c-cm">// multiplikatív: 1.0 = nincs hatás</span>
+    max_hp: <span class="c-ty">i32</span>,
+    move_speed: <span class="c-ty">f32</span>,
+}
+
+<span class="c-cm">// A játékos KISZÁMOLT, összesített statja:</span>
+<span class="c-kw">#[derive(Component, Default)]</span>
+<span class="c-kw">struct</span> <span class="c-ty">Stats</span> { damage: <span class="c-ty">i32</span>, max_hp: <span class="c-ty">i32</span>, move_speed: <span class="c-ty">f32</span> }
+
+<span class="c-cm">// A build = a felvett boon-ok listája:</span>
+<span class="c-kw">#[derive(Component, Default)]</span>
+<span class="c-kw">struct</span> <span class="c-ty">Build</span> { boons: <span class="c-ty">Vec</span>&lt;<span class="c-ty">BoonId</span>&gt; }</code></pre>
+
+      <p>Az újraszámolás egyetlen rendszer, ami csak akkor fut, ha a build tényleg változott — ezt a <code>Changed&lt;Build&gt;</code> lekérdezés-szűrő adja. Fontos a sorrend: előbb az additív tagokat gyűjtjük, aztán a szorzókat alkalmazzuk:</p>
+
+      <pre><code><span class="c-kw">fn</span> <span class="c-fn">recompute_stats</span>(
+    <span class="c-kw">mut</span> q: <span class="c-ty">Query</span>&lt;(&amp;<span class="c-ty">Build</span>, &amp;<span class="c-kw">mut</span> <span class="c-ty">Stats</span>), <span class="c-ty">Changed</span>&lt;<span class="c-ty">Build</span>&gt;&gt;,
+) {
+    <span class="c-kw">for</span> (build, <span class="c-kw">mut</span> stats) <span class="c-kw">in</span> &amp;<span class="c-kw">mut</span> q {
+        <span class="c-cm">// MINDIG az alapértékről indulunk — nincs halmozódó hiba</span>
+        <span class="c-kw">let mut</span> acc = <span class="c-ty">StatMod</span> {
+            flat_damage: <span class="c-nm">10</span>, damage_mult: <span class="c-nm">1.0</span>, max_hp: <span class="c-nm">100</span>, move_speed: <span class="c-nm">4.0</span>,
+        };
+        <span class="c-kw">for</span> &amp;id <span class="c-kw">in</span> &amp;build.boons {
+            <span class="c-kw">if let</span> <span class="c-ty">BoonKind</span>::<span class="c-ty">Stat</span>(m) = <span class="c-fn">boon_def</span>(id).kind {
+                acc.flat_damage += m.flat_damage;     <span class="c-cm">// additív tagok össze</span>
+                acc.max_hp      += m.max_hp;
+                acc.move_speed  += m.move_speed;
+                <span class="c-kw">if</span> m.damage_mult != <span class="c-nm">0.0</span> { acc.damage_mult *= m.damage_mult; } <span class="c-cm">// szorzók szorzódnak</span>
+            }
+        }
+        <span class="c-cm">// additív ELŐSZÖR, szorzó UTÁNA</span>
+        stats.damage = (acc.flat_damage <span class="c-kw">as</span> <span class="c-ty">f32</span> * acc.damage_mult) <span class="c-kw">as</span> <span class="c-ty">i32</span>;
+        stats.max_hp = acc.max_hp;
+        stats.move_speed = acc.move_speed;
+    }
+}</code></pre>
+
+      <div class="box warn">
+        <div class="box-title">⚠ Additív vs. multiplikatív</div>
+        <p>A kettő keverési sorrendje balansz-kérdés. „+8 sebzés, majd ×1.5” az alap 10-ből <code>(10+8)×1.5 = 27</code>-et csinál; fordítva <code>(10×1.5)+8 = 23</code>. Válassz egy konvenciót (a fenti: additív előbb), és tartsd kézben — különben a játékosok megtalálják a kombinációt, ami felrobbantja a számokat.</p>
+      </div>
+    </section>
+
+    <!-- 09 -->
+    <section id="observer">
+      <h2><span class="sec-num">09</span>Viselkedés-boon-ok: Event + Observer</h2>
+      <p>A <em>Behavior</em>-boon-okat nem lehet egy számmal leírni: „minden találat gyújtson”, „minden ötödik ütés lánccal ugráljon”. Ezek <strong>eseményekre reagálnak</strong>. A Bevy idiomatikus eszköze erre az <strong>observer</strong>: a boon felvételekor egy observert akasztasz a játékosra, ami a megfelelő harci eseményre lefut.</p>
+
+      <p>Először az esemény. 0.18-ban az entitás-célzott eseményt <code>EntityEvent</code>-ként deriváljuk; az <code>entity</code> nevű mező automatikusan a célpont:</p>
+
+      <pre><code><span class="c-cm">// Harci esemény: a játékos eltalált egy ellenséget.</span>
+<span class="c-kw">#[derive(EntityEvent)]</span>
+<span class="c-kw">struct</span> <span class="c-ty">DealtHit</span> {
+    entity: <span class="c-ty">Entity</span>,   <span class="c-cm">// a megtámadott ellenség (a derive ezt veszi célpontnak)</span>
+    damage: <span class="c-ty">i32</span>,
+}</code></pre>
+
+      <p>A boon maga egy observer-függvény. Az <code>On&lt;DealtHit&gt;</code> a 0.18-as observer-paraméter; a mezőit közvetlenül eléred:</p>
+
+      <pre><code><span class="c-cm">// Tüzes csapás: minden találat extra tűz-sebzést tesz be.</span>
+<span class="c-kw">fn</span> <span class="c-fn">fire_boon</span>(hit: <span class="c-ty">On</span>&lt;<span class="c-ty">DealtHit</span>&gt;, <span class="c-kw">mut</span> q: <span class="c-ty">Query</span>&lt;&amp;<span class="c-kw">mut</span> <span class="c-ty">Health</span>&gt;) {
+    <span class="c-kw">if let</span> <span class="c-ty">Ok</span>(<span class="c-kw">mut</span> hp) = q.<span class="c-fn">get_mut</span>(hit.entity) {
+        hp.cur -= <span class="c-nm">5</span>;   <span class="c-cm">// pluszsebzés a tűztől</span>
+    }
+}</code></pre>
+
+      <p>A boon <strong>bekapcsolása</strong> = az observer felakasztása a játékos-entitásra. Itt csillan meg a minta szépsége: mivel az observer a játékoson ül, a futás végén — amikor a játékost a <code>DespawnOnExit</code> despawnolja — az observer is <strong>magától eltakarodik</strong>. Nincs külön „boon-leszedés”.</p>
+
+      <pre><code><span class="c-kw">fn</span> <span class="c-fn">apply_behavior_boon</span>(
+    <span class="c-kw">mut</span> commands: <span class="c-ty">Commands</span>,
+    player: <span class="c-ty">Query</span>&lt;<span class="c-ty">Entity</span>, <span class="c-ty">With</span>&lt;<span class="c-ty">Player</span>&gt;&gt;,
+) {
+    <span class="c-kw">if let</span> <span class="c-ty">Ok</span>(e) = player.<span class="c-fn">single</span>() {
+        commands.<span class="c-fn">entity</span>(e).<span class="c-fn">observe</span>(fire_boon);  <span class="c-cm">// a játékos végéig él</span>
+    }
+}
+
+<span class="c-cm">// A harci rendszer pedig csak triggerel — a célpont a structban utazik:</span>
+<span class="c-kw">fn</span> <span class="c-fn">melee_attack</span>(<span class="c-kw">mut</span> commands: <span class="c-ty">Commands</span>, target: <span class="c-ty">Entity</span>, dmg: <span class="c-ty">i32</span>) {
+    commands.<span class="c-fn">trigger</span>(<span class="c-ty">DealtHit</span> { entity: target, damage: dmg });
+}</code></pre>
+
+      <div class="box tip">
+        <div class="box-title">◆ Miért observer és nem rendszer?</div>
+        <p>Egy <code>fire_boon</code> rendszer minden frame végigpásztázná a buildet, hogy van-e tűz, és reagálna-e. Az observer ehelyett <strong>csak akkor fut, amikor a <code>DealtHit</code> tényleg megtörténik</strong>, és csak ha a boon fel van akasztva. Adat-lokális, eseményvezérelt, és magától takarít. A teljes observer-eszköztárat (globális vs. entitás-observer, propagáció a <code>ChildOf</code> mentén, <code>On&lt;Add&gt;</code>/<code>On&lt;Remove&gt;</code> életciklus) a <a class="inline" href="bevy-observerek-tutorial.html">Bevy observerek</a> lecke tárgyalja.</p>
+      </div>
+
+      <div class="box note">
+        <div class="box-title">▚ Globális vs. entitás-esemény</div>
+        <p>Aminek nincs konkrét célpontja (pl. <code>RoomCleared</code>, <code>WaveStarted</code>), azt <code>#[derive(Event)]</code>-del írod, és <code>commands.trigger(Ev)</code> a globális (app-szintű) observereket futtatja. Amit egy entitásra triggerelsz, az <code>#[derive(EntityEvent)]</code>. A boon-oknál a célzott forma kell, mert „kit ért a találat” a lényeg.</p>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section id="szinergia">
+      <h2><span class="sec-num">10</span>Szinergiák &amp; stacking</h2>
+      <p>A build akkor válik izgalmassá, amikor a boon-ok <strong>kombinálódnak</strong>: a Hades „duó-boon”-jai, a Slay the Spire ereklye-kombói. A szinergia egy feltételes hatás: ha két (vagy több) konkrét boon egyszerre aktív, egy <em>új</em> hatás nyílik meg.</p>
+
+      <pre><code><span class="c-cm">// Két boon együttes jelenléte = szinergia-feltétel.</span>
+<span class="c-kw">fn</span> <span class="c-fn">has_pair</span>(build: &amp;<span class="c-ty">Build</span>, a: <span class="c-ty">BoonId</span>, b: <span class="c-ty">BoonId</span>) -&gt; <span class="c-ty">bool</span> {
+    build.boons.<span class="c-fn">contains</span>(&amp;a) &amp;&amp; build.boons.<span class="c-fn">contains</span>(&amp;b)
+}
+
+<span class="c-cm">// Build-változáskor (újra)értékeljük a szinergiákat — egy jelölő-komponenssel.</span>
+<span class="c-kw">#[derive(Component)]</span>
+<span class="c-kw">struct</span> <span class="c-ty">Firestorm</span>;  <span class="c-cm">// Tűz + Lánc duó: a tűz átterjed a láncolt célokra</span>
+
+<span class="c-kw">fn</span> <span class="c-fn">check_synergies</span>(
+    <span class="c-kw">mut</span> commands: <span class="c-ty">Commands</span>,
+    q: <span class="c-ty">Query</span>&lt;(<span class="c-ty">Entity</span>, &amp;<span class="c-ty">Build</span>), <span class="c-ty">Changed</span>&lt;<span class="c-ty">Build</span>&gt;&gt;,
+) {
+    <span class="c-kw">for</span> (e, build) <span class="c-kw">in</span> &amp;q {
+        <span class="c-kw">if</span> <span class="c-fn">has_pair</span>(build, <span class="c-ty">BoonId</span>::<span class="c-ty">Fire</span>, <span class="c-ty">BoonId</span>::<span class="c-ty">Chain</span>) {
+            commands.<span class="c-fn">entity</span>(e).<span class="c-fn">insert</span>(<span class="c-ty">Firestorm</span>);   <span class="c-cm">// duó aktív</span>
+        } <span class="c-kw">else</span> {
+            commands.<span class="c-fn">entity</span>(e).<span class="c-fn">remove</span>::&lt;<span class="c-ty">Firestorm</span>&gt;(); <span class="c-cm">// duó megszűnt</span>
+        }
+    }
+}</code></pre>
+
+      <p>A <code>Firestorm</code> jelölő aztán pont úgy működik, mint egy boon: lehet rajta egy observer, vagy a tűz-observer kérdezheti le, hogy „van-e Firestorm a játékoson”. Így a szinergia ugyanabba a két gépezetbe (aggregáció + observer) illeszkedik, mint a sima boon-ok.</p>
+
+      <p>Próbáld ki: állíts össze egy buildet, és figyeld, ahogy a statok újraszámolnak, és bizonyos párok duó-szinergiát nyitnak.</p>
+
+      <div class="demo" id="demo-build">
+        <div class="demo-label">Demó · build-laboratórium</div>
+        <p class="muted">Kattints a boon-okra (max <strong>4</strong>). A statok <strong>összeadódnak/szorzódnak</strong>; bizonyos párok <strong style="color:var(--magic)">duó-szinergiát</strong> nyitnak.</p>
+        <div class="boon-grid" id="b-grid"></div>
+        <div class="demo-cols">
+          <div class="statepanel meta" style="border-left-color:var(--amber)">
+            <h5 style="color:var(--amber)">▤ Számolt statok</h5>
+            <div class="kv"><span>Sebzés</span><span id="s-dmg">10</span></div>
+            <div class="bar"><i id="bar-dmg" style="width:14%"></i></div>
+            <div class="kv" style="margin-top:8px"><span>Max HP</span><span id="s-hp">100</span></div>
+            <div class="bar"><i id="bar-hp" style="width:42%"></i></div>
+            <div class="kv" style="margin-top:8px"><span>Sebesség</span><span id="s-spd">4.0</span></div>
+            <div class="bar"><i id="bar-spd" style="width:40%"></i></div>
+          </div>
+          <div class="statepanel">
+            <h5>⚙ Aktív viselkedés + szinergiák</h5>
+            <div id="s-behav" style="font-size:12.5px;color:var(--muted);font-family:'JetBrains Mono',monospace;line-height:1.6">—</div>
+            <div class="synergy off" id="syn-firestorm">⚡ TŰZVIHAR — Tűz + Lánc: a tűz átterjed a láncolt célokra</div>
+            <div class="synergy off" id="syn-vampire">⚡ VÉRURALOM — Vér + Kritikus: a kritikus találat gyógyít is</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="box warn">
+        <div class="box-title">⚠ A szinergia-robbanás</div>
+        <p><code>N</code> boonból <code>N²</code> lehetséges pár — ha minden párra külön kódot írsz, megfulladsz. Tartsd a szinergiákat <strong>szándékos, kis halmaznak</strong> (egy <code>Vec&lt;(BoonId, BoonId, SynergyId)&gt;</code> tábla), ne emergens kombinatorikának. A legtöbb mélységet pár jól megválasztott duó adja, nem száz.</p>
+      </div>
+    </section>
+
+    <!-- 11 -->
+    <section id="szobak">
+      <h2><span class="sec-num">11</span>Run-struktúra: szobagráf &amp; jutalomválasztás</h2>
+      <p>A modern roguelite-ok (Hades, Dead Cells, Slay the Spire) futása nem egyetlen nagy pálya, hanem <strong>szobák/csomópontok sora</strong>: harcolsz egy szobában, kitakarítod, majd <em>választasz</em>, melyik ajtón mész tovább — és az ajtó dönti el a következő szoba típusát és a jutalmat. A választás maga a build-craft.</p>
+
+      <pre><code><span class="c-kw">#[derive(Resource)]</span>
+<span class="c-kw">struct</span> <span class="c-ty">RoomGraph</span> {
+    current: <span class="c-ty">usize</span>,
+    rooms: <span class="c-ty">Vec</span>&lt;<span class="c-ty">RoomKind</span>&gt;,   <span class="c-cm">// előre legenerált útvonal (vagy gráf)</span>
+}
+
+<span class="c-kw">enum</span> <span class="c-ty">RoomKind</span> { <span class="c-ty">Combat</span>, <span class="c-ty">Elite</span>, <span class="c-ty">Treasure</span>, <span class="c-ty">Shop</span>, <span class="c-ty">Boss</span> }
+
+<span class="c-cm">// Szoba kitakarítva → jutalomajtók felkínálása. Globális esemény (nincs célpont):</span>
+<span class="c-kw">#[derive(Event)]</span>
+<span class="c-kw">struct</span> <span class="c-ty">RoomCleared</span>;
+
+<span class="c-kw">fn</span> <span class="c-fn">offer_rewards</span>(_: <span class="c-ty">On</span>&lt;<span class="c-ty">RoomCleared</span>&gt;, save: <span class="c-ty">Res</span>&lt;<span class="c-ty">SaveData</span>&gt;, <span class="c-kw">mut</span> commands: <span class="c-ty">Commands</span>) {
+    <span class="c-kw">let</span> pool = <span class="c-fn">build_boon_pool</span>(&amp;save);   <span class="c-cm">// a feloldott poolból (06. fejezet)</span>
+    <span class="c-kw">let</span> choices = <span class="c-fn">pick_n</span>(&amp;pool, <span class="c-nm">3</span>);       <span class="c-cm">// pl. 3 ajtó, mind egy boon</span>
+    commands.<span class="c-fn">insert_resource</span>(<span class="c-ty">RewardChoices</span>(choices)); <span class="c-cm">// az UI ezt mutatja</span>
+}</code></pre>
+
+      <p>Amikor a játékos választ, a felvett boon a buildbe kerül — és ezzel <strong>mindhárom korábbi gépezet beindul láncreakcióban</strong>:</p>
+
+      <pre><code><span class="c-kw">fn</span> <span class="c-fn">pick_reward</span>(
+    <span class="c-kw">mut</span> q: <span class="c-ty">Query</span>&lt;&amp;<span class="c-kw">mut</span> <span class="c-ty">Build</span>, <span class="c-ty">With</span>&lt;<span class="c-ty">Player</span>&gt;&gt;,
+    chosen: <span class="c-ty">BoonId</span>,
+) {
+    <span class="c-kw">if let</span> <span class="c-ty">Ok</span>(<span class="c-kw">mut</span> build) = q.<span class="c-fn">single_mut</span>() {
+        build.boons.<span class="c-fn">push</span>(chosen);  <span class="c-cm">// → Changed&lt;Build&gt; aktiválódik:</span>
+    }
+    <span class="c-cm">// 1) recompute_stats  (08) újraszámol — ha Stat-boon</span>
+    <span class="c-cm">// 2) check_synergies  (10) duó-jelölőt rak/vesz</span>
+    <span class="c-cm">// 3) apply_behavior_boon (09) observert akaszt — ha Behavior-boon</span>
+}</code></pre>
+
+      <div class="diagram"><span class="t">SaveData.unlocked</span> ──▶ build_boon_pool() ──▶ jutalom-ajtók (3 boon)
+                                                  │ <b>játékos választ</b>
+                                                  ▼
+                              <span class="r">RunState / Build.boons.push()</span>
+                                                  │ Changed&lt;Build&gt;
+                  ┌───────────────────────────────┼───────────────────────────────┐
+                  ▼                               ▼                               ▼
+          recompute_stats (08)          check_synergies (10)         apply_behavior_boon (09)
+            additív+szorzó                 duó-jelölők                 observer a játékosra</div>
+
+      <div class="box tip">
+        <div class="box-title">◆ A teljes kör</div>
+        <p>Itt zár be a rendszer: a <strong>persistent</strong> feloldások határozzák meg, mit <em>lehet</em> kínálni; a <strong>run</strong>-választások építik a buildet; a build hajtja a statokat, szinergiákat és viselkedéseket; a futás vége pedig <em>új</em> meta-valutát ad, ami <em>új</em> feloldásokat nyit. Ez a roguelite-hurok.</p>
+      </div>
+    </section>
+
+    <!-- 12 -->
+    <section id="architektura">
+      <h2><span class="sec-num">12</span>Architektúra &amp; a teljes adat-térkép</h2>
+      <p>A két dobozt két pluginre is leképezzük. A modulhatár nem kozmetika: a <strong>függőségi irányt</strong> rögzíti, ami megóv attól, hogy a run-adat „beszivárogjon” a profilba.</p>
+
+      <pre><code><span class="c-cm">// Tartós réteg: a profil, ami túléli az appot.</span>
+<span class="c-kw">struct</span> <span class="c-ty">MetaPlugin</span>;   <span class="c-cm">// SaveData betöltés/mentés, MetaShop, unlock-vásárlás</span>
+
+<span class="c-cm">// Futás-réteg: ami egy run alatt él és hal.</span>
+<span class="c-kw">struct</span> <span class="c-ty">RunPlugin</span>;    <span class="c-cm">// RunState, Build, boon-ok, szobák, harc</span>
+
+<span class="c-kw">impl</span> <span class="c-ty">Plugin</span> <span class="c-kw">for</span> <span class="c-ty">RunPlugin</span> {
+    <span class="c-kw">fn</span> <span class="c-fn">build</span>(&amp;<span class="c-kw">self</span>, app: &amp;<span class="c-kw">mut</span> <span class="c-ty">App</span>) {
+        app.<span class="c-fn">add_systems</span>(<span class="c-ty">OnEnter</span>(<span class="c-ty">GameState</span>::<span class="c-ty">InRun</span>), start_run)
+           .<span class="c-fn">add_systems</span>(<span class="c-ty">Update</span>, (recompute_stats, check_synergies)
+               .<span class="c-fn">run_if</span>(<span class="c-fn">in_state</span>(<span class="c-ty">GameState</span>::<span class="c-ty">InRun</span>)));
+    }
+}</code></pre>
+
+      <div class="box note">
+        <div class="box-title">▚ A vasszabály: egyirányú adatfolyam</div>
+        <p>A <code>RunPlugin</code> <strong>olvassa</strong> a <code>SaveData</code>-t (pool, kezdő-bónuszok), és a futás <strong>végén ír</strong> bele (valuta, best_depth). De a <code>MetaPlugin</code> <strong>soha</strong> nem függ a <code>RunState</code>-től. Ha a meta-réteg bármely rendszere <code>RunState</code>-et kér paraméterként, az tervezési hiba — a profilnak run nélkül is értelmesnek kell lennie (pl. a bolt a menüből is elérhető).</p>
+      </div>
+
+      <h3>A teljes adat-térkép</h3>
+      <table>
+        <tr><th>Adat</th><th>Típus</th><th>Réteg</th><th>Élettartam</th><th>Ki írja</th></tr>
+        <tr><td>HP, pozíció</td><td>komponens</td><td>run</td><td>egy futás</td><td>harc/mozgás</td></tr>
+        <tr><td><code>Build.boons</code></td><td>komponens</td><td>run</td><td>egy futás</td><td>jutalomválasztás</td></tr>
+        <tr><td><code>Stats</code></td><td>komponens</td><td>run</td><td>egy futás</td><td><code>recompute_stats</code></td></tr>
+        <tr><td><code>RunState</code></td><td>Resource</td><td>run</td><td>egy futás</td><td>run-rendszerek</td></tr>
+        <tr><td><code>RoomGraph</code></td><td>Resource</td><td>run</td><td>egy futás</td><td>generátor</td></tr>
+        <tr><td><code>SaveData</code></td><td>Resource + fájl</td><td>persistent</td><td>örök</td><td>csak híd + bolt</td></tr>
+      </table>
+
+      <p>Ha minden új adatnál előbb kitöltöd ezt a sort — <em>típus? réteg? ki írja?</em> — szinte lehetetlen elrontani a run/persistent szétválasztást.</p>
+    </section>
+
+    <!-- 13 -->
+    <section id="buktatok">
+      <h2><span class="sec-num">13</span>Buktatók &amp; checklista</h2>
+
+      <h3>Gyakori hibák</h3>
+      <ul class="dash">
+        <li><strong>Run-state szivárgás.</strong> Elfelejtesz egy futás-adatot törölni → a következő futás örökli. Védekezés: entitásokra <code>DespawnOnExit</code>, Resource-okra <code>remove_resource</code> vagy felülírás az <code>OnEnter</code>-ben.</li>
+        <li><strong>Mentés minden frame-ben.</strong> A <code>write_save</code> minden tickben fut → fölösleges lemez-IO és akadás. Védekezés: <code>is_changed()</code> kapu.</li>
+        <li><strong>Helyben módosított statok.</strong> A boon közvetlenül a <code>Stats</code>-ot piszkálja → nem levehető, kerekítés halmozódik. Védekezés: alapérték + teljes újraszámolás <code>Changed&lt;Build&gt;</code>-re.</li>
+        <li><strong>Observer-szivárgás.</strong> A boon-observert nem a játékos-entitásra akasztod → a futás végén nem takarodik el. Védekezés: <code>.observe()</code> a játékoson, hogy a despawn automatikusan vigye.</li>
+        <li><strong>Grind-spirál.</strong> A meta-progresszió nyers erőt ad → a játékos türelemmel győz, nem ügyességgel. Védekezés: pool-alapú feloldás (változatosság), nem stat-özön — lásd a <a class="inline" href="roguelike.html#meta">dizájn-figyelmeztetést</a>.</li>
+        <li><strong>WASM-mentés.</strong> <code>std::fs</code> nem megy böngészőben. Védekezés: IO-réteg absztrakció (<code>localStorage</code> weben).</li>
+        <li><strong>Szinergia-robbanás.</strong> Minden boon-párra külön kód. Védekezés: szándékos, kicsi szinergia-tábla.</li>
+      </ul>
+
+      <h3>Checklista</h3>
+      <ul class="check">
+        <li><strong>Két doboz tisztán.</strong> Minden adatról tudod: run vagy persistent.</li>
+        <li><strong>Egyetlen híd.</strong> Run→persistent másolás csak a futás végén, egy helyen.</li>
+        <li><strong>Állapotgép + takarítás.</strong> <code>OnEnter/OnExit</code>, <code>DespawnOnExit</code> a run-entitásokon.</li>
+        <li><strong>Hibatűrő mentés.</strong> Hiányzó/sérült fájl → friss profil, nem összeomlás.</li>
+        <li><strong>Autosave kapuzva.</strong> Csak <code>is_changed()</code>-re ír lemezre.</li>
+        <li><strong>Pool-alapú feloldás.</strong> A run csak a feloldott tartalomból válogat.</li>
+        <li><strong>Boon mint adat.</strong> Katalógus, nem beégetett <code>if</code>-ek; Stat és Behavior szétválasztva.</li>
+        <li><strong>Stat-aggregáció.</strong> Újraszámolás a nulláról, additív→multiplikatív sorrend rögzítve.</li>
+        <li><strong>Viselkedés observerrel.</strong> A boon a játékosra akasztott observer; magától takarít.</li>
+        <li><strong>Szinergiák szándékosan.</strong> Kis, kézzel tervezett duó-halmaz.</li>
+        <li><strong>Egyirányú függőség.</strong> RunPlugin olvashatja a SaveData-t; MetaPlugin sosem a RunState-et.</li>
+      </ul>
+
+      <div class="box tip">
+        <div class="box-title">◆ Hol kezdj?</div>
+        <p>Minimális roguelite-hurok 5 lépésben: (1) <code>GameState</code> + <code>DespawnOnExit</code>, (2) <code>RunState</code> Resource, (3) <code>SaveData</code> + ron mentés/betöltés, (4) a halál-híd (<code>on_run_end</code>), (5) egy <code>Build</code> komponens + <code>recompute_stats</code>. Erre a vázra jön rá a feloldás-pool, az observer-boon-ok, végül a szobagráf. A tervezési döntésekhez (mennyi meta-progresszió, milyen futáshossz) a <a class="inline" href="roguelike.html">roguelike alapszabályok</a> a kísérő.</p>
+      </div>
+    </section>
+
+    <footer>
+      ROGUELITE_SYSTEMS_REFERENCE · v1.0 · single-file HTML · Bevy 0.18<br>
+      „A run eldobható, a profil örök — a kettő közt pontosan egy híd visz át. Te döntöd el, mi fér rá.”
+    </footer>
+  </main>
+</div>
+
+<script>
+  // scrollspy
+  const links = [...document.querySelectorAll('#nav a')];
+  const map = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const a = map.get(e.target.id);
+        if (a) a.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+  document.querySelectorAll('section[id]').forEach(s => obs.observe(s));
+
+  // mobile menu
+  const sb = document.getElementById('sidebar');
+  const btn = document.getElementById('menuBtn');
+  btn.addEventListener('click', () => sb.classList.toggle('open'));
+  document.querySelectorAll('#nav a').forEach(a =>
+    a.addEventListener('click', () => sb.classList.remove('open')));
+
+  // ===== DEMÓ 1 — meta-progresszió ciklusa =====
+  (function(){
+    var meta = {cur:0, unlocks:new Set(), best:0, runs:0};
+    var $ = function(id){ return document.getElementById(id); };
+    function log(s){ var l=$('m-log'); l.innerHTML = '› '+s+'<br>'+l.innerHTML; }
+    function renderMeta(){
+      $('p-cur').textContent = meta.cur;
+      $('p-unlocks').textContent = meta.unlocks.size ? [...meta.unlocks].join(', ') : '—';
+      $('p-best').textContent = meta.best;
+      $('p-runs').textContent = meta.runs;
+      $('m-buy-hp').disabled = meta.unlocks.has('HP+') || meta.cur < 25;
+      $('m-buy-fire').disabled = meta.unlocks.has('Tűz') || meta.cur < 40;
+      $('m-buy-hp').textContent = meta.unlocks.has('HP+') ? '✓ Kezdő HP +20' : 'Kezdő HP +20 · 25◆';
+      $('m-buy-fire').textContent = meta.unlocks.has('Tűz') ? '✓ Tűz-boon' : 'Tűz-boon feloldása · 40◆';
+    }
+    function renderRun(r){
+      $('r-floor').textContent = r ? r.floor : '—';
+      $('r-gold').textContent  = r ? r.gold  : '—';
+      $('r-hp').textContent    = r ? (r.hp>0 ? r.hp : '☠ 0') : '—';
+      $('r-build').textContent = (r && r.build.length) ? r.build.join('+') : (r ? 'üres' : '—');
+    }
+    $('m-run').onclick = function(){
+      // friss run-state — MINDEN nullázódik
+      var fire = meta.unlocks.has('Tűz');
+      var r = {floor:0, gold:0, hp:100 + (meta.unlocks.has('HP+')?20:0), build:[]};
+      if (fire) r.build.push('Tűz');
+      while (r.hp > 0 && r.floor < 12) {
+        r.floor++;
+        r.gold += 8 + Math.floor(Math.random()*10) + (fire?4:0);
+        var dmg = 10 + r.floor*6 + Math.floor(Math.random()*20) - (fire?8:0);
+        r.hp -= Math.max(0, dmg - 20);  // ~20 páncél
+      }
+      if (r.hp < 0) r.hp = 0;
+      var won = r.hp > 0 && r.floor >= 12;
+      renderRun(r);
+      // EGYETLEN híd: run → persistent
+      var earned = Math.floor(r.gold/2) + r.floor*2;
+      meta.cur += earned;
+      meta.best = Math.max(meta.best, r.floor);
+      meta.runs++;
+      log((won ? 'GYŐZELEM' : '☠ halál') + ' a(z) ' + r.floor + '. szinten · +' + earned + '◆');
+      renderMeta();
+    };
+    $('m-buy-hp').onclick = function(){
+      if (meta.cur >= 25 && !meta.unlocks.has('HP+')) { meta.cur -= 25; meta.unlocks.add('HP+'); log('feloldva: Kezdő HP +20'); renderMeta(); }
+    };
+    $('m-buy-fire').onclick = function(){
+      if (meta.cur >= 40 && !meta.unlocks.has('Tűz')) { meta.cur -= 40; meta.unlocks.add('Tűz'); log('feloldva: Tűz-boon (bekerül a poolba)'); renderMeta(); }
+    };
+    $('m-reset').onclick = function(){
+      meta = {cur:0, unlocks:new Set(), best:0, runs:0};
+      renderRun(null); $('m-log').innerHTML = ''; log('profil törölve — friss kezdés'); renderMeta();
+    };
+    renderMeta();
+  })();
+
+  // ===== DEMÓ 2 — build-laboratórium =====
+  (function(){
+    var BOONS = [
+      {id:'Tűz',    n:'Tüzes csapás', d:'minden találat gyújt',  dmg:5,            beh:'minden találat +5 tűz'},
+      {id:'Lánc',   n:'Láncvillám',   d:'a sebzés átugrik',       dmg:2,            beh:'a találat 2 célt ér'},
+      {id:'Vér',    n:'Vérszívás',    d:'a sebzés gyógyít',                         beh:'+élet ütésenként'},
+      {id:'Krit',   n:'Kritikus',     d:'×1.5 sebzés',            mult:1.5},
+      {id:'Páncél', n:'Vaspáncél',    d:'+60 max HP',             hp:60},
+      {id:'Fürge',  n:'Fürgeség',     d:'+2.0 sebesség',          spd:2.0},
+    ];
+    var MAX = 4, picked = [];
+    var $ = function(id){ return document.getElementById(id); };
+    var grid = $('b-grid');
+
+    BOONS.forEach(function(b){
+      var el = document.createElement('div');
+      el.className = 'boon';
+      el.dataset.id = b.id;
+      el.innerHTML = '<span class="bn">'+b.n+'</span><span class="bd">'+b.d+'</span>';
+      el.onclick = function(){ toggle(b.id, el); };
+      grid.appendChild(el);
+    });
+
+    function toggle(id, el){
+      var i = picked.indexOf(id);
+      if (i >= 0) { picked.splice(i,1); el.classList.remove('on'); }
+      else { if (picked.length >= MAX) return; picked.push(id); el.classList.add('on'); }
+      recompute();
+    }
+
+    function def(id){ return BOONS.find(function(b){ return b.id===id; }); }
+
+    function recompute(){
+      // alapérték → újraszámolás a nulláról (mint a Rust recompute_stats)
+      var flat = 10, mult = 1.0, hp = 100, spd = 4.0, behav = [];
+      picked.forEach(function(id){
+        var b = def(id);
+        if (b.dmg)  flat += b.dmg;
+        if (b.mult) mult *= b.mult;
+        if (b.hp)   hp   += b.hp;
+        if (b.spd)  spd  += b.spd;
+        if (b.beh)  behav.push('• '+b.beh);
+      });
+      var dmg = Math.round(flat * mult);
+
+      $('s-dmg').textContent = dmg;
+      $('s-hp').textContent  = hp;
+      $('s-spd').textContent = spd.toFixed(1);
+      $('bar-dmg').style.width = Math.min(100, dmg/60*100) + '%';
+      $('bar-hp').style.width  = Math.min(100, hp/240*100) + '%';
+      $('bar-spd').style.width = Math.min(100, spd/10*100) + '%';
+      $('s-behav').innerHTML = behav.length ? behav.join('<br>') : '—';
+
+      // szinergiák (szándékos, kis tábla)
+      var fire = picked.indexOf('Tűz')>=0, chain = picked.indexOf('Lánc')>=0;
+      var vamp = picked.indexOf('Vér')>=0, crit = picked.indexOf('Krit')>=0;
+      $('syn-firestorm').classList.toggle('off', !(fire && chain));
+      $('syn-vampire').classList.toggle('off', !(vamp && crit));
+    }
+    recompute();
+  })();
+</script>
+</body>
+</html>
