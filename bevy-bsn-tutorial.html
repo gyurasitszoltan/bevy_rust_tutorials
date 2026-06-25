@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BSN — Bevy Scene Notation: deklaratív scene-ek · Bevy 0.19 tutorial (magyar)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13; --bg-deep:#0b110c; --panel:#1a241b; --panel-2:#162017;
+  --ink:#e9e3cd; --muted:#9caa90;
+  --grass:#7ecb52; --grass-hi:#a5e87d; --grass-dk:#4e8f33;
+  --dirt:#c99c66; --dirt-dk:#9a6e43; --water:#6cc8d9; --stone:#9aa0aa;
+  --concrete:#cacac3; --lava:#ff7a3c; --ice:#bfe0f0;
+  --line:#2d3b2c; --line-hi:#41543e; --code-bg:#0c120d; --shadow:rgba(0,0,0,.45);
+  --kw:#ff9d5c; --ty:#8fd8e8; --fnc:#a5e87d; --str:#e8c878; --cmt:#6d7c64; --mac:#d8a0e8; --num:#f0b8a0;
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px)}
+::selection{background:var(--grass-dk);color:#fff}
+
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--bg-deep);border-right:3px solid var(--line);overflow-y:auto;z-index:30;padding:22px 0 40px}
+.sidebar::-webkit-scrollbar{width:8px}.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px}
+.logo .title{font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15}
+.logo .sub{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em}
+.logo .badge{display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;box-shadow:2px 2px 0 var(--shadow)}
+.logo .badge.pro{background:var(--lava);color:#1a0d06;margin-left:6px}
+.nav-part{font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);padding:16px 20px 6px;text-transform:uppercase}
+.nav a{display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;font-size:14px;position:relative;border-left:4px solid transparent;transition:color .12s,background .12s}
+.nav a::before{content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);transition:opacity .12s,left .12s}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{color:var(--grass-hi);background:rgba(126,203,82,.10);border-left-color:var(--grass);font-weight:600}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;background:var(--grass);color:#10180f;border:none;padding:8px 14px;box-shadow:3px 3px 0 var(--shadow);text-decoration:none;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+.menu-toggle{display:none;position:fixed;top:14px;left:14px;z-index:40;font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;background:var(--panel);color:var(--ink);border:3px solid var(--line);box-shadow:3px 3px 0 var(--shadow)}
+
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-family:"Pixelify Sans";font-weight:700;font-size:clamp(34px,5.2vw,54px);line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px}
+.hero h1 .g{color:var(--grass-hi)}.hero h1 .d{color:var(--dirt)}.hero h1 .l{color:var(--lava)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{border:3px solid var(--line);background:var(--bg-deep);padding:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow)}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0;border:2px solid var(--line);background:#0c120d}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6;flex:1;min-width:220px}
+.hero-strip .cap b{color:var(--grass)}
+
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);text-transform:uppercase}
+.ch-eyebrow{font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);text-transform:uppercase;margin-bottom:8px}
+h2{font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);margin:34px 0 12px}
+p{margin-bottom:14px}p+p{margin-top:2px}
+strong{color:#fff}em{color:var(--dirt)}a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}li{margin-bottom:7px}
+code:not(pre code){font-family:"IBM Plex Mono";font-size:.86em;background:var(--code-bg);color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+
+.code{margin:22px 0;border:3px solid var(--line);background:var(--code-bg);box-shadow:4px 4px 0 var(--shadow)}
+.code-head{display:flex;justify-content:space-between;align-items:center;background:var(--panel);border-bottom:3px solid var(--line);padding:7px 12px}
+.code-head .fname{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--dirt);letter-spacing:.05em}
+.copy-btn{font-family:"Pixelify Sans";font-size:12.5px;cursor:pointer;background:transparent;color:var(--muted);border:2px solid var(--line-hi);padding:2px 9px;transition:all .1s}
+.copy-btn:hover{color:var(--grass-hi);border-color:var(--grass)}
+.code pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13.5px;line-height:1.62}
+.code pre::-webkit-scrollbar{height:8px}.code pre::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.k{color:var(--kw)}.t{color:var(--ty)}.f{color:var(--fnc)}.s{color:var(--str)}.c{color:var(--cmt);font-style:italic}.m{color:var(--mac)}.n{color:var(--num)}
+
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--grass)}.diagram pre .di{color:var(--dirt)}.diagram pre .wa{color:var(--water)}.diagram pre .st{color:var(--stone)}.diagram pre .lv{color:var(--lava)}.diagram pre .mu{color:var(--muted)}.diagram pre .yl{color:#e8d24a}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+
+.bevy-box{margin:24px 0;border:3px solid #2a4a52;background:#0d181b;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.bevy-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.bevy-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.bevy-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.bevy-box ul{font-size:15px;color:#cfdbd5}
+
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--grass);margin-bottom:4px}
+.note.warn .n-tag{color:var(--dirt)}
+
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+
+.playground{margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);border-bottom:3px solid var(--grass-dk);padding:10px 14px}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em}
+.playground .pg-tag{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted)}
+.playground .pg-body{padding:16px;display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#0c120d;touch-action:none;max-width:100%}
+.playground .pg-side{flex:1;min-width:230px;font-size:14px;color:var(--muted)}
+.pg-controls{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+.stat{font-family:"IBM Plex Mono";font-size:13px;color:var(--grass-hi)}
+.wbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:4px 11px;transition:all .1s}
+.wbtn:hover{color:var(--ink)}
+.wbtn.active{background:var(--water);color:var(--bg-deep);border-color:var(--water)}
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--dirt);letter-spacing:.06em;margin:12px 0 4px;text-transform:uppercase}
+
+/* BSN-demó specifikus */
+.bsn-live{font-family:"IBM Plex Mono";font-size:13px;line-height:1.6;background:var(--code-bg);border:2px solid var(--line);padding:12px 14px;white-space:pre;overflow-x:auto;color:var(--ink);min-width:240px;flex:1}
+.bsn-live .km{color:var(--mac)}.bsn-live .kt{color:var(--ty)}.bsn-live .kf{color:var(--str)}.bsn-live .kd{color:var(--cmt);font-style:italic}.bsn-live .kn{color:var(--num)}
+.chip-row{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 2px}
+.chip{font-family:"IBM Plex Mono";font-size:12px;cursor:pointer;border:2px solid var(--line-hi);background:var(--panel);color:var(--muted);padding:3px 9px;transition:all .1s;user-select:none}
+.chip.on{background:rgba(126,203,82,.16);border-color:var(--grass);color:var(--grass-hi);font-weight:600}
+.chip.off{opacity:.7}
+.tree{font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.tree .node{padding:2px 6px;border:2px solid var(--line-hi);background:var(--panel);margin:3px 0;display:inline-block;transition:all .12s}
+.tree .node.hot{border-color:var(--grass);background:rgba(126,203,82,.16);color:var(--grass-hi)}
+.tree .ind{color:var(--line-hi)}
+.codeline{display:block;padding:1px 6px;border-left:3px solid transparent;cursor:pointer;white-space:pre}
+.codeline:hover{background:rgba(126,203,82,.06)}
+.codeline.hot{background:rgba(126,203,82,.12);border-left-color:var(--grass)}
+.layerbox{border:2px solid var(--line-hi);background:var(--panel);padding:8px 10px;margin:6px 0;font-family:"IBM Plex Mono";font-size:12.5px}
+.layerbox .lh{color:var(--dirt);font-family:"Pixelify Sans";font-size:12px;letter-spacing:.06em;margin-bottom:4px}
+.field{display:block;padding:1px 0}
+.field .won{color:var(--grass-hi);font-weight:600}
+.field .lost{color:var(--cmt);text-decoration:line-through}
+.previewbtn{display:inline-flex;align-items:center;justify-content:center;font-family:"IBM Plex Sans";font-weight:600;transition:all .15s}
+
+footer{margin-top:90px;border-top:3px solid var(--line);padding-top:24px;font-size:13.5px;color:var(--muted)}
+footer .pix{font-family:"Pixelify Sans";color:var(--grass);font-size:15px}
+footer a{color:var(--water)}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}.menu-toggle{display:block}.main{margin-left:0}.wrap{padding:0 20px 100px}.hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;background:linear-gradient(90deg,#7ecb52,#a5e87d);box-shadow:0 0 10px rgba(126,203,82,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">BSN</div>
+    <div class="sub">Bevy Scene Notation · deklaratív scene-ek · Rust</div>
+    <span class="badge">BEVY 0.19</span><span class="badge pro">ÚJ</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I. rész — Miért BSN?</div>
+    <a href="#ch1">1 · A régi fájdalom &amp; az ígéret</a>
+    <a href="#ch2">2 · A <code style="font-size:.9em">bsn!</code> makró alapjai</a>
+    <div class="nav-part">II. rész — A négy szuperképesség</div>
+    <a href="#ch3">3 · Hierarchia: Children</a>
+    <a href="#ch4">4 · Kompozíció: scene-függvények</a>
+    <a href="#ch5">5 · Patch &amp; override</a>
+    <a href="#ch6">6 · Függőségek &amp; assetek</a>
+    <div class="nav-part">III. rész — A gyakorlatban</div>
+    <a href="#ch7">7 · Spawnolás</a>
+    <a href="#ch8">8 · Observerek: on()</a>
+    <a href="#ch9">9 · Teljes példa: UI dialógus</a>
+    <a href="#ch10">10 · Státusz &amp; merre tovább?</a>
+  </nav>
+  <div class="dl-box">
+    <p>A BSN a <strong>Bevy 0.19</strong> (2026. jún. 19.) nagy újdonsága. Ez a lecke a <strong>kódból írt</strong> (<code class="mono">bsn!</code>) munkafolyamatra fókuszál.</p>
+    <a class="btn secondary" href="https://bevy.org/news/bevy-0-19/" target="_blank" rel="noopener">↗ Bevy 0.19 hírek</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// Bevy 0.19 · új scene-rendszer · deklaratív UI &amp; jelenetek · magyar nyelven</div>
+  <h1>Írd le, ne <span class="d">építsd</span> — <span class="g">BSN</span></h1>
+  <p class="lead">A <strong>Bevy Scene Notation</strong> (BSN) a 0.19 zászlóshajó-újdonsága: egy <strong>deklaratív</strong> jelölés, amivel komponens-fákat írsz le ahelyett, hogy kézzel spawnolnád őket. <strong>Kompozálható</strong>, <strong>patchelhető</strong> és <strong>függőség-tudatos</strong> — csak azt adod meg, ami érdekel, a többit a motor kitölti és betölti. Nézzük meg, miért ez a Bevy UI/scene jövője.</p>
+  <div class="hero-strip">
+    <canvas id="bsnHero" width="384" height="188" style="width:520px;height:255px"></canvas>
+    <div class="cap">↑ Élő minta: egy <b>bsn!</b> jelenet balról — a motor jobbra <b>felépíti</b> az entitás-fát. Egy deklaratív leírás → kész hierarchia, függőségekkel együtt.</div>
+  </div>
+</header>
+
+<!-- ============ I. RÉSZ ============ -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Miért BSN?</span></div>
+
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>A régi fájdalom &amp; az ígéret</h2>
+  <p>A scene-ek (jelenetek) Bevyben hagyományosan fájdalmasak voltak. Egy összetett entitás spawnolása azt jelentette, hogy <strong>kézzel</strong> felsoroltad minden komponensét és minden függőségét, a <em>helyes sorrendben</em>. Egy egyszerű gomb is így nézett ki:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">a „régi" út — kézi spawn, sok boilerplate</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">commands.spawn((
+    Button,
+    Node {
+        width: Val::Px(150.0),
+        height: Val::Px(65.0),
+        justify_content: JustifyContent::Center,
+        align_items: AlignItems::Center,
+        ..default()
+    },
+    BackgroundColor(Color::srgb(0.15, 0.15, 0.15)),
+    children![(
+        Text::new("Ok"),
+        TextColor(Color::srgb(0.9, 0.9, 0.9)),
+    )],
+));</code></pre>
+  </div>
+
+  <p>Ugyanez <strong>BSN-ben</strong> — ugyanaz a fa, kevesebb zaj, és ami a lényeg: <em>kompozálható</em> darabokból:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">a „BSN" út — deklaratív, kompozálható</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">bsn! {
+    Button
+    Node {
+        width: px(150),
+        height: px(65),
+        justify_content: JustifyContent::Center,
+        align_items: AlignItems::Center,
+    }
+    BackgroundColor(Color::srgb(0.15, 0.15, 0.15))
+    Children [(
+        Text("Ok")
+        TextColor(Color::srgb(0.9, 0.9, 0.9))
+    )]
+}</code></pre>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">⚙ Mit old meg a BSN?</div>
+    <ul>
+      <li><strong>Defaultok:</strong> csak a számodra fontos mezőket írod ki; a többi a <code>Default</code>-ot kapja.</li>
+      <li><strong>Kompozíció:</strong> kis jeleneteket nagyobbakká fűzöl össze, duplikáció nélkül.</li>
+      <li><strong>Patch / override:</strong> egyetlen mezőt felülírsz anélkül, hogy az egészet újraírnád.</li>
+      <li><strong>Függőség-tudatosság:</strong> nem kell kézzel behúzni a komponens- és asset-függőségeket — a motor kitalálja, mit kell betölteni és milyen sorrendben.</li>
+    </ul>
+  </div>
+
+  <p>A négy szuperképességet a II. rész veszi sorra. De előbb a makró maga.</p>
+</section>
+
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>A <code>bsn!</code> makró alapjai</h2>
+  <p>A <code>bsn! { ... }</code> egy <strong>egyetlen entitást</strong> ír le. A komponenseket <em>szóközzel</em> (új sorral) választod el. A mezőket struct-szintaxissal adod meg — és <strong>csak azt írod ki, amit állítasz</strong>; a többi mező a <code>Default</code> értékét kapja.</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">komponensek &amp; mezők</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">// csak a típusnév -&gt; minden mező default:
+bsn! { Player }
+
+// néhány mező megadva, a többi default:
+bsn! {
+    Player { score: 100 }
+    Node { width: px(100) }
+}
+
+// tetszőleges Rust-kifejezés is mehet { } között:
+bsn! { Player { score: { current_points + 10 } } }</code></pre>
+  </div>
+
+  <p>A <code>px(100)</code> és <code>percent(100)</code> kényelmi segéd-függvények (a <code>Val::Px</code> / <code>Val::Percent</code> helyett). A tuple-struct komponensek a természetes zárójeles formában mennek: <code>BackgroundColor(Color::WHITE)</code>, <code>Text("Helló")</code>.</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — „csak amit megadsz"</span><span class="pg-tag">kapcsold a mezőket</span></div>
+    <div class="pg-body">
+      <div style="flex:1;min-width:240px">
+        <div class="ctl-label">Mely mezőket adod meg? (a többi default)</div>
+        <div class="chip-row" id="defChips"></div>
+        <div class="ctl-label" style="margin-top:10px">a generált bsn!</div>
+        <div class="bsn-live" id="defCode"></div>
+      </div>
+      <div class="pg-side">
+        <div class="ctl-label">az eredmény (Node)</div>
+        <div style="border:2px dashed var(--line-hi);padding:10px;background:#0c120d;min-height:120px;display:flex" id="defPreviewWrap">
+          <div id="defPreview" class="previewbtn" style="background:#1d2b18;color:#cfdbd5">Node</div>
+        </div>
+        <p style="margin-top:10px" class="stat" id="defStat">3 / 8 mező megadva</p>
+        <p style="margin-top:8px">A többi mező <strong>nem</strong> jelenik meg a kódban — a motor a <code>Default</code>-ot teszi be. Minél kevesebbet írsz, annál olvashatóbb a jelenet.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ II. RÉSZ ============ -->
+<div class="part-divider"><span class="pd-label">█ II. rész — A négy szuperképesség</span></div>
+
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>Hierarchia: <code>Children</code></h2>
+  <p>A gyerek-entitásokat a <code>Children [ ... ]</code> reláció írja le. A <strong>vessző</strong> külön gyerekeket választ el; egy gyereken belül a komponenseket <strong>szóköz</strong> választja el. Az átláthatóságért egy gyerek komponenseit <code>( ... )</code> zárójelbe tesszük:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">Children — vessző = új gyerek, szóköz = ugyanazon</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">bsn! {
+    Node { /* a konténer */ }
+    Children [
+        ( Button  Text("Ok") ),       // 1. gyerek: Button + Text egy entitáson
+        ( Button  Text("Mégse") ),    // 2. gyerek
+    ]
+}</code></pre>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▲ Vessző vs. szóköz</div>
+    <code>Children [ A B ]</code> = <em>egy</em> gyerek, rajta <code>A</code> és <code>B</code> komponens. <code>Children [ A, B ]</code> = <em>két</em> gyerek. A <code>( ... )</code> csak egyértelműsít — a vessző a döntő.
+  </div>
+
+  <p>Kattints lent a kód egy sorára — kiemelődik a hozzá tartozó csomópont az entitás-fában:</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — kód ↔ entitás-fa</span><span class="pg-tag">kattints egy sorra</span></div>
+    <div class="pg-body">
+      <div style="flex:1;min-width:250px">
+        <div class="ctl-label">bsn! forrás</div>
+        <div class="bsn-live" id="treeCode" style="white-space:normal"></div>
+      </div>
+      <div class="pg-side">
+        <div class="ctl-label">a felépülő entitás-fa</div>
+        <div class="tree" id="treeView"></div>
+        <p style="margin-top:10px">Minden gyökér-sor egy <strong>entitás</strong>; a <code>Children [ ]</code> beágyazott entitásokat hoz létre. A relációkat (<code>Children</code>) a Bevy automatikusan beköti.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>Kompozíció: scene-függvények</h2>
+  <p>Itt kezd igazán erős lenni a BSN. Egy <code>bsn!</code>-t visszaadó függvény típusa <code>impl Scene</code> — és ezt a függvényt <strong>beágyazhatod</strong> egy másik <code>bsn!</code>-be, mintha komponens volna. Így kis, újrahasználható darabokból építed a nagyot:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">scene-függvények egymásba ágyazva</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">// egy újrahasználható gomb-jelenet:
+fn button(label: &amp;str) -&gt; impl Scene {
+    bsn! {
+        Button
+        Node { width: px(150), height: px(65) }
+        BackgroundColor(Color::srgb(0.15, 0.15, 0.15))
+        Children [( Text(label) )]
+    }
+}
+
+// egy dialógus, ami KÉT button()-t komponál:
+fn dialog() -&gt; impl Scene {
+    bsn! {
+        Node { column_gap: px(5) }
+        Children [
+            ( button("Ok") ),
+            ( button("Mégse") ),
+        ]
+    }
+}</code></pre>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — Scene &amp; SceneList</div>
+    <p>A <code>bsn! { ... }</code> egy <strong><code>impl Scene</code></strong> (egyetlen gyökér-entitás sablonja). Ha több gyökér-entitást akarsz, a <code>bsn_list![ ... ]</code> ad egy <strong><code>impl SceneList</code></strong>-et. A scene-ek tehát <em>értékek</em>, amiket függvények adnak vissza, változókba tehetők, és — ahogy itt — egymásba fűzhetők.</p>
+  </div>
+</section>
+
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Patch &amp; override — „last write wins"</h2>
+  <p>A jelenetek <strong>patchek</strong>: ha egy beágyazott jelenet után további komponenseket vagy mezőket írsz, azok <em>rárétegeződnek</em>. Az átfedő mezőknél az <strong>utolsó írás nyer</strong> — a többi marad. Így egy kész darabot „testre szabhatsz" anélkül, hogy újraírnád:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">a button() testreszabása patcheléssel</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn danger_button() -&gt; impl Scene {
+    bsn! {
+        button("Törlés")                              // alap: szürke gomb, 150x65
+        BackgroundColor(Color::srgb(0.4, 0.15, 0.15)) // PATCH: piros háttér felülír
+        Node { height: px(80) }                       // PATCH: csak a height változik,
+                                                       //        a width (150) marad!
+    }
+}</code></pre>
+  </div>
+
+  <p>Told a kapcsolókat — a base réteg (a <code>button()</code>) változatlan, a patch-réteg felülír, és látod az eredő gombot:</p>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — patch-rétegezés</span><span class="pg-tag">last write wins</span></div>
+    <div class="pg-body">
+      <div style="flex:1;min-width:250px">
+        <div class="layerbox">
+          <div class="lh">① base: button()</div>
+          <span class="field">width: <span class="won">px(150)</span></span>
+          <span class="field">height: <span id="pl-base-h">px(65)</span></span>
+          <span class="field">background: <span id="pl-base-bg">szürke</span></span>
+        </div>
+        <div class="ctl-label">② patch — mit írsz felül?</div>
+        <div class="chip-row" id="patchChips"></div>
+      </div>
+      <div class="pg-side">
+        <div class="ctl-label">= eredmény (last write wins)</div>
+        <div style="border:2px dashed var(--line-hi);padding:14px;background:#0c120d;display:flex;align-items:center;justify-content:center;min-height:120px">
+          <div id="patchPreview" class="previewbtn">Törlés</div>
+        </div>
+        <p style="margin-top:10px" id="patchExplain">A <code>width</code> a base-ből jön; a patch csak a megadott mezőket írja felül.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Függőségek &amp; assetek</h2>
+  <p>A BSN <strong>függőség-tudatos</strong>: ha egy komponensnek <code>Handle&lt;T&gt;</code> mezője van (pl. egy <code>Sprite</code> képe), egyszerűen <strong>string elérési utat</strong> adsz meg, és a motor betölti az assetet, majd behelyettesíti a handle-t:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">asset-handle string elérési útból</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">bsn! {
+    Sprite { image: "player.png" }   // "player.png" -&gt; Handle&lt;Image&gt; automatikusan
+}</code></pre>
+  </div>
+
+  <p>Ezért van kétféle spawnolás: az azonnali, és az asset-függőségekre <em>váró</em>:</p>
+  <table>
+    <tr><th>Hívás</th><th>Viselkedés</th></tr>
+    <tr><td><code>commands.spawn_scene(..)</code></td><td>Azonnal spawnol.</td></tr>
+    <tr><td><code>commands.queue_spawn_scene(..)</code></td><td>Megvárja a függő <strong>assetek</strong> betöltését, csak utána spawnol — így nincs „egy frame-ig nincs textúra" villanás.</td></tr>
+  </table>
+
+  <div class="playground">
+    <div class="pg-head"><span class="pg-title">▶ JÁTSZÓTÉR — függőség-betöltés</span><span class="pg-tag">spawn → várakozás → kész</span></div>
+    <div class="pg-body">
+      <canvas id="assetCanvas" width="384" height="150" style="width:520px;height:203px"></canvas>
+      <div class="pg-side">
+        <p>Egy <code>Sprite { image: "player.png" }</code> spawnolása. Figyeld a fázisokat: a motor felismeri az asset-függőséget, betölti, majd behelyettesíti a handle-t.</p>
+        <div class="pg-controls"><button class="btn secondary" id="assetGo" style="font-size:13px;padding:6px 12px">▶ queue_spawn_scene</button></div>
+        <p style="margin-top:8px" class="stat" id="assetPhase">— nyomd meg a gombot —</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ III. RÉSZ ============ -->
+<div class="part-divider"><span class="pd-label">█ III. rész — A gyakorlatban</span></div>
+
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>Spawnolás</h2>
+  <p>Háromféleképp keltheted életre a jelenetet. A leggyakoribb: egy <code>impl Scene</code>-t visszaadó függvényt <strong>közvetlenül rendszerré</strong> alakítasz a <code>.spawn()</code>-nal:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">main.rs — a scene-függvény mint Startup-rendszer</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_systems(Startup, scene.spawn())   // a `scene` fn -&gt; rendszer
+        .run();
+}
+
+fn scene() -&gt; impl SceneList {
+    bsn_list![ Camera2d, ui() ]                // több gyökér-entitás
+}</code></pre>
+  </div>
+
+  <p>Vagy egy meglévő rendszeren belül, a <code>Commands</code>-on keresztül:</p>
+  <div class="code">
+    <div class="code-head"><span class="fname">spawnolás rendszeren belül</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn setup(mut commands: Commands) {
+    commands.spawn_scene(bsn! { Player Ship });
+}</code></pre>
+  </div>
+</section>
+
+<section id="ch8">
+  <div class="ch-eyebrow">8. fejezet</div>
+  <h2>Observerek: <code>on()</code></h2>
+  <p>A jelenetbe közvetlenül <strong>esemény-figyelőket</strong> (observer) is írhatsz az <code>on(...)</code> segítségével. Egy gomb így rögtön „magával hozza" a kattintás-kezelőjét — nincs külön bekötés:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">observer a jelenetben</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn button(label: &amp;str) -&gt; impl Scene {
+    bsn! {
+        Button
+        Node { width: px(150), height: px(65) }
+        Children [( Text(label) )]
+        on(|_press: On&lt;Pointer&lt;Press&gt;&gt;| {
+            info!("megnyomták: {}", "gomb");
+        })
+    }
+}</code></pre>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">⚙ Bevy fogalom — On&lt;E&gt; observer</div>
+    <p>Az <code>on(closure)</code> egy observert csatol az entitáshoz. A closure első paramétere a kiváltó esemény, <code>On&lt;Pointer&lt;Press&gt;&gt;</code> formában (a 0.15+ observer-API). A jelenet így <em>önállóan viselkedik</em>: a vizuál és a reakciója egy helyen, egy darabban utazik.</p>
+  </div>
+</section>
+
+<section id="ch9">
+  <div class="ch-eyebrow">9. fejezet</div>
+  <h2>Teljes példa: egy UI dialógus</h2>
+  <p>Tegyük össze: a hivatalos <code>bsn</code> példa egy két-gombos UI-t épít — kompozícióval, patcheléssel és observerekkel együtt. Ez a teljes kép:</p>
+
+  <div class="code">
+    <div class="code-head"><span class="fname">examples/scene/bsn.rs (Bevy 0.19) — kivonat</span><button class="copy-btn">másolás</button></div>
+    <pre><code class="lang-rust">fn scene() -&gt; impl SceneList {
+    bsn_list![ Camera2d, ui() ]
+}
+
+fn ui() -&gt; impl Scene {
+    bsn! {
+        Node {
+            width: percent(100),
+            height: percent(100),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            column_gap: px(5),
+        }
+        Children [
+            (
+                button("Ok")
+                on(|_event: On&lt;Pointer&lt;Press&gt;&gt;| println!("Ok pressed!"))
+            ),
+            (
+                button("Cancel")
+                on(|_event: On&lt;Pointer&lt;Press&gt;&gt;| println!("Cancel pressed!"))
+                BackgroundColor(Color::srgb(0.4, 0.15, 0.15))   // patch: piros
+            ),
+        ]
+    }
+}</code></pre>
+  </div>
+  <p>Figyeld meg: a <code>Cancel</code> gomb ugyanaz a <code>button()</code>, mint az <code>Ok</code> — csak rárétegez egy <em>observert</em> és egy piros <code>BackgroundColor</code> <em>patchet</em>. Egy darab, kétféleképp testre szabva. Ez a BSN lényege egyetlen képben.</p>
+</section>
+
+<section id="ch10">
+  <div class="ch-eyebrow">10. fejezet</div>
+  <h2>Régi <code>Scene</code> vs. BSN · státusz · merre tovább?</h2>
+
+  <table>
+    <tr><th></th><th>Régi <code>DynamicScene</code> / kézi spawn</th><th>BSN (0.19)</th></tr>
+    <tr><td><strong>Forma</strong></td><td>Reflexió-alapú <code>.scn.ron</code>, vagy kézi <code>spawn((..))</code></td><td>Deklaratív <code>bsn!</code> makró Rustban</td></tr>
+    <tr><td><strong>Defaultok</strong></td><td>Minden mezőt ki kell tölteni</td><td>Csak amit megadsz</td></tr>
+    <tr><td><strong>Kompozíció</strong></td><td>Nehézkes</td><td>Beágyazott scene-függvények</td></tr>
+    <tr><td><strong>Override</strong></td><td>—</td><td>Patch, „last write wins"</td></tr>
+    <tr><td><strong>Assetek</strong></td><td>Kézzel</td><td>String → <code>Handle</code> automatikusan</td></tr>
+    <tr><td><strong>Eszköztámogatás</strong></td><td>Gyenge</td><td>Rust-analyzer: autocomplete, go-to-def</td></tr>
+  </table>
+
+  <div class="note warn">
+    <div class="n-tag">⚠ Státusz a 0.19-ben — friss, és van pár éle</div>
+    <p>A 0.19 a <strong>kódból írt</strong> (<code>bsn!</code>) munkafolyamatra fókuszál. A <strong><code>.bsn</code> asset-betöltő</strong> (jelenetek fájlból, hot-reloaddal) <em>még nincs</em> kész — egy későbbi kiadásra tervezik, ahogy a glTF BSN-re portolását is. A BSN „frissen jött ki", így a Bevy csapata szerint is várhatók durva élek és hiányzó funkciók — de már most bőven használható.</p>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">⚙ Megjegyzés — haladó BSN</div>
+    <p>Van még mit felfedezni: a <code>#Név</code> előtaggal <strong>nevet</strong> adsz egy entitásnak és hivatkozol rá (relációkhoz); a <code>@</code> előtag <strong>SceneComponent</strong>-et spawnol a saját beágyazott jelenetével; a <code>Template</code> / <code>FromTemplate</code> trait pedig a „okos konstruktor" a háttérben (ez alakítja a <code>"player.png"</code> stringet <code>Handle</code>-lé). Ezek a hivatalos dokumentációban mélyülnek el.</p>
+  </div>
+
+  <div class="bevy-box">
+    <div class="tag">▸ Merre tovább?</div>
+    <ul>
+      <li><strong>Scene-architektúra:</strong> a <a href="bevy-scene-valtas-tutorial.html">scene-váltás (States, fade, plugin-elrendezés)</a> lecke — a BSN ezt <em>kiegészíti</em> (mit spawnolj), nem váltja le (mikor/melyik scene aktív).</li>
+      <li><strong>UI:</strong> a <a href="bevy_ui_tutorial.html">Bevy UI</a> alapok — a BSN a UI-fák leírásában a legerősebb.</li>
+      <li><strong>Hivatalos:</strong> a <a href="https://bevy.org/news/bevy-0-19/" target="_blank" rel="noopener">Bevy 0.19 bejelentés</a> és a <code>examples/scene/bsn.rs</code> példa.</li>
+    </ul>
+  </div>
+
+  <footer>
+    <p class="pix">BSN — Bevy Scene Notation · Bevy 0.19</p>
+    <p>Tutorial magyarul, a hivatalos <a href="https://bevy.org/news/bevy-0-19/" target="_blank" rel="noopener">Bevy 0.19 bejelentés</a> és a <code>examples/scene/bsn.rs</code> alapján. A BSN friss (0.19, 2026. június) — a pontos szintaxis a jövőbeli kiadásokban még finomodhat. A demók saját, böngészőben futó szemléltetések.</p>
+  </footer>
+</section>
+
+</div><!-- /wrap -->
+</div><!-- /main -->
+
+<script>
+(function(){
+"use strict";
+var reduceMotion = (window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches);
+var TAU=Math.PI*2;
+
+/* =====================================================================
+   HERO — bsn! -> entitás-fa felépülés
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("bsnHero"); if(!cv) return; var ctx=cv.getContext("2d");
+  // a fa csomópontjai (cél-pozíciók a jobb félen)
+  var nodes=[
+    {id:0,x:300,y:28,label:"Node",par:-1},
+    {id:1,x:250,y:84,label:"Button",par:0},
+    {id:2,x:350,y:84,label:"Button",par:0},
+    {id:3,x:250,y:140,label:'Text "Ok"',par:1},
+    {id:4,x:350,y:140,label:'Text "Mégse"',par:2}
+  ];
+  var codeLines=['bsn! {','  Node { .. }','  Children [','    (Button Text),','    (Button Text),','  ]','}'];
+  var built=0, t=0, hold=0, phase="build";
+  function drawNode(n,vis){
+    var w=n.label.length*6.5+16, h=22;
+    ctx.globalAlpha=vis;
+    ctx.fillStyle="#1a241b"; ctx.fillRect(n.x-w/2,n.y-h/2,w,h);
+    ctx.strokeStyle="#7ecb52"; ctx.lineWidth=2; ctx.strokeRect(n.x-w/2,n.y-h/2,w,h);
+    ctx.fillStyle="#a5e87d"; ctx.font='11px "Courier New",monospace'; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(n.label,n.x,n.y);
+    ctx.globalAlpha=1;
+  }
+  function frame(dt){
+    ctx.fillStyle="#0c120d"; ctx.fillRect(0,0,cv.width,cv.height);
+    // bal: kód
+    ctx.textAlign="left"; ctx.textBaseline="top"; ctx.font='12px "Courier New",monospace';
+    for(var i=0;i<codeLines.length;i++){
+      var lit = (phase==="build") ? (i < Math.ceil(built* (codeLines.length/nodes.length)) +1) : true;
+      ctx.fillStyle = lit ? (i===0||i===6?"#d8a0e8":"#9caa90") : "#2d3b2c";
+      ctx.fillText(codeLines[i], 16, 26+i*20);
+    }
+    // elválasztó nyíl
+    ctx.strokeStyle="#41543e"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(180,94); ctx.lineTo(205,94); ctx.stroke();
+    ctx.fillStyle="#41543e"; ctx.beginPath(); ctx.moveTo(205,94); ctx.lineTo(198,90); ctx.lineTo(198,98); ctx.fill();
+    // jobb: fa élei + csomópontjai (az épp megjelentek)
+    for(var e=0;e<nodes.length;e++){
+      if(e>=built) break;
+      var n=nodes[e];
+      if(n.par>=0 && n.par<built){ var p=nodes[n.par];
+        ctx.strokeStyle="#41543e"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(p.x,p.y+11); ctx.lineTo(n.x,n.y-11); ctx.stroke(); }
+    }
+    for(var k=0;k<nodes.length;k++){ if(k>=built) break;
+      var vis = (k===built-1 && phase==="build") ? Math.min(1,t*3) : 1;
+      drawNode(nodes[k],vis); }
+  }
+  function step(dt){
+    if(phase==="build"){ t+=dt; if(t>=0.34){ t=0; built++; if(built>=nodes.length){ phase="hold"; hold=0; } } }
+    else if(phase==="hold"){ hold+=dt; if(hold>2.2){ phase="build"; built=0; t=0; } }
+    frame(dt);
+  }
+  if(reduceMotion){ built=nodes.length; phase="hold"; frame(0); return; }
+  var last=null; (function loop(now){ if(last===null)last=now; var dt=Math.min(.05,(now-last)/1000); last=now; step(dt); requestAnimationFrame(loop); })(performance.now());
+})();
+
+/* =====================================================================
+   ch2 — "csak amit megadsz" (defaults)
+   ===================================================================== */
+(function(){
+  var chipsEl=document.getElementById("defChips"), codeEl=document.getElementById("defCode"),
+      prev=document.getElementById("defPreview"), statEl=document.getElementById("defStat");
+  if(!chipsEl) return;
+  var fields=[
+    {k:"width",  v:"px(140)",                  def:"px(0)",  on:true},
+    {k:"height", v:"px(48)",                   def:"px(0)",  on:true},
+    {k:"justify_content", v:"JustifyContent::Center", def:"Start", on:false},
+    {k:"align_items",     v:"AlignItems::Center",     def:"Start", on:false},
+    {k:"padding",  v:"px(8)",   def:"px(0)",  on:false},
+    {k:"row_gap",  v:"px(6)",   def:"px(0)",  on:false},
+    {k:"border",   v:"px(2)",   def:"px(0)",  on:true},
+    {k:"flex_direction", v:"FlexDirection::Column", def:"Row", on:false}
+  ];
+  function render(){
+    chipsEl.innerHTML="";
+    fields.forEach(function(f,i){
+      var c=document.createElement("span"); c.className="chip "+(f.on?"on":"off"); c.textContent=f.k;
+      c.addEventListener("click",function(){ f.on=!f.on; render(); });
+      chipsEl.appendChild(c);
+    });
+    var given=fields.filter(function(f){return f.on;});
+    var lines=['<span class="km">bsn!</span> {','  <span class="kt">Node</span> {'];
+    given.forEach(function(f){ lines.push('    '+f.k+': '+colorVal(f.v)+','); });
+    lines.push('  }','}');
+    codeEl.innerHTML=lines.join("\n");
+    statEl.textContent=given.length+" / "+fields.length+" mező megadva";
+    // előnézet: a megadott mezők hatnak a dobozra
+    var w = on("width")? 140 : 60, h = on("height")? 48 : 30;
+    prev.style.width=w+"px"; prev.style.height=h+"px";
+    prev.style.border = on("border")? "2px solid var(--grass)" : "2px solid transparent";
+    prev.style.justifyContent = on("justify_content")? "center":"flex-start";
+    prev.style.alignItems = on("align_items")? "center":"flex-start";
+    prev.style.padding = on("padding")? "8px":"0";
+    prev.style.flexDirection = on("flex_direction")? "column":"row";
+  }
+  function on(k){ return fields.some(function(f){return f.k===k&&f.on;}); }
+  function colorVal(v){ if(/^px|^percent/.test(v)) return '<span class="kn">'+v+'</span>'; if(/::/.test(v)) return '<span class="kt">'+v+'</span>'; return v; }
+  render();
+})();
+
+/* =====================================================================
+   ch3 — kód <-> entitás-fa
+   ===================================================================== */
+(function(){
+  var codeEl=document.getElementById("treeCode"), viewEl=document.getElementById("treeView");
+  if(!codeEl) return;
+  // sorok: {txt, node} ; a fa: {label, depth, key}
+  var rows=[
+    {txt:'bsn! {',                       key:null},
+    {txt:'  Node { .. }',                key:"root"},
+    {txt:'  Children [',                 key:null},
+    {txt:'    ( Button  Text("Ok") ),',  key:"c1"},
+    {txt:'    ( Button  Text("Mégse") ),',key:"c2"},
+    {txt:'  ]',                          key:null},
+    {txt:'}',                            key:null}
+  ];
+  var tree=[
+    {label:"⬡ Node (gyökér)", depth:0, key:"root"},
+    {label:"⬡ Button + Text \"Ok\"", depth:1, key:"c1"},
+    {label:"⬡ Button + Text \"Mégse\"", depth:1, key:"c2"}
+  ];
+  var hot=null;
+  function render(){
+    codeEl.innerHTML="";
+    rows.forEach(function(r,i){
+      var d=document.createElement("span"); d.className="codeline"+(r.key&&r.key===hot?" hot":"");
+      d.textContent=r.txt;
+      if(r.key){ d.addEventListener("click",function(){ hot=(hot===r.key?null:r.key); render(); }); d.style.cursor="pointer"; }
+      else d.style.cursor="default";
+      codeEl.appendChild(d);
+    });
+    viewEl.innerHTML="";
+    tree.forEach(function(n){
+      var wrap=document.createElement("div");
+      wrap.innerHTML='<span class="ind">'+("　".repeat(n.depth))+(n.depth>0?"└ ":"")+'</span>';
+      var s=document.createElement("span"); s.className="node"+(n.key===hot?" hot":""); s.textContent=n.label;
+      s.style.cursor="pointer"; s.addEventListener("click",function(){ hot=(hot===n.key?null:n.key); render(); });
+      wrap.appendChild(s); viewEl.appendChild(wrap);
+    });
+  }
+  render();
+})();
+
+/* =====================================================================
+   ch5 — patch / override (last write wins)
+   ===================================================================== */
+(function(){
+  var chipsEl=document.getElementById("patchChips"), prev=document.getElementById("patchPreview"),
+      explain=document.getElementById("patchExplain"), baseH=document.getElementById("pl-base-h"), baseBg=document.getElementById("pl-base-bg");
+  if(!chipsEl) return;
+  var patches=[
+    {k:"BackgroundColor → piros", id:"bg", on:true},
+    {k:"height: px(80)", id:"h", on:true},
+    {k:"width: px(220)", id:"w", on:false}
+  ];
+  function has(id){ return patches.some(function(p){return p.id===id&&p.on;}); }
+  function render(){
+    chipsEl.innerHTML="";
+    patches.forEach(function(p){
+      var c=document.createElement("span"); c.className="chip "+(p.on?"on":"off"); c.textContent=p.k;
+      c.addEventListener("click",function(){ p.on=!p.on; render(); });
+      chipsEl.appendChild(c);
+    });
+    var w = has("w")? 220 : 150;
+    var h = has("h")? 80 : 65;
+    var bg = has("bg")? "#66261f" : "#262626";
+    prev.style.width=w+"px"; prev.style.height=h+"px"; prev.style.background=bg;
+    prev.style.color="#e6e0cf"; prev.style.border="2px solid var(--line-hi)";
+    var parts=[];
+    parts.push('width = '+(has("w")?'<b style="color:#ff9d5c">px(220) ◂ patch</b>':'<span style="color:#a5e87d">px(150) (base)</span>'));
+    parts.push('height = '+(has("h")?'<b style="color:#ff9d5c">px(80) ◂ patch</b>':'<span style="color:#a5e87d">px(65) (base)</span>'));
+    parts.push('background = '+(has("bg")?'<b style="color:#ff9d5c">piros ◂ patch</b>':'<span style="color:#a5e87d">szürke (base)</span>'));
+    explain.innerHTML=parts.join("<br>");
+  }
+  render();
+})();
+
+/* =====================================================================
+   ch6 — asset-függőség betöltés
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("assetCanvas"); if(!cv) return; var ctx=cv.getContext("2d");
+  var phaseEl=document.getElementById("assetPhase"), goBtn=document.getElementById("assetGo");
+  var W=cv.width,H=cv.height;
+  var stage=0, prog=0, running=false;  // 0 idle,1 queued,2 loading,3 loaded
+  var labels=["— nyomd meg a gombot —","spawn kérés: image = \"player.png\"","asset betöltése… (Handle<Image>)","kész: Sprite a betöltött handle-lel"];
+  var steps=["spawn_scene","queue","load","done"];
+  function draw(){
+    ctx.fillStyle="#0c120d"; ctx.fillRect(0,0,W,H);
+    // folyamat-sáv: 4 állomás
+    var xs=[60,160,260,344], y=46;
+    for(var i=0;i<4;i++){
+      var done = stage>i || (stage===i);
+      ctx.strokeStyle = stage>=i? "#7ecb52":"#41543e"; ctx.lineWidth=2;
+      ctx.fillStyle = stage>i? "#4e8f33" : (stage===i? "#1a241b":"#10160f");
+      ctx.beginPath(); ctx.arc(xs[i],y,13,0,TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle= stage>=i? "#a5e87d":"#6d7c64"; ctx.font='9px "Courier New",monospace'; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText(""+(i+1),xs[i],y);
+      ctx.fillStyle= stage>=i? "#9caa90":"#41543e"; ctx.fillText(steps[i],xs[i],y+24);
+      if(i<3){ ctx.strokeStyle= stage>i? "#7ecb52":"#2d3b2c"; ctx.beginPath(); ctx.moveTo(xs[i]+14,y); ctx.lineTo(xs[i+1]-14,y); ctx.stroke(); }
+    }
+    // betöltési progress (loading fázis)
+    if(stage===2){ ctx.fillStyle="#1a241b"; ctx.fillRect(110,92,164,12); ctx.fillStyle="#7ecb52"; ctx.fillRect(110,92,164*prog,12);
+      ctx.strokeStyle="#41543e"; ctx.strokeRect(110,92,164,12); }
+    // a sprite "megjelenik" loaded-kor
+    if(stage===3){ ctx.fillStyle="#3b5dc9"; ctx.fillRect(176,86,32,32); ctx.fillStyle="#73eff7"; ctx.fillRect(182,92,8,8); ctx.fillRect(198,92,8,8);
+      ctx.fillStyle="#a5e87d"; ctx.font='10px "Courier New",monospace'; ctx.textAlign="center"; ctx.fillText("Sprite ✓",192,128); }
+    phaseEl.textContent=labels[stage];
+  }
+  function run(){
+    if(running) return; running=true; stage=1; prog=0; draw();
+    setTimeout(function(){ stage=2; draw();
+      var iv=setInterval(function(){ prog+=0.08; if(prog>=1){ prog=1; clearInterval(iv); stage=3; draw(); running=false; } else draw(); },70);
+    },600);
+  }
+  if(goBtn) goBtn.addEventListener("click",run);
+  draw();
+})();
+
+/* =====================================================================
+   Rust szintaxis-kiemelő (a statikus .code blokkokra)
+   ===================================================================== */
+var KW=/\b(?:fn|let|mut|use|struct|enum|impl|const|pub|return|if|else|for|in|while|loop|match|as|mod|crate|self|Self|true|false|move|ref|static|dyn|where)\b/;
+var TOKEN=new RegExp("(\\/\\/[^\\n]*)"+"|(#!?\\[[^\\]]*\\])"+"|(\"(?:[^\"\\\\]|\\\\.)*\")"+"|([A-Za-z_][A-Za-z0-9_]*!)"+"|("+KW.source.slice(2,-2)+")"+"|(\\b[A-Z][A-Za-z0-9_]*\\b)"+"|(\\b\\d[\\d_]*(?:\\.\\d+)?\\b)","g");
+var CLS=[null,"c","m","s","m","k","t","n"];
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+document.querySelectorAll("pre code").forEach(function(code){ var src=code.textContent,out="",last=0,m; TOKEN.lastIndex=0;
+  while((m=TOKEN.exec(src))){ out+=esc(src.slice(last,m.index));
+    for(var gi=1;gi<=7;gi++) if(m[gi]!==undefined){ out+='<span class="'+CLS[gi]+'">'+esc(m[gi])+"</span>"; break; }
+    last=m.index+m[0].length; } out+=esc(src.slice(last)); code.innerHTML=out; });
+
+/* másolás gombok */
+document.querySelectorAll(".copy-btn").forEach(function(btn){ btn.addEventListener("click",function(){
+  var code=btn.closest(".code").querySelector("pre"), txt=code.textContent;
+  function done(){ btn.textContent="✓ másolva"; setTimeout(function(){btn.textContent="másolás";},1500); }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done); }
+  else{ var ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); done(); } }); });
+
+/* scrollspy + mobil menü */
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){ var pos=window.scrollY+140,active=0; for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i;
+  links.forEach(function(a,i){a.classList.toggle("active",i===active);}); }
+window.addEventListener("scroll",spy,{passive:true}); spy();
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>

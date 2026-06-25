@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aseprite — Karakter kivágása &amp; rétegekre bontása (feladat-tutorial, magyar)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121a13; --bg-deep:#0b110c; --panel:#1a241b; --panel-2:#162017;
+  --ink:#e9e3cd; --muted:#9caa90; --grass:#7ecb52; --grass-hi:#a5e87d; --grass-dk:#4e8f33;
+  --dirt:#c99c66; --dirt-dk:#9a6e43; --water:#6cc8d9; --stone:#9aa0aa; --concrete:#cacac3;
+  --lava:#ff7a3c; --ice:#bfe0f0; --line:#2d3b2c; --line-hi:#41543e; --shadow:rgba(0,0,0,.45);
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.07) 3px 4px)}
+::selection{background:var(--grass-dk);color:#fff}
+
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--bg-deep);border-right:3px solid var(--line);overflow-y:auto;z-index:30;padding:22px 0 40px}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px}
+.logo .title{font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15}
+.logo .sub{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em}
+.logo .badge{display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;color:var(--bg-deep);background:var(--dirt);padding:2px 9px 3px;box-shadow:2px 2px 0 var(--shadow)}
+.logo .badge.alt{background:var(--water);color:#06181c;margin-left:6px}
+.nav-part{font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--dirt);padding:16px 20px 6px;text-transform:uppercase}
+.nav a{display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;font-size:14px;position:relative;border-left:4px solid transparent;transition:color .12s,background .12s}
+.nav a::before{content:"▸";position:absolute;left:16px;opacity:0;color:var(--grass);transition:opacity .12s,left .12s}
+.nav a:hover{color:var(--ink);background:rgba(126,203,82,.06)}
+.nav a.active{color:var(--grass-hi);background:rgba(126,203,82,.10);border-left-color:var(--grass);font-weight:600}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;background:var(--grass);color:#10180f;border:none;padding:8px 14px;box-shadow:3px 3px 0 var(--shadow);text-decoration:none;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--dirt)}
+
+.menu-toggle{display:none;position:fixed;top:14px;left:14px;z-index:40;font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;background:var(--panel);color:var(--ink);border:3px solid var(--line);box-shadow:3px 3px 0 var(--shadow)}
+
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{font-family:"IBM Plex Mono";font-size:13px;color:var(--water);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-family:"Pixelify Sans";font-weight:700;font-size:clamp(32px,5vw,52px);line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px}
+.hero h1 .g{color:var(--grass-hi)}
+.hero h1 .d{color:var(--dirt)}
+.hero h1 .w{color:var(--water)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{border:3px solid var(--line);background:var(--bg-deep);padding:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow)}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0;border:2px solid var(--line);background:#0c120d}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6;flex:1;min-width:220px}
+.hero-strip .cap b{color:var(--grass)}
+
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--dirt);text-transform:uppercase}
+.ch-eyebrow{font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--water);text-transform:uppercase;margin-bottom:8px}
+h2{font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;color:var(--grass-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--dirt);margin:34px 0 12px}
+p{margin-bottom:14px}
+p+p{margin-top:2px}
+strong{color:#fff}
+em{color:var(--dirt)}
+a{color:var(--water)}
+ul,ol{margin:0 0 16px 24px}
+li{margin-bottom:7px}
+code:not(pre code){font-family:"IBM Plex Mono";font-size:.86em;background:#0c120d;color:var(--grass-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+.ui{font-family:"IBM Plex Mono";font-size:.86em;background:#0d181b;color:var(--water);padding:2px 7px;border:1px solid #2a4a52;white-space:nowrap;font-weight:500}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+
+ol.steps{list-style:none;margin:20px 0;counter-reset:st}
+ol.steps>li{counter-increment:st;position:relative;padding:4px 0 14px 52px;margin-bottom:6px;border-left:3px solid var(--line);margin-left:16px}
+ol.steps>li::before{content:counter(st);position:absolute;left:-19px;top:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-family:"Pixelify Sans";font-size:17px;color:#10180f;background:var(--grass);box-shadow:2px 2px 0 var(--shadow)}
+ol.steps>li:last-child{border-left-color:transparent}
+
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{font-family:"Pixelify Sans";font-size:13px;color:var(--water);letter-spacing:.1em;padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--grass)}
+.diagram pre .di{color:var(--dirt)}
+.diagram pre .wa{color:var(--water)}
+.diagram pre .st{color:var(--stone)}
+.diagram pre .lv{color:var(--lava)}
+.diagram pre .mu{color:var(--muted)}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+
+.info-box{margin:24px 0;border:3px solid #2a4a52;background:#0d181b;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.info-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--water);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.info-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.info-box p:last-child{margin-bottom:0}
+.info-box code:not(pre code){border-color:#2a4a52;color:var(--water)}
+.info-box ul{font-size:15px;color:#cfdbd5}
+
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--grass);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--dirt)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--grass);margin-bottom:4px}
+.note.warn .n-tag{color:var(--dirt)}
+
+.shot{margin:24px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.shot img{display:block;width:100%;height:auto;image-rendering:auto}
+.shot .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.55;padding:9px 13px;border-top:2px dashed var(--line-hi)}
+.shot .cap b{color:var(--grass)}
+.shot.small{max-width:340px}
+.shot.ui{display:flex;flex-direction:column;align-items:center;background:#243b3d}
+.shot.ui img{width:auto;max-width:100%;image-rendering:pixelated}
+.shot.ui .cap{width:100%;background:var(--bg-deep)}
+
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--dirt);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+.on{color:var(--grass-hi);font-weight:600}
+.off{color:var(--dirt)}
+
+.playground{margin:26px 0;border:3px solid var(--grass-dk);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:linear-gradient(90deg,rgba(126,203,82,.14),transparent);border-bottom:3px solid var(--grass-dk);padding:10px 14px}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--grass-hi);letter-spacing:.08em}
+.playground .pg-tag{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted)}
+.playground .pg-body{padding:16px;display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#0c120d;touch-action:none;max-width:100%;cursor:crosshair}
+.playground .pg-side{flex:1;min-width:240px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:1.9}
+
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--dirt);letter-spacing:.06em;margin:14px 0 4px;text-transform:uppercase}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0}
+.tbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:5px 12px;transition:all .1s}
+.tbtn:hover{color:var(--ink)}
+.tbtn.active{background:var(--grass);color:#10180f;border-color:var(--grass);font-weight:600}
+.tbtn.wa.active{background:var(--water);color:#06181c;border-color:var(--water)}
+input[type=range]{width:100%;accent-color:var(--grass);margin:6px 0 2px;cursor:pointer}
+.rng-val{font-family:"IBM Plex Mono";font-size:13px;color:var(--grass-hi)}
+.layer-row{display:flex;align-items:center;gap:8px;margin:6px 0;padding:6px 8px;border:2px solid var(--line-hi);background:var(--panel)}
+.layer-row .eye{cursor:pointer;font-size:16px;width:22px;text-align:center;user-select:none}
+.layer-row .lname{font-family:"IBM Plex Mono";font-size:13px;color:var(--ink)}
+.layer-row.off-layer{opacity:.45}
+
+footer{margin-top:90px;border-top:3px solid var(--line);padding-top:24px;font-size:13.5px;color:var(--muted)}
+footer .pix{font-family:"Pixelify Sans";color:var(--grass);font-size:15px}
+footer a{color:var(--water)}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}
+  .menu-toggle{display:block}
+  .main{margin-left:0}
+  .wrap{padding:0 20px 100px}
+  .hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;background:linear-gradient(90deg,#7ecb52,#a5e87d);box-shadow:0 0 10px rgba(126,203,82,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">ASEPRITE<br>KARAKTER &amp; RÉTEGEK</div>
+    <div class="sub">feladat: kivágás + rétegekre bontás · magyarul</div>
+    <span class="badge">Aseprite</span><span class="badge alt">FELADAT</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I · A feladat</div>
+    <a href="#ch1">1 · A feladat &amp; a terv</a>
+    <a href="#ch2">2 · Megnyitás &amp; a Background-csapda</a>
+    <div class="nav-part">II · A háttér eltávolítása</div>
+    <a href="#ch3">3 · Kijelölő eszközök</a>
+    <a href="#ch4">4 · A karakter kivágása</a>
+    <div class="nav-part">III · Rétegek</div>
+    <a href="#ch5">5 · Body &amp; staff szétválasztása</a>
+    <div class="nav-part">IV · Lezárás</div>
+    <a href="#ch6">6 · Mentés &amp; export</a>
+    <a href="#ch7">7 · Összefoglaló &amp; tovább</a>
+  </nav>
+  <div class="dl-box">
+    <p>A feladat forrásképe (1024×1024, PNG). Töltsd le, és dolgozz vele te is:</p>
+    <a class="btn secondary" href="assets/aseprite/Sprite-0002.png" download>⬇ Sprite-0002.png</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// feladat-tutorial · magyar nyelven · ~30 perc · valódi képpel dolgozunk</div>
+  <h1>Karaktert a <span class="w">háttérből</span><br>kivágás &amp; <span class="g">rétegek</span></h1>
+  <p class="lead">A feladat: a <strong>Sprite-0002.png</strong> jelenetből emeljük ki a csuklyás karaktert — a <strong>háttér legyen átlátszó</strong>, a <strong>test (body)</strong> és a <strong>bot (staff)</strong> pedig kerüljön <strong>külön rétegre</strong>. Animáció nélkül. Végigvisszük a teljes munkafolyamatot, és minden lépéshez van interaktív demó a <em>valódi</em> képen.</p>
+  <div class="hero-strip">
+    <canvas id="heroCanvas" width="208" height="208" style="width:208px;height:208px"></canvas>
+    <div class="cap" id="heroCap">↑ A cél három lépésben: <b id="heroPhase">az eredeti jelenet</b>.<br>Eredeti → kivágott karakter (átlátszó háttér) → body + staff külön rétegen.</div>
+  </div>
+</header>
+
+<!-- ===== I ===== -->
+<div class="part-divider"><span class="pd-label">█ I. rész — A feladat</span></div>
+
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>A feladat &amp; a terv</h2>
+
+  <p>Adott egy kész kép, a <strong>Sprite-0002.png</strong>: egy lila csuklyás alak, kezében világító bottal, egy sötét tömlöc-jelenet előtt. A dolgunk, hogy ebből <strong>használható játék-karaktert</strong> csináljunk:</p>
+
+  <div class="shot small">
+    <img src="assets/aseprite/Sprite-0002.png" alt="A forráskép: lila csuklyás karakter világító bottal, sötét tömlöc-háttér előtt">
+    <div class="cap">A forráskép: a <b>karakter</b> (csuklyás test + világító bot) egy összetett <b>háttér</b> előtt (kőfalak, fáklya, koponyák).</div>
+  </div>
+
+  <div class="info-box">
+    <div class="tag">▸ A feladat pontosan</div>
+    <ul>
+      <li><strong>Háttér → átlátszó:</strong> a tömlöc tűnjön el, maradjon a puszta karakter.</li>
+      <li><strong>Body és staff külön rétegen:</strong> a test az egyik, a bot a másik rétegre kerüljön.</li>
+      <li><strong>Animáció nélkül:</strong> most csak a statikus, rétegelt sprite a cél — de épp ez teszi <em>később</em> könnyen animálhatóvá.</li>
+    </ul>
+  </div>
+
+  <p>Miért éri meg külön rétegre tenni a botot? Mert így <strong>külön kezelhető</strong>: később önállóan animálhatod (a fény lobogjon), kicserélheted, vagy a karakter mögé/elé rendezheted. Egyetlen lapított képen ezt nem tudnád megtenni.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A munkafolyamat</div>
+<pre>
+  <span class="wa">1.</span> Megnyitás        <span class="mu">File ▸ Open — a kép a vászonra</span>
+  <span class="wa">2.</span> Réteggé alakítás  <span class="mu">ha Background: Convert to Layer (átlátszóság kell)</span>
+  <span class="wa">3.</span> Háttér kijelölése <span class="gr">Lasso</span> a karakter körül <span class="mu">(összetett háttér → kézi)</span>
+  <span class="wa">4.</span> Háttér törlése    <span class="mu">Select ▸ Invert → Delete → átlátszó</span>
+  <span class="wa">5.</span> Staff kivágása    <span class="di">Cut</span> → új réteg → <span class="di">Paste in Place</span>
+  <span class="wa">6.</span> Mentés            <span class="mu">.aseprite (rétegek!) + PNG export</span>
+</pre>
+    <div class="d-cap">Lineáris út a kész, kétrétegű, átlátszó karakterhez. A demók a 3–5. lépést a valódi képen gyakoroltatják.</div>
+  </div>
+</section>
+
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>Megnyitás &amp; a Background-csapda</h2>
+
+  <p>Húzd be a képet az Aseprite-ba (<span class="ui">File ▸ Open…</span> vagy drag &amp; drop). Mielőtt bármit törölnél, egy fontos buktató: <strong>a Background réteg nem lehet átlátszó</strong>.</p>
+
+  <table>
+    <tr><th>Eset</th><th>Hogyan jön be</th><th>Teendő</th></tr>
+    <tr><td><strong>Van alfája</strong> (mint ennek a PNG-nek)</td><td>Átlátszó <em>Layer</em>-ként — törölhetsz rajta.</td><td>Semmi extra. ✓</td></tr>
+    <tr><td><strong>Nincs alfája</strong> (pl. tömör JPG)</td><td><em>Background</em> rétegként — a törölt rész a háttérszínnel telik, nem lesz átlátszó.</td><td><span class="ui">Layer ▸ Background ▸ Convert to Layer</span> (vagy dupla­katt a réteg­zárra).</td></tr>
+  </table>
+
+  <div class="note">
+    <div class="n-tag">▸ Honnan tudod?</div>
+    Nézd a Timeline-on a réteg nevét: ha <code>Background</code> (dőlt, lakattal), előbb alakítsd <em>Layer</em>-ré. Ha sima <code>Layer 1</code>, már átlátszó-képes. A mi képünknek van alfája, de a háttér <em>pixelei</em> tömörek — vagyis a réteg jó, csak a háttér-pixeleket kell kijelölni és törölni.
+  </div>
+</section>
+
+<!-- ===== II ===== -->
+<div class="part-divider"><span class="pd-label">█ II. rész — A háttér eltávolítása</span></div>
+
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>Kijelölő eszközök — melyik mikor?</h2>
+
+  <p>A háttér eltávolítása mindig ugyanaz: <strong>kijelölöd</strong> a felesleget (vagy a karaktert), majd törölsz. A kérdés csak az, <em>mivel</em> jelölsz ki:</p>
+
+  <table>
+    <tr><th>Eszköz</th><th>Billentyű</th><th>Mire jó</th></tr>
+    <tr><td><strong>Magic Wand</strong> (varázspálca)</td><td><span class="kbd">W</span></td><td>Egy kattintással kijelöli az <em>összefüggő, hasonló színű</em> területet. Tökéletes <strong>egyszínű</strong> háttérhez.</td></tr>
+    <tr><td><strong>Lasso</strong></td><td><span class="kbd">Q</span></td><td>Szabadkézi körberajzolás. A fő eszköz <strong>összetett</strong> háttérhez — mint a miénk.</td></tr>
+    <tr><td><strong>Rectangle / Ellipse</strong></td><td><span class="kbd">M</span></td><td>Mértani kijelölés. Plusz: <span class="kbd">Shift</span> = hozzáad, <span class="kbd">Alt</span> = kivon.</td></tr>
+  </table>
+
+  <div class="note warn">
+    <div class="n-tag">▲ Ezért nem elég a Magic Wand itt</div>
+    A mi hátterünk <strong>nem</strong> egyszínű: kőfal, fáklyafény, padló, koponyák — sok különböző szín. Egy Magic Wand kattintás csak egy színfoltot fog. Próbáld ki lent: látni fogod, hogy <strong>tucatnyi</strong> kattintás kellene, és a karakter sötét részeit is könnyen „beszippantja". Ezért megyünk át kézi <strong>Lasso</strong>-ra a 4. fejezetben.
+  </div>
+
+  <!-- DEMÓ: Magic Wand -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Magic Wand a valódi képen</span>
+      <span class="pg-tag">kattints a háttérre</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="wandCanvas" width="256" height="256" style="width:256px;height:256px"></canvas>
+      <div class="pg-side">
+        <p><strong>Kattints</strong> a háttér egy pontjára — a varázspálca kijelöli (és törli) az összefüggő, hasonló színű foltot. Állítsd a toleranciát, és figyeld, meddig terjed.</p>
+        <div class="ctl-label">Tolerancia <span class="rng-val" id="wandTolVal">32</span></div>
+        <input type="range" id="wandTol" min="6" max="90" value="32">
+        <div class="ctl-label">Számláló</div>
+        <p class="legend" style="margin:2px 0 8px"><span id="wandCount" style="color:var(--grass-hi);font-family:'IBM Plex Mono'">0</span> kattintás · <span id="wandPct" style="color:var(--grass-hi);font-family:'IBM Plex Mono'">0%</span> törölve</p>
+        <div class="btn-row"><button class="tbtn" id="wandReset">⟲ Újra</button></div>
+        <p class="legend" style="margin-top:12px">Kis tolerancia → apró foltokat fog, sok kattintás kell. Nagy tolerancia → átcsordul a karakterbe is. Egy összetett háttérnél ez fárasztó — innen jön a Lasso.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>A karakter kivágása (Lasso)</h2>
+
+  <p>Az összetett háttérhez a megbízható út: <strong>rajzold körbe a karaktert</strong> Lasso-val, fordítsd meg a kijelölést, és töröld a hátteret.</p>
+
+  <ol class="steps">
+    <li>Fogd a <strong>Lasso</strong>-t (<span class="kbd">Q</span>), és <strong>rajzold körbe</strong> a karaktert (test + bot). Nem kell pixel-pontosnak lenni — zoomolj rá (<span class="kbd">+</span>) a precíz részekhez.</li>
+    <li>Fordítsd meg a kijelölést: <span class="ui">Select ▸ Inverse</span> (<span class="kbd">Ctrl/⌘+Shift+I</span>) — most a <em>háttér</em> van kijelölve.</li>
+    <li>Töröld: <span class="kbd">Delete</span>. A háttér eltűnik, marad az átlátszó (kockás) terület.</li>
+    <li>Tisztítsd a pereme(ke)t: zoomolj rá, és a <strong>Eraser</strong>-rel (<span class="kbd">E</span>) vedd le a maradék háttér-pixeleket a karakter körül.</li>
+  </ol>
+
+  <!-- DEMÓ: Lasso -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · Lasso — rajzold körbe a karaktert</span>
+      <span class="pg-tag">kattints pontról pontra</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="lassoCanvas" width="256" height="256" style="width:256px;height:256px"></canvas>
+      <div class="pg-side">
+        <p><strong>Kattintgass</strong> a karakter köré pontokat (poligon-Lasso). Ha körbeértél, nyomd az <strong>Invert + Delete</strong> gombot — a kijelölésen kívüli háttér eltűnik.</p>
+        <div class="ctl-label">Lépések</div>
+        <div class="btn-row">
+          <button class="tbtn" id="lassoApply">✂ Invert + Delete</button>
+          <button class="tbtn" id="lassoUndo">↶ Pont vissza</button>
+          <button class="tbtn" id="lassoReset">⟲ Újra</button>
+        </div>
+        <p class="legend" style="margin:6px 0"><span id="lassoPts" style="color:var(--grass-hi);font-family:'IBM Plex Mono'">0</span> pont lerakva</p>
+        <p class="legend" style="margin-top:8px">Egy „elég jó" körberajzolás 8–15 pont. Az igazi Aseprite-ban a Lasso szabadkézi (húzod), itt a könnyebb kezelhetőségért kattintós (poligon) — a logika ugyanaz: amit körbezársz, az marad.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== III ===== -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Rétegek</span></div>
+
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Body &amp; staff szétválasztása</h2>
+
+  <p>Most a karakter egyetlen rétegen van, átlátszó háttéren. A botot (staff) átköltöztetjük egy <strong>saját rétegre</strong>, hogy később külön kezelhessük.</p>
+
+  <ol class="steps">
+    <li>Jelöld ki a <strong>botot</strong> (a rúd + a tetején a fény) Lasso-val.</li>
+    <li><span class="ui">Edit ▸ Cut</span> (<span class="kbd">Ctrl/⌘+X</span>) — a bot eltűnik a karakter-rétegről (a vágólapra kerül).</li>
+    <li>Hozz létre egy <strong>új réteget</strong>: <span class="ui">Layer ▸ New ▸ New Layer</span> (vagy a Timeline <span class="ui">+</span> gombja).</li>
+    <li>Illeszd vissza <em>helyben</em>: <span class="ui">Edit ▸ Paste in Place</span> — a bot pontosan az eredeti helyére kerül, de már az új rétegen.</li>
+    <li>Nevezd át a rétegeket (dupla­katt a réteg nevére): <code>body</code> és <code>staff</code>.</li>
+  </ol>
+
+  <div class="info-box">
+    <div class="tag">▸ Réteg-sorrend számít</div>
+    <p>A Timeline-on <strong>felül lévő réteg takarja</strong> az alatta lévőt. Mivel a bot a karakter <em>előtt</em> (a kezében) van, a <code>staff</code> rétegnek a <code>body</code> <strong>fölött</strong> kell lennie. Húzással átrendezheted őket. A <strong>szem-ikonnal</strong> ki-be kapcsolod a láthatóságot — próbáld a demóban!</p>
+  </div>
+
+  <div class="shot ui small">
+    <img src="assets/aseprite/sprite-components.png" alt="A Timeline rétegei: a felső réteg takarja az alsót">
+    <div class="cap">Emlékeztető a Timeline-ról: a <b>rétegek</b> (Layers) egymáson; a felső takar. Ide kerül majd a <code>staff</code> a <code>body</code> fölé. (A Frames/Tags most nem érdekes — nincs animáció.)</div>
+  </div>
+
+  <!-- DEMÓ: réteg-kompozit -->
+  <div class="playground">
+    <div class="pg-head">
+      <span class="pg-title">▶ Demó · A két réteg</span>
+      <span class="pg-tag">kapcsold &amp; told</span>
+    </div>
+    <div class="pg-body">
+      <canvas id="layerCanvas" width="220" height="220" style="width:220px;height:220px"></canvas>
+      <div class="pg-side">
+        <p>A kész karakter két rétege. Kapcsold a láthatóságot a szem-ikonnal, és told el a botot, hogy lásd: tényleg külön van.</p>
+        <div class="layer-row" data-layer="staff"><span class="eye" title="láthatóság">👁</span><span class="lname">staff</span></div>
+        <div class="layer-row" data-layer="body"><span class="eye" title="láthatóság">👁</span><span class="lname">body</span></div>
+        <div class="ctl-label">Staff eltolása <span class="rng-val" id="staffOffVal">0 px</span></div>
+        <input type="range" id="staffOff" min="0" max="40" value="0">
+        <p class="legend" style="margin-top:12px">Kapcsold ki a <code>body</code>-t → csak a bot marad. Told el a botot → kilóg a testből: ez bizonyítja, hogy <strong>külön rétegen</strong> van. (A szétválasztás itt közelítő; az igazi munkát Lasso-val pixel-pontosan végzed.)</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== IV ===== -->
+<div class="part-divider"><span class="pd-label">█ IV. rész — Lezárás</span></div>
+
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Mentés &amp; export</h2>
+
+  <p>Két különböző cél, két különböző fájl — és a sorrend fontos:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Mit ments, és mibe</div>
+<pre>
+  <span class="gr">File ▸ Save As…</span>      <span class="mu">→</span>  <span class="wa">karakter.aseprite</span>  <span class="mu">megőrzi a body + staff réteget, átlátszóságot</span>
+  <span class="gr">File ▸ Export ▸ PNG</span>  <span class="mu">→</span>  <span class="wa">karakter.png</span>      <span class="mu">lapított, átlátszó hátterű kép (a játékba)</span>
+</pre>
+    <div class="d-cap">A <b>.aseprite</b> a szerkeszthető forrásod (mindig ezt mentsd először). A <b>PNG</b> a kész termék — átlátszó háttérrel.</div>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">▲ A PNG lapít</div>
+    Egy sima PNG-export <strong>egyetlen képpé lapítja</strong> a rétegeidet — a body és a staff külön­állása elvész benne. Ezért tartsd meg a <code>.aseprite</code>-ot! Ha a két réteget a játékban is külön akarod (pl. külön mozgó bot), exportáld őket <strong>külön-külön</strong> PNG-be: kapcsold láthatóra csak az egyik réteget, exportálj, majd a másikat.</p>
+  </div>
+
+  <div class="info-box">
+    <div class="tag">▸ Híd a Bevy-sorozathoz</div>
+    <p>A külön <code>body.png</code> és <code>staff.png</code> a játékmotorban két külön <em>sprite</em> lesz, közös szülő-entitás alatt — így a botot önállóan forgathatod/animálhatod. Lásd a <a href="bevy-sprite-tutorial.html">Bevy sprite</a> és <a href="bevy-pixel-skeleton-tutorial.html">pixel-skeleton</a> leckét.</p>
+  </div>
+</section>
+
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>Összefoglaló &amp; merre tovább?</h2>
+
+  <p>Végigvitted a feladatot — a kész karakter átlátszó hátterű, kétrétegű, és készen áll a játékra:</p>
+  <ol class="steps">
+    <li><strong>Megnyitás</strong> + (ha kell) <span class="ui">Convert to Layer</span>.</li>
+    <li><strong>Háttér el</strong>: Lasso a karakter köré → <span class="ui">Invert</span> → <span class="kbd">Delete</span> → perem-tisztítás.</li>
+    <li><strong>Staff külön rétegre</strong>: kijelöl → <span class="ui">Cut</span> → új réteg → <span class="ui">Paste in Place</span> → átnevezés (<code>body</code>/<code>staff</code>).</li>
+    <li><strong>Réteg-sorrend</strong>: <code>staff</code> a <code>body</code> fölött.</li>
+    <li><strong>Mentés</strong>: <code>.aseprite</code> (rétegekkel) + PNG export.</li>
+  </ol>
+
+  <div class="info-box">
+    <div class="tag">▸ Most, hogy megvan a rétegelt karakter…</div>
+    <ul>
+      <li><strong>Animáció</strong> — keltsd életre: a bot fénye lobogjon, a köpeny lebegjen (külön rétegen külön animálva). Lásd az <a href="aseprite-alapok-tutorial.html">Aseprite alapok</a> animációs fejezetét.</li>
+      <li><strong>Rajztechnikák</strong> — retusáld a kivágás peremeit, adj kézi anti-aliasingot: <a href="aseprite-rajztechnikak-tutorial.html">rajztechnikák lecke</a>.</li>
+      <li><strong>Több réteg</strong> — bontsd tovább (fej, köpeny, kéz) ugyanezzel a Cut → új réteg → Paste módszerrel.</li>
+    </ul>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▸ A lényeg egy mondatban</div>
+    <strong>Kijelöl → invert → töröl</strong> a háttérhez, és <strong>kijelöl → cut → új réteg → paste in place</strong> a szétválasztáshoz. Ez a két mozdulat a teljes feladat veleje — minden más csak a precizitás csiszolása.
+  </div>
+
+  <footer>
+    <p class="pix">Aseprite — Karakter kivágása &amp; rétegekre bontása</p>
+    <p>Feladat-tutorial magyarul. A forráskép a <code>Sprite-0002.png</code>. Az interaktív demók a valódi képet dolgozzák fel a böngészőben (a réteg-szétválasztás közelítő szemléltetés). A módszerek — Magic Wand, Lasso, Invert, Cut/Paste in Place — az Aseprite standard kijelölő- és réteg-eszközei.</p>
+  </footer>
+</section>
+
+</div><!-- /wrap -->
+</div><!-- /main -->
+
+<script>
+(function(){
+"use strict";
+var reduce = (window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches);
+var HERO_START=null, WAND_BUILD=null, LASSO_BUILD=null, LAYER_BUILD=null;
+
+/* =====================================================================
+   KÖZÖS: a valódi kép betöltése + munkavászon-építők
+   ===================================================================== */
+var IMG=new Image();
+var imgReady=false, useFallback=false;
+IMG.onload=function(){ imgReady=true; refreshAll(); };
+IMG.onerror=function(){ useFallback=true; imgReady=true; refreshAll(); };
+IMG.src="assets/aseprite/Sprite-0002.png";
+
+// procedurális tartalék (ha a kép nem olvasható, pl. file:// alól)
+function drawFallback(ctx,W,H){
+  ctx.clearRect(0,0,W,H);
+  // háttér
+  ctx.fillStyle="#241a2a"; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle="#3a3030"; ctx.fillRect(0,H*0.72,W,H*0.28);
+  var cx=W*0.5;
+  // bot (staff) + fény
+  ctx.strokeStyle="#6a4a2a"; ctx.lineWidth=W*0.02;
+  ctx.beginPath(); ctx.moveTo(W*0.16,H*0.08); ctx.lineTo(W*0.40,H*0.50); ctx.stroke();
+  ctx.fillStyle="#ff8a3c"; ctx.beginPath(); ctx.arc(W*0.16,H*0.09,W*0.06,0,7); ctx.fill();
+  ctx.fillStyle="#ffd070"; ctx.beginPath(); ctx.arc(W*0.16,H*0.09,W*0.03,0,7); ctx.fill();
+  // köpeny (body)
+  ctx.fillStyle="#4a2a5a";
+  ctx.beginPath();
+  ctx.moveTo(cx,H*0.14); ctx.lineTo(cx+W*0.18,H*0.30); ctx.lineTo(cx+W*0.20,H*0.74);
+  ctx.lineTo(cx-W*0.20,H*0.74); ctx.lineTo(cx-W*0.16,H*0.30); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#16121c"; ctx.beginPath(); ctx.ellipse(cx,H*0.24,W*0.10,H*0.12,0,0,7); ctx.fill();
+}
+// egy W×H offscreen "base": a kép lekicsinyítve, + data (getImageData) próbálva
+function makeBase(W,H){
+  var c=document.createElement("canvas"); c.width=W; c.height=H;
+  var x=c.getContext("2d");
+  if(useFallback||!imgReady){ drawFallback(x,W,H); }
+  else { x.clearRect(0,0,W,H); x.drawImage(IMG,0,0,IMG.width,IMG.height,0,0,W,H); }
+  var data=null;
+  try{ data=x.getImageData(0,0,W,H); }
+  catch(e){ useFallback=true; drawFallback(x,W,H); data=x.getImageData(0,0,W,H); }
+  return {canvas:c,ctx:x,data:data,W:W,H:H};
+}
+function checkerBg(ctx,W,H,sz){
+  sz=sz||12;
+  for(var y=0;y<H;y+=sz)for(var x=0;x<W;x+=sz){
+    ctx.fillStyle=(((x/sz)+(y/sz))&1)? "#3a4038" : "#262c25";
+    ctx.fillRect(x,y,sz,sz);
+  }
+}
+
+// közelítő karakter-poligon (normalizált 0..1) a kép tartalma alapján
+var CHAR_POLY=[
+  [0.135,0.045],[0.205,0.045],[0.30,0.235],[0.385,0.315],
+  [0.435,0.135],[0.525,0.120],[0.625,0.225],[0.685,0.40],
+  [0.705,0.62],[0.665,0.78],[0.335,0.79],[0.295,0.55],
+  [0.285,0.40],[0.235,0.245]
+];
+function pointInPoly(px,py,poly){
+  var inside=false;
+  for(var i=0,j=poly.length-1;i<poly.length;j=i++){
+    var xi=poly[i][0],yi=poly[i][1],xj=poly[j][0],yj=poly[j][1];
+    if(((yi>py)!==(yj>py)) && (px < (xj-xi)*(py-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+// staff-sáv: a bot vonala (tűz → kéz) közelében + a tűz feje
+function distSeg(px,py,ax,ay,bx,by){
+  var dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy;
+  var t=l2? ((px-ax)*dx+(py-ay)*dy)/l2 : 0; t=t<0?0:t>1?1:t;
+  var cx=ax+t*dx,cy=ay+t*dy; return Math.hypot(px-cx,py-cy);
+}
+function isStaff(nx,ny){
+  // a rúd a (0.165,0.075) tűztől a (0.39,0.50) kézig; a tűzfej a (0.165,0.075) körül
+  var dRod=distSeg(nx,ny,0.165,0.075,0.39,0.50);
+  var dFire=Math.hypot(nx-0.165,ny-0.085);
+  return dRod<0.055 || dFire<0.085;
+}
+
+/* =====================================================================
+   1) HERO — 3 fázis: eredeti → kivágott → szétvált rétegek
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("heroCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var W=cv.width,H=cv.height;
+  var base=null, charMask=null, staffMask=null;
+  function build(){
+    base=makeBase(W,H);
+    charMask=new Uint8Array(W*H); staffMask=new Uint8Array(W*H);
+    for(var y=0;y<H;y++)for(var x=0;x<W;x++){
+      var nx=x/W,ny=y/H,k=y*W+x;
+      if(pointInPoly(nx,ny,CHAR_POLY)){ charMask[k]=1; if(isStaff(nx,ny)) staffMask[k]=1; }
+    }
+  }
+  // a karakter (vagy egy maszk-része) kirajzolása ofszettel
+  function blitMasked(mask, dx){
+    var src=base.data.data;
+    var out=ctx.getImageData(0,0,W,H), o=out.data;
+    for(var y=0;y<H;y++)for(var x=0;x<W;x++){
+      var sx=x-dx; if(sx<0||sx>=W) continue;
+      var sk=y*W+sx; if(!mask[sk]) continue;
+      var si=sk*4, di=(y*W+x)*4;
+      o[di]=src[si]; o[di+1]=src[si+1]; o[di+2]=src[si+2]; o[di+3]=src[si+3];
+    }
+    ctx.putImageData(out,0,0);
+  }
+  var phaseNames=["az eredeti jelenet","kivágott karakter (átlátszó háttér)","body + staff külön rétegen"];
+  var phEl=document.getElementById("heroPhase");
+  function draw(phase){
+    ctx.clearRect(0,0,W,H);
+    if(phase===0){ ctx.drawImage(base.canvas,0,0); }
+    else {
+      checkerBg(ctx,W,H,11);
+      if(phase===1){
+        // teljes karakter (body+staff együtt), helyben
+        var bodyAll=new Uint8Array(W*H); for(var i=0;i<charMask.length;i++) bodyAll[i]=charMask[i];
+        blitMasked(bodyAll,0);
+      } else {
+        // body helyben, staff eltolva (szétválás)
+        var bodyOnly=new Uint8Array(W*H);
+        for(var j=0;j<charMask.length;j++) bodyOnly[j]= (charMask[j]&&!staffMask[j])?1:0;
+        blitMasked(bodyOnly,0);
+        blitMasked(staffMask,14);
+      }
+    }
+    if(phEl) phEl.textContent=phaseNames[phase];
+  }
+  function start(){
+    build();
+    if(reduce){ draw(2); return; }
+    var p=0; draw(0);
+    setInterval(function(){ p=(p+1)%3; draw(p); }, 1600);
+  }
+  HERO_START=start;
+})();
+
+/* =====================================================================
+   2) DEMÓ — Magic Wand (flood-fill a valódi képen)
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("wandCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var W=cv.width,H=cv.height, base=null, removed=null, tol=32, clicks=0;
+  function build(){ base=makeBase(W,H); removed=new Uint8Array(W*H); clicks=0; render(); updStats(); }
+  function render(){
+    checkerBg(ctx,W,H,12);
+    var src=base.data.data;
+    var out=ctx.getImageData(0,0,W,H), o=out.data;
+    for(var k=0;k<removed.length;k++){
+      if(removed[k]) continue;
+      var i=k*4; if(src[i+3]<8) continue;
+      o[i]=src[i]; o[i+1]=src[i+1]; o[i+2]=src[i+2]; o[i+3]=src[i+3];
+    }
+    ctx.putImageData(out,0,0);
+  }
+  function updStats(){
+    var n=0; for(var k=0;k<removed.length;k++) if(removed[k]) n++;
+    var pct=Math.round(n/removed.length*100);
+    var cEl=document.getElementById("wandCount"), pEl=document.getElementById("wandPct");
+    if(cEl) cEl.textContent=clicks; if(pEl) pEl.textContent=pct+"%";
+  }
+  function floodAt(cx,cy){
+    var src=base.data.data, idx=(cy*W+cx)*4;
+    var tr=src[idx],tg=src[idx+1],tb=src[idx+2];
+    var t2=tol*tol*3;
+    var stack=[cy*W+cx], seen=new Uint8Array(W*H);
+    while(stack.length){
+      var k=stack.pop(); if(seen[k]||removed[k]) continue; seen[k]=1;
+      var i=k*4, dr=src[i]-tr,dg=src[i+1]-tg,db=src[i+2]-tb;
+      if(dr*dr+dg*dg+db*db>t2) continue;
+      removed[k]=1;
+      var x=k%W,y=(k/W)|0;
+      if(x>0)stack.push(k-1); if(x<W-1)stack.push(k+1); if(y>0)stack.push(k-W); if(y<H-1)stack.push(k+W);
+    }
+  }
+  cv.addEventListener("click",function(e){
+    if(!base) return;
+    var r=cv.getBoundingClientRect();
+    var x=Math.floor((e.clientX-r.left)/r.width*W), y=Math.floor((e.clientY-r.top)/r.height*H);
+    if(x<0||y<0||x>=W||y>=H) return;
+    clicks++; floodAt(x,y); render(); updStats();
+  });
+  var tr=document.getElementById("wandTol"), tv=document.getElementById("wandTolVal");
+  if(tr) tr.addEventListener("input",function(){ tol=+tr.value; tv.textContent=tol; });
+  var rb=document.getElementById("wandReset"); if(rb) rb.addEventListener("click",build);
+  WAND_BUILD=build;
+})();
+
+/* =====================================================================
+   3) DEMÓ — Lasso (poligon-kijelölés a valódi képen)
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("lassoCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var W=cv.width,H=cv.height, base=null, pts=[], applied=false;
+  function build(){ base=makeBase(W,H); pts=[]; applied=false; render(); updPts(); }
+  function render(){
+    if(applied){
+      checkerBg(ctx,W,H,12);
+      var src=base.data.data, out=ctx.getImageData(0,0,W,H), o=out.data;
+      for(var y=0;y<H;y++)for(var x=0;x<W;x++){
+        var k=y*W+x; if(!pointInPoly(x/W,y/H,normPts())) continue;
+        var i=k*4; o[i]=src[i];o[i+1]=src[i+1];o[i+2]=src[i+2];o[i+3]=src[i+3];
+      }
+      ctx.putImageData(out,0,0);
+      strokePoly(true);
+      return;
+    }
+    ctx.drawImage(base.canvas,0,0);
+    strokePoly(false);
+  }
+  function normPts(){ return pts.map(function(p){return [p[0]/W,p[1]/H];}); }
+  function strokePoly(closed){
+    if(pts.length===0) return;
+    ctx.lineWidth=2; ctx.strokeStyle="#a5e87d"; ctx.fillStyle="#a5e87d";
+    ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+    for(var i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]);
+    if(closed) ctx.closePath();
+    ctx.stroke();
+    for(var j=0;j<pts.length;j++){ ctx.beginPath(); ctx.arc(pts[j][0],pts[j][1],3,0,7); ctx.fill(); }
+  }
+  function updPts(){ var e=document.getElementById("lassoPts"); if(e) e.textContent=pts.length; }
+  cv.addEventListener("click",function(e){
+    if(!base||applied) return;
+    var r=cv.getBoundingClientRect();
+    pts.push([(e.clientX-r.left)/r.width*W,(e.clientY-r.top)/r.height*H]);
+    render(); updPts();
+  });
+  var ab=document.getElementById("lassoApply");
+  if(ab) ab.addEventListener("click",function(){ if(pts.length>=3){ applied=true; render(); } });
+  var ub=document.getElementById("lassoUndo");
+  if(ub) ub.addEventListener("click",function(){ if(!applied&&pts.length){ pts.pop(); render(); updPts(); } });
+  var rb=document.getElementById("lassoReset"); if(rb) rb.addEventListener("click",build);
+  LASSO_BUILD=build;
+})();
+
+/* =====================================================================
+   4) DEMÓ — réteg-kompozit (body / staff)
+   ===================================================================== */
+(function(){
+  var cv=document.getElementById("layerCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var W=cv.width,H=cv.height, base=null, bodyMask=null, staffMask=null;
+  var show={body:true,staff:true}, off=0;
+  function build(){
+    base=makeBase(W,H);
+    bodyMask=new Uint8Array(W*H); staffMask=new Uint8Array(W*H);
+    for(var y=0;y<H;y++)for(var x=0;x<W;x++){
+      var nx=x/W,ny=y/H,k=y*W+x;
+      if(pointInPoly(nx,ny,CHAR_POLY)){ if(isStaff(nx,ny)) staffMask[k]=1; else bodyMask[k]=1; }
+    }
+    render();
+  }
+  function blit(mask,dx,out,src){
+    for(var y=0;y<H;y++)for(var x=0;x<W;x++){
+      var k=y*W+x, sx=x-dx; if(sx<0||sx>=W) continue;
+      var sk=y*W+sx; if(!mask[sk]) continue;
+      var si=sk*4, di=k*4, o=out.data;
+      o[di]=src[si];o[di+1]=src[si+1];o[di+2]=src[si+2];o[di+3]=src[si+3];
+    }
+  }
+  function render(){
+    checkerBg(ctx,W,H,11);
+    var src=base.data.data, out=ctx.getImageData(0,0,W,H);
+    if(show.body) blit(bodyMask,0,out,src);     // body alul
+    if(show.staff) blit(staffMask,off,out,src);  // staff felül, eltolva
+    ctx.putImageData(out,0,0);
+  }
+  document.querySelectorAll('#ch5 .layer-row').forEach(function(row){
+    row.addEventListener("click",function(){
+      var L=row.dataset.layer; show[L]=!show[L];
+      row.classList.toggle("off-layer",!show[L]);
+      row.querySelector(".eye").textContent= show[L]? "👁" : "—";
+      render();
+    });
+  });
+  var so=document.getElementById("staffOff"), sv=document.getElementById("staffOffVal");
+  if(so) so.addEventListener("input",function(){ off=+so.value; sv.textContent=off+" px"; render(); });
+  LAYER_BUILD=build;
+})();
+
+/* =====================================================================
+   refresh + scrollspy + menü
+   ===================================================================== */
+function refreshAll(){
+  if(HERO_START) HERO_START();
+  if(WAND_BUILD) WAND_BUILD();
+  if(LASSO_BUILD) LASSO_BUILD();
+  if(LAYER_BUILD) LAYER_BUILD();
+}
+// ha a kép gyorsabb a scriptnél, az onload már lefutott — induljunk akkor is
+if(imgReady) refreshAll();
+
+var links=Array.prototype.slice.call(document.querySelectorAll(".nav a"));
+var secs=links.map(function(a){return document.querySelector(a.getAttribute("href"));});
+function spy(){
+  var pos=window.scrollY+140, active=0;
+  for(var i=0;i<secs.length;i++) if(secs[i]&&secs[i].offsetTop<=pos) active=i;
+  links.forEach(function(a,i){a.classList.toggle("active",i===active);});
+}
+window.addEventListener("scroll",spy,{passive:true});
+spy();
+var tgl=document.getElementById("menuToggle"), sb=document.getElementById("sidebar");
+if(tgl) tgl.addEventListener("click",function(){ sb.classList.toggle("open"); });
+links.forEach(function(a){ a.addEventListener("click",function(){ sb.classList.remove("open"); }); });
+
+})();
+</script>
+
+</body>
+</html>
