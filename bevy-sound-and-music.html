@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hangok és zene — efektek, zenei rétegek, térlátás · Bevy 0.18</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#10101a; --panel:#1a1a28; --panel2:#21212f; --code-bg:#14141f;
+    --ink:#e3e3ec; --muted:#8b8b9e; --border:#2c2c40;
+    --cyan:#56d4c4; --amber:#f2c14e; --pink:#ec6a9c; --green:#8ce99a; --red:#ff6b6b; --violet:#a78bfa;
+    --kw:#ec6a9c; --ty:#56d4c4; --str:#8ce99a; --com:#6b6b80; --mac:#f2c14e; --num:#f4a259;
+    --sidebar-w:260px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    background-image:radial-gradient(var(--border) 1px, transparent 1px);
+    background-size:22px 22px;
+    color:var(--ink);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--cyan);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ---- layout ---- */
+  .shell{display:flex;max-width:1400px;margin:0 auto}
+  .sidebar{
+    width:var(--sidebar-w);flex:0 0 var(--sidebar-w);
+    position:sticky;top:0;height:100vh;overflow-y:auto;
+    padding:28px 18px;border-right:2px solid var(--border);
+    background:linear-gradient(180deg,var(--panel) 0%,var(--bg) 100%);
+  }
+  .sidebar h2{
+    font-family:"Pixelify Sans",sans-serif;font-size:18px;font-weight:700;
+    color:var(--amber);letter-spacing:.5px;margin-bottom:4px;
+  }
+  .sidebar .sub{font-size:11px;color:var(--muted);font-family:"JetBrains Mono",monospace;margin-bottom:20px}
+  .nav a{
+    display:block;color:var(--muted);font-size:13.5px;padding:7px 10px;
+    border-left:3px solid transparent;border-radius:0 4px 4px 0;transition:all .12s;
+    text-decoration:none;
+  }
+  .nav a .num{font-family:"JetBrains Mono",monospace;color:var(--border);font-size:11px;margin-right:8px}
+  .nav a:hover{color:var(--ink);background:var(--panel2);text-decoration:none}
+  .nav a.active{color:var(--ink);border-left-color:var(--pink);background:var(--panel2)}
+  .nav a.active .num{color:var(--pink)}
+
+  .main{flex:1 1 auto;min-width:0;padding:48px 56px 120px}
+
+  /* ---- hero ---- */
+  .hero{margin-bottom:56px;border:2px solid var(--border);background:var(--panel);
+    padding:38px 36px;position:relative;box-shadow:6px 6px 0 rgba(0,0,0,.35)}
+  .hero .eyebrow{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--pink);
+    letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+  .hero h1{font-family:"Pixelify Sans",sans-serif;font-size:42px;font-weight:700;
+    line-height:1.1;color:var(--ink);margin-bottom:16px}
+  .hero h1 .hl{color:var(--amber)}
+  .hero p{color:var(--muted);font-size:16px;max-width:640px}
+  .hero .chips{margin-top:22px;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font-family:"JetBrains Mono",monospace;font-size:11.5px;padding:4px 10px;
+    border:1px solid var(--border);background:var(--code-bg);color:var(--cyan);border-radius:3px}
+
+  /* ---- sections ---- */
+  section{margin-bottom:54px;scroll-margin-top:24px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;
+    padding-bottom:12px;border-bottom:2px solid var(--border)}
+  .sec-head .idx{font-family:"Pixelify Sans",sans-serif;font-size:26px;color:var(--pink);
+    flex:0 0 auto}
+  .sec-head h2{font-family:"Pixelify Sans",sans-serif;font-size:27px;font-weight:700;color:var(--ink)}
+  h3{font-family:"Pixelify Sans",sans-serif;font-size:19px;color:var(--amber);
+    margin:26px 0 12px}
+  p{margin:0 0 14px}
+  .main p{font-size:15.5px}
+  ul,ol{margin:0 0 16px 22px}
+  li{margin-bottom:7px;font-size:15.5px}
+  strong{color:var(--ink);font-weight:600}
+  code.inl{font-family:"JetBrains Mono",monospace;font-size:13px;background:var(--code-bg);
+    border:1px solid var(--border);padding:1.5px 6px;border-radius:3px;color:var(--cyan)}
+
+  /* ---- code blocks ---- */
+  pre{background:var(--code-bg);border:1px solid var(--border);border-left:3px solid var(--cyan);
+    padding:16px 18px;overflow-x:auto;margin:0 0 18px;border-radius:0 4px 4px 0;
+    box-shadow:3px 3px 0 rgba(0,0,0,.25)}
+  pre code{font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1.6;color:var(--ink);white-space:pre}
+  .k{color:var(--kw)} .t{color:var(--ty)} .s{color:var(--str)}
+  .c{color:var(--com);font-style:italic} .m{color:var(--mac)} .n{color:var(--num)}
+
+  /* ---- callouts ---- */
+  .box{border:1px solid var(--border);border-left:4px solid var(--cyan);background:var(--panel);
+    padding:14px 18px;margin:0 0 18px;border-radius:0 4px 4px 0}
+  .box.tip{border-left-color:var(--green)} .box.tip .lbl{color:var(--green)}
+  .box.warn{border-left-color:var(--red)} .box.warn .lbl{color:var(--red)}
+  .box.note{border-left-color:var(--violet)} .box.note .lbl{color:var(--violet)}
+  .box .lbl{font-family:"JetBrains Mono",monospace;font-size:11px;text-transform:uppercase;
+    letter-spacing:1.5px;color:var(--cyan);display:block;margin-bottom:6px}
+  .box p:last-child{margin-bottom:0}
+
+  /* ---- table ---- */
+  .tbl-wrap{overflow-x:auto;margin:0 0 18px}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:480px}
+  th,td{border:1px solid var(--border);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);font-family:"Pixelify Sans",sans-serif;color:var(--amber);font-weight:700}
+  td:first-child{font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--cyan);white-space:nowrap}
+  tr:nth-child(even) td{background:rgba(255,255,255,.012)}
+
+  /* ---- demos ---- */
+  .demo{border:2px solid var(--border);background:var(--panel);padding:18px;margin:0 0 20px;
+    border-radius:4px;box-shadow:4px 4px 0 rgba(0,0,0,.3)}
+  .demo .dh{font-family:"Pixelify Sans",sans-serif;color:var(--amber);font-size:15px;margin-bottom:4px}
+  .demo .dd{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .demo canvas{display:block;width:100%;background:var(--code-bg);border:1px solid var(--border);
+    border-radius:3px;image-rendering:pixelated}
+  .ctrls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px;
+    font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--muted)}
+  .ctrls label{display:flex;align-items:center;gap:8px}
+  .ctrls input[type=range]{accent-color:var(--pink);width:140px}
+  .ctrls .val{color:var(--cyan);min-width:60px;display:inline-block}
+  .ctrls button{font-family:"JetBrains Mono",monospace;font-size:12px;background:var(--panel2);
+    color:var(--ink);border:1px solid var(--border);padding:6px 12px;border-radius:3px;cursor:pointer}
+  .ctrls button:hover{border-color:var(--pink);color:var(--pink)}
+  .ctrls button.on{border-color:var(--cyan);color:var(--cyan);background:var(--code-bg)}
+  .readout{display:flex;gap:22px;flex-wrap:wrap;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:12.5px}
+  .readout b{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:400}
+  .readout span{color:var(--cyan);font-size:17px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--muted)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .legend i{width:13px;height:13px;border-radius:2px;display:inline-block;border:1px solid rgba(255,255,255,.15)}
+
+  /* ---- mixer panel ---- */
+  .channels{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+  @media(max-width:560px){.channels{grid-template-columns:1fr}}
+  .ch{border:1px solid var(--border);background:var(--code-bg);border-radius:4px;padding:10px 12px}
+  .ch .chh{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .ch .chh .nm{font-family:"Pixelify Sans",sans-serif;font-size:14px;color:var(--amber)}
+  .ch .chh .st{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--muted)}
+  .ch .bar{height:6px;background:var(--panel2);border-radius:3px;overflow:hidden;position:relative}
+  .ch .bar .fill{height:100%;background:linear-gradient(90deg,var(--green),var(--amber));transition:width .05s linear}
+  .ch.muted .fill{background:var(--red)}
+
+  /* ---- waveform viz ---- */
+  .wave{display:flex;align-items:center;gap:2px;height:46px;margin-top:12px}
+  .wave .b{flex:1;background:var(--cyan);border-radius:1px;min-height:2px;opacity:.85;transition:height .04s linear}
+
+  /* ---- tldr ---- */
+  .tldr{border:2px dashed var(--pink);background:var(--panel);padding:24px 28px;border-radius:4px}
+  .tldr h3{margin-top:0;color:var(--pink)}
+  .tldr ul{list-style:none;margin-left:0}
+  .tldr li{padding-left:26px;position:relative}
+  .tldr li::before{content:"\25B8";position:absolute;left:0;color:var(--amber)}
+
+  footer{margin-top:60px;padding-top:24px;border-top:2px solid var(--border);
+    color:var(--muted);font-size:12.5px;font-family:"JetBrains Mono",monospace;text-align:center}
+
+  /* ---- responsive ---- */
+  .menu-btn{display:none}
+  @media(max-width:920px){
+    .sidebar{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:transform .2s;
+      box-shadow:8px 0 24px rgba(0,0,0,.5)}
+    .sidebar.open{transform:translateX(0)}
+    .main{padding:64px 22px 100px}
+    .hero{padding:26px 22px} .hero h1{font-size:30px}
+    .sec-head h2{font-size:21px} .sec-head .idx{font-size:20px}
+    .menu-btn{display:flex;position:fixed;top:14px;left:14px;z-index:50;
+      font-family:"Pixelify Sans",sans-serif;background:var(--pink);color:#10101a;border:none;
+      padding:8px 14px;border-radius:4px;cursor:pointer;font-size:15px;box-shadow:3px 3px 0 rgba(0,0,0,.4)}
+  }
+</style>
+</head>
+<body>
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,#8ce99a,#f2c14e);
+  box-shadow:0 0 10px rgba(140,233,154,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-btn" id="menuBtn">&#9776; menü</button>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <h2>BEVY · HANG</h2>
+    <div class="sub">// efekt + zene + térlátás</div>
+    <nav class="nav" id="nav">
+      <a href="#intro"><span class="num">00</span>Miért hang?</a>
+      <a href="#concepts"><span class="num">01</span>A Bevy hang-modellje</a>
+      <a href="#assets"><span class="num">02</span>Hangfájlok &amp; formátumok</a>
+      <a href="#play"><span class="num">03</span>Első hang: AudioPlayer</a>
+      <a href="#sink"><span class="num">04</span>Aktív vezérlés: AudioSink</a>
+      <a href="#music"><span class="num">05</span>Zenei rétegek</a>
+      <a href="#mixer"><span class="num">06</span>Mixer &amp; csatornák</a>
+      <a href="#sfx"><span class="num">07</span>Efektek: pooling &amp; limiter</a>
+      <a href="#spatial"><span class="num">08</span>Térbeli hang (3D)</a>
+      <a href="#dyn"><span class="num">09</span>Dinamikus zene</a>
+      <a href="#events"><span class="num">10</span>Eseményvezérelt hang</a>
+      <a href="#bevy"><span class="num">11</span>Bevy integráció</a>
+      <a href="#full"><span class="num">12</span>Komplett minta</a>
+      <a href="#tips"><span class="num">13</span>Tippek &amp; buktatók</a>
+      <a href="#tldr"><span class="num">14</span>TL;DR</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="hero">
+      <div class="eyebrow">Bevy 0.18 · Rust · audio</div>
+      <h1>Hangok és zene — a játék<br><span class="hl">füleinek</span> és <span class="hl">hangulatának</span> rétege</h1>
+      <p>A kép megmutatja, mi történik; a hang megmutatja, <strong>mit kell érezni</strong>. Egy ugrás hang nélkül csak egy sprite, ami megváltoztatta a pozícióját — hanggal súlya lesz. Egy sivatag csendben csak sárga pixelek; egy lassan felerősödő szélzajjal veszélyessé válik. Ebben a leckében a Bevy <strong>0.18</strong> audio-rendszerét építjük fel lépésről lépésre: egyetlen efekttől a rétegzett, dinamikus zenéig és a 3D térlátásig. Három interaktív demóval.</p>
+      <div class="chips">
+        <span class="chip">AudioPlayer + PlaybackSettings</span>
+        <span class="chip">AudioSink vezérlés</span>
+        <span class="chip">csatornás mixer</span>
+        <span class="chip">efekt-pooling</span>
+        <span class="chip">SpatialListener + Emitter</span>
+        <span class="chip">dinamikus zene</span>
+      </div>
+    </header>
+
+    <!-- 00 -->
+    <section id="intro">
+      <div class="sec-head"><span class="idx">00</span><h2>Miért hang?</h2></div>
+      <p>A hang a játékok rejtett harmadik tengelye. A <a href="bevy-sprite-tutorial.html">sprite</a> és a <a href="bevy-vilagitas-tutorial.html">világítás</a> a <em>szemet</em> eteti; a hang a <strong>fület és a testet</strong>. Három dolgot csinál, amit semmi más nem tud pótolni:</p>
+      <ul>
+        <li><strong>Visszacsatolás.</strong> Egy ütés, egy lépés, egy „katt" — a hang mondja meg a játékosnak, hogy a gombnyomása <em>valóban megtörtént</em>, és mikor. Késleltetés vagy hiányzó efekt = „nem működik" érzés, még ha a kód tökéletes is.</li>
+        <li><strong>Térérzékelés.</strong> Honnan jön a veszély? A <strong>térbeli hang</strong> (panning, hangerő-esés) a 2D képből ki nem olvasható irányt ad: hallod, hogy az ellenfél balról mögötted van, mielőtt látnád.</li>
+        <li><strong>Hangulat &amp; tempó.</strong> A zene diktálja a ritmust — egy nyugodt dallam „kutató" módba tesz, egy gyors ütős „harc" módba. A <strong>dinamikus zene</strong> (rétegek ki/be) úgy vált ezeket, hogy a játékosnak közben szakadása sincs.</li>
+      </ul>
+      <p>A tutorial-iparban a hang gyakran a legelhanyagoltabb réteg — „majd a végén". De épp azért, mert a hang a <em>legolcsóbb</em> visszacsatolás (egyetlen <code class="inl">AudioPlayer</code> spawn és kész), korán érdemes berakni: egy placeholder lépés-hang azonnal „életszerűbbé" teszi a mozgást, és később csak kicseréled a fájlt.</p>
+      <div class="box note"><span class="lbl">A lecke gerince</span><p>A hangrendszer három, élesen szétváló kérdésre felel — a tutorial végig ezt a hármat választja szét: <strong>(1) Forrás</strong> — mi szólaltatódik meg (zene, efekt, környezeti hang), és hogyan töltjük be? <strong>(2) Vezérlés</strong> — a már szóló hangot hogyan állítjuk (hangerő, szünet, sebesség, mute)? <strong>(3) Tér &amp; hangulat</strong> — honnan jön a hang (térbeli), és hogyan reagál a játék állapotára (dinamikus zene)?</p></div>
+      <div class="box note"><span class="lbl">Mire épül &amp; függőségek</span><p>Ez a lecke a Bevy ECS-alapokat feltételezi (entitás/komponens/system, resource, állapotok) — lásd a <a href="bevy-tutorial_hu.html">Bevy alapok tutorialt</a> és az <a href="bevy-idozites.html">időzítés leckét</a>. A kód Bevy <strong>0.18</strong>-ra készült; az audio a <code class="inl">DefaultPlugins</code> része, külön crate nem kell:</p>
+      <pre><code class="toml">[dependencies]
+bevy = "0.18"   # AudioPlugin benne van a DefaultPlugins-ben
+
+# Opcionális: ha OGG helyett más formátumot is akarsz (MP3, FLAC, WAV),
+# bekapcsolhatod a megfelelő feature-t:
+# bevy = { version = "0.18", features = ["mp3", "flac"] }</code></pre>
+      </div>
+    </section>
+
+    <!-- 01 -->
+    <section id="concepts">
+      <div class="sec-head"><span class="idx">01</span><h2>A Bevy hang-modellje</h2></div>
+      <p>Mielőtt kódot írunk, tisztázzuk a szótárat — Bevy 0.18 audio-modellje három fogalom körül forog. Ha ez a három megvan, a többi „csak" összekötés. A legfontosabb <strong>történeti váltás</strong>: Bevy 0.18-ban a hang már <em>entitás</em>, nem egy globális erőforrás. Nem <code class="inl">audio.play(...)</code>-t hívsz; spawnolsz egy entitást <code class="inl">AudioPlayer</code> komponenssel, és Bevy ráteszi a <code class="inl">AudioSink</code>-et, amint a lejátszás elindult.</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Fogalom</th><th>Típus</th><th>Mit csinál</th></tr></thead>
+        <tbody>
+          <tr><td>AudioPlayer</td><td>Component</td><td>Egy <code class="inl">Handle&lt;AudioSource&gt;</code>-t tartalmaz — „ez az entitás ezt a fájlt játssza". Spawnoláskor a lejátszás automatikusan elindul.</td></tr>
+          <tr><td>PlaybackSettings</td><td>Component</td><td>Hogyan játssza: <code class="inl">Once/Loop/Despawn/Remove</code>, kezdő hangerő, spatial-e. Az <code class="inl">AudioPlayer</code>-rel együtt adjuk meg spawnkor.</td></tr>
+          <tr><td>AudioSink</td><td>Component (Bevy adja)</td><td>A már futó lejátszó vezérlőfelülete: <code class="inl">set_volume</code>, <code class="inl">pause</code>, <code class="inl">set_speed</code>, <code class="inl">stop</code>. Rendszerben query-zed.</td></tr>
+          <tr><td>AudioSource</td><td>Asset</td><td>A dekódolt hangadat maga — a <code class="inl">AssetServer</code> tölti be fájlból. Több <code class="inl">AudioPlayer</code> osztozhat egy handle-on.</td></tr>
+          <tr><td>SpatialListener</td><td>Component</td><td>A „fülek" pozíciója a térben — egy entitáson él, kettő fül-eltolással. Csak térbeli hanghoz kell.</td></tr>
+          <tr><td>Emitter</td><td>Component</td><td>Egy hangforrás pozíciója a térben. A <code class="inl">SpatialAudioSink</code>-kel együtt használjuk (a sima <code class="inl">AudioSink</code> térbeli testvére).</td></tr>
+        </tbody>
+      </table></div>
+      <p>Az <strong>életciklus</strong> a lényeg: <code class="inl">AudioPlayer</code>-t spawnolsz → Bevy háttérrendszerre betölti a forrást, elindítja a lejátszást, és ráteszi az <code class="inl">AudioSink</code>-et → te egy <code class="inl">Query&lt;&amp;AudioSink&gt;</code>-kel eléred és vezérled. A <code class="inl">PlaybackSettings::mode</code> dönti el, mi történik a végén:</p>
+      <pre><code class="rust">use bevy::audio::PlaybackMode;
+
+// Négy mód — a lejátszás végén:
+PlaybackMode::Once    // leáll, az entitás és a sink megmarad (pl. manuálisan újrajátszod)
+PlaybackMode::Loop    // újrakezdi végtelenül (zene, ambient)
+PlaybackMode::Despawn // leáll ÉS despawnolja az entitást (egyszeri efekt — öntisztító)
+PlaybackMode::Remove  // leáll és leveszi az AudioPlayer+Sink komponenst, az entitás megmarad</code></pre>
+      <div class="box tip"><span class="lbl">A leggyakoribb keverék</span><p><strong>Efektekhez</strong> <code class="inl">Despawn</code>: a hang végez, az entitás eltűnik — nem áll egy 200 lepke-entitás halomba. <strong>Zenéhez</strong> <code class="inl">Loop</code>: egy entitás, egy sink, a végén újraindul. <strong>Ambient/környezeti</strong> hangokhoz szintén <code class="inl">Loop</code>, esetleg <code class="inl">Once</code>, ha egyszeri „szellő-fuvat".</p></div>
+      <div class="box warn"><span class="lbl">Bevy 0.18 váltás</span><p>Ha régebbi tutorialt látsz <code class="inl">Audio</code> resource-szal és <code class="inl">audio.play(handle)</code> hívással — az <strong>elavult</strong>. 0.18-ban a hang entitás-alapú: <code class="inl">commands.spawn(AudioPlayer::new(handle))</code>. Ez tisztább (a hang mint entitás, marker-komponenssel szűrhető, térbeli adatokkal kiegészíthető) és a sink-vezérlés is természetesebb.</p></div>
+    </section>
+
+    <!-- 02 -->
+    <section id="assets">
+      <div class="sec-head"><span class="idx">02</span><h2>Hangfájlok &amp; formátumok</h2></div>
+      <p>A hangpipeline a fájllal kezdődik. A Bevy (a <code class="inl">bevy_audio</code> crate-en keresztül, ami a <code class="inl">DefaultPlugins</code> része) alapból <strong>OGG Vorbis</strong>-ot tölt be (<code class="inl">.ogg</code>) és <strong>WAV</strong>-ot. További formátumok (MP3, FLAC) feature-flagként kapcsolhatók be a <code class="inl">Cargo.toml</code>-ben.</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Formátum</th><th>Bevy feature</th><th>Mikor használd</th></tr></thead>
+        <tbody>
+          <tr><td>.ogg</td><td>— (alapértelmezett)</td><td>Általános: zenék, effektek. Jó tömörítés, kis fájl, minőség rendezhető.</td></tr>
+          <tr><td>.wav</td><td>— (alapértelmezett)</td><td>Rövid, éles effektek (lövés, kattanás). Nagy fájl, de nincs tömörítési veszteség — a „csattanás" tökéletes marad.</td></tr>
+          <tr><td>.mp3</td><td><code class="inl">mp3</code></td><td>Ha külső forrásból MP3 jön és nem akarod átkódolni. Egyébként OGG jobb.</td></tr>
+          <tr><td>.flac</td><td><code class="inl">flac</code></td><td>Veszteségmentes zene, ha a minőség kritikus (pl. narráció). Nagy fájl.</td></tr>
+        </tbody>
+      </table></div>
+      <p>A fájlok a szokásos <code class="inl">assets/</code> mappába kerülnek, és az <code class="inl">AssetServer</code> úgy tölti be őket, mint a textúrákat — ugyanaz a <code class="inl">Handle&lt;T&gt;</code>-logika:</p>
+      <pre><code class="rust">use bevy::audio::AudioSource;
+
+// A handle maga a "betöltött hang". Több entitás is használhatja.
+let jump_sfx = asset_server.load("sounds/jump.ogg");
+let music     = asset_server.load("music/forest_theme.ogg");</code></pre>
+      <div class="box tip"><span class="lbl">OGG vs WAV — a gyakorlati szabály</span><p><strong>Rövid efekt</strong> (&lt;1 s, éles támadás): WAV vagy OGG kis bitrátával — a betöltés gyors, a memória olcsó. <strong>Zene &amp; ambient</strong> (&gt;10 s): OGG, mert a WAV 10× akkora. A Bevy mindkettőt ugyanúgy kezeli, a különbség csak fájlméret és tömörítési minőség.</p></div>
+      <div class="box warn"><span class="lbl">Csak egy fő formátum</span><p>A <code class="inl">bevy_audio</code> alapból pontosan <strong>egy</strong> dekóder-formátumot támogat (OGG). Ha WAV-ot is akarsz, a <code class="inl">wav</code> feature bekapcsolása kellhet. Ellenőrizd a <code class="inl">Cargo.toml</code>-ben, hogy a <code class="inl">bevy</code> melyik feature-öket húzza be — üres <code class="inl">features = []</code> esetén a default feature-k jönnek, amikben az OGG benne van.</p></div>
+      <div class="box note"><span class="lbl">A hang mint asset</span><p>Az <code class="inl">AudioSource</code> egy asset — ugyanúgy cache-elődik, mint a <code class="inl">Image</code>. Ha 100 lepke ugyanazt a szárny-csapkodás hangot játssza, a fájl <strong>egyszer</strong> van a memóriában; csak 100 <code class="inl">AudioPlayer</code> entitás és 100 <code class="inl">AudioSink</code> fut. Ezért érdemes az efekteket egy <code class="inl">Resource</code>-ban elő-betölteni (lásd 03), hogy ne a spawn-pillanatban dekódoljon.</p></div>
+    </section>
+
+    <!-- 03 -->
+    <section id="play">
+      <div class="sec-head"><span class="idx">03</span><h2>Első hang: AudioPlayer</h2></div>
+      <p>Itt a legkisebb teljes példa: tölts be egy hangot, és játssza le egyszer. Az egész három sor: handle betöltése, entitás spawnolása <code class="inl">AudioPlayer</code>-rel, kész.</p>
+      <pre><code class="rust">use bevy::prelude::*;
+use bevy::audio::{AudioPlayer, PlaybackSettings, PlaybackMode};
+
+#[derive(Resource)]
+struct SfxLibrary {
+    jump: Handle&lt;AudioSource&gt;,
+}
+
+fn setup_audio(mut commands: Commands, asset_server: Res&lt;AssetServer&gt;) {
+    // elő-betöltés: a handle egy resource-ban él, hogy bármikor le tudjuk játszani
+    commands.insert_resource(SfxLibrary {
+        jump: asset_server.load("sounds/jump.ogg"),
+    });
+}
+
+// egy rendszer, ami ugráskor lejátssza
+fn play_jump(
+    keyboard: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    sfx: Res&lt;SfxLibrary&gt;,
+    mut commands: Commands,
+) {
+    if keyboard.just_pressed(KeyCode::Space) {
+        // A lényeg: spawn egy AudioPlayer-t. A lejátszás AZONNAL elindul.
+        // Despawn mód: ha végez, az entitás önmagától eltűnik (öntisztító efekt).
+        commands.spawn((
+            AudioPlayer::new(sfx.jump.clone()),
+            PlaybackSettings {
+                mode: PlaybackMode::Despawn,
+                volume: 0.7.into(),
+                ..default()
+            },
+        ));
+    }
+}
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_systems(Startup, setup_audio)
+        .add_systems(Update, play_jump)
+        .run();
+}</code></pre>
+      <p>Nézzük meg, mi történik itt lépésről lépésre:</p>
+      <ol>
+        <li><strong>Startup</strong>: az <code class="inl">AssetServer</code> betölti <code class="inl">jump.ogg</code>-t. A <code class="inl">Handle</code> olcsó (egy <code class="inl">Arc</code>-os hivatkozás magára az assetre); a dekódolás a háttérben fut.</li>
+        <li><strong>Update</strong>: a játékos megnyomja a Space-t. Spawnolunk egy entitást <code class="inl">AudioPlayer::new(handle)</code>-rel és egy <code class="inl">PlaybackSettings</code>-szel.</li>
+        <li><strong>Bevy háttér</strong>: a következő frame-ben Bevy észreveszi az új <code class="inl">AudioPlayer</code>-t, lekérdezi az <code class="inl">AudioSource</code>-ot (ha már betöltött), és elindít egy <code class="inl">AudioSink</code>-et rajta. A hang elkezd szólni.</li>
+        <li><strong>A végén</strong>: <code class="inl">Despawn</code> mód → az entitás (és a sink) eltűnik. Nincs szemetes-lista, nincs leak.</li>
+      </ol>
+      <div class="box tip"><span class="lbl">Miért elő-betöltés?</span><p>Ha a spawn-pillanatban hívnád <code class="inl">asset_server.load(...)</code>-ot, az első lejátszásnál a hang <strong>késne</strong> — a fájl még dekódolódik, mire a gomb megnyomódik. A <code class="inl">SfxLibrary</code> resource-ban elő-betöltve a handle már kész; csak másolod. Ugyanaz az elv, mint a sprite-oknál: a textúrákat is <code class="inl">Startup</code>-ban töltöd, nem amikor a golyó kilő.</p></div>
+      <div class="demo">
+        <div class="dh">&#9654; Demó: egyszeri efekt (Despawn vs Loop)</div>
+        <div class="dd">Kattints a „lejátszás" gombra — egy szintetikus ugrás-efekt. A <strong>Despawn</strong> mód egyszer szól (az entitás eltűnik); a <strong>Loop</strong> mód újraindul, amíg meg nem állítod. Ez a legkisebb építőelem: egy handle, egy spawn, egy <code class="inl">PlaybackMode</code>. Válts hangerőt és nézd a hullámformát.</div>
+        <canvas id="sfxCanvas" width="720" height="200"></canvas>
+        <div class="ctrls">
+          <button id="sfxPlay">&#9654; lejátszás</button>
+          <button id="sfxLoopOff" class="on">Despawn (egyszer)</button>
+          <button id="sfxLoopOn">Loop (ismét)</button>
+          <label>Hangerő:
+            <input type="range" id="sfxVol" min="0" max="100" value="70">
+            <span class="val" id="sfxVolVal">0.70</span>
+          </label>
+        </div>
+        <div class="wave" id="sfxWave"></div>
+      </div>
+    </section>
+
+    <!-- 04 -->
+    <section id="sink">
+      <div class="sec-head"><span class="idx">04</span><h2>Aktív vezérlés: AudioSink</h2></div>
+      <p>Az <code class="inl">AudioPlayer</code> csak elindítja a hangot. Ha a már szóló hangot állítani akarod — hangerő, szünet, sebesség, pozíció-lekérdezés —, az <code class="inl">AudioSink</code> kell. Ezt a komponenst <strong>Bevy teszi rá automatikusan</strong>, amint a lejátszás elkezdődött; te csak query-zed.</p>
+      <pre><code class="rust">use bevy::audio::{AudioSink, AudioSinkPlayback, Volume};
+
+#[derive(Component)] struct MyMusic;  // marker, hogy megtaláljuk
+
+fn control_music(
+    keyboard: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    // a Single garantálja, hogy pontosan egy zene van
+    mut music: Single&lt;&amp;mut AudioSink, With&lt;MyMusic&gt;&gt;,
+) {
+    // hangerő fel/le: a Volume százalékosan növelhető
+    if keyboard.just_pressed(KeyCode::Equal) {
+        let v = music.volume();
+        music.set_volume(v.increase_by_percentage(10.0));
+    }
+    if keyboard.just_pressed(KeyCode::Minus) {
+        let v = music.volume();
+        music.set_volume(v.increase_by_percentage(-10.0));
+    }
+    // szünet / folytatás
+    if keyboard.just_pressed(KeyCode::Space) {
+        music.toggle_playback();
+    }
+    // némítás
+    if keyboard.just_pressed(KeyCode::KeyM) {
+        music.toggle_mute();
+    }
+    // sebesség (pl. lassított halál-effekt)
+    if keyboard.just_pressed(KeyCode::KeyS) {
+        music.set_speed(0.5);
+    }
+}
+
+// hol a lejátszás? — position() az eltelt időt adja
+fn show_progress(music: Single&lt;&amp;AudioSink, With&lt;MyMusic&gt;&gt;) {
+    let secs = music.position().as_secs_f32();
+    println!("zene: {:.1}s", secs);
+}</code></pre>
+      <p>Az <code class="inl">AudioSinkPlayback</code> trait-et be kell hozni a prelude-ből (vagy <code class="inl">bevy::audio</code>-ból) — ezen vannak a <code class="inl">set_volume</code>, <code class="inl">pause</code>, <code class="inl">resume</code>, <code class="inl">toggle_playback</code>, <code class="inl">toggle_mute</code>, <code class="inl">set_speed</code>, <code class="inl">stop</code> metódusok. Maga az <code class="inl">AudioSink</code> emellett ad <code class="inl">position()</code>-t, <code class="inl">volume()</code>-ot, <code class="inl">is_paused()</code>-t — olvasási felületet.</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Mit akarsz</th><th>Hogyan</th></tr></thead>
+        <tbody>
+          <tr><td>Hangerő</td><td><code class="inl">sink.set_volume(Volume::new(0.5))</code> vagy <code class="inl">volume().increase_by_percentage(10.0)</code></td></tr>
+          <tr><td>Szünet</td><td><code class="inl">sink.pause()</code> / <code class="inl">sink.resume()</code> / <code class="inl">sink.toggle_playback()</code></td></tr>
+          <tr><td>Némítás (volume=0, de pozíció megy)</td><td><code class="inl">sink.toggle_mute()</code> / <code class="inl">sink.mute()</code> / <code class="inl">sink.unmute()</code></td></tr>
+          <tr><td>Sebesség (pitch is változik!)</td><td><code class="inl">sink.set_speed(1.5)</code></td></tr>
+          <tr><td>Leállítás (végleg)</td><td><code class="inl">sink.stop()</code> — a sink leáll, az entitás megmarad</td></tr>
+          <tr><td>Pozíció lekérdezés</td><td><code class="inl">sink.position()</code> — <code class="inl">Duration</code>-t ad</td></tr>
+        </tbody>
+      </table></div>
+      <div class="box warn"><span class="lbl">set_speed ≠ pitch-shift</span><p>A <code class="inl">set_speed</code> a lejátszás sebességét változtatja — ami <strong>magával hozza a pitch-et is</strong>. 1.5× sebesség = magasabb hang. Ha „lassított, de eredeti magasságú" effektet akarsz (pl. lassított halál-megfagyás), arra a Bevy beépítetten nem ad — külső DSP/crate kell (pl. <code class="inl">kira</code> vagy egyedi <code class="inl">AddAudioSource</code>).</p></div>
+      <div class="box tip"><span class="lbl">A marker trükk</span><p>Egy <code class="inl">#[derive(Component)] struct MyMusic;</code> markerrel ellátott entitás a legtisztább módja a zene megtalálásának. <code class="inl">Single&lt;&amp;mut AudioSink, With&lt;MyMusic&gt;&gt;</code> garantálja, hogy pontosan egy van — ha véletlenül kettő spawnolna, a <code class="inl">Single</code> panaszt tesz, és elkapod a bugot. Ugyanez a marker-alapú szűrés az <a href="bevy-entitas-vilagitas-tutorial.html">entitás-világításnál</a> is szerepel.</p></div>
+    </section>
+
+    <!-- 05 -->
+    <section id="music">
+      <div class="sec-head"><span class="idx">05</span><h2>Zenei rétegek</h2></div>
+      <p>Egyetlen zeneszám az alap — de a profi hangzás <strong>rétegekből</strong> épül. Képzelj el egy „erdő témát": egy basszus-dob szól végig, fölötte egy lassú dallam, és egy „feszültség" vonós-réteg csak harc közben. Mind a három külön entitás, külön <code class="inl">AudioSink</code>, külön hangerő — és te ki-be kapcsolod őket a játék állapota szerint. Ez a <strong>rétegzett zene</strong> (layered music) mintája, és a Bevy-ben meglepően természetes, mert minden hang eleve entitás.</p>
+      <pre><code class="rust">use bevy::audio::{AudioPlayer, AudioSink, AudioSinkPlayback, PlaybackSettings, PlaybackMode, Volume};
+
+#[derive(Component)] struct MusicBase;       // mindig szól
+#[derive(Component)] struct MusicMelody;     // dallam — alapból halk
+#[derive(Component)] struct MusicTension;    // harc-réteg — alapból némítva
+
+fn spawn_music(mut commands: Commands, asset_server: Res&lt;AssetServer&gt;) {
+    // három LOOP-oló entitás, három markerrel
+    commands.spawn((
+        AudioPlayer::new(asset_server.load("music/forest_base.ogg")),
+        PlaybackSettings { mode: PlaybackMode::Loop, volume: 0.8.into(), ..default() },
+        MusicBase,
+    ));
+    commands.spawn((
+        AudioPlayer::new(asset_server.load("music/forest_melody.ogg")),
+        PlaybackSettings { mode: PlaybackMode::Loop, volume: 0.0.into(), ..default() }, // halkítva
+        MusicMelody,
+    ));
+    commands.spawn((
+        AudioPlayer::new(asset_server.load("music/forest_tension.ogg")),
+        PlaybackSettings { mode: PlaybackMode::Loop, volume: 0.0.into(), muted: true, ..default() },
+        MusicTension,
+    ));
+}
+
+// a játék állapota „feltolja" a megfelelő réteget
+#[derive(States, Default, Clone, PartialEq, Eq, Hash, Debug)]
+enum Mood { #[default] Calm, Combat }
+
+fn crossfade_by_mood(
+    mood: Res&lt;State&lt;Mood&gt;&gt;,
+    mut melody: Single&lt;&amp;mut AudioSink, With&lt;MusicMelody&gt;&gt;,
+    mut tension: Single&lt;&amp;mut AudioSink, With&lt;MusicTension&gt;&gt;,
+    time: Res&lt;Time&gt;,
+) {
+    // cél-hangerő állapot szerint
+    let (m_target, t_target) = match mood.get() {
+        Mood::Calm    =&gt; (0.6, 0.0),
+        Mood::Combat  =&gt; (0.2, 0.8),
+    };
+    // sima lerp — „crossfade" az időlépték szerint
+    let k = (time.delta_secs() * 1.5).min(1.0);
+    melody.set_volume(lerp_volume(melody.volume(), m_target, k));
+    tension.set_volume(lerp_volume(tension.volume(), t_target, k));
+    // a tension-t némítsd ki, ha 0-ra ér — különben a sink csendben fut
+    if tension.volume().linear() &lt; 0.01 &amp;&amp; !tension.is_muted() { tension.mute(); }
+    if t_target &gt; 0.0 &amp;&amp; tension.is_muted() { tension.unmute(); }
+}
+
+fn lerp_volume(v: Volume, target: f32, k: f32) -&gt; Volume {
+    Volume::new(v.linear() + (target - v.linear()) * k)
+}</code></pre>
+      <p>A trükk lényege: a három réteg <strong>szinkronban loop-ol</strong> (ugyanaz a BPM, méretre vágott fájlok), így a ki-be kapcsolás <em>átmenet</em> lesz, nem vágás. A hangerő-lerp adja a <strong>crossfade</strong>-et — egy rendszerben, frame-ről frame-re. Az állapotváltás (Calm → Combat) nem a zenét cseréli, csak a rétegek <em>súlyát</em> tolja el.</p>
+      <div class="box note"><span class="lbl">Miért rétegek, nem cserélés?</span><p>Ha a harc kezdetén <em>leállítod</em> a nyugodt zenét és <em>elindítod</em> a harciat, a vágás zavaró — és a új zene <em>kezdetétől</em> indul, ami ritmikusan ütközik a régi végével. A rétegek ezzel szemben végig szólnak, csak a mix súlyoz — az átmenet sima, és a játékosnak „szakadása" sincs. Ez a filmekben és a modern játékokban (pl. <em>Portal</em>, <em>Celeste</em>) standard.</p></div>
+      <div class="demo">
+        <div class="dh">&#9654; Demó: rétegzett zene &amp; crossfade</div>
+        <div class="dd">Három szintetikus zene-réteg: <strong>basszus</strong> (mindig), <strong>dallam</strong> (nyugodt módban) és <strong>feszültség</strong> (harc módban). Kapcsold a hangulatot — a rétegek hangerő-crossfade-del váltanak, a ritmus folytatódik. A keverőpanel mutatja az élő szinteket. (A hang itt szintetikus vizualizáció — a valóságban három <code class="inl">.ogg</code> fájl játszana.)</div>
+        <canvas id="musicCanvas" width="720" height="180"></canvas>
+        <div class="channels" id="musicChannels"></div>
+        <div class="ctrls">
+          <button id="moodCalm" class="on">&#127811; nyugodt</button>
+          <button id="moodCombat">&#9876; harc</button>
+          <button id="moodPause">⏸ szünet (minden)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 06 -->
+    <section id="mixer">
+      <div class="sec-head"><span class="idx">06</span><h2>Mixer &amp; csatornák</h2></div>
+      <p>A Bevy <strong>nem ad beépített csatornás mixert</strong> — de az ECS pont a megfelelő eszköz hozzá. Egy „csatorna" (zene, SFX, ambient, UI-hang) egyszerűen <strong>egy marker-komponens + egy globális hangerő resource</strong>. Amikor egy sink hangerőjét beállítod, a <code class="inl">csatorna_hangerő × saját_hangerő</code> szorzatot használod. A játékos a menüben a csatornát állítja; a kód a saját értéket tartja.</p>
+      <pre><code class="rust">// --- csatornák: marker komponens + globális hangerő ---
+#[derive(Component)] struct ChanMusic;
+#[derive(Component)] struct ChanSfx;
+#[derive(Component)] struct ChanAmbient;
+
+#[derive(Resource, Default)]
+struct ChannelVolumes {
+    music:   f32,   // 0..1, mentve a beállításokba
+    sfx:     f32,
+    ambient: f32,
+    master:  f32,   // mindennek a tetején — főhangerő
+}
+
+// egy segéd, ami a csatorna + master szorzatát adja
+fn effective_volume(chan: f32, master: f32, local: f32) -&gt; Volume {
+    Volume::new(chan * master * local)
+}
+
+// rendszer: minden frame újraszámolja a zenék hangerőjét
+fn apply_music_volume(
+    vols: Res&lt;ChannelVolumes&gt;,
+    mut sinks: Query&lt;(&amp;mut AudioSink, &amp;LocalVolume), With&lt;ChanMusic&gt;&gt;,
+) {
+    // csak reagálunk, ha valami változott (Bevy automatikusan detektálja a Res változást)
+    if !vols.is_changed() { return; }
+    for (mut sink, local) in sinks.iter_mut() {
+        sink.set_volume(effective_volume(vols.music, vols.master, local.0));
+    }
+}
+
+// a játékos a menüben állítja:
+fn ui_set_music_volume(mut vols: ResMut&lt;ChannelVolumes&gt;, new_val: f32) {
+    vols.music = new_val.clamp(0.0, 1.0);
+}</code></pre>
+      <p>A <code class="inl">LocalVolume</code> egy saját komponens, ami az egyes hang <em>saját</em> hangerőjét tárolja (a zene 0.8, az efekt 0.5) — ez független a csatornától. A végső hangerő a három szorzat. Ez a minta az <strong>adat-vs-megjelenítés</strong> elv hangs variációja: a logika nem a sinkbe írja közvetlenül a számot, hanem egy resource-ba; egy rendszer vezeti le a sinkre.</p>
+      <pre><code class="rust">// egy efekt lejátszásakor a SAJÁT hangerővel spawnolunk,
+// a csatorna-hangerőt a apply_sfx_volume rendszer majd rászorozza
+fn play_sfx(commands: &amp;mut Commands, handle: Handle&lt;AudioSource&gt;, local: f32) {
+    commands.spawn((
+        AudioPlayer::new(handle),
+        PlaybackSettings { mode: PlaybackMode::Despawn, ..default() },
+        ChanSfx,
+        LocalVolume(local),
+    ));
+}</code></pre>
+      <div class="box tip"><span class="lbl">Mentés a beállításokba</span><p>A <code class="inl">ChannelVolumes</code> egy sima resource — szerializáld a <a href="bevy-uzenetek-tutorial.html">beállítások közé</a> (RON/JSON), és a játék indításakor töltsd vissza. A játékos beállítása perzisztens lesz. Ugyanez a minta a felbontás/nehézség mentésére is szolgál.</p></div>
+      <div class="box note"><span class="lbl">Bevy 0.18 + a jövő</span><p>A Bevy jelenlegi audio backend-je egyszerre több hangot is tud játszani (nincs 16-csatornás korlát, mint a régi játék-motorokban), de <strong>nincs beépített effekt-lánc</strong> (reverb, EQ, kompresszor). Ha ezek kellenek, a <code class="inl">bevy_audio</code> helyett/alatt <code class="inl">bevy_fmod</code> vagy a <code class="inl">kira</code> crate jöhet szóba — cserébe integrációs munkával. A legtöbb 2D játékhoz a beépített backend bőven elég.</p></div>
+    </section>
+
+    <!-- 07 -->
+    <section id="sfx">
+      <div class="sec-head"><span class="idx">07</span><h2>Efektek: pooling &amp; limiter</h2></div>
+      <p>Az efekt a hangrendszer „frontvonala": gyors, rövid, gyakori. Két buktatója van, és mindkettőre van szabványos megoldás:</p>
+      <ol>
+        <li><strong>Vihar egy gombnyomáskor.</strong> Ha a játékos gyorsan nyomkodja az ugrást, és minden nyomásra spawnolsz egy új <code class="inl">AudioPlayer</code>-t, 10db ugató hang szól egyszerre — fülsértő és processzor-igényes.</li>
+        <li><strong>Túl sok párhuzamos hang.</strong> 50 lény lép egyszerre → 50 lépés-efekt → a mix „beleragad", a hangerő túlcsordul.</li>
+      </ol>
+      <h3>Megoldás 1: cooldown / duplajáték-szűrés</h3>
+      <p>Az egyszerűbb: ne játsszuk le ugyanazt az efektet, ha az imént elindult. Egy rövid <code class="inl">Timer</code> vagy egy „utolsó lejátszás ideje" mező megakadályozza, hogy azonos efektből kettő szóljon pár ms-on belül.</p>
+      <pre><code class="rust">#[derive(Resource, Default)]
+struct SfxCooldowns {
+    last_jump: Option&lt;f32&gt;,  // másodpercben, az utolsó lejátszás
+}
+
+fn play_jump(
+    keyboard: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    time: Res&lt;Time&gt;,
+    sfx: Res&lt;SfxLibrary&gt;,
+    mut cd: ResMut&lt;SfxCooldowns&gt;,
+    mut commands: Commands,
+) {
+    if !keyboard.just_pressed(KeyCode::Space) { return; }
+    let now = time.elapsed_secs();
+    // 0.08 s alatt nem játszuk újra — elnyomja a „géppuska" ugatást
+    if cd.last_jump.map_or(false, |t| now - t &lt; 0.08) { return; }
+    cd.last_jump = Some(now);
+
+    commands.spawn((
+        AudioPlayer::new(sfx.jump.clone()),
+        PlaybackSettings { mode: PlaybackMode::Despawn, volume: 0.6.into(), ..default() },
+        ChanSfx,
+        LocalVolume(0.6),
+    ));
+}</code></pre>
+      <h3>Megoldás 2: efekt-pooling</h3>
+      <p>A nehezebb, de skálázódóbb: tarts egy fix méretű <strong>pool-t</strong> (pl. 8) elő-spawnolt, némított <code class="inl">AudioPlayer</code>-rel. Amikor efekt kell, foglalj egy szabadat, állítsd be a handle-t és indítsd el; ha végez, némítsd és add vissza a poolba. Ez a klasszikus minta, ami elkerüli a spawn/despawn overhead-et — de a Bevy <code class="inl">Despawn</code> módja olyan kényelmes, hogy a legtöbb játékhoz a cooldown elég.</p>
+      <div class="box warn"><span class="lbl">A limiter: nehéz kérdés</span><p>A Bevy backendje <strong>nem végez automatikus limiter/klippszűrést</strong>. Ha 50 hang szól egyszerre, a hullámok összeadódnak és „kattogást" vagy torzítást hallasz. Két védekezés: (1) <strong>alacsony alap-hangerők</strong> — az efekt ne 1.0-on szóljon, hanem 0.3–0.5-ön; (2) <strong>gyakori limiter</strong> — egy rendszer számolja az aktív <code class="inl">ChanSfx</code> entitásokat, és ha több van mint N, a következőt ne engedje. A <code class="inl">bevy_audio</code> nem ad többet; komolyabb keveréshez lásd a 06 végét.</p></div>
+      <div class="box tip"><span class="lbl">Pitch-randomizálás</span><p>Egy efekt, amit sokszor hallasz (lépés, lövés), gyorsan „gépies" lesz. Trükk: <strong>kis véletlen sebesség-variáció</strong> (<code class="inl">sink.set_speed(1.0 ± 0.05)</code>) — ez pitch-változatást is ad, mert a Bevy sebessége a pitch-tel együtt megy. 5%-os szórás már „élettelibb" — az agy nem találja el a mintát. Ugyanaz a hang, mégis frissebb.</p></div>
+    </section>
+
+    <!-- 08 -->
+    <section id="spatial">
+      <div class="sec-head"><span class="idx">08</span><h2>Térbeli hang (3D)</h2></div>
+      <p>Eddig minden hang „fejben" szólt — egyforma hangerővel mindkét fülbe. A <strong>térbeli hang</strong> (spatial audio) azt adja, amit a 2D kép nem tud: <strong>honnan jön</strong>. A Bevy 0.18 ezt egyszerű bal–jobb panning-ként valósítja meg (nem HRTF, de 2D/2.5D játékokhoz bőven elég): a forrás (<code class="inl">Emitter</code>) és a hallgató (<code class="inl">SpatialListener</code>) pozíciója alapján a két fül közti távolság-arány dönti el a bal/jobb arányt, és a távolság a hangerőt is tompítja.</p>
+      <p>Három dolog kell: (1) egy <code class="inl">SpatialListener</code>-entitás (a „fülek"), (2) egy <code class="inl">Emitter</code>-entitás <code class="inl">AudioPlayer</code>-rel és <code class="inl">with_spatial(true)</code>-lal, (3) a hallgató mozgatása a játékossal.</p>
+      <pre><code class="rust">use bevy::audio::{Emitter, SpatialAudioSink, SpatialListener};
+
+// --- a hallgató: a játékos „fülei" ---
+fn spawn_listener(mut commands: Commands) {
+    // a `gap` a két fül közti távolság — a 3D panning mértéke.
+    // 2D top-down-ban a „világ" méretezéséhez kell: nagyobb gap = erősebb panning.
+    let listener = SpatialListener::new(4.0);
+    commands.spawn((
+        Transform::default(),
+        Visibility::default(),
+        listener,
+    ));
+}
+
+// --- egy térbeli hangforrás ---
+fn spawn_emitter(mut commands: Commands, asset_server: Res&lt;AssetServer&gt;) {
+    commands.spawn((
+        // az Emitter tartalmazhat egy alap-sugarat is; a SpatialAudioSink
+        // segítségével mozgathatod élőben (ld. lent)
+        Emitter::default(),
+        AudioPlayer::new(asset_server.load("sounds/torch.ogg")),
+        PlaybackSettings::LOOP.with_spatial(true),
+        Transform::from_xyz(10.0, 0.0, 0.0),   // a forrás pozíciója
+    ));
+}
+
+// --- a hallgatót kösd a játékoshoz (vagy kamerához) ---
+fn sync_listener_to_player(
+    player: Single&lt;&amp;Transform, With&lt;Player&gt;&gt;,
+    mut listener: Single&lt;&amp;mut Transform, With&lt;SpatialListener&gt;&gt;,
+) {
+    listener.translation = player.translation;
+}
+
+// --- élő vezérlés: a forrás mozgatása és a SpatialAudioSink ---
+fn move_emitter(
+    time: Res&lt;Time&gt;,
+    mut emitters: Query&lt;(&amp;mut Transform, &amp;SpatialAudioSink), With&lt;Emitter&gt;&gt;,
+) {
+    for (mut tf, _sink) in emitters.iter_mut() {
+        // a transform mozgatása ELÉG — a Bevy frissíti a panninget.
+        tf.translation.x = ops::sin(time.elapsed_secs()) * 8.0;
+        // ha élőben akarnál valamit a sink-en: SpatialAudioSink mutatja a
+        // becsült bal/jobb hangerőt, és ugyanazt tudja, mint AudioSink.
+    }
+}</code></pre>
+      <p>Fontos: <code class="inl">SpatialAudioSink</code> az <code class="inl">AudioSink</code> térbeli testvére — Bevy automatikusan ezt teszi a térbeli entitásokra. Ugyanazokat tudja (volume, pause, speed), plusz tér-információkat. De a <strong>panning magától frissül</strong>, amint a <code class="inl">Transform</code> változik — nem kell hívni semmit.</p>
+      <div class="box warn"><span class="lbl">2D vs 3D skálázás</span><p>A térbeli hang <strong>3D-ben</strong> készült — a <code class="inl">Transform</code> 3 koordinátát használ, és a <code class="inl">gap</code> a világ mértékegységében értendő. 2D <code class="inl">Camera2d</code>-s játékban is működik (a z-t 0-n hagyva), de a <code class="inl">gap</code>-et úgy hangold, hogy illjen a világod méreteihez: ha a karakter 1 egység és a fák 3 egységnyire vannak, a <code class="inl">gap = 4.0</code> értelmesebb, mint <code class="inl">0.1</code>. Kis érték = „minden mindenholról jön", nagy érték = „túl éles panning".</p></div>
+      <div class="box note"><span class="lbl">HRTF nincs — de nem is baj</span><p>A Bevy <strong>nem HRTF</strong>-et használ (az egy fej-modell alapú, fejhallgatónál mély 3D-t adó technika), hanem egyszerű <strong>bal–jobb stereó panning</strong>. Ez hangszórón gyenge, fejhallgatón közepes — de 2D játékhoz, ahol csak „balról/jobbrol jön" kell, bőven elég. Ha valódi 3D-t akarsz (FPS térbeli tájékozódás), ott <code class="inl">bevy_fmod</code> vagy <code class="inl">fonki</code>-szerű megoldás kell — de az ritka igény.</p></div>
+      <div class="demo">
+        <div class="dh">&#9654; Demó: térbeli hang — bal/jobb panning</div>
+        <div class="dd">Egy hangforrás (sárga) körbe-körbe mozog a képen; a hallgató (piros, „fülek" két oldalt) a középen. A <strong>bal/jobb csíkok</strong> a két fül hangerőjét mutatják — a forrás balról való áthaladáskor a bal csík nő. Tartsd följebb/lejjebb a távolságot — a hangerő is esik. (A valóságban a Bevy ezt a <code class="inl">Emitter</code> és <code class="inl">SpatialListener</code> transformjából számolja.)</div>
+        <canvas id="spatialCanvas" width="720" height="320"></canvas>
+        <div class="ctrls">
+          <label>Forrás sebesség:
+            <input type="range" id="spSpeed" min="20" max="200" value="80">
+            <span class="val" id="spSpeedVal">0.80</span>
+          </label>
+          <label>Fülek közti táv:
+            <input type="range" id="spGap" min="10" max="80" value="40">
+            <span class="val" id="spGapVal">40</span>
+          </label>
+          <button id="spPause">&#9208; szünet</button>
+        </div>
+        <div class="readout">
+          <div><b>Bal fül</b><span id="spLeftOut">&mdash;</span></div>
+          <div><b>Jobb fül</b><span id="spRightOut">&mdash;</span></div>
+          <div><b>Távolság</b><span id="spDistOut">&mdash;</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 09 -->
+    <section id="dyn">
+      <div class="sec-head"><span class="idx">09</span><h2>Dinamikus zene</h2></div>
+      <p>A rétegzett zene (05) már „dinamikus" — de a fogalom tovább megy. A <strong>dinamikus zene</strong> (adaptive music) a játék <em>történeti</em> állapotára reagál: ahogy a játékos mélyebbre jut, a téma vált; ahogy az életerő csökken, egy szívdob-pergés réteg erősödik; ahogy a főellenség közeledik, a tempó nő. A kulcs: a zene <strong>nem előre felvett szám</strong>, hanem egy <em>rendszerek által vezérelt</em> hangszőnyeg, ami az ECS állapotából olvasható.</p>
+      <p>Három technika, erőtől gyenge felé:</p>
+      <h3>(a) Réteg-ki/be (crossfade) — a 05 módszere</h3>
+      <p>A leggyakoribb. Az állapot (Calm/Combat/Boss) egy <code class="inl">State</code>; egy rendszer lerpeli a rétegek hangerőjét. Olcsó, jól hangolható, és minden modern játék ezt használja alapból.</p>
+      <h3>(b) Témaváltás — átvezetővel</h3>
+      <p>Ha a rétegzés nem elég (egészen más hangulat kell), cserélj témát — de <strong>átvezető szegmenssel</strong>, hogy ne vágjon. Az egyik zene véget ér (vagy elhalkul), egy rövid „híd" szól, majd az új téma indul. Bevy-ben: <code class="inl">sink.stop()</code> a régire, spawnolod a hidat (Despawn), és a híd végén (egy observer vagy <code class="inl">Timer</code>) indítod az újat.</p>
+      <pre><code class="rust">#[derive(States, Default, Clone, PartialEq, Eq, Hash, Debug)]
+enum GamePhase { #[default] Explore, Bridge, Dungeon }
+
+// amikor belépünk a Dungeon fázisba: híd, majd új téma
+fn on_enter_dungeon(
+    mut commands: Commands,
+    asset_server: Res&lt;AssetServer&gt;,
+    current_music: Single&lt;Entity, With&lt;MusicBase&gt;&gt;,
+    mut next: ResMut&lt;NextState&lt;GamePhase&gt;&gt;,
+) {
+    // régi zene leállítása (vagy halkítása crossfade-del)
+    commands.entity(*current_music).despawn();
+    // híd lejátszása — végeztével observer indítja az újat
+    commands.spawn((
+        AudioPlayer::new(asset_server.load("music/bridge_to_dungeon.ogg")),
+        PlaybackSettings::DESPAWN,
+        BridgeMarker,
+    ));
+    next.set(GamePhase::Bridge);
+}
+
+// a híd vége → új téma. Egyszerű: a híd rögzített hosszú, Timer indít.
+fn bridge_finished(
+    time: Res&lt;Time&gt;,
+    mut timer: Local&lt;Option&lt;Timer&gt;&gt;,
+    mut commands: Commands,
+    asset_server: Res&lt;AssetServer&gt;,
+    mut next: ResMut&lt;NextState&lt;GamePhase&gt;&gt;,
+) {
+    timer.get_or_insert(Timer::from_seconds(4.0, TimerMode::Once)).tick(time.delta());
+    if let Some(t) = timer.as_mut() {
+        if t.just_finished() {
+            commands.spawn((
+                AudioPlayer::new(asset_server.load("music/dungeon_base.ogg")),
+                PlaybackSettings::LOOP,
+                MusicBase,
+            ));
+            next.set(GamePhase::Dungeon);
+        }
+    }
+}</code></pre>
+      <h3>(c) Reaktív parameterizálás — a legfejlettebb</h3>
+      <p>A zene egy <strong>folyamatos változótól</strong> függ: életerő, közelség a célhoz, „veszély-mérő". Nem állapot-váltás, hanem <em>árnyalás</em>: alacsony HP-nál a basszus erősödik, a tempó nő 5%-kal. Ez a <a href="bevy-roguelite-rendszerek-tutorial.html">roguelite-rendszerek</a> „feszültség-mérőjével” köthető össze — egy <code class="inl">Resource&lt;f32&gt;</code>, amit minden rendszer olvashat.</p>
+      <pre><code class="rust">#[derive(Resource)]
+struct TensionMeter(f32);   // 0 = nyugodt, 1 = pánik
+
+fn drive_music_by_tension(
+    tension: Res&lt;TensionMeter&gt;,
+    mut music: Single&lt;&amp;mut AudioSink, With&lt;MusicBase&gt;&gt;,
+    mut heartbeat: Single&lt;&amp;mut AudioSink, With&lt;MusicHeartbeat&gt;&gt;,
+) {
+    // tempó a feszültséggel nő — 1.0 (nyugodt) → 1.15 (pánik)
+    music.set_speed(1.0 + tension.0 * 0.15);
+    // a szívdob-réteg hangerője csak magas feszültségnél jelenik meg
+    let hb_vol = (tension.0 - 0.4).max(0.0) / 0.6;   // 0.4 alatt 0
+    heartbeat.set_volume(Volume::new(hb_vol));
+    if hb_vol &gt; 0.01 &amp;&amp; heartbeat.is_muted() { heartbeat.unmute(); }
+    if hb_vol &lt;= 0.01 &amp;&amp; !heartbeat.is_muted() { heartbeat.mute(); }
+}</code></pre>
+      <div class="box note"><span class="lbl">A zene mint rendszer-kimenet</span><p>A kulcsfelismerés: a dinamikus zene <strong>nem önálló dolog</strong>, hanem a játék többi rendszerének <em>kimenete</em>. A harc-rendszer növeli a <code class="inl">TensionMeter</code>-t; az életerő-rendszer is. A zene-rendszer <em>csak olvassa</em> ezeket és lefordítja hangra. Ez a <a href="bevy-observerek-tutorial.html">observer</a> / data-driven elv hang-változata: a zene reagál, de nem tud a részletekről.</p></div>
+    </section>
+
+    <!-- 10 -->
+    <section id="events">
+      <div class="sec-head"><span class="idx">10</span><h2>Eseményvezérelt hang</h2></div>
+      <p>Eddig a hang-rendszerek közvetlenül olvasták a játékállapotot (gombnyomás, transform-távolság). De sok hang <strong>esemény</strong>-re kéne induljon: „ellenség meghalt", „item felszedve", „ajtó kinyílt". Ha minden ilyen helyen spawnolsz egy <code class="inl">AudioPlayer</code>-t, a kód szétkenődik — a harc-rendszer tud a hangról, a pickup-rendszer tud a hangról… jobb, ha egyetlen központi hang-rendszer figyel egy <code class="inl">Event</code>-et.</p>
+      <pre><code class="rust">use bevy::prelude::*;
+
+// egy enum az összes hang-eseményre — ez a „hang-parancs" felület
+#[derive(Event, Clone)]
+enum SfxEvent {
+    Jump,
+    Land,
+    EnemyHit,
+    EnemyDie,
+    Pickup,
+    DoorOpen,
+}
+
+// a küldő oldalon bármelyik rendszer triggerel — nem tudja, mi játssza le
+fn on_enemy_died(mut events: EventWriter&lt;SfxEvent&gt;) {
+    events.send(SfxEvent::EnemyDie);
+}
+
+// a KÖZPONTI hang-rendszer figyel és lejátszik
+fn play_sfx_events(
+    mut events: EventReader&lt;SfxEvent&gt;,
+    sfx: Res&lt;SfxLibrary&gt;,
+    mut commands: Commands,
+) {
+    for ev in events.read() {
+        let (handle, vol) = match ev {
+            SfxEvent::Jump      =&gt; (&amp;sfx.jump,      0.6),
+            SfxEvent::Land      =&gt; (&amp;sfx.land,      0.5),
+            SfxEvent::EnemyHit  =&gt; (&amp;sfx.enemy_hit, 0.5),
+            SfxEvent::EnemyDie  =&gt; (&amp;sfx.enemy_die, 0.7),
+            SfxEvent::Pickup    =&gt; (&amp;sfx.pickup,    0.6),
+            SfxEvent::DoorOpen  =&gt; (&amp;sfx.door_open, 0.5),
+        };
+        commands.spawn((
+            AudioPlayer::new(handle.clone()),
+            PlaybackSettings { mode: PlaybackMode::Despawn, volume: vol.into(), ..default() },
+            ChanSfx,
+            LocalVolume(vol),
+        ));
+    }
+}
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_event::&lt;SfxEvent&gt;()                    // regisztráld az eseményt!
+        .add_systems(Startup, setup_audio)
+        .add_systems(Update, (
+            play_sfx_events,
+            apply_sfx_volume,
+            // ... minden más rendszer, ami EventWriter&lt;SfxEvent&gt;-et használ
+        ));
+    // ...
+}</code></pre>
+      <div class="box tip"><span class="lbl">Miért jobb, mint közvetlen spawn?</span><p>Három ok: <strong>(1) Sokfejűség</strong> — 10 különböző rendszer küldhet <code class="inl">SfxEvent::EnemyDie</code>-t anélkül, hogy mindegyik tudná, melyik hangfájl tartozik hozzá. <strong>(2) Könnyű némítás/kikapcsolás</strong> — egy feature-flag a <code class="inl">play_sfx_events</code> rendszeren, és az összes efekt elnémul (pl. opciókban). <strong>(3) Tesztelhetőség</strong> — az eseményeket egy tesztben küldheted, hang nélkül is. Ez az <a href="bevy-uzenetek-tutorial.html">üzenetek/event</a> lecke mintája, hangra alkalmazva.</p></div>
+      <div class="box note"><span class="lbl">Observer alternatíva</span><p>A Bevy 0.18 <a href="bevy-observerek-tutorial.html">observer</a>-ei még tisztábbak: trigger-eleményre (pl. <code class="inl">Trigger&lt;OnAdd&gt;</code>, vagy saját eseményre) reagáló rendszerek. Ha a hang egy <em>komponens felvétele</em>-hez kötött („minden <code class="inl">JustDied</code> komponensű entitás kap halál-hangot"), observerrel automatikus. Az <code class="inl">Event</code>+<code class="inl">EventReader</code> klasszikusabb és jobb, ha maga a hang-indítás egy parancs (nem entitás-életciklus).</p></div>
+    </section>
+
+    <!-- 11 -->
+    <section id="bevy">
+      <div class="sec-head"><span class="idx">11</span><h2>Bevy integráció</h2></div>
+      <p>Most fűzd láncba a teljes hang-rendszert. A minta ugyanaz, mint a <a href="bevy-biomok-tutorial.html#bevy">biomoknál</a>: előbb adat (handle-ok betöltése, csatornák beállítása), aztán a futó rendszerek. Az egész egyszer fut <code class="inl">Startup</code>-ban; a vezérlés és a reagálás <code class="inl">Update</code>-ben.</p>
+      <pre><code class="rust">use bevy::prelude::*;
+use bevy::audio::*;
+
+#[derive(Resource)]
+struct SfxLibrary {
+    jump:      Handle&lt;AudioSource&gt;,
+    land:      Handle&lt;AudioSource&gt;,
+    enemy_die: Handle&lt;AudioSource&gt;,
+    pickup:    Handle&lt;AudioSource&gt;,
+}
+
+#[derive(Resource, Default)]
+struct ChannelVolumes {
+    music:   f32,
+    sfx:     f32,
+    master:  f32,
+}
+
+#[derive(Component)] struct ChanSfx;
+#[derive(Component)] struct LocalVolume(f32);
+#[derive(Component)] struct MusicBase;
+
+#[derive(Event)] enum SfxEvent { Jump, EnemyDie, Pickup }
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)         // AudioPlugin benne van
+        .insert_resource(ChannelVolumes { music: 0.8, sfx: 0.7, master: 1.0 })
+        .add_event::&lt;SfxEvent&gt;()
+        .add_systems(Startup, (
+            load_sfx,
+            spawn_music,
+            spawn_listener,
+        ))
+        .add_systems(Update, (
+            play_sfx_events,        // Event -&gt; spawn AudioPlayer (efekt)
+            apply_sfx_volume,       // ChannelVolumes -&gt; sink hangerő
+            control_music,          // billentyű -&gt; zene sink vezérlés
+            sync_listener_to_player,// játékos -&gt; SpatialListener
+        ))
+        .run();
+}
+
+fn load_sfx(mut commands: Commands, asset_server: Res&lt;AssetServer&gt;) {
+    commands.insert_resource(SfxLibrary {
+        jump:      asset_server.load("sounds/jump.ogg"),
+        land:      asset_server.load("sounds/land.ogg"),
+        enemy_die: asset_server.load("sounds/enemy_die.ogg"),
+        pickup:    asset_server.load("sounds/pickup.ogg"),
+    });
+}
+
+fn spawn_music(mut commands: Commands, asset_server: Res&lt;AssetServer&gt;) {
+    commands.spawn((
+        AudioPlayer::new(asset_server.load("music/theme.ogg")),
+        PlaybackSettings::LOOP,
+        MusicBase,
+    ));
+}
+
+fn spawn_listener(mut commands: Commands) {
+    commands.spawn((
+        Transform::default(),
+        Visibility::default(),
+        SpatialListener::new(4.0),
+    ));
+}</code></pre>
+      <div class="box warn"><span class="lbl">System-sorrend &amp; ChangedDetektálás</span><p>A <code class="inl">play_sfx_events</code> <strong>előbb</strong> fusson, mint az <code class="inl">apply_sfx_volume</code> — különben az újonnan spawnolt efekt egy frame-et a rossz hangerőn szól. A láncolás (<code class="inl">.chain()</code>) erre garantálja a sorrendet. A <code class="inl">.before()</code>/<code class="inl">.after()</code> is megteszi, ha nem akarsz teljes láncot.</p></div>
+      <div class="box note"><span class="lbl">Állapotok &amp; scene-váltás</span><p>Ha a játékod több <a href="bevy-scene-valtas-tutorial.html">jelenetet</a> használ (menü → játék → paused), a zenét állapothoz kösd: <code class="inl">OnEnter(GameState::Menu)</code> spawnolja a menü-zenét, <code class="inl">OnExit</code> despawnolja. A <code class="inl">DespawnOnExit</code> marker hasonlóan letakarít, mint a tile-oknál. Az efekt-rendszerek (Event + reader) általában végig futnak; csak a zene vált.</p></div>
+    </section>
+
+    <!-- 12 -->
+    <section id="full">
+      <div class="sec-head"><span class="idx">12</span><h2>Komplett minta — összerakva</h2></div>
+      <p>Egy minimál, de teljes hang-rendszer: elő-betöltött efekt-tár, event-vezérelt lejátszás, csatornás hangerő, és egy loop-oló zene, amit billentyűvel lehet némítani és gyorsítani. Ez a csontváz, amit a saját játékodra bővítesz.</p>
+      <pre><code class="rust">use bevy::prelude::*;
+use bevy::audio::*;
+
+// ---- csatornák &amp; hangtár ----
+#[derive(Component)] struct ChanSfx;
+#[derive(Component)] struct LocalVolume(f32);
+#[derive(Component)] struct MusicBase;
+
+#[derive(Resource, Default)]
+struct ChannelVolumes { music: f32, sfx: f32, master: f32 }
+
+#[derive(Resource)]
+struct SfxLibrary { jump: Handle&lt;AudioSource&gt;, pickup: Handle&lt;AudioSource&gt; }
+
+#[derive(Event)] enum SfxEvent { Jump, Pickup }
+
+// ---- setup ----
+fn setup(
+    mut commands: Commands,
+    asset_server: Res&lt;AssetServer&gt;,
+) {
+    commands.insert_resource(ChannelVolumes { music: 0.8, sfx: 0.7, master: 1.0 });
+    commands.insert_resource(SfxLibrary {
+        jump:   asset_server.load("sounds/jump.ogg"),
+        pickup: asset_server.load("sounds/pickup.ogg"),
+    });
+    // háttérzene: loop, markerrel ellátva
+    commands.spawn((
+        AudioPlayer::new(asset_server.load("music/theme.ogg")),
+        PlaybackSettings::LOOP,
+        MusicBase,
+    ));
+}
+
+// ---- event -&gt; efekt spawn ----
+fn play_sfx_events(
+    mut events: EventReader&lt;SfxEvent&gt;,
+    sfx: Res&lt;SfxLibrary&gt;,
+    vols: Res&lt;ChannelVolumes&gt;,
+    mut commands: Commands,
+) {
+    for ev in events.read() {
+        let (handle, local) = match ev {
+            SfxEvent::Jump   =&gt; (&amp;sfx.jump,   0.6),
+            SfxEvent::Pickup =&gt; (&amp;sfx.pickup, 0.7),
+        };
+        // a csatorna- + master-hangerőt rászorozzuk a sajátra
+        let vol = Volume::new(vols.sfx * vols.master * local);
+        commands.spawn((
+            AudioPlayer::new(handle.clone()),
+            PlaybackSettings { mode: PlaybackMode::Despawn, volume: vol, ..default() },
+            ChanSfx,
+            LocalVolume(local),
+        ));
+    }
+}
+
+// ---- zene vezérlés billentyűvel ----
+fn control_music(
+    keyboard: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    mut music: Single&lt;&amp;mut AudioSink, With&lt;MusicBase&gt;&gt;,
+) {
+    if keyboard.just_pressed(KeyCode::KeyM) { music.toggle_mute(); }
+    if keyboard.just_pressed(KeyCode::Equal) {
+        let v = music.volume();
+        music.set_volume(v.increase_by_percentage(10.0));
+    }
+    if keyboard.just_pressed(KeyCode::Minus) {
+        let v = music.volume();
+        music.set_volume(v.increase_by_percentage(-10.0));
+    }
+    if keyboard.just_pressed(KeyCode::KeyP) { music.toggle_playback(); }
+}
+
+// ---- input -&gt; hang-event (demo: a játékos ugrik / felvesz) ----
+fn demo_input(mut events: EventWriter&lt;SfxEvent&gt;, keyboard: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;) {
+    if keyboard.just_pressed(KeyCode::Space)  { events.send(SfxEvent::Jump); }
+    if keyboard.just_pressed(KeyCode::KeyE)   { events.send(SfxEvent::Pickup); }
+}
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_event::&lt;SfxEvent&gt;()
+        .add_systems(Startup, setup)
+        .add_systems(Update, (
+            demo_input,
+            play_sfx_events,
+            control_music,
+        ).chain())
+        .run();
+}</code></pre>
+      <div class="box warn"><span class="lbl">Mit hiányol ez a minta?</span><p>Ez a csontváz tudatosan minimális: nincs benne térbeli hang, crossfade, sem dinamikus zene — ezeket a fenti szakaszokból illeszd be szükség szerint. A struktúra (Event → spawn, csatorna-volume resource, marker alapú sink) bővíthető: a <code class="inl">SfxEvent</code> enum-ba új variáns, a <code class="inl">SfxLibrary</code>-be új handle, és már szól is az új hang.</p></div>
+    </section>
+
+    <!-- 13 -->
+    <section id="tips">
+      <div class="sec-head"><span class="idx">13</span><h2>Gyakorlati tippek &amp; buktatók</h2></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>Töltsd elő a handle-eket <code class="inl">Startup</code>-ban egy <code class="inl">Resource</code>-ba. A spawn-pillanatban <code class="inl">load</code> hívás <strong>késleltetést</strong> okoz — az első lejátszásnál a hang megkéshet.</p></div>
+      <div class="box warn"><span class="lbl">Ne</span><p>Ne hagyd, hogy 50 ugyanolyan efekt egyszerre szóljon. <strong>Cooldown</strong> (rövid <code class="inl">Timer</code> vagy timestamp) a leggyakoribb megoldás; efekt-pooling a nehezebb esetre. A Bevy backend nem véd a torzítás ellen.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>Használj <strong>marker komponenseket</strong> (<code class="inl">MusicBase</code>, <code class="inl">ChanSfx</code>) és <code class="inl">Single&lt;...&gt;</code>-t a sink-vezérléshez. Tisztább, és a <code class="inl">Single</code> elkapja, ha véletlenül több entitás lenne.</p></div>
+      <div class="box warn"><span class="lbl">Ne</span><p>Ne használd a régi <code class="inl">audio.play(...)</code> API-t — az <strong>elavult</strong>. Bevy 0.18: <code class="inl">commands.spawn(AudioPlayer::new(handle))</code>. A hang entitás; a sink-et Bevy teszi rá.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>Válaszd szét a <strong>csatorna-hangerőt</strong> (globális, mentve) és a <strong>saját hangerőt</strong> (komponensenként). A végeredmény szorzat — így a játékos beállítása nem írja felül a hang-szerző szándékát.</p></div>
+      <div class="box warn"><span class="lbl">Ne</span><p>Ne cseréld a zenét <em>vágással</em>. Rétegeket használj (crossfade), vagy legalább egy híd-szegmenssel gördülj át. A hirtelen vágás zavaróbb, mint gondolnád — a fül észreveszi, a szem nem.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>Kösd a hangot <strong>eseményhez</strong> (<code class="inl">Event</code> vagy observer), ne a belső logikához. A harc-rendszer ne tudjon a hangfájlról — csak küldjön <code class="inl">SfxEvent::EnemyDie</code>-t. Központi, némítható, tesztelhető.</p></div>
+      <div class="box warn"><span class="lbl">Vigyázz</span><p>A <code class="inl">set_speed</code> <strong>pitch-et is változtat</strong>. Ha „lassított, de eredeti magasságú" effekt kell (lassított halál), arra a Bevy beépítetten nem ad — külső DSP/crate kell. Ez ritka igény, de meglep, ha először találkozol vele.</p></div>
+      <div class="box note"><span class="lbl">Térbeli hang méretezése</span><p>A <code class="inl">SpatialListener::new(gap)</code> <code class="inl">gap</code>-je <strong>világegységekben</strong> értendő. 2D játékban hangold a világod méreteihez: kis <code class="inl">gap</code> = „minden mindenhonnan", nagy = túl éles panning. Teszteld fejhallgatón — hangszórón a térhatás amúgy is gyenge.</p></div>
+      <div class="box tip"><span class="lbl">Pitch-változatás</span><p>Egy gyakran hallott efektet (lépés, lövés) tegyél „élettelibbé" kis véletlen <code class="inl">set_speed(1.0 ± 0.05)</code>-del. 5% szórás már megtöri a gépi ismétlést — az agy nem találja el a mintát.</p></div>
+    </section>
+
+    <!-- 14 -->
+    <section id="tldr">
+      <div class="sec-head"><span class="idx">14</span><h2>TL;DR</h2></div>
+      <div class="tldr">
+        <h3>A lényeg egy kártyán</h3>
+        <ul>
+          <li><strong>A hang = entitás:</strong> Bevy 0.18-ban <code class="inl">commands.spawn(AudioPlayer::new(handle))</code>; Bevy ráteszi az <code class="inl">AudioSink</code>-et, te query-zed. Nincs globális <code class="inl">audio.play()</code>.</li>
+          <li><strong>Három fogalom:</strong> <code class="inl">AudioPlayer</code> (mit), <code class="inl">PlaybackSettings</code> (hogyan: Once/Loop/Despawn/Remove), <code class="inl">AudioSink</code> (vezérlés: volume, pause, speed).</li>
+          <li><strong>Formátum:</strong> OGG (alap) + WAV (efekt); MP3/FLAC feature-flag. Zene = OGG, rövid éles efekt = WAV. Handle-t elő-töltsd <code class="inl">Startup</code>-ban.</li>
+          <li><strong>Efekt:</strong> <code class="inl">Despawn</code> mód (öntisztító) + <strong>cooldown</strong> (spawn-vihar ellen) + kis <strong>pitch-változatás</strong> (<code class="inl">set_speed</code>).</li>
+          <li><strong>Zene:</strong> <code class="inl">Loop</code> mód + marker komponens + <code class="inl">Single&lt;&amp;AudioSink&gt;</code>. Rétegezz (basszus/dallam/feszültség) és <strong>crossfade</strong>-del váltogass — sose vágj.</li>
+          <li><strong>Mixer:</strong> Bevy nem ad csatornákat, de a marker + globális volume resource igen: <code class="inl">csatorna × master × saját</code> = végső hangerő.</li>
+          <li><strong>Térbeli hang:</strong> <code class="inl">SpatialListener</code> (fülek) + <code class="inl">Emitter</code> (forrás) + <code class="inl">with_spatial(true)</code>. Bal/jobb panning, a távolság halkít. HRTF nincs — 2D/2.5D-hez elég.</li>
+          <li><strong>Dinamikus zene:</strong> (a) réteg-ki/be crossfade; (b) témaváltás híddal; (c) reaktív parameterizálás (<code class="inl">TensionMeter</code> → speed/volume). A zene a többi rendszer <em>kimenete</em>.</li>
+          <li><strong>Eseményvezérelt:</strong> egy <code class="inl">SfxEvent</code> enum + <code class="inl">EventReader</code> + központi hang-rendszer. A logika ne tudjon a hangfájlról, csak küldjön parancsot.</li>
+          <li><strong>Bevy:</strong> <code class="inl">DefaultPlugins</code> (AudioPlugin benne van), <code class="inl">Startup</code> = betöltés + spawn, <code class="inl">Update</code> = vezérlés + reagálás. Sorrend: event-feldolgozás <em>előbb</em>, mint volume-alkalmazás.</li>
+          <li><strong>Bevy 0.18:</strong> <code class="inl">Volume::new(f)</code>, <code class="inl">volume().increase_by_percentage(x)</code>, <code class="inl">AudioSinkPlayback</code> trait. A <code class="inl">set_speed</code> pitch-et is változtat — nincs beépített tiszta pitch-shift.</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer>
+      Bevy 0.18 · Hangok és zene: efekt, rétegek, térlátás · egyetlen fájlos HTML · készült offline használatra
+    </footer>
+  </main>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- Rust + TOML szintaxiskiemelő ---------- */
+function highlightRust(src){
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  var token = /(\/\/[^\n]*)|("(?:[^"\\]|\\.)*")|(\b(?:fn|let|mut|for|in|if|else|match|struct|enum|impl|trait|pub|use|mod|return|self|Self|as|where|move|loop|while|break|continue|const|static|ref|dyn|crate|true|false)\b)|(\b[A-Z][A-Za-z0-9_]*\b)|(\b[a-z_][A-Za-z0-9_]*!)|(\b\d[\d_]*\.?\d*(?:f32|f64|u32|i32|u8|usize)?\b)/g;
+  var out="", last=0, m;
+  while((m=token.exec(src))!==null){
+    out += esc(src.slice(last, m.index));
+    var text = esc(m[0]);
+    if(m[1]) out += '<span class="c">'+text+'</span>';
+    else if(m[2]) out += '<span class="s">'+text+'</span>';
+    else if(m[3]) out += '<span class="k">'+text+'</span>';
+    else if(m[4]) out += '<span class="t">'+text+'</span>';
+    else if(m[5]) out += '<span class="m">'+text+'</span>';
+    else if(m[6]) out += '<span class="n">'+text+'</span>';
+    last = token.lastIndex;
+  }
+  out += esc(src.slice(last));
+  return out;
+}
+function highlightToml(src){
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  return esc(src)
+    .replace(/(#[^\n]*)/g,'<span class="c">$1</span>')
+    .replace(/(&quot;[^&]*&quot;|"[^"]*")/g,'<span class="s">$1</span>')
+    .replace(/^(\s*)([A-Za-z0-9_\-]+)(\s*=)/gm,'$1<span class="t">$2</span>$3')
+    .replace(/(\[[^\]]+\])/g,'<span class="m">$1</span>');
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+  document.querySelectorAll("pre code.rust").forEach(function(el){
+    el.innerHTML = highlightRust(el.textContent);
+  });
+  document.querySelectorAll("pre code.toml").forEach(function(el){
+    el.innerHTML = highlightToml(el.textContent);
+  });
+
+  /* scrollspy */
+  var links = Array.prototype.slice.call(document.querySelectorAll("#nav a"));
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute("href").slice(1)] = a; });
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){
+        links.forEach(function(a){ a.classList.remove("active"); });
+        var act = map[e.target.id];
+        if(act) act.classList.add("active");
+      }
+    });
+  }, { rootMargin: "-20% 0px -70% 0px" });
+  document.querySelectorAll("section").forEach(function(s){ obs.observe(s); });
+
+  /* mobil menü */
+  var btn = document.getElementById("menuBtn");
+  var sb = document.getElementById("sidebar");
+  if(btn){
+    btn.addEventListener("click", function(){ sb.classList.toggle("open"); });
+    document.querySelectorAll("#nav a").forEach(function(a){
+      a.addEventListener("click", function(){ sb.classList.remove("open"); });
+    });
+  }
+
+  initSfxDemo();
+  initMusicDemo();
+  initSpatialDemo();
+});
+
+/* ===================== közös segédek ===================== */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function pal(){
+  var css = getComputedStyle(document.documentElement);
+  function c(n,f){ return css.getPropertyValue(n).trim() || f; }
+  return { bg:c("--code-bg","#14141f"), muted:c("--muted","#8b8b9e"),
+           pink:c("--pink","#ec6a9c"), cyan:c("--cyan","#56d4c4"),
+           amber:c("--amber","#f2c14e"), green:c("--green","#8ce99a"),
+           red:c("--red","#ff6b6b"), ink:c("--ink","#e3e3ec"),
+           violet:c("--violet","#a78bfa") };
+}
+function lerp(a,b,t){ return a+(b-a)*t; }
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+
+/* ===================== DEMÓ 1: egyszeri efekt ===================== */
+function initSfxDemo(){
+  var cv=document.getElementById("sfxCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var P=pal();
+  var GW=180;
+  var playB=document.getElementById("sfxPlay");
+  var lo=document.getElementById("sfxLoopOff"), lon=document.getElementById("sfxLoopOn");
+  var volS=document.getElementById("sfxVol"), volV=document.getElementById("sfxVolVal");
+  var waveEl=document.getElementById("sfxWave");
+  var loop=false, volume=0.7;
+
+  // hullámform-bárok
+  var NBARS=48;
+  var bars=[];
+  for(var i=0;i<NBARS;i++){ bars.push(0); waveEl.appendChild(document.createElement("div")).className="b"; }
+  var barEls=waveEl.querySelectorAll(".b");
+
+  // egy szintetikus „ugrás" envelope: gyors támadás, lassú lecsengés
+  var playing=false, t=0, dur=0.45;
+  var rng=mulberry32(99);
+
+  function env(time){
+    if(time<0.02) return time/0.02;          // támadás
+    if(time<dur) return Math.exp(-(time-0.02)*6); // lecsengés
+    return 0;
+  }
+  function wave(time){
+    // magas frekvenciás „csattanás" + mélyebb test
+    var f1 = 220 + 600*Math.exp(-time*30);   // lecsengő frekvencia
+    var f2 = 80;
+    return (Math.sin(time*f1*6.28)*0.7 + Math.sin(time*f2*6.28)*0.3);
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    // háttér
+    ctx.fillStyle=P.bg; ctx.fillRect(0,0,cv.width,cv.height);
+    // középvonal
+    var mid=cv.height/2;
+    ctx.strokeStyle="rgba(139,139,158,.25)"; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(0,mid); ctx.lineTo(cv.width,mid); ctx.stroke();
+
+    // hullámforma rajzolása
+    ctx.strokeStyle=P.cyan; ctx.lineWidth=2;
+    ctx.beginPath();
+    var maxT = loop ? 0.9 : dur;
+    var amp = playing ? volume : 0;
+    for(var x=0;x<cv.width;x++){
+      var time = (x/cv.width)*maxT;
+      var e = loop ? (0.4+0.6*Math.sin(time*8)) : env(time);
+      var y = mid - wave(time)*e*amp*mid*0.8;
+      if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+
+    // lejátszás-pozíció
+    if(playing){
+      var px = (t/maxT)*cv.width;
+      ctx.strokeStyle=P.pink; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(px,0); ctx.lineTo(px,cv.height); ctx.stroke();
+    }
+
+    // „sink" felirat
+    ctx.fillStyle=P.muted; ctx.font="600 11px 'JetBrains Mono', monospace";
+    ctx.textAlign="left"; ctx.textBaseline="top";
+    var status = playing ? (loop?"LOOP · szól":"szól") : "áll";
+    ctx.fillText("AudioSink: "+status+"  ·  hangerő "+volume.toFixed(2), 10, 8);
+  }
+
+  function updateBars(){
+    for(var i=0;i<NBARS;i++){
+      var time = (i/NBARS)*0.9;
+      var e = loop ? (0.4+0.6*Math.sin(time*8+t*4)) : (playing?env(t*(i/NBARS)/0.45):0);
+      var h = Math.abs(wave(time))*e*volume*46;
+      barEls[i].style.height=Math.max(2,h)+"px";
+      barEls[i].style.opacity = playing ? 0.85 : 0.25;
+    }
+  }
+
+  var last=performance.now();
+  function frame(now){
+    var dt=(now-last)/1000; last=now;
+    if(playing){
+      t+=dt;
+      if(!loop && t>=dur){ playing=false; t=0; }
+      else if(loop && t>=0.9){ t=0; }   // loop: újraindul
+    }
+    draw();
+    updateBars();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  playB.addEventListener("click",function(){
+    t=0; playing=true;
+  });
+  function setLoop(l){
+    loop=l; lo.classList.toggle("on",!l); lon.classList.toggle("on",l);
+    if(l){ playing=true; t=0; }
+  }
+  lo.addEventListener("click",function(){ setLoop(false); });
+  lon.addEventListener("click",function(){ setLoop(true); });
+  volS.addEventListener("input",function(){
+    volume=parseInt(volS.value,10)/100; volV.textContent=volume.toFixed(2);
+  });
+  volV.textContent=volume.toFixed(2);
+}
+
+/* ===================== DEMÓ 2: rétegzett zene ===================== */
+function initMusicDemo(){
+  var cv=document.getElementById("musicCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var P=pal();
+  var chEl=document.getElementById("musicChannels");
+  var cB=document.getElementById("moodCalm"), xB=document.getElementById("moodCombat"), pB=document.getElementById("moodPause");
+
+  var layers=[
+    { name:"Basszus",   col:P.green,  cur:0.8, tgt:0.8, phase:0.0 },
+    { name:"Dallam",    col:P.cyan,   cur:0.6, tgt:0.6, phase:1.0 },
+    { name:"Feszültség",col:P.red,    cur:0.0, tgt:0.0, phase:2.0 }
+  ];
+  var mood="calm";
+  var paused=false;
+  var t=0;
+
+  // csatornák UI
+  function buildChannels(){
+    chEl.innerHTML="";
+    layers.forEach(function(l){
+      var d=document.createElement("div"); d.className="ch"; d.dataset.col=l.col;
+      d.innerHTML='<div class="chh"><span class="nm" style="color:'+l.col+'">'+l.name+
+                  '</span><span class="st">—</span></div><div class="bar"><div class="fill"></div></div>';
+      chEl.appendChild(d);
+    });
+  }
+  function updateChannels(){
+    var chs=chEl.querySelectorAll(".ch");
+    layers.forEach(function(l,i){
+      var c=chs[i];
+      var pct=Math.round(l.cur*100);
+      c.querySelector(".fill").style.width=pct+"%";
+      c.classList.toggle("muted", l.cur<0.02);
+      c.querySelector(".st").textContent = paused ? "⏸ szünet" : (pct+"%");
+    });
+  }
+
+  function setMood(m){
+    mood=m;
+    cB.classList.toggle("on",m==="calm");
+    xB.classList.toggle("on",m==="combat");
+    pB.classList.toggle("on",m==="pause");
+    if(m==="calm"){ layers[0].tgt=0.8; layers[1].tgt=0.6; layers[2].tgt=0.0; paused=false; }
+    else if(m==="combat"){ layers[0].tgt=0.7; layers[1].tgt=0.2; layers[2].tgt=0.8; paused=false; }
+    else { paused=true; }
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.fillStyle=P.bg; ctx.fillRect(0,0,cv.width,cv.height);
+
+    // három réteg hullám, egymásra rétegezve, a hangerő szerint
+    var mid=cv.height/2;
+    var speed = paused ? 0 : 1;
+    layers.forEach(function(l){
+      ctx.strokeStyle=l.col; ctx.lineWidth=2;
+      ctx.globalAlpha = paused ? 0.15 : 0.35+0.55*l.cur;
+      ctx.beginPath();
+      for(var x=0;x<cv.width;x++){
+        var time = (x/cv.width)*4 + t*speed + l.phase;
+        var w = Math.sin(time*3.0) + 0.4*Math.sin(time*7.0);
+        var y = mid + w*l.cur*mid*0.35;
+        if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    });
+    ctx.globalAlpha=1;
+
+    // hangulat-felirat
+    ctx.fillStyle=P.muted; ctx.font="600 12px 'JetBrains Mono', monospace";
+    ctx.textAlign="left"; ctx.textBaseline="top";
+    var label = paused ? "⏸ minden szünetel" : (mood==="calm"?"Nyugodt (Calm)":"Harc (Combat)");
+    ctx.fillText("Mood: "+label, 10, 8);
+  }
+
+  var last=performance.now();
+  function frame(now){
+    var dt=(now-last)/1000; last=now;
+    if(!paused) t+=dt;
+    // crossfade lerp
+    var k = clamp(dt*1.5,0,1);
+    layers.forEach(function(l){ l.cur = lerp(l.cur, l.tgt, k); });
+    draw(); updateChannels();
+    requestAnimationFrame(frame);
+  }
+  buildChannels();
+  setMood("calm");
+  requestAnimationFrame(frame);
+
+  cB.addEventListener("click",function(){ setMood("calm"); });
+  xB.addEventListener("click",function(){ setMood("combat"); });
+  pB.addEventListener("click",function(){ setMood("pause"); });
+}
+
+/* ===================== DEMÓ 3: térbeli hang ===================== */
+function initSpatialDemo(){
+  var cv=document.getElementById("spatialCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var P=pal();
+  var spS=document.getElementById("spSpeed"), spV=document.getElementById("spSpeedVal");
+  var gapS=document.getElementById("spGap"), gapV=document.getElementById("spGapVal");
+  var pB=document.getElementById("spPause");
+  var lOut=document.getElementById("spLeftOut"), rOut=document.getElementById("spRightOut"), dOut=document.getElementById("spDistOut");
+
+  var t=0, paused=false, speed=0.8, gap=40;
+  var cx=cv.width/2, cy=cv.height/2;
+  var radius=Math.min(cv.width,cv.height)*0.38;
+
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.fillStyle=P.bg; ctx.fillRect(0,0,cv.width,cv.height);
+
+    // a forrás pozíciója (körbe-körbe)
+    var ex = cx + Math.cos(t)*radius;
+    var ey = cy + Math.sin(t)*radius*0.7;
+
+    // hallgató (középen, két füllel)
+    var lx = cx - gap/2, rx = cx + gap/2;
+    var ly = cy, ry = cy;
+
+    // távolságok
+    var dl = Math.hypot(ex-lx, ey-ly);
+    var dr = Math.hypot(ex-rx, ey-ry);
+    var dc = Math.hypot(ex-cx, ey-cy);
+
+    // hangerő modell: távolság alapján esés (1/(1+d*k)), normalizálva
+    var k=0.012;
+    var volL = 1/(1+dl*k), volR = 1/(1+dr*k);
+    // normalizáljuk a kettő összegére, hogy ne legyen túl hangos közelre
+    var sum=volL+volR;
+    if(sum>0){ volL/=sum*0.8; volR/=sum*0.8; }
+    volL=clamp(volL,0,1); volR=clamp(volR,0,1);
+
+    // körező körök (halvány)
+    ctx.strokeStyle="rgba(139,139,158,.15)"; ctx.lineWidth=1;
+    for(var r=40;r<radius*1.2;r+=40){
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
+    }
+
+    // vonal a forrástól a fülekhez
+    ctx.strokeStyle="rgba(236,106,156,.25)"; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(ex,ey); ctx.lineTo(lx,ly); ctx.moveTo(ex,ey); ctx.lineTo(rx,ry); ctx.stroke();
+
+    // bal/jobb fül golyók
+    ctx.fillStyle=P.pink;
+    ctx.beginPath(); ctx.arc(lx,ly,7,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=P.green;
+    ctx.beginPath(); ctx.arc(rx,ry,7,0,Math.PI*2); ctx.fill();
+
+    // hallgató-test
+    ctx.strokeStyle=P.muted; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(cx,cy,12,0,Math.PI*2); ctx.stroke();
+
+    // forrás
+    ctx.fillStyle=P.amber;
+    ctx.beginPath(); ctx.arc(ex,ey,10,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle="rgba(255,255,255,.4)"; ctx.lineWidth=1; ctx.stroke();
+
+    // bal/jobb hangerő csíkok a fülek alatt
+    var bw=34, bh=60;
+    function bar(x,y,vol,col){
+      ctx.fillStyle="rgba(255,255,255,.06)"; ctx.fillRect(x,y,bw,bh);
+      ctx.fillStyle=col; ctx.fillRect(x,y+bh-bh*vol,bw,bh*vol);
+    }
+    bar(lx-bw/2, cy+40, volL, P.pink);
+    bar(rx-bw/2, cy+40, volR, P.green);
+
+    // feliratok
+    ctx.fillStyle=P.muted; ctx.font="600 11px 'JetBrains Mono', monospace";
+    ctx.textAlign="center"; ctx.textBaseline="top";
+    ctx.fillText("BAL", lx, cy+104);
+    ctx.fillText("JOBB", rx, cy+104);
+    ctx.fillStyle=P.amber; ctx.fillText("forrás", ex, ey-26);
+
+    lOut.textContent=volL.toFixed(2); rOut.textContent=volR.toFixed(2);
+    dOut.textContent=dc.toFixed(0);
+
+    // halvány „terelővonal" a mozgás irányáról
+    ctx.strokeStyle="rgba(242,193,78,.18)"; ctx.lineWidth=1;
+    ctx.beginPath();
+    for(var a=0;a<Math.PI*2;a+=0.1){
+      var px=cx+Math.cos(a)*radius, py=cy+Math.sin(a)*radius*0.7;
+      if(a===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.stroke();
+  }
+
+  var last=performance.now();
+  function frame(now){
+    var dt=(now-last)/1000; last=now;
+    if(!paused) t+=dt*speed;
+    draw();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  spS.addEventListener("input",function(){ speed=parseInt(spS.value,10)/100; spV.textContent=speed.toFixed(2); });
+  gapS.addEventListener("input",function(){ gap=parseInt(gapS.value,10); gapV.textContent=gap; });
+  pB.addEventListener("click",function(){ paused=!paused; pB.textContent=paused?"▶ folytat":"⏸ szünet"; });
+  spV.textContent=speed.toFixed(2); gapV.textContent=gap;
+}
+</script>
+</body>
+</html>
