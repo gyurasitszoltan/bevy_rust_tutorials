@@ -585,6 +585,7 @@ fn weighted_pick(table: &amp;[Weighted], rng: &amp;mut StdRng) -&gt; Spawn {
     <section id="edges">
       <div class="sec-head"><span class="idx">09</span><h2>Átmenetek & szegélyek</h2></div>
       <p>A domain warping organikus <em>határvonalat</em> ad, de a határ két oldala még mindig élesen vált: a sötét erdő utolsó cellája mellett rögtön a havas első cellája áll. A profi érzethez két dolog kell — <strong>átmeneti sáv</strong> és <strong>szegélycsempe</strong>.</p>
+      <div class="box note"><span class="lbl">Ez a szakasz a biomok KÖZTI átmenet</span><p>Itt két <em>különböző</em> biom határáról van szó. A biomon <strong>belüli</strong> átmenetekről — hogy a víz mélységszintjei közt ne legyen éles sáv, és hogy egy fűmező ne legyen homogén tapétaminta — külön lecke szól, valódi csempéken: <a href="bevy-biom-atmenetek-tutorial.html">biom-átmenetek (variáció + lágy határok)</a>.</p></div>
       <h3>Átmeneti (blend) sáv</h3>
       <p>A határ közelében keverd a két biom jellemzőit a távolság arányában: a talajszín lerpeljen az egyikből a másikba, a dekoráció-sűrűség is. Így nincs éles vágás, hanem fokozatos átolvadás — pont, mint a valódi ökotónok.</p>
       <pre><code class="rust">// két biom talajszínének keverése a határ-közelség (0..1) szerint

@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Biom-átmenetek — csempe-variáció és lágy határok · Bevy 0.18</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#10101a; --panel:#1a1a28; --panel2:#21212f; --code-bg:#14141f;
+    --ink:#e3e3ec; --muted:#8b8b9e; --border:#2c2c40;
+    --cyan:#56d4c4; --amber:#f2c14e; --pink:#ec6a9c; --green:#8ce99a; --red:#ff6b6b; --violet:#a78bfa;
+    --kw:#ec6a9c; --ty:#56d4c4; --str:#8ce99a; --com:#6b6b80; --mac:#f2c14e; --num:#f4a259;
+    --sidebar-w:260px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    background-image:radial-gradient(var(--border) 1px, transparent 1px);
+    background-size:22px 22px;
+    color:var(--ink);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--cyan);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ---- layout ---- */
+  .shell{display:flex;max-width:1400px;margin:0 auto}
+  .sidebar{
+    width:var(--sidebar-w);flex:0 0 var(--sidebar-w);
+    position:sticky;top:0;height:100vh;overflow-y:auto;
+    padding:28px 18px;border-right:2px solid var(--border);
+    background:linear-gradient(180deg,var(--panel) 0%,var(--bg) 100%);
+  }
+  .sidebar h2{
+    font-family:"Pixelify Sans",sans-serif;font-size:18px;font-weight:700;
+    color:var(--amber);letter-spacing:.5px;margin-bottom:4px;
+  }
+  .sidebar .sub{font-size:11px;color:var(--muted);font-family:"JetBrains Mono",monospace;margin-bottom:20px}
+  .nav a{
+    display:block;color:var(--muted);font-size:13.5px;padding:7px 10px;
+    border-left:3px solid transparent;border-radius:0 4px 4px 0;transition:all .12s;
+    text-decoration:none;
+  }
+  .nav a .num{font-family:"JetBrains Mono",monospace;color:var(--border);font-size:11px;margin-right:8px}
+  .nav a:hover{color:var(--ink);background:var(--panel2);text-decoration:none}
+  .nav a.active{color:var(--ink);border-left-color:var(--pink);background:var(--panel2)}
+  .nav a.active .num{color:var(--pink)}
+
+  .main{flex:1 1 auto;min-width:0;padding:48px 56px 120px}
+
+  /* ---- hero ---- */
+  .hero{margin-bottom:56px;border:2px solid var(--border);background:var(--panel);
+    padding:38px 36px;position:relative;box-shadow:6px 6px 0 rgba(0,0,0,.35)}
+  .hero .eyebrow{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--pink);
+    letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+  .hero h1{font-family:"Pixelify Sans",sans-serif;font-size:42px;font-weight:700;
+    line-height:1.1;color:var(--ink);margin-bottom:16px}
+  .hero h1 .hl{color:var(--amber)}
+  .hero p{color:var(--muted);font-size:16px;max-width:640px}
+  .hero .chips{margin-top:22px;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font-family:"JetBrains Mono",monospace;font-size:11.5px;padding:4px 10px;
+    border:1px solid var(--border);background:var(--code-bg);color:var(--cyan);border-radius:3px}
+
+  /* ---- sections ---- */
+  section{margin-bottom:54px;scroll-margin-top:24px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;
+    padding-bottom:12px;border-bottom:2px solid var(--border)}
+  .sec-head .idx{font-family:"Pixelify Sans",sans-serif;font-size:26px;color:var(--pink);
+    flex:0 0 auto}
+  .sec-head h2{font-family:"Pixelify Sans",sans-serif;font-size:27px;font-weight:700;color:var(--ink)}
+  h3{font-family:"Pixelify Sans",sans-serif;font-size:19px;color:var(--amber);
+    margin:26px 0 12px}
+  p{margin:0 0 14px}
+  .main p{font-size:15.5px}
+  ul,ol{margin:0 0 16px 22px}
+  li{margin-bottom:7px;font-size:15.5px}
+  strong{color:var(--ink);font-weight:600}
+  code.inl{font-family:"JetBrains Mono",monospace;font-size:13px;background:var(--code-bg);
+    border:1px solid var(--border);padding:1.5px 6px;border-radius:3px;color:var(--cyan)}
+
+  /* ---- code blocks ---- */
+  pre{background:var(--code-bg);border:1px solid var(--border);border-left:3px solid var(--cyan);
+    padding:16px 18px;overflow-x:auto;margin:0 0 18px;border-radius:0 4px 4px 0;
+    box-shadow:3px 3px 0 rgba(0,0,0,.25)}
+  pre code{font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1.6;color:var(--ink);white-space:pre}
+  .k{color:var(--kw)} .t{color:var(--ty)} .s{color:var(--str)}
+  .c{color:var(--com);font-style:italic} .m{color:var(--mac)} .n{color:var(--num)}
+
+  /* ---- callouts ---- */
+  .box{border:1px solid var(--border);border-left:4px solid var(--cyan);background:var(--panel);
+    padding:14px 18px;margin:0 0 18px;border-radius:0 4px 4px 0}
+  .box.tip{border-left-color:var(--green)} .box.tip .lbl{color:var(--green)}
+  .box.warn{border-left-color:var(--red)} .box.warn .lbl{color:var(--red)}
+  .box.note{border-left-color:var(--violet)} .box.note .lbl{color:var(--violet)}
+  .box .lbl{font-family:"JetBrains Mono",monospace;font-size:11px;text-transform:uppercase;
+    letter-spacing:1.5px;color:var(--cyan);display:block;margin-bottom:6px}
+  .box p:last-child{margin-bottom:0}
+
+  /* ---- table ---- */
+  .tbl-wrap{overflow-x:auto;margin:0 0 18px}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:480px}
+  th,td{border:1px solid var(--border);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);font-family:"Pixelify Sans",sans-serif;color:var(--amber);font-weight:700}
+  td:first-child{font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--cyan);white-space:nowrap}
+  tr:nth-child(even) td{background:rgba(255,255,255,.012)}
+
+  /* ---- demos ---- */
+  .demo{border:2px solid var(--border);background:var(--panel);padding:18px;margin:0 0 20px;
+    border-radius:4px;box-shadow:4px 4px 0 rgba(0,0,0,.3)}
+  .demo .dh{font-family:"Pixelify Sans",sans-serif;color:var(--amber);font-size:15px;margin-bottom:4px}
+  .demo .dd{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .demo canvas{display:block;width:100%;background:var(--code-bg);border:1px solid var(--border);
+    border-radius:3px;image-rendering:pixelated}
+  .ctrls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px;
+    font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--muted)}
+  .ctrls label{display:flex;align-items:center;gap:8px}
+  .ctrls input[type=range]{accent-color:var(--pink);width:140px}
+  .ctrls .val{color:var(--cyan);min-width:60px;display:inline-block}
+  .ctrls button{font-family:"JetBrains Mono",monospace;font-size:12px;background:var(--panel2);
+    color:var(--ink);border:1px solid var(--border);padding:6px 12px;border-radius:3px;cursor:pointer}
+  .ctrls button:hover{border-color:var(--pink);color:var(--pink)}
+  .ctrls button.on{border-color:var(--cyan);color:var(--cyan);background:var(--code-bg)}
+  .ctrls .sep{opacity:.45}
+  .readout{display:flex;gap:22px;flex-wrap:wrap;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:12.5px}
+  .readout b{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:400}
+  .readout span{color:var(--cyan);font-size:17px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--muted)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .legend i{width:13px;height:13px;border-radius:2px;display:inline-block;border:1px solid rgba(255,255,255,.15)}
+
+  /* ---- tldr ---- */
+  .tldr{border:2px dashed var(--pink);background:var(--panel);padding:24px 28px;border-radius:4px}
+  .tldr h3{margin-top:0;color:var(--pink)}
+  .tldr ul{list-style:none;margin-left:0}
+  .tldr li{padding-left:26px;position:relative}
+  .tldr li::before{content:"\25B8";position:absolute;left:0;color:var(--amber)}
+
+  footer{margin-top:60px;padding-top:24px;border-top:2px solid var(--border);
+    color:var(--muted);font-size:12.5px;font-family:"JetBrains Mono",monospace;text-align:center}
+
+  /* ---- responsive ---- */
+  .menu-btn{display:none}
+  @media(max-width:920px){
+    .sidebar{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:transform .2s;
+      box-shadow:8px 0 24px rgba(0,0,0,.5)}
+    .sidebar.open{transform:translateX(0)}
+    .main{padding:64px 22px 100px}
+    .hero{padding:26px 22px} .hero h1{font-size:30px}
+    .sec-head h2{font-size:21px} .sec-head .idx{font-size:20px}
+    .menu-btn{display:flex;position:fixed;top:14px;left:14px;z-index:50;
+      font-family:"Pixelify Sans",sans-serif;background:var(--pink);color:#10101a;border:none;
+      padding:8px 14px;border-radius:4px;cursor:pointer;font-size:15px;box-shadow:3px 3px 0 rgba(0,0,0,.4)}
+  }
+</style>
+</head>
+<body>
+<!-- olvasási haladásjelző (progress bar) -->
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,#56d4c4,#ec6a9c);
+  box-shadow:0 0 10px rgba(86,212,196,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-btn" id="menuBtn">&#9776; menü</button>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <h2>BEVY · BIOM-ÁTMENET</h2>
+    <div class="sub">// variáció + lágy határ</div>
+    <nav class="nav" id="nav">
+      <a href="#intro"><span class="num">00</span>A probléma</a>
+      <a href="#strip"><span class="num">01</span>A variánssor</a>
+      <a href="#stamp"><span class="num">02</span>A stamp megtörése</a>
+      <a href="#hard"><span class="num">03</span>A kemény küszöb csapdája</a>
+      <a href="#noisy"><span class="num">04</span>Zajos küszöb</a>
+      <a href="#dither"><span class="num">05</span>Dithering</a>
+      <a href="#border"><span class="num">06</span>Átmenet-csempék</a>
+      <a href="#recipe"><span class="num">07</span>A teljes recept</a>
+      <a href="#bevy"><span class="num">08</span>Bevy integráció</a>
+      <a href="#tips"><span class="num">09</span>Tippek & buktatók</a>
+      <a href="#tldr"><span class="num">10</span>TL;DR</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="hero">
+      <div class="eyebrow">Bevy 0.18 · Rust · csempe-megjelenítés</div>
+      <h1>Biom-átmenetek — <span class="hl">variáció</span><br>és <span class="hl">lágy határok</span></h1>
+      <p>Van négyféle vízcsempéd (sekélytől mélyig), és ha csak úgy leteszed őket, a vízfelszín vagy <strong>homogén tapétaminta</strong> lesz, vagy <strong>éles, gépi sávok</strong> törik meg. Ez a lecke arról szól, hogyan rendezz egy biom <em>variánssorát</em> élő felszínné — ugyanazokkal a trükkökkel a <strong>vízre</strong>, a <strong>mezőre</strong> és a <strong>sivatagra</strong>. A <a href="bevy-biomok-tutorial.html">biomok-lecke</a> azt mondta meg, <em>hol</em> van melyik biom; ez azt, hogy egy biomon <em>belül</em> hogyan néz ki szépen. Hat interaktív demóval, valódi csempéken.</p>
+      <div class="chips">
+        <span class="chip">variánssor (atlasz)</span>
+        <span class="chip">hash-variáció</span>
+        <span class="chip">tükrözés = ingyen 4×</span>
+        <span class="chip">zajos küszöb</span>
+        <span class="chip">dithering</span>
+        <span class="chip">átmenet-csempék</span>
+      </div>
+    </header>
+
+    <!-- 00 -->
+    <section id="intro">
+      <div class="sec-head"><span class="idx">00</span><h2>A probléma: a homogén folt és az éles sáv</h2></div>
+      <p>Tegyük le egy nagy területre ugyanazt a vízcsempét. Két dolog romlik el azonnal — és érdemes őket <strong>külön</strong> problémaként kezelni, mert <strong>külön</strong> a megoldásuk:</p>
+      <ul>
+        <li><strong>(A) Homogenitás.</strong> Egyetlen csempe sokszor lerakva <em>tapétamintát</em> ad: a szem kiszúrja az ismétlődő rácsot, a textúra élettelenül „pittyeg". Minél nagyobb a folt, annál bántóbb.</li>
+        <li><strong>(B) Éles sáv.</strong> Ha több szinted van (sekély → mély víz), és egy <em>kemény küszöbbel</em> váltasz köztük, mesterséges, vonalzóval húzott sávhatárt kapsz. A természetben nincs ilyen éles vágás.</li>
+      </ul>
+      <p>A jó hír: mindkettő néhány olcsó technikával eltüntethető, és <strong>ugyanaz a recept</strong> működik bármelyik biomra. Három valódi csempesoron mutatjuk meg — ezek végig velünk lesznek:</p>
+      <div class="demo">
+        <div class="dh">&#9654; A három biom — naív vs. csiszolt</div>
+        <div class="dd">Ugyanaz a három csempesor (víz · mező · sivatag), két módon. <strong>Bal fél:</strong> kemény küszöb, nulla variáció — látszik a sávozás és a rács. <strong>Jobb fél:</strong> zajos küszöb + dithering + per-cella tükrözés. Ugyanaz az adat, ugyanazok a csempék — csak a <em>lerakás</em> módja más. A lecke ezt a jobb oldalt építi fel lépésről lépésre.</div>
+        <canvas id="heroCanvas" width="760" height="450"></canvas>
+      </div>
+      <div class="box note"><span class="lbl">Hol vagyunk a sorozatban?</span><p>Ez a <a href="bevy-biomok-tutorial.html">biomok-lecke</a> <strong>mikro-párja</strong>. Ott a kérdés makró volt: <em>melyik</em> biom kerül a térkép <em>melyik</em> régiójába (klíma-mátrix, nehézség, biomok közti határ). Itt egy biomon <em>belül</em> maradunk: hogyan lesz a biom néhány csempéjéből élő felszín. A biomok <em>közti</em> átmenetekről (homokpart a víz mellé) a biomok-lecke <a href="bevy-biomok-tutorial.html#edges">09. szakasza</a> szól.</p></div>
+    </section>
+
+    <!-- 01 -->
+    <section id="strip">
+      <div class="sec-head"><span class="idx">01</span><h2>A nyersanyag: a variánssor</h2></div>
+      <p>A kulcs-felismerés: egy biom felszíne nem <em>egy</em> csempe, hanem egy <strong>rendezett csempesor</strong> — egy variánssor egy tengely mentén. A három példánk:</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Biom</th><th>Szintek</th><th>A tengely</th><th>Jelleg</th></tr></thead>
+        <tbody>
+          <tr><td>víz</td><td>4</td><td>mélység (sekély → mély)</td><td>tiszta gradiens</td></tr>
+          <tr><td>mező</td><td>3</td><td>fűtípus (dús · száraz · tarackos)</td><td>egyenrangú variánsok</td></tr>
+          <tr><td>sivatag</td><td>4</td><td>érdesség (sima homok → repedezett föld)</td><td>tiszta gradiens</td></tr>
+        </tbody>
+      </table></div>
+      <p>Ez a különbség dönti el, melyik trükk kell:</p>
+      <ul>
+        <li><strong>Gradiens-sor</strong> (víz, sivatag): a szinteknek van <em>sorrendje</em>, és a köztük lévő <strong>átmenet</strong> a probléma (B). Erre való a zajos küszöb és a dithering.</li>
+        <li><strong>Egyenrangú variánsok</strong> (mező): nincs sorrend, csak „ugyanannak más arcai". Ezekkel a <strong>homogenitást</strong> (A) töröd meg — szórással.</li>
+      </ul>
+      <p>A gyakorlatban a kettő keveredik, és <strong>mindkét</strong> trükket egyszerre használod. Először nézzük, hogyan néz ki a három nyers sor — minden cella egy önállóan is lerakható csempe:</p>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: a három variánssor felszeletelve</div>
+        <div class="dd">A három valódi atlasz-kép, szintekre bontva. A számozás a csempe-indexe az atlaszban (0-tól). Pont így olvasná be a Bevy is egyetlen képből — lásd a <code class="inl">TextureAtlasLayout</code>-ot lent.</div>
+        <canvas id="stripCanvas" width="760" height="300"></canvas>
+      </div>
+
+      <p>Bevyben mindez <strong>egyetlen atlasz-kép</strong> + egy rács-leírás. A <code class="inl">from_grid</code> felszeleteli a sort, az <code class="inl">index</code> pedig kiválasztja a szintet:</p>
+      <pre><code class="rust">use bevy::prelude::*;
+
+const TILE: f32 = 32.0;
+
+/// Egy biom felszíne egy RENDEZETT csempesor egyetlen atlasz-képben.
+/// A víz 4 szintje (sekély→mély) vízszintesen egymás mellett: viz.png.
+#[derive(Resource)]
+struct WaterAtlas {
+    image:  Handle&lt;Image&gt;,
+    layout: Handle&lt;TextureAtlasLayout&gt;,
+}
+
+fn load_water(
+    asset_server: Res&lt;AssetServer&gt;,
+    mut layouts: ResMut&lt;Assets&lt;TextureAtlasLayout&gt;&gt;,
+    mut commands: Commands,
+) {
+    let image = asset_server.load("transitions/viz.png");
+    // 4 csempe egy sorban, egyenként 96×98 px. Nincs padding/offset.
+    let layout = TextureAtlasLayout::from_grid(UVec2::new(96, 98), 4, 1, None, None);
+    commands.insert_resource(WaterAtlas { image, layout: layouts.add(layout) });
+}</code></pre>
+      <div class="box tip"><span class="lbl">Egy kép, sok csempe</span><p>A variánssort tartsd <strong>egyetlen képben</strong> (sprite-atlasz), ne külön fájlokban: egy textúra-kötés, egy <code class="inl">Handle</code>, GPU-barát. A csempék közt csak az <code class="inl">index</code> vált. Animált vízhez a sornak <em>több</em> sora is lehet (képkockánként egy sor) — erről a 08. szakasz szól.</p></div>
+    </section>
+
+    <!-- 02 -->
+    <section id="stamp">
+      <div class="sec-head"><span class="idx">02</span><h2>A stamp megtörése — variáció (A)</h2></div>
+      <p>Kezdjük a homogenitással. A baj forrása, hogy ugyanazt a csempét ugyanúgy rakjuk le minden cellába. Három, egyre erősebb eszköz — és a legjobb hír, hogy az első <strong>ingyen van</strong>:</p>
+      <h3>1 · Tükrözés — ingyen 4× variáns</h3>
+      <p>Egyetlen csempéből négy lesz, ha vízszintesen és/vagy függőlegesen tükrözöd. Nem kell több rajz, csak két logikai flag a <code class="inl">Sprite</code>-on. Hogy melyik cella melyik tükrözést kapja, azt a <strong>koordináta hash-éből</strong> döntöd — így determinisztikus és stabil.</p>
+      <pre><code class="rust">/// Determinisztikus per-cella hash a koordinátából (mulberry-szerű).
+/// Stabil: ugyanaz a cella minden képkockán és minden indításkor
+/// UGYANAZT adja — nincs villogás. SOHA ne rand()-ot használj a
+/// megjelenítéshez, csak ilyen koordináta-hasht!
+fn hash2(x: i32, y: i32) -&gt; u32 {
+    let mut h = (x as u32).wrapping_mul(374_761_393)
+              ^ (y as u32).wrapping_mul(668_265_263);
+    h = (h ^ (h &gt;&gt; 13)).wrapping_mul(1_274_126_177);
+    h ^ (h &gt;&gt; 16)
+}
+
+/// Ingyen 4 variáns: a tükrözés-párt a cella hash-éből választjuk.
+fn tile_flip(x: i32, y: i32) -&gt; (bool, bool) {
+    let h = hash2(x, y);
+    (h &amp; 1 == 1, h &amp; 2 == 2)   // (flip_x, flip_y)
+}</code></pre>
+      <h3>2 · Több variáns — de klaszteresen szórva</h3>
+      <p>Ha tényleg van több egyenrangú csempéd (a mező 3 fűtípusa), szórd be őket. <strong>Buktató:</strong> ha minden cellának <em>fehérzaj</em>-véletlennel adsz variánst, „só-bors" konfetti lesz belőle — épp olyan zajos és élettelen, mint a homogén minta, csak másképp. A trükk, hogy a variánst egy <strong>sima zajmezőből</strong> olvasd ki: így a variánsok <em>foltokba</em> rendeződnek (egy folt száraz fű, egy folt tarackos), ahogy a természetben.</p>
+      <pre><code class="rust">/// A variánst SIMA zajból válaszd, ne fehérzajból — így foltokba
+/// rendeződik, nem lesz konfetti. (A value-noise a proc-gen leckéből.)
+fn grass_variant(x: i32, y: i32, n: &amp;Perlin) -&gt; usize {
+    let v = n.get([x as f64 * 0.18, y as f64 * 0.18]) * 0.5 + 0.5;
+    if v &lt; 0.62 { 0 } else if v &lt; 0.84 { 2 } else { 1 } // dús / tarackos-folt / száraz-folt
+}</code></pre>
+      <h3>3 · Mikro-árnyalás</h3>
+      <p>A harmadik réteg egy alig látható, cellánkénti szín-elhúzás (a hash-ből pici világos/sötét shift a <code class="inl">Sprite.color</code> tintjén). Önmagában gyenge, de a tükrözés mellé téve teljesen feloldja a rácsérzetet. A demóban a tükrözés a fő szereplő:</p>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: mező — homogén → tükrözött → szórt variánsok</div>
+        <div class="dd">Ugyanaz a fűcsempe-sor, három lerakási móddal. <strong>Homogén:</strong> egyetlen csempe — látszik a rács. <strong>Tükrözés:</strong> ugyanaz az egy csempe, de cellánként hash-tükrözve — a rács feloldódik, ingyen. <strong>Variánsok:</strong> mind a 3 fűtípus, zajból klaszteresen szórva. Kapcsold a <strong>fehérzaj</strong>-ra, és lásd, miért rossz a konfetti.</div>
+        <canvas id="varCanvas" width="760" height="360"></canvas>
+        <div class="ctrls">
+          <button id="varHomog" class="on">homogén (1 csempe)</button>
+          <button id="varFlip">+ tükrözés 4×</button>
+          <button id="varVariant">+ variánsok</button>
+          <span class="sep">|</span>
+          <button id="varCluster" class="on">klaszteres</button>
+          <button id="varWhite">fehérzaj</button>
+        </div>
+      </div>
+      <div class="box note"><span class="lbl">A dual-grid tipp visszaköszön</span><p>A „rajzolj a csupa-fű csempéből 3–4 változatot, és a koordináta hash-éből sorsolj" pont a <a href="bevy-dual-grid-tutorial.html">dual-grid lecke</a> variáció-tippje — itt csak kibontjuk. A lényeg ugyanaz: a megjelenítés <strong>determinisztikus</strong> a koordinátából, nem futásidejű <code class="inl">rand()</code>-ból, különben villogna.</p></div>
+    </section>
+
+    <!-- 03 -->
+    <section id="hard">
+      <div class="sec-head"><span class="idx">03</span><h2>A kemény küszöb csapdája — átmenet (B)</h2></div>
+      <p>Most a másik probléma: a szintek közti éles sáv. Tegyük fel, hogy van egy <strong>mélység-meződ</strong> — egy folytonos <code class="inl">0..1</code> érték minden cellára (a partnál 0, a tó közepén 1). Ez jöhet zajból, a parttól mért távolságból, bármiből. A naív lépés: vágd <em>kemény küszöbökkel</em> a 4 szintre.</p>
+      <pre><code class="rust">const LEVELS: usize = 4;   // a víz 4 mélységszintje
+
+/// KEMÉNY küszöb: a folytonos mélységből diszkrét szint.
+/// Egyszerű — és pont ezért látszik a vonalzóval húzott sávhatár.
+fn level_hard(depth: f32) -&gt; usize {
+    ((depth * LEVELS as f32) as usize).min(LEVELS - 1)
+}</code></pre>
+      <p>A baj: a sávhatár ott van, ahol a mélység-mező átlép egy küszöböt — és ha a mező sima, ez a határ egy <strong>sima, folytonos vonal</strong>. Pont az a gépies érzet, amit kerülni akarunk. És fontos: diszkrét csempékkel a szem <em>nem</em> tud „köztes színt" — nincs interpoláció. A simaságot tehát nem a színek keverésével érjük el (azt nem tudjuk), hanem a <strong>határ alakjának</strong> és a két szint <strong>összekeverésének</strong> a megtörésével. Erről szól a következő két szakasz.</p>
+      <div class="box warn"><span class="lbl">Diszkrét &ne; folytonos</span><p>Ne keverd össze a csempe-átmenetet a szín-gradienssel. Egy 4 szintű vízben mindig csak 4 szín lesz. A cél nem új színek kitalálása, hanem hogy a 4 meglévőből a <strong>szem</strong> folytonosságot olvasson ki — zajos határral (04) vagy ditheringgel (05).</p></div>
+    </section>
+
+    <!-- 04 -->
+    <section id="noisy">
+      <div class="sec-head"><span class="idx">04</span><h2>Zajos küszöb — organikus partvonal</h2></div>
+      <p>A leggyorsabb nyerő: ne a <em>nyers</em> mélységgel küszöbölj, hanem adj hozzá egy kevés zajt, <strong>mielőtt</strong> sávra vágod. A sávhatár így nem sima vonal lesz, hanem hullámzó, foltos, organikus partvonal — egyetlen extra zajréteggel. A sávok <em>maga</em> tömör marad (minden cella pontosan egy szint), csak a <strong>peremük</strong> törik meg.</p>
+      <pre><code class="rust">use noise::{NoiseFn, Perlin};
+
+/// ZAJOS küszöb: told meg a mélységet egy kevés zajjal a vágás ELŐTT.
+/// `0.12` az amplitúdó — mennyire „rágja szét" a határt. A skála (0.15)
+/// a foltok mérete. Determinisztikus: ugyanaz a zaj ugyanazt a partot adja.
+fn level_noisy(depth: f32, x: i32, y: i32, n: &amp;Perlin) -&gt; usize {
+    let jitter = n.get([x as f64 * 0.15, y as f64 * 0.15]) as f32 * 0.12;
+    level_hard(depth + jitter)
+}</code></pre>
+      <div class="box tip"><span class="lbl">Ugyanaz, mint a domain warping — egy szinttel lejjebb</span><p>Ez pontosan a <a href="bevy-biomok-tutorial.html#borders">biom-határok domain warpingja</a>, csak most nem két biom közt, hanem egy biom <em>mélységszintjei</em> közt. A makró-trükk mikróban is működik: a sima küszöböt egy zajréteg organikussá töri. A különbség csak a skála.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: víz — kemény vs. zajos küszöb</div>
+        <div class="dd">Bal→jobb mélység-gradiens, 4 vízszintre vágva. <strong>Zaj = 0</strong>: tökéletes függőleges sávok (a kemény küszöb). Told fel a <strong>zaj</strong>-t — a sávhatár öblökké, szigetekké, foltokká hullámzik, de minden cella továbbra is pontosan egy vízszint. A <strong>tükrözés</strong> a 02-ből: a sávokon belüli rácsot is feloldja.</div>
+        <canvas id="noisyCanvas" width="760" height="380"></canvas>
+        <div class="ctrls">
+          <label>Zaj (amplitúdó):
+            <input type="range" id="noisyAmt" min="0" max="60" value="30">
+            <span class="val" id="noisyAmtVal">0.30</span>
+          </label>
+          <button id="noisyFlip" class="on">tükrözés</button>
+          <button id="noisyGen">&#8635; új zaj</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 -->
+    <section id="dither">
+      <div class="sec-head"><span class="idx">05</span><h2>Dithering — a pixel-art klasszikus</h2></div>
+      <p>A másik megközelítés a két szint <strong>összekeverése</strong> a határ közelében. Ahelyett, hogy egy cella vagy az alsó, vagy a felső szint, a határsávban <em>váltakozva</em> rakjuk le a kettőt — annál több felsőt, minél közelebb vagyunk a felső szinthez. A szem ezt fokozatos átmenetnek látja, pont mint a régi 8/16 bites játékokban.</p>
+      <p>A döntést egy <strong>Bayer-mátrix</strong> hozza: egy kis, ismétlődő küszöbtábla. Minden cellára kiolvasol egy küszöböt a pozíciójából, és ahhoz hasonlítod a két szint közti arányt. Ez a <strong>rendezett</strong> (ordered) dithering — szabályos, szőtt mintát ad.</p>
+      <pre><code class="rust">/// 4×4 Bayer-mátrix: a rendezett dithering küszöbtáblája (0..15).
+const BAYER4: [[u8; 4]; 4] = [
+    [ 0,  8,  2, 10],
+    [12,  4, 14,  6],
+    [ 3, 11,  1,  9],
+    [15,  7, 13,  5],
+];
+
+/// A két szomszédos szint KÖZÖTT a cellát a Bayer-küszöb dönti el.
+/// `cont` a folytonos szint (0..LEVELS-1); a törtrésze a két szint
+/// közti arány, ezt vetjük össze a cella Bayer-küszöbével.
+fn level_dither(depth: f32, x: i32, y: i32) -&gt; usize {
+    let cont = depth * (LEVELS - 1) as f32;
+    let base = cont.floor();
+    let frac = cont - base;                       // 0..1 a két szint közt
+    let thr  = (BAYER4[(y &amp; 3) as usize][(x &amp; 3) as usize] as f32 + 0.5) / 16.0;
+    let k = base as usize + if frac &gt; thr { 1 } else { 0 };
+    k.min(LEVELS - 1)
+}</code></pre>
+      <p>Ha a Bayer-küszöböt <strong>hash-re</strong> cseréled (<code class="inl">hash2(x,y)</code>), <em>random</em> dithering lesz belőle: szemcsésebb, kevésbé szabályos. A demóban összevetheted a kettőt.</p>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: sivatag — dithering az átmeneti zónában</div>
+        <div class="dd">A sivatag 4 szintje (sima homok → repedezett föld), bal→jobb gradiensben. A <strong>zóna szélessége</strong> szabja, milyen széles sávban keveredik a két szint: 0-nál kemény vágás, feltolva fokozatos dither-átmenet. Válts <strong>rendezett</strong> (Bayer, szőtt minta) és <strong>random</strong> (hash, szemcsés) közt.</div>
+        <canvas id="ditherCanvas" width="760" height="380"></canvas>
+        <div class="ctrls">
+          <label>Zóna szélessége:
+            <input type="range" id="ditherW" min="0" max="100" value="60">
+            <span class="val" id="ditherWVal">0.60</span>
+          </label>
+          <button id="ditherOrdered" class="on">rendezett (Bayer)</button>
+          <button id="ditherRandom">random (hash)</button>
+        </div>
+      </div>
+      <div class="box note"><span class="lbl">Mélyebb dithering</span><p>A Bayer-minták, az amount/invert/center paraméterek és a paletta-indexelés a <a href="pixelover-dithering-tutorial.html">PixelOver dithering leckében</a> külön téma — ott eszköz-oldalról, festett textúrán. Itt a generatív, futásidejű oldalát látod: a dithert nem a textúrába rajzoljuk, hanem a <em>csempe-választással</em> állítjuk elő.</p></div>
+    </section>
+
+    <!-- 06 -->
+    <section id="border">
+      <div class="sec-head"><span class="idx">06</span><h2>Átmenet-csempék — ha tényleg sima él kell</h2></div>
+      <p>A zajos küszöb és a dithering a <em>meglévő</em> csempékből dolgozik — nem kell hozzá új rajz. Ha viszont igazi, festett <strong>perem</strong> kell (a sekély víz lágyan elmosódó éle a mély felé, homokfodor a part mentén), akkor <strong>átmenet-csempéket</strong> rajzolsz a szintek közé, és <strong>autotilinggel</strong> választod ki őket a szomszédság alapján.</p>
+      <p>Ez pontosan ugyanaz a gépezet, mint a térkép-leckében a fal/padló autotiling — csak a „terep" most a <em>mélységszint</em>. A maszkot a szomszéd cellák szintjéből számolod, és a maszk indexel egy perem-csempére:</p>
+      <pre><code class="rust">/// 4-bites szomszéd-maszk: hány fő-irányú szomszéd MÉLYEBB, mint én?
+/// A maszk indexel egy átmenet-csempére (perem a mélyebb szint felé).
+fn deeper_mask(level: &amp;LevelMap, x: i32, y: i32) -&gt; u8 {
+    let me = level.get(x, y);
+    let deeper = |nx, ny| (level.get(nx, ny) &gt; me) as u8;
+    (deeper(x, y - 1) &lt;&lt; 0) | (deeper(x + 1, y) &lt;&lt; 1)
+  | (deeper(x, y + 1) &lt;&lt; 2) | (deeper(x - 1, y) &lt;&lt; 3)
+}</code></pre>
+      <div class="box note"><span class="lbl">Ne építsd újra — kösd be</span><p>A maszk → csempe-index leképezés teljes története (8-bites sarkok, 47/256 redukció, dual-grid) a <a href="csempe-bitmaszkolas.html">csempe-bitmaszkolás</a> és a <a href="bevy-dual-grid-tutorial.html">dual-grid</a> (+ <a href="bevy-dual-grid-advanced.html">PRO</a>) leckékben van. A dual-grid külön szépsége, hogy mindössze 16 csempével ad sima átmenetet — ideális víz/part-peremhez. A biomok <em>közti</em> (nem biomon belüli) szegélyekre ugyanez: <a href="bevy-biomok-tutorial.html#edges">biomok 09</a>.</p></div>
+      <div class="box tip"><span class="lbl">Melyiket válaszd?</span><p><strong>Zajos küszöb</strong>: organikus partvonal, nulla új rajz — ez a 80%-os megoldás. <strong>Dithering</strong>: pixel-art esztétika, nulla új rajz. <strong>Átmenet-csempék</strong>: a legszebb, festett perem, de minden szintpárhoz rajzolni kell. A három <em>rétegezhető</em>: dithered átmenet zajos határon, festett peremmel a legfontosabb szintváltásnál.</p></div>
+    </section>
+
+    <!-- 07 -->
+    <section id="recipe">
+      <div class="sec-head"><span class="idx">07</span><h2>A teljes recept — minden együtt</h2></div>
+      <p>Rakjuk össze. Egy élő biom-felszín három, egymásra rétegzett döntésből áll, cellánként:</p>
+      <ol>
+        <li><strong>Szint-mező</strong> (mélység / nedvesség / érdesség) → folytonos <code class="inl">0..1</code> érték.</li>
+        <li><strong>Határ-kezelés</strong>: a mezőből szint — zajos küszöbbel (organikus) és/vagy ditheringgel (kevert). Ez old (B).</li>
+        <li><strong>Variáció</strong>: a kész szinten belül tükrözés + (ha van) variáns-szórás. Ez old (A).</li>
+      </ol>
+      <p>Az alábbi játszótéren bármelyik biomra rákapcsolhatod a rétegeket egyenként — érezd, melyik mit ad hozzá:</p>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: a teljes recept — játszótér</div>
+        <div class="dd">Válassz biomot, majd kapcsold be a rétegeket. <strong>Minden ki</strong> = a kemény, homogén kiindulás (a 00-ás bal fél). <strong>Minden be</strong> = a csiszolt felszín (a jobb fél). A különbség pont a lecke tartalma.</div>
+        <canvas id="playCanvas" width="760" height="420"></canvas>
+        <div class="ctrls">
+          <button id="playViz" class="on">víz</button>
+          <button id="playMezo">mező</button>
+          <button id="playSivatag">sivatag</button>
+          <span class="sep">|</span>
+          <button id="playNoisy">zajos küszöb</button>
+          <button id="playDither">dithering</button>
+          <button id="playFlip">tükrözés</button>
+        </div>
+      </div>
+      <div class="box tip"><span class="lbl">Sorrend számít</span><p>Először a határ (szint-választás), aztán a variáció (tükrözés a kész szinten). A tükrözést SOHA ne a szint-választás elé tedd — a tükrözés a megjelenítés, nem a logika. Ugyanaz az „előbb adat, aztán kép" elv, mint a <a href="bevy-biomok-tutorial.html#bevy">biomok</a> és a <a href="bevy-tile-editor-tutorial.html">tile-editor</a> leckékben.</p></div>
+    </section>
+
+    <!-- 08 -->
+    <section id="bevy">
+      <div class="sec-head"><span class="idx">08</span><h2>Bevy integráció</h2></div>
+      <p>A megjelenítő rendszer a szint-mezőből kiszámítja a csempe-indexet (+ a tükrözést), és beírja a <code class="inl">Sprite</code> atlaszába. A logika (mélység) és a megjelenítés (melyik csempe) külön — ezért tesztelhető és cserélhető a határ-stratégia.</p>
+      <pre><code class="rust">const W: i32 = 64;
+const H: i32 = 48;
+
+#[derive(Component)] struct Cell { x: i32, y: i32 }
+#[derive(Resource)] struct DepthField { cells: Vec&lt;f32&gt; }      // a szint-mező 0..1
+#[derive(Resource)] struct SurfaceNoise(Perlin);               // a határ-zaj
+
+fn spawn_surface(
+    mut commands: Commands,
+    atlas: Res&lt;WaterAtlas&gt;,
+    field: Res&lt;DepthField&gt;,
+    noise: Res&lt;SurfaceNoise&gt;,
+) {
+    for y in 0..H { for x in 0..W {
+        let depth = field.cells[(y * W + x) as usize];
+        let index = level_noisy(depth, x, y, &amp;noise.0);  // (B) zajos sávhatár
+        let (fx, fy) = tile_flip(x, y);                  // (A) ingyen variáció
+        commands.spawn((
+            Sprite {
+                image: atlas.image.clone(),
+                texture_atlas: Some(TextureAtlas { layout: atlas.layout.clone(), index }),
+                flip_x: fx,
+                flip_y: fy,
+                custom_size: Some(Vec2::splat(TILE)),
+                ..default()
+            },
+            Transform::from_xyz(x as f32 * TILE, y as f32 * TILE, 0.0),
+            Cell { x, y },
+        ));
+    }}
+}</code></pre>
+      <p>Ha a szint futásidőben változik (apad a víz, terjed a homok), nem kell újra-spawnolni — csak az <code class="inl">index</code>-et írod át a meglévő csempéken:</p>
+      <pre><code class="rust">/// Futásidejű szint-frissítés: csak az atlasz-indexet írjuk át.
+fn retide(
+    mut tiles: Query&lt;(&amp;Cell, &amp;mut Sprite)&gt;,
+    field: Res&lt;DepthField&gt;,
+    noise: Res&lt;SurfaceNoise&gt;,
+) {
+    for (cell, mut sprite) in &amp;mut tiles {
+        if let Some(atlas) = &amp;mut sprite.texture_atlas {
+            let d = field.cells[(cell.y * W + cell.x) as usize];
+            atlas.index = level_noisy(d, cell.x, cell.y, &amp;noise.0);
+        }
+    }
+}</code></pre>
+      <div class="box tip"><span class="lbl">Animált víz</span><p>A csillámló vízhez az atlaszba <em>több sort</em> teszel: minden sor egy képkocka, soronként ugyanaz a 4 szint. Egy közös óra (<code class="inl">time.elapsed_secs()</code>) lépteti a sor-eltolást — <code class="inl">index = frame * LEVELS + level</code> —, így <strong>egyetlen</strong> <code class="inl">Timer</code> animál minden vízcsempét, nem cellánként egy. Ez pontosan a <a href="bevy-animaciok-tutorial.html">animációk-lecke</a> „egy közös óra a csempéknek" mintája; a dual-grid videó is így csinálta a 11 képkockás partvonalát.</p></div>
+      <div class="box warn"><span class="lbl">Skálázás</span><p>Cellánként egy entitás 64×48-ig kiváló tanulni, de egy nagy nyílt világhoz <code class="inl">bevy_ecs_tilemap</code> (chunkolt mesh) kell — ott a <code class="inl">TileTextureIndex</code>-et írod a <code class="inl">level_*</code> alapján, a <code class="inl">flip</code>-et a <code class="inl">TileFlip</code> komponenssel. A szint-választó logika változatlan; csak a megjelenítő réteg cserélődik. Telepítés előtt nézd meg, melyik Bevy-verziót támogatja a crate.</p></div>
+    </section>
+
+    <!-- 09 -->
+    <section id="tips">
+      <div class="sec-head"><span class="idx">09</span><h2>Gyakorlati tippek & buktatók</h2></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>Válaszd szét a <strong>két problémát</strong>: a homogenitást (A) variációval (tükrözés, szórt variánsok), az éles sávot (B) határkezeléssel (zajos küszöb, dither). Más a forrásuk, más a gyógyír.</p></div>
+      <div class="box warn"><span class="lbl">Ne</span><p>Ne <code class="inl">rand()</code>-ozz a megjelenítésben. A variánst, a tükrözést, a dithert mind a <strong>koordináta hash-éből</strong> vedd — különben minden képkockán újrasorsol, és villog a felszín.</p></div>
+      <div class="box warn"><span class="lbl">Ne</span><p>Ne szórj variánst <strong>fehérzajjal</strong> — só-bors konfetti lesz. Sima zajmezőből szórj, hogy a variánsok foltokba rendeződjenek.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>A tükrözés <strong>ingyen 4×</strong> variáns egyetlen csempéből — ezt mindig kapcsold be, mielőtt új csempéket rajzolnál. A legjobb ár/érték arányú trükk.</p></div>
+      <div class="box warn"><span class="lbl">Vigyázz</span><p>A tükrözés a <strong>szimmetrikus / irány nélküli</strong> textúráknál (víz, fű, homok) tökéletes; irányfüggő csempénél (folyásirány, vetett árnyék, betű) elronthatja. Ott a variáns-szórás vagy az átmenet-csempe a jó eszköz.</p></div>
+      <div class="box note"><span class="lbl">Diszkrét marad diszkrét</span><p>Egy N szintű biom mindig N színt mutat — a csempék közt nincs interpoláció. A „simaság" illúzió: a határ alakja (zajos küszöb) és a két szint keverése (dither) csinálja. Ha tényleg festett, lágy él kell, az átmenet-csempe (06) a válasz.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>A szint-mezőt tartsd <strong>külön</strong> a megjelenítéstől (egy <code class="inl">Vec&lt;f32&gt;</code> vagy zaj-függvény), és a <code class="inl">level_*</code> egy tiszta függvény legyen. Így a határ-stratégiát (kemény / zajos / dither) cserélheted a megjelenítő rendszer átírása nélkül — és tesztelhető.</p></div>
+    </section>
+
+    <!-- 10 -->
+    <section id="tldr">
+      <div class="sec-head"><span class="idx">10</span><h2>TL;DR</h2></div>
+      <div class="tldr">
+        <h3>A lényeg egy kártyán</h3>
+        <ul>
+          <li><strong>Két külön probléma:</strong> (A) homogén tapétaminta egyetlen csempéből, (B) éles sávhatár a szintek közt. Külön a gyógyír.</li>
+          <li><strong>A nyersanyag a variánssor:</strong> egy biom felszíne rendezett csempesor egy atlaszban (<code class="inl">from_grid</code> + <code class="inl">index</code>) — gradiens (víz, sivatag) vagy egyenrangú variánsok (mező).</li>
+          <li><strong>(A) Tükrözés = ingyen 4×:</strong> egy csempéből 4, a koordináta hash-éből választott <code class="inl">flip_x/flip_y</code>-nal. A legolcsóbb de-homogenizáló.</li>
+          <li><strong>(A) Variáns-szórás:</strong> több egyenrangú csempét <em>sima</em> zajból szórj (foltok), ne fehérzajból (konfetti).</li>
+          <li><strong>(B) A kemény küszöb csapdája:</strong> sima mező + kemény vágás = vonalzós sávhatár.</li>
+          <li><strong>(B) Zajos küszöb:</strong> told meg a mezőt zajjal a vágás ELŐTT → organikus partvonal. Ez a domain warping egy szinttel lejjebb.</li>
+          <li><strong>(B) Dithering:</strong> a két szintet a határ körül Bayer-mátrixszal (rendezett) vagy hash-sel (random) keverd → a szem folytonosnak látja.</li>
+          <li><strong>(B) Átmenet-csempék:</strong> festett perem + autotiling a szomszéd-szint maszkjából, ha tényleg sima él kell. Részletek: <a href="csempe-bitmaszkolas.html">bitmaszkolás</a>, <a href="bevy-dual-grid-tutorial.html">dual-grid</a>.</li>
+          <li><strong>Determinizmus:</strong> minden megjelenítési döntés a koordináta hash-éből / zajból, SOHA futásidejű <code class="inl">rand()</code>-ból — különben villog.</li>
+          <li><strong>Bevy:</strong> a <code class="inl">level_*</code> tiszta függvény a mezőből indexet ad; a rendszer az atlasz <code class="inl">index</code>-ét + a <code class="inl">flip</code>-et írja. Nagy világ: <code class="inl">bevy_ecs_tilemap</code>. Animált víz: közös óra + sor-eltolás.</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer>
+      Bevy 0.18 · Biom-átmenetek: variáció + lágy határok · egyetlen fájlos HTML · a csempék a transitions/ mappából töltődnek
+    </footer>
+  </main>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- Rust szintaxiskiemelő ---------- */
+function highlightRust(src){
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  var token = /(\/\/[^\n]*)|("(?:[^"\\]|\\.)*")|(\b(?:fn|let|mut|for|in|if|else|match|struct|enum|impl|trait|pub|use|mod|return|self|Self|as|where|move|loop|while|break|continue|const|static|ref|dyn|crate|true|false)\b)|(\b[A-Z][A-Za-z0-9_]*\b)|(\b[a-z_][A-Za-z0-9_]*!)|(\b\d[\d_]*\.?\d*(?:f32|f64|u32|i32|u8|usize)?\b)/g;
+  var out="", last=0, m;
+  while((m=token.exec(src))!==null){
+    out += esc(src.slice(last, m.index));
+    var text = esc(m[0]);
+    if(m[1]) out += '<span class="c">'+text+'</span>';
+    else if(m[2]) out += '<span class="s">'+text+'</span>';
+    else if(m[3]) out += '<span class="k">'+text+'</span>';
+    else if(m[4]) out += '<span class="t">'+text+'</span>';
+    else if(m[5]) out += '<span class="m">'+text+'</span>';
+    else if(m[6]) out += '<span class="n">'+text+'</span>';
+    last = token.lastIndex;
+  }
+  out += esc(src.slice(last));
+  return out;
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+  document.querySelectorAll("pre code.rust").forEach(function(el){
+    el.innerHTML = highlightRust(el.textContent);
+  });
+
+  /* scrollspy */
+  var links = Array.prototype.slice.call(document.querySelectorAll("#nav a"));
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute("href").slice(1)] = a; });
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){
+        links.forEach(function(a){ a.classList.remove("active"); });
+        var act = map[e.target.id];
+        if(act) act.classList.add("active");
+      }
+    });
+  }, { rootMargin: "-20% 0px -70% 0px" });
+  document.querySelectorAll("section").forEach(function(s){ obs.observe(s); });
+
+  /* mobil menü */
+  var btn = document.getElementById("menuBtn");
+  var sb = document.getElementById("sidebar");
+  if(btn){
+    btn.addEventListener("click", function(){ sb.classList.toggle("open"); });
+    document.querySelectorAll("#nav a").forEach(function(a){
+      a.addEventListener("click", function(){ sb.classList.remove("open"); });
+    });
+  }
+
+  initDemos();
+});
+
+/* ===================== közös segédek ===================== */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function makeValueNoise(seed){
+  function hash(x,y){
+    var h = (x*374761393) ^ (y*668265263) ^ (seed*2147483647);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  }
+  function smooth(t){ return t*t*(3-2*t); }
+  return function(x,y){
+    var x0 = Math.floor(x), y0 = Math.floor(y);
+    var fx = smooth(x-x0), fy = smooth(y-y0);
+    var v00=hash(x0,y0), v10=hash(x0+1,y0), v01=hash(x0,y0+1), v11=hash(x0+1,y0+1);
+    var a = v00 + (v10-v00)*fx;
+    var b = v01 + (v11-v01)*fx;
+    return a + (b-a)*fy;
+  };
+}
+function fbm(noise, x, y, octaves){
+  var sum=0, amp=1, freq=1, norm=0;
+  for(var i=0;i<octaves;i++){ sum += noise(x*freq, y*freq)*amp; norm += amp; amp *= 0.5; freq *= 2; }
+  return sum/norm;
+}
+// determinisztikus per-cella hash (a Rust hash2 párja)
+function hash2(x,y,seed){
+  var h = (x*374761393) ^ (y*668265263) ^ ((seed||0)*2147483647);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+// 4×4 Bayer-mátrix
+var BAYER4 = [0,8,2,10, 12,4,14,6, 3,11,1,9, 15,7,13,5];
+function bayer(x,y){ return (BAYER4[((y&3)*4)+(x&3)]+0.5)/16; }
+
+/* ===================== a három valódi biom-csempesor ===================== */
+var BIOMES = {
+  viz:     { src:'transitions/viz.png',     n:4, name:'Víz',     col:['#84cdc3','#4faec6','#448db6','#1f557d'], img:null, ready:false },
+  mezo:    { src:'transitions/mezo.png',    n:3, name:'Mező',    col:['#679d43','#a1a353','#5b8f48'],          img:null, ready:false },
+  sivatag: { src:'transitions/sivatag.png', n:4, name:'Sivatag', col:['#e9c999','#a99580','#aa917c','#b59170'], img:null, ready:false }
+};
+var REDRAW = [];   // demók újrarajzoló callbackjei (kép betöltésekor)
+
+function loadBiomes(){
+  Object.keys(BIOMES).forEach(function(key){
+    var b = BIOMES[key];
+    var img = new Image();
+    img.onload  = function(){ b.img = img; b.ready = true; runRedraw(); };
+    img.onerror = function(){ b.ready = false; runRedraw(); };
+    img.src = b.src;
+  });
+}
+function runRedraw(){ REDRAW.forEach(function(f){ try{ f(); }catch(e){} }); }
+
+// egy csempe (szint k) kirajzolása egy cellába, opcionális tükrözéssel.
+// flip: 0..3 bitmaszk (1=flip_x, 2=flip_y). Ha nincs kép, lapos szín-fallback.
+function blit(ctx, b, k, dx, dy, dw, dh, flip){
+  if(b.ready && b.img){
+    var tw = b.img.width / b.n, th = b.img.height;
+    var sx = Math.round(k*tw);
+    var sw = Math.floor(tw);
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    if(flip){
+      ctx.translate(dx+dw/2, dy+dh/2);
+      ctx.scale((flip&1)?-1:1, (flip&2)?-1:1);
+      ctx.drawImage(b.img, sx, 0, sw, th, -dw/2, -dh/2, dw, dh);
+    } else {
+      ctx.drawImage(b.img, sx, 0, sw, th, dx, dy, dw, dh);
+    }
+    ctx.restore();
+  } else {
+    // fallback: átlagszín + halk speckle, hogy ne legyen üres a canvas
+    ctx.fillStyle = b.col[Math.min(k, b.col.length-1)];
+    ctx.fillRect(dx,dy,dw,dh);
+    var s = hash2((dx*7+k)|0, dy|0, 5);
+    ctx.fillStyle = s<0.5 ? 'rgba(255,255,255,.05)' : 'rgba(0,0,0,.06)';
+    ctx.fillRect(dx,dy,dw,dh);
+  }
+}
+
+// folytonos mező-érték -> szint. opt.dither>0 esetén Bayer/hash keverés.
+function mapLevel(f, N, x, y, opt){
+  f = Math.max(0, Math.min(1, f));
+  var cont = f*(N-1);
+  var base = Math.floor(cont);
+  if(base > N-1) base = N-1;
+  var frac = cont - base;
+  if(!opt || !opt.dither || opt.dither <= 0.001){
+    return Math.min(N-1, base + (frac>0.5?1:0));      // kemény, határ 0.5-nél
+  }
+  var w = opt.dither;
+  var fr2 = Math.max(0, Math.min(1, (frac-0.5)/w + 0.5));
+  var thr = opt.ditherType==='random' ? hash2(x,y,opt.seed||1) : bayer(x,y);
+  return Math.min(N-1, base + (fr2>thr?1:0));
+}
+
+/* ===================== rétegzett gradiens-rajzoló (több demó osztja) ===================== */
+// régió: {x,y,w,h}. opt: {cell, noisy, jitter, dither, ditherType, flip, seed, noise}
+function drawGradient(ctx, b, reg, opt){
+  var cell = opt.cell || 32;
+  var cols = Math.max(1, Math.floor(reg.w/cell));
+  var rows = Math.max(1, Math.floor(reg.h/cell));
+  var noise = opt.noise || makeValueNoise(opt.seed||7);
+  for(var cy=0; cy<rows; cy++) for(var cx=0; cx<cols; cx++){
+    var f = cols>1 ? cx/(cols-1) : 0;
+    if(opt.noisy){ f += (fbm(noise, cx*0.30, cy*0.30, 3)-0.5)*opt.jitter; }
+    var dop = (opt.dither>0) ? {dither:opt.dither, ditherType:opt.ditherType, seed:opt.seed} : null;
+    var k = mapLevel(f, b.n, cx, cy, dop);
+    var flip = opt.flip ? (Math.floor(hash2(cx,cy,opt.seed||1)*4) & 3) : 0;
+    blit(ctx, b, k, reg.x+cx*cell, reg.y+cy*cell, cell, cell, flip);
+  }
+}
+
+/* ===================== DEMÓ 0: hero — naív vs. csiszolt ===================== */
+function initHero(){
+  var cv=document.getElementById("heroCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var order=['viz','mezo','sivatag'];
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    var rowH = cv.height/order.length;
+    var mid = cv.width/2;
+    var cell = 30;
+    for(var i=0;i<order.length;i++){
+      var b=BIOMES[order[i]];
+      var y0 = i*rowH;
+      // bal: naív (kemény, nincs variáció)
+      drawGradient(ctx, b, {x:0, y:y0, w:mid-1, h:rowH}, {cell:cell, noisy:false, dither:0, flip:false, seed:11});
+      // jobb: csiszolt (zajos + dither + tükrözés)
+      drawGradient(ctx, b, {x:mid+1, y:y0, w:mid-1, h:rowH}, {cell:cell, noisy:true, jitter:0.28, dither:0.6, ditherType:'ordered', flip:true, seed:11});
+    }
+    // osztóvonal + feliratok
+    ctx.setLineDash([6,5]); ctx.lineWidth=2; ctx.strokeStyle="rgba(255,255,255,.7)";
+    ctx.beginPath(); ctx.moveTo(mid, 0); ctx.lineTo(mid, cv.height); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font="700 13px 'JetBrains Mono', monospace"; ctx.textBaseline="top";
+    ctx.textAlign="left";
+    function tag(txt, x, color){
+      ctx.fillStyle="rgba(10,10,18,.78)"; var w=ctx.measureText(txt).width+12;
+      ctx.fillRect(x, 6, w, 19); ctx.fillStyle=color; ctx.fillText(txt, x+6, 9);
+    }
+    tag("naív", 8, "#ff6b6b");
+    ctx.textAlign="left"; tag("csiszolt", mid+8, "#8ce99a");
+    // biom-feliratok bal szélen
+    ctx.textAlign="left"; ctx.font="700 12px 'JetBrains Mono', monospace";
+    for(var j=0;j<order.length;j++){
+      var t=BIOMES[order[j]].name;
+      ctx.fillStyle="rgba(10,10,18,.7)"; var bw=ctx.measureText(t).width+10;
+      ctx.fillRect(8, j*rowH+rowH-24, bw, 18);
+      ctx.fillStyle="#e3e3ec"; ctx.fillText(t, 13, j*rowH+rowH-22);
+    }
+  }
+  REDRAW.push(draw); draw();
+}
+
+/* ===================== DEMÓ 1: a három variánssor ===================== */
+function initStrip(){
+  var cv=document.getElementById("stripCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var order=['viz','mezo','sivatag'];
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    var rowH = cv.height/order.length;
+    var pad = 10, labelW = 86;
+    ctx.imageSmoothingEnabled=false;
+    for(var i=0;i<order.length;i++){
+      var b=BIOMES[order[i]];
+      var y0 = i*rowH + pad*0.5;
+      var h = rowH - pad;
+      var availW = cv.width - labelW - pad;
+      var tileW = availW / b.n;
+      // biom-név
+      ctx.textAlign="left"; ctx.textBaseline="middle";
+      ctx.font="700 15px 'Pixelify Sans', sans-serif"; ctx.fillStyle="#f2c14e";
+      ctx.fillText(b.name, 6, i*rowH + rowH/2 - 8);
+      ctx.font="400 10px 'JetBrains Mono', monospace"; ctx.fillStyle="#8b8b9e";
+      ctx.fillText(b.n+" szint", 6, i*rowH + rowH/2 + 10);
+      for(var k=0;k<b.n;k++){
+        var dx = labelW + k*tileW;
+        blit(ctx, b, k, dx+2, y0, tileW-4, h, 0);
+        // index-cimke
+        ctx.fillStyle="rgba(10,10,18,.72)"; ctx.fillRect(dx+5, y0+5, 20, 16);
+        ctx.fillStyle="#56d4c4"; ctx.font="700 11px 'JetBrains Mono', monospace";
+        ctx.textAlign="left"; ctx.textBaseline="top";
+        ctx.fillText(k, dx+9, y0+7);
+      }
+    }
+  }
+  REDRAW.push(draw); draw();
+}
+
+/* ===================== DEMÓ 2: mező — variáció ===================== */
+function initVar(){
+  var cv=document.getElementById("varCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var b=BIOMES.mezo;
+  var mode='homog', cluster=true, seed=3;
+  var hB=document.getElementById("varHomog"), fB=document.getElementById("varFlip"), vB=document.getElementById("varVariant");
+  var cB=document.getElementById("varCluster"), wB=document.getElementById("varWhite");
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    var cell=38;
+    var cols=Math.floor(cv.width/cell), rows=Math.floor(cv.height/cell);
+    var noise=makeValueNoise(seed);
+    for(var cy=0;cy<rows;cy++) for(var cx=0;cx<cols;cx++){
+      var k=0, flip=0;
+      if(mode==='homog'){ k=0; flip=0; }
+      else if(mode==='flip'){ k=0; flip=Math.floor(hash2(cx,cy,seed)*4)&3; }
+      else { // variant
+        if(cluster){ var v=fbm(noise, cx*0.22, cy*0.22, 2); k = v<0.58?0 : v<0.80?2 : 1; }
+        else { var r=hash2(cx,cy,seed); k = r<0.62?0 : r<0.81?2 : 1; }
+        flip=Math.floor(hash2(cx,cy,seed+99)*4)&3;
+      }
+      blit(ctx, b, k, cx*cell, cy*cell, cell, cell, flip);
+    }
+  }
+  function setMode(m){ mode=m; hB.classList.toggle("on",m==='homog'); fB.classList.toggle("on",m==='flip'); vB.classList.toggle("on",m==='variant'); draw(); }
+  function setCluster(c){ cluster=c; cB.classList.toggle("on",c); wB.classList.toggle("on",!c); if(mode==='variant') draw(); }
+  hB.addEventListener("click",function(){ setMode('homog'); });
+  fB.addEventListener("click",function(){ setMode('flip'); });
+  vB.addEventListener("click",function(){ setMode('variant'); });
+  cB.addEventListener("click",function(){ setCluster(true); });
+  wB.addEventListener("click",function(){ setCluster(false); });
+  REDRAW.push(draw); draw();
+}
+
+/* ===================== DEMÓ 3: víz — zajos küszöb ===================== */
+function initNoisy(){
+  var cv=document.getElementById("noisyCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var b=BIOMES.viz;
+  var aS=document.getElementById("noisyAmt"), aV=document.getElementById("noisyAmtVal");
+  var fB=document.getElementById("noisyFlip"), gen=document.getElementById("noisyGen");
+  var flip=true, seed=7;
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    var amt=parseInt(aS.value,10)/100;
+    drawGradient(ctx, b, {x:0,y:0,w:cv.width,h:cv.height},
+      {cell:32, noisy:true, jitter:amt, dither:0, flip:flip, seed:seed, noise:makeValueNoise(seed)});
+  }
+  aS.addEventListener("input",function(){ aV.textContent=(parseInt(aS.value,10)/100).toFixed(2); draw(); });
+  fB.addEventListener("click",function(){ flip=!flip; fB.classList.toggle("on",flip); draw(); });
+  gen.addEventListener("click",function(){ seed++; draw(); });
+  aV.textContent=(parseInt(aS.value,10)/100).toFixed(2);
+  REDRAW.push(draw); draw();
+}
+
+/* ===================== DEMÓ 4: sivatag — dithering ===================== */
+function initDither(){
+  var cv=document.getElementById("ditherCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var b=BIOMES.sivatag;
+  var wS=document.getElementById("ditherW"), wV=document.getElementById("ditherWVal");
+  var oB=document.getElementById("ditherOrdered"), rB=document.getElementById("ditherRandom");
+  var type='ordered';
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    var w=parseInt(wS.value,10)/100;
+    drawGradient(ctx, b, {x:0,y:0,w:cv.width,h:cv.height},
+      {cell:30, noisy:false, dither:w, ditherType:type, flip:false, seed:9});
+  }
+  function setType(t){ type=t; oB.classList.toggle("on",t==='ordered'); rB.classList.toggle("on",t==='random'); draw(); }
+  wS.addEventListener("input",function(){ wV.textContent=(parseInt(wS.value,10)/100).toFixed(2); draw(); });
+  oB.addEventListener("click",function(){ setType('ordered'); });
+  rB.addEventListener("click",function(){ setType('random'); });
+  wV.textContent=(parseInt(wS.value,10)/100).toFixed(2);
+  REDRAW.push(draw); draw();
+}
+
+/* ===================== DEMÓ 5: játszótér — a teljes recept ===================== */
+function initPlay(){
+  var cv=document.getElementById("playCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var key='viz', noisy=false, dither=false, flip=false, seed=5;
+  var vB=document.getElementById("playViz"), mB=document.getElementById("playMezo"), sB=document.getElementById("playSivatag");
+  var nB=document.getElementById("playNoisy"), dB=document.getElementById("playDither"), fB=document.getElementById("playFlip");
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    var b=BIOMES[key];
+    drawGradient(ctx, b, {x:0,y:0,w:cv.width,h:cv.height}, {
+      cell:32, noisy:noisy, jitter:0.30, dither: dither?0.6:0, ditherType:'ordered',
+      flip:flip, seed:seed, noise:makeValueNoise(seed)
+    });
+  }
+  function setBiome(k){ key=k; vB.classList.toggle("on",k==='viz'); mB.classList.toggle("on",k==='mezo'); sB.classList.toggle("on",k==='sivatag'); draw(); }
+  vB.addEventListener("click",function(){ setBiome('viz'); });
+  mB.addEventListener("click",function(){ setBiome('mezo'); });
+  sB.addEventListener("click",function(){ setBiome('sivatag'); });
+  nB.addEventListener("click",function(){ noisy=!noisy; nB.classList.toggle("on",noisy); draw(); });
+  dB.addEventListener("click",function(){ dither=!dither; dB.classList.toggle("on",dither); draw(); });
+  fB.addEventListener("click",function(){ flip=!flip; fB.classList.toggle("on",flip); draw(); });
+  REDRAW.push(draw); draw();
+}
+
+function initDemos(){
+  loadBiomes();
+  initHero();
+  initStrip();
+  initVar();
+  initNoisy();
+  initDither();
+  initPlay();
+}
+</script>
+</body>
+</html>

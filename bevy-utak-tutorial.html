@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Utak a procedurális térképen — biom-utak és tárgy-utak · Bevy 0.18</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#10101a; --panel:#1a1a28; --panel2:#21212f; --code-bg:#14141f;
+    --ink:#e3e3ec; --muted:#8b8b9e; --border:#2c2c40;
+    --cyan:#56d4c4; --amber:#f2c14e; --pink:#ec6a9c; --green:#8ce99a; --red:#ff6b6b; --violet:#a78bfa;
+    --kw:#ec6a9c; --ty:#56d4c4; --str:#8ce99a; --com:#6b6b80; --mac:#f2c14e; --num:#f4a259;
+    --sidebar-w:260px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    background-image:radial-gradient(var(--border) 1px, transparent 1px);
+    background-size:22px 22px;
+    color:var(--ink);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--cyan);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ---- layout ---- */
+  .shell{display:flex;max-width:1400px;margin:0 auto}
+  .sidebar{
+    width:var(--sidebar-w);flex:0 0 var(--sidebar-w);
+    position:sticky;top:0;height:100vh;overflow-y:auto;
+    padding:28px 18px;border-right:2px solid var(--border);
+    background:linear-gradient(180deg,var(--panel) 0%,var(--bg) 100%);
+  }
+  .sidebar h2{
+    font-family:"Pixelify Sans",sans-serif;font-size:18px;font-weight:700;
+    color:var(--amber);letter-spacing:.5px;margin-bottom:4px;
+  }
+  .sidebar .sub{font-size:11px;color:var(--muted);font-family:"JetBrains Mono",monospace;margin-bottom:20px}
+  .nav a{
+    display:block;color:var(--muted);font-size:13.5px;padding:7px 10px;
+    border-left:3px solid transparent;border-radius:0 4px 4px 0;transition:all .12s;
+    text-decoration:none;
+  }
+  .nav a .num{font-family:"JetBrains Mono",monospace;color:var(--border);font-size:11px;margin-right:8px}
+  .nav a:hover{color:var(--ink);background:var(--panel2);text-decoration:none}
+  .nav a.active{color:var(--ink);border-left-color:var(--pink);background:var(--panel2)}
+  .nav a.active .num{color:var(--pink)}
+
+  .main{flex:1 1 auto;min-width:0;padding:48px 56px 120px}
+
+  /* ---- hero ---- */
+  .hero{margin-bottom:56px;border:2px solid var(--border);background:var(--panel);
+    padding:38px 36px;position:relative;box-shadow:6px 6px 0 rgba(0,0,0,.35)}
+  .hero .eyebrow{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--pink);
+    letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+  .hero h1{font-family:"Pixelify Sans",sans-serif;font-size:42px;font-weight:700;
+    line-height:1.1;color:var(--ink);margin-bottom:16px}
+  .hero h1 .hl{color:var(--amber)}
+  .hero p{color:var(--muted);font-size:16px;max-width:640px}
+  .hero .chips{margin-top:22px;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font-family:"JetBrains Mono",monospace;font-size:11.5px;padding:4px 10px;
+    border:1px solid var(--border);background:var(--code-bg);color:var(--cyan);border-radius:3px}
+
+  /* ---- sections ---- */
+  section{margin-bottom:54px;scroll-margin-top:24px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;
+    padding-bottom:12px;border-bottom:2px solid var(--border)}
+  .sec-head .idx{font-family:"Pixelify Sans",sans-serif;font-size:26px;color:var(--pink);
+    flex:0 0 auto}
+  .sec-head h2{font-family:"Pixelify Sans",sans-serif;font-size:27px;font-weight:700;color:var(--ink)}
+  h3{font-family:"Pixelify Sans",sans-serif;font-size:19px;color:var(--amber);
+    margin:26px 0 12px}
+  p{margin:0 0 14px}
+  .main p{font-size:15.5px}
+  ul,ol{margin:0 0 16px 22px}
+  li{margin-bottom:7px;font-size:15.5px}
+  strong{color:var(--ink);font-weight:600}
+  code.inl{font-family:"JetBrains Mono",monospace;font-size:13px;background:var(--code-bg);
+    border:1px solid var(--border);padding:1.5px 6px;border-radius:3px;color:var(--cyan)}
+
+  /* ---- code blocks ---- */
+  pre{background:var(--code-bg);border:1px solid var(--border);border-left:3px solid var(--cyan);
+    padding:16px 18px;overflow-x:auto;margin:0 0 18px;border-radius:0 4px 4px 0;
+    box-shadow:3px 3px 0 rgba(0,0,0,.25)}
+  pre code{font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1.6;color:var(--ink);white-space:pre}
+  .k{color:var(--kw)} .t{color:var(--ty)} .s{color:var(--str)}
+  .c{color:var(--com);font-style:italic} .m{color:var(--mac)} .n{color:var(--num)}
+
+  /* ---- callouts ---- */
+  .box{border:1px solid var(--border);border-left:4px solid var(--cyan);background:var(--panel);
+    padding:14px 18px;margin:0 0 18px;border-radius:0 4px 4px 0}
+  .box.tip{border-left-color:var(--green)} .box.tip .lbl{color:var(--green)}
+  .box.warn{border-left-color:var(--red)} .box.warn .lbl{color:var(--red)}
+  .box.note{border-left-color:var(--violet)} .box.note .lbl{color:var(--violet)}
+  .box .lbl{font-family:"JetBrains Mono",monospace;font-size:11px;text-transform:uppercase;
+    letter-spacing:1.5px;color:var(--cyan);display:block;margin-bottom:6px}
+  .box p:last-child{margin-bottom:0}
+
+  /* ---- table ---- */
+  .tbl-wrap{overflow-x:auto;margin:0 0 18px}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:480px}
+  th,td{border:1px solid var(--border);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);font-family:"Pixelify Sans",sans-serif;color:var(--amber);font-weight:700}
+  td:first-child{font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--cyan);white-space:nowrap}
+  tr:nth-child(even) td{background:rgba(255,255,255,.012)}
+
+  /* ---- demos ---- */
+  .demo{border:2px solid var(--border);background:var(--panel);padding:18px;margin:0 0 20px;
+    border-radius:4px;box-shadow:4px 4px 0 rgba(0,0,0,.3)}
+  .demo .dh{font-family:"Pixelify Sans",sans-serif;color:var(--amber);font-size:15px;margin-bottom:4px}
+  .demo .dd{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .demo canvas{display:block;width:100%;background:var(--code-bg);border:1px solid var(--border);
+    border-radius:3px;image-rendering:pixelated}
+  .ctrls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px;
+    font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--muted)}
+  .ctrls label{display:flex;align-items:center;gap:8px}
+  .ctrls input[type=range]{accent-color:var(--pink);width:140px}
+  .ctrls .val{color:var(--cyan);min-width:60px;display:inline-block}
+  .ctrls button{font-family:"JetBrains Mono",monospace;font-size:12px;background:var(--panel2);
+    color:var(--ink);border:1px solid var(--border);padding:6px 12px;border-radius:3px;cursor:pointer}
+  .ctrls button:hover{border-color:var(--pink);color:var(--pink)}
+  .ctrls button.on{border-color:var(--cyan);color:var(--cyan);background:var(--code-bg)}
+  .ctrls .sep{opacity:.45}
+  .readout{display:flex;gap:22px;flex-wrap:wrap;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:12.5px}
+  .readout b{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:400}
+  .readout span{color:var(--cyan);font-size:17px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--muted)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .legend i{width:13px;height:13px;border-radius:2px;display:inline-block;border:1px solid rgba(255,255,255,.15)}
+
+  /* ---- tldr ---- */
+  .tldr{border:2px dashed var(--pink);background:var(--panel);padding:24px 28px;border-radius:4px}
+  .tldr h3{margin-top:0;color:var(--pink)}
+  .tldr ul{list-style:none;margin-left:0}
+  .tldr li{padding-left:26px;position:relative}
+  .tldr li::before{content:"\25B8";position:absolute;left:0;color:var(--amber)}
+
+  footer{margin-top:60px;padding-top:24px;border-top:2px solid var(--border);
+    color:var(--muted);font-size:12.5px;font-family:"JetBrains Mono",monospace;text-align:center}
+
+  /* ---- responsive ---- */
+  .menu-btn{display:none}
+  @media(max-width:920px){
+    .sidebar{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:transform .2s;
+      box-shadow:8px 0 24px rgba(0,0,0,.5)}
+    .sidebar.open{transform:translateX(0)}
+    .main{padding:64px 22px 100px}
+    .hero{padding:26px 22px} .hero h1{font-size:30px}
+    .sec-head h2{font-size:21px} .sec-head .idx{font-size:20px}
+    .menu-btn{display:flex;position:fixed;top:14px;left:14px;z-index:50;
+      font-family:"Pixelify Sans",sans-serif;background:var(--pink);color:#10101a;border:none;
+      padding:8px 14px;border-radius:4px;cursor:pointer;font-size:15px;box-shadow:3px 3px 0 rgba(0,0,0,.4)}
+  }
+</style>
+</head>
+<body>
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,#56d4c4,#ec6a9c);
+  box-shadow:0 0 10px rgba(86,212,196,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-btn" id="menuBtn">&#9776; menü</button>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <h2>BEVY · Utak</h2>
+    <div class="sub">// biom-utak + tárgy-utak</div>
+    <nav class="nav" id="nav">
+      <a href="#intro"><span class="num">00</span>A néma térkép</a>
+      <a href="#data"><span class="num">01</span>Az út mint adat</a>
+      <a href="#two"><span class="num">02</span>Két út-típus</a>
+      <a href="#ends"><span class="num">03</span>Végpontok & kapuk</a>
+      <a href="#cost"><span class="num">04</span>A költségmező</a>
+      <a href="#astar"><span class="num">05</span>A* az útvonalhoz</a>
+      <a href="#smooth"><span class="num">06</span>Simítás & szélesítés</a>
+      <a href="#net"><span class="num">07</span>Hálózat: MST & elágazások</a>
+      <a href="#tiles"><span class="num">08</span>Út-csempék (autotiling)</a>
+      <a href="#recipe"><span class="num">09</span>A teljes recept</a>
+      <a href="#bevy"><span class="num">10</span>Bevy integráció</a>
+      <a href="#tips"><span class="num">11</span>Tippek & buktatók</a>
+      <a href="#tldr"><span class="num">12</span>TL;DR</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="hero">
+      <div class="eyebrow">Bevy 0.18 · Rust · proc-gen útvonalak</div>
+      <h1>Utak a <span class="hl">procedurális</span> térképen<br>— biomok és <span class="hl">tárgyak</span> összekötése</h1>
+      <p>A <a href="bevy-biomok-tutorial.html">biomok-lecke</a> megmondta, <em>hol</em> terül el a sivatag és a hegy; a <a href="bevy-proceduralis-terkep-tutorial.html">procedurális térkép</a> és a <a href="bevy-biom-atmenetek-tutorial.html">biom-átmenetek</a> széppé is tették. Mégis hiányzik valami: a térkép <strong>néma</strong>. Nincs benne <em>irány</em>, nincs benne <em>történet</em>. Egy út, ami a sivatag pereméről felkígyózik a hegyekbe, egyszerre ad <strong>struktúrát</strong> (a játékos tudja, merre induljon) és <strong>narratívát</strong> (valaki járt itt előtte). Ez a lecke arról szól, hogyan <em>generálsz</em> ilyen utakat egy már kész zaj-térkép tetején — kétféleképpen: <strong>biom-utakkal</strong> (két biom-régiót kötnek össze) és <strong>tárgy-utakkal</strong> (kitüntetett pontokat, pl. bányát és kutat). Hat interaktív demóval.</p>
+      <div class="chips">
+        <span class="chip">út = külön réteg</span>
+        <span class="chip">költségmező</span>
+        <span class="chip">A* súlyozott gráfokon</span>
+        <span class="chip">legközelebbi cellapár = kapu</span>
+        <span class="chip">MST hálózat</span>
+        <span class="chip">út-autotiling (maszk → csempe)</span>
+      </div>
+    </header>
+
+    <!-- 00 -->
+    <section id="intro">
+      <div class="sec-head"><span class="idx">00</span><h2>A probléma: a néma térkép</h2></div>
+      <p>Futtass egy zajt, oszd biomokra, rajzold ki. Az eredmény <strong>szép</strong> — és teljesen <strong>érzéketlen</strong>. A játékos egyenrangú foltokat lát: sivatag, rét, hegy, mindegyik egyforma jelentőségű. Nincs semmi, ami azt mondaná: <em>„innen indulj, és menj arra."</em> A valóságban a táj nem ilyen: az emberek (és az állatok) <strong>csapásokat</strong> taposnak, ösvények kötik össze a vizet a táborral, a bányát a kikötővel. Ezek az utak egyben <strong>irányjelzések</strong> is — elárulják a játékosnak, hová érdemes mennie.</p>
+      <p>Egy út három dolgot csinál egyszerre, és ez a három határozza meg, mit kell tudnia a generálásnak:</p>
+      <ul>
+        <li><strong>Struktúra.</strong> Két távoli pontot egy <em>folytonos, követhető</em> vonallal köt össze — a játékos szeme azonnal ráakad.</li>
+        <li><strong>Narratíva.</strong> Aki az utat rakta (vagy taposta), <em>szándékkal</em> ment A-ból B-be. Az út egy történetet mesél: miért pont ez a két végpont?</li>
+        <li><strong>Összenövés.</strong> Egy jó út nem <em>metszi</em> a tájat, hanem <em>követi</em>: kikerüli a vizet, megmássza a hágót, a síkságon egyenes. Ez a <strong>költségmező</strong> feladata (04).</li>
+      </ul>
+      <p>Ennek a leckének egyetlen konkrét feladata van: <strong>egy már elkészült biom-térkép fölé utakat generálni</strong>. Nem generálunk új terepet, nem rajzolunk új csempéket — a terep adott, az utak csak egy <em>réteget</em> tesznek rá. Pontosan úgy, ahogy a biomok-lecke a zaj fölé épült, ez a biomok fölé.</p>
+
+      <div class="demo">
+        <div class="dh">&#9654; A néma térkép vs. az utas térkép</div>
+        <div class="dd">Ugyanaz a biom-térkép, ugyanazzal a seeddel. <strong>Bal:</strong> csak a biomok — szép, de iránytalan. <strong>Jobb:</strong> ugyanez a térkép, fölötte egy biom-út (sivatag → hegy) és három tárgy-út, ami a kitüntetett pontokat (bánya, kút, tábor) fűzi fel. A térkép <em>adata</em> nem változott — csak egy réteg jött rá. Ezt a réteget építjük fel lépésről lépésre.</div>
+        <canvas id="heroCanvas" width="760" height="440"></canvas>
+      </div>
+      <div class="box note"><span class="lbl">Hol vagyunk a sorozatban?</span><p>Ez a <a href="bevy-biomok-tutorial.html">biomok-lecke</a> közvetlen <strong>folytatása</strong>. Ott a kérdés makró volt: <em>melyik</em> biom kerül a térkép <em>melyik</em> régiójába. Itt a biomok már <em>készek</em> — mi csak <strong>összekötjük</strong> őket. Két korábbi leckére támaszkodunk: a <a href="bevy-pathfinding-tutorial.html">pathfinding tutorial</a> A*-jára (az út = egy keresett útvonal a rácson) és a <a href="bevy-proceduralis-terkep-tutorial.html">procedurális térkép</a> <a href="bevy-proceduralis-terkep-tutorial.html#features">kitüntetett objektumok</a> szakaszára (a tárgyak, amiket összekötünk).</p></div>
+    </section>
+
+    <!-- 01 -->
+    <section id="data">
+      <div class="sec-head"><span class="idx">01</span><h2>Az út mint adat — külön réteg</h2></div>
+      <p>A legfontosabb (és leggyakrabban elrontott) döntés: az út <strong>nem tile</strong>. Az út egy <em>külön réteg</em>, ami a tile-grid fölé kerül — egy halmaz cella, amin „út van", plusz metaadat (melyik úthoz tartozik, milyen típusú). Ha az utat a <code class="inl">Tile</code>-ba írod be (pl. <code class="inl">Tile::Road</code> felülírja a <code class="inl">Tile::Grass</code>-t), akkor két bajod lesz egyszerre: az út <em>eltereli</em> a fát/bokrot a celláról (játékmenet), és az út <em>csempéje</em> összekeveredik a terepével (megjelenítés).</p>
+      <p>A helyes modell három, egymástól független réteg — pontosan az az elválasztás, amit a proc-gen lecke <a href="bevy-proceduralis-terkep-tutorial.html#data">01. szakasza</a> és a biomok-lecke is követ:</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Réteg</th><th>Típus</th><th>Mit tárol</th><th>Ki olvassa</th></tr></thead>
+        <tbody>
+          <tr><td>terep (Tile)</td><td><code class="inl">Tile</code></td><td>mi van a cellán (fű, víz, kő)</td><td>ütközés, autotiling</td></tr>
+          <tr><td>út (RoadLayer)</td><td><code class="inl">RoadCell</code></td><td>van-e út, melyik úté, típus</td><td>út-megjelenítés, sebesség</td></tr>
+          <tr><td>tárgy (Landmark)</td><td><code class="inl">Landmark</code></td><td>kitüntetett pont (bánya, kút)</td><td>játékmenet, útvégpontok</td></tr>
+        </tbody>
+      </table></div>
+      <p>Rustban ez egy egyszerű, lazán csatolt adat-struktúra. Az út-réteg egy cella-indexelt tömb, ahol <code class="inl">None</code> = nincs út, <code class="inl">Some(id)</code> = az <code class="inl">id</code>-jű út cellája. A tárgyak külön <code class="inl">Vec</code>, mert egy cellán ritkán van több terep, de utak gyakran keresztezik egymást:</p>
+      <pre><code class="rust">use bevy::prelude::*;
+
+const W: i32 = 64;
+const H: i32 = 48;
+
+/// 1 · A TERRA réteg — „mi van a cellán". Az út ide NEM ír.
+#[derive(Clone, Copy, PartialEq)]
+enum Biome { Water, Desert, Plains, Forest, Mountain, Snow }
+
+#[derive(Resource)]
+struct BiomeMap { cells: Vec&lt;Biome&gt; }     // [y*W + x]
+
+/// 2 · Az ÚT réteg — külön. `None` = nincs út, `Some(id)` = az id-jű út cellája.
+#[derive(Resource, Default)]
+struct RoadLayer {
+    cells: Vec&lt;Option&lt;u32&gt;&gt;,                 // Option, mert egy cella lehet út nélküli
+    roads: Vec&lt;Road&gt;,                       // maguk az utak (id → metainfo)
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum RoadKind { BiomeLink, Landmark }        // a két típus a 02-ből
+
+struct Road { id: u32, kind: RoadKind, path: Vec&lt;IVec2&gt; }   // a cellák sorrendje
+
+impl RoadLayer {
+    fn stamp(&amp;mut self, path: Vec&lt;IVec2&gt;, kind: RoadKind) -&gt; u32 {
+        let id = self.roads.len() as u32;
+        for &amp;p in &amp;path {
+            let i = (p.y * W + p.x) as usize;
+            if self.cells[i].is_none() { self.cells[i] = Some(id); }   // első út nyer
+        }
+        self.roads.push(Road { id, kind, path });
+        id
+    }
+    fn has(&amp;self, x: i32, y: i32) -&gt; bool {
+        self.cells[(y * W + x) as usize].is_some()
+    }
+}
+
+/// 3 · A TÁRGYAK réteg — a kitüntetett pontok (03/07 végső pontjai).
+#[derive(Component)]
+struct Landmark { pos: IVec2, tag: LandmarkTag }
+#[derive(Clone, Copy, PartialEq)]
+enum LandmarkTag { Mine, Well, Camp, Shrine }</code></pre>
+      <div class="box tip"><span class="lbl">Miért Option, nem bool?</span><p>Mert egy cellán <strong>több út is átmehet</strong> (kereszteződés!). A <code class="inl">bool</code> csak azt mondja, „van-e út" — de az autotiling (08) tudni akarja, melyik utak kereszteződnek itt, hogy a megfelelő csempét válassza. Az <code class="inl">Option&lt;u32&gt;</code> megőrzi, melyik út „nyert" (elsőként ráírt); a kereszteződéseket külön számoljuk (07). Ha csak „van/nincs" kell, a <code class="inl">bool</code> is elég — de akkor a junction-t nem tudod szépen rajzolni.</p></div>
+      <div class="box warn"><span class="lbl">A proc-gen lecke szabálya visszaköszön</span><p>„Ne keverd az adatot és a megjelenítést." Itt ez kétszeresen igaz: az út-réteg <strong>sem</strong> nem terep, <strong>sem</strong> nem csempe. A játékmenet (sebesség az úton, üldözés) az út-réteget kérdezi; a megjelenítés (melyik út-csempe) is az út-réteget — a terep <code class="inl">Tile</code>-t egyik sem írja át.</p></div>
+    </section>
+
+    <!-- 02 -->
+    <section id="two">
+      <div class="sec-head"><span class="idx">02</span><h2>A két út-típus — és miért más</h2></div>
+      <p>Nem minden utat ugyanúgy generálsz. Két, határozottan különböző típus van, és a különbség <strong>a végpontok kiválasztásában</strong> rejlik — maga a nyomkeresés (A*) mindkettőnél ugyanaz. Ezt a különbséget érdemes már az adatmodellben is élesen tartani (lásd a <code class="inl">RoadKind</code> enumot fent):</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th></th><th>Biom-út (<code class="inl">BiomeLink</code>)</th><th>Tárgy-út (<code class="inl">Landmark</code>)</th></tr></thead>
+        <tbody>
+          <tr><td>végpontok</td><td>biom-<em>régiók</em> (sivatagblokk → hegyvonulat)</td><td>konkrét <em>pontok</em> (bánya, kút)</td></tr>
+          <tr><td>végpont = ismert?</td><td>nem — ki kell <em>választani</em> (03)</td><td>igen — maguk a tárgyak</td></tr>
+          <tr><td>irány</td><td>„fel a hegyekbe" (többé-kevésbé)</td><td>pont A → pont B</td></tr>
+          <tr><td>tipikus cél</td><td>progresszió, útmutatás, felfedezés</td><td>gazdaság, logisztika, küldetéslánc</td></tr>
+          <tr><td>hibás végpont</td><td>két azonos biom régió (értelmetlen)</td><td>tárgy a víz közepén (elérhetetlen)</td></tr>
+        </tbody>
+      </table></div>
+      <h3>Biom-út — „a sivatagból felvezet a hegyekbe"</h3>
+      <p>Egy biom-út <strong>két különböző biom régióját</strong> köti össze. A végpontok <em>nincsenek előre megadva</em> — a generálásnak kell <em>kitalálnia</em>, hogy a sivatag melyik cellájából induljon, és a hegy melyik cellájába érkezzen. A kulcs-felismerés: nem a <em>közepeket</em> kötjük össze (az gyakran értelmetlen, mert a hegy közepén lehet járhatatlan csúcs), hanem a <strong>két régió legközelebbi cellapárját</strong> — az úgynevezett <em>kaput</em>. Ezzel a 03 foglalkozik.</p>
+      <p>A biom-út narratívája: <em>valaki a sivatag pereméről indult, és a hágón ment át a hegyekbe.</em> Ez a gondolat rögtön megszabja, hogy a költségmező (04) a hegyet <em>drágának</em> (de nem járhatatlannak) kell hogy tartsa — az út <em>megy</em> fel, csak keresi a legolcsóbb (legkisebb szintkülönbségű) átjárót.</p>
+      <h3>Tárgy-út — „a bányától a kútig"</h3>
+      <p>Egy tárgy-út <strong>konkrét, kitüntetett pontokat</strong> köt össze. A végpontok ismertek: a proc-gen lecke <a href="bevy-proceduralis-terkep-tutorial.html#features">09. szakasza</a> már elhelyezte a bányákat, kutakat, táborokat reject-samplinggel — mi most ezek közül veszünk párokat, és utat húzunk köztük. Ha több tárgy van, nem egyetlen utat, hanem egy <strong>hálózatot</strong> generálunk: a 07-ben egy minimális feszítőfával (MST) összekötjük az összeset a lehető legkevesebb úttal.</p>
+      <p>A tárgy-út narratívája: <em>gazdasági/stratégiai — az érc a bányából a kikötőbe (kút) kerül.</em> Ezért a tárgy-utak <strong>rövidebbek, egyenesebbek</strong>, és <strong>kevésbé kanyargósak</strong> — a költségmező itt a meglévő utakat részesíti előnyben (hogy a hálózat összeforrjon), nem a táj legfőbb értékeit követi.</p>
+      <div class="box note"><span class="lbl">A két típus nem kizárja egymást</span><p>Egy valós térképen <strong>mindkettő</strong> jelen van, és <strong>össze is érnek</strong>: egy biom-út felér a hegy lábához, ott egy bánya van, és onnan egy tárgy-út megy tovább a kútig. A <code class="inl">RoadLayer</code> mindkettőt ugyanabban a rétegben tartja — a kereszteződéseket (07) és az autotilinget (08) egységesen kezeli. A különbség csak a végpont-kiválasztásban és a költségmező súlyozásában van.</p></div>
+    </section>
+
+    <!-- 03 -->
+    <section id="ends">
+      <div class="sec-head"><span class="idx">03</span><h2>Végpontok & kapuk kiválasztása</h2></div>
+      <p>A tárgy-út végpontjai adottak (maguk a tárgyak). A biom-út végpontjait <strong> nekünk kell megtalálnunk</strong> — és ez a lépés dönti el, hogy az út értelmes-e vagy sem. Három, egyre jobb stratégia; a legutolsó az, amit használni fogjuk.</p>
+      <h3>1 · A régió centroidja — rossz</h3>
+      <p>A legnyilvánvalóbb ötlet: vedd a sivatag összes cellájának <strong>átlagát</strong> (centroid), és a hegy összes cellájának átlagát, és kösd össze őket. A baj: a centroid <strong>lehet a víz alatt</strong>, vagy a hegy legmagasabb, járhatatlan csúcsán — mert a centroid egy matematikai középpont, nem egy létező cella. Ráadásul a centroid gyakran <em>belül</em> van a régióban, így az út a sivatag mélyéről indul — nincs narratíva, „nincs perem".</p>
+      <h3>2 · A perem egy véletlen cellája — jobb, de érzékeny</h3>
+      <p>A következő ötlet: vedd a régió <strong>peremét</strong> (azokat a cellákat, amiknek van nem-sivatag szomszédja), és válassz közülük egyet determinisztikusan (hash-szel, nem <code class="inl">rand()</code>-dal!). Ez már ad egy „perem"-érzést — de a <em>melyik</em> peremcellát választod, nagyban befolyásolja, hova megy az út. Ha a két régió pereméből rossz párt választasz, az út egy hatalmas kerülőt tesz meg.</p>
+      <h3>3 · A legközelebbi cellapár — a kapu (nyerő)</h3>
+      <p>A helyes megoldás: a két régió <strong>kapuja</strong> az a cellapár <code class="inl">(a, b)</code>, ahol <code class="inl">a</code> az egyik régióban, <code class="inl">b</code> a másikban, és a távolságuk minimális. Ez a <strong>természetes átjáró</strong>: a sivatag azon cellája, ami <em>legközelebb</em> van a hegyhez — éppen az, ahonnan egy gyalogos is elindulna. Az út rövid lesz, és pontosan ott lépi át a határt, ahol a két biom <em>tényleg</em> szomszédos. Két régió közt a kapu egyértelmű és jól definiált.</p>
+      <pre><code class="rust">use bevy::math::IVec2;
+
+/// A két régió legközelebbi cellapárja = a KAPU. `region_a` és `region_b`
+/// a cellák halmaza (pl. minden cella, ahol a biome == Desert / Mountain).
+/// O(n·m), de a régiók cellaszáma ezres nagyságrend — másodpercek alatt megvan.
+fn gate(region_a: &amp;[IVec2], region_b: &amp;[IVec2]) -&gt; Option&lt;(IVec2, IVec2)&gt; {
+    let mut best = (i32::MAX, IVec2::ZERO, IVec2::ZERO);
+    for &amp;a in region_a {
+        for &amp;b in region_b {
+            // négyzetes táv (a gyökölés felesleges, csak az összehasonlítás kell)
+            let d2 = (a.x - b.x).pow(2) + (a.y - b.y).pow(2);
+            if d2 &lt; best.0 { best = (d2, a, b); }
+        }
+    }
+    (best.0 != i32::MAX).then_some((best.1, best.2))
+}</code></pre>
+      <div class="box warn"><span class="lbl">O(n·m) — de vigyázz a partvonalra</span><p>Egy 64×48-as tanulótérképen ez pillanatok alatt lefut. Egy nagy nyílt világnál (tízezres régiók) az <code class="inl">O(n·m)</code> már drága lehet. Trükk: csak a <strong>perem-cellákat</strong> hasonlítsd össze (amiknek van szomszédja a másik régióban) — a kapu mindenképp a peremen van, a belső cellák sosem nyernek. Ezzel a cellaszám drasztikusan csökken, és az algoritmus egy nagy térképen is másodpercek alatt lefut.</p></div>
+      <div class="box note"><span class="lbl">A kapu = a proc-gen lecke „legközelebbi régió"-ötlete</span><p>Ez ugyanaz a gondolat, mint a <a href="bevy-proceduralis-terkep-tutorial.html#flood">flood-fill összefüggőség-ellenőrzés</a>: a kettő <em>közti</em> határt a legközelebbi cellapár írja le. Ott az volt a kérdés, hogy „összeér-e"; itt az, hogy „hol ér össze". A kapu ott van, ahol a biomok-lecke <a href="bevy-biomok-tutorial.html#borders">domain warpingje</a> a határt organikussá tette — az út ezt az organikus határt használja ki.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: végpont-stratégiák</div>
+        <div class="dd">Ugyanaz a sivatag→hegy régiópár, három végpont-stratégiával, ugyanazzal a költségmezővel és A*-lal. <strong>Centroid:</strong> a matematikai közép — gyakran rossz cellán. <strong>Perem-cellák:</strong> determinisztikus peremválasztás — érzékeny a szerencsére. <strong>Kapu:</strong> legközelebbi cellapár — a természetes átjáró. Kapcsold be a <strong>költségmezőt</strong> is, és lásd, hogyan kerüli a vizet.</div>
+        <canvas id="endsCanvas" width="760" height="420"></canvas>
+        <div class="ctrls">
+          <button id="endsCentroid">centroid</button>
+          <button id="endsEdge">perem-cellák</button>
+          <button id="endsGate" class="on">kapu (legközelebbi pár)</button>
+          <span class="sep">|</span>
+          <button id="endsCost" class="on">költségmező rajza</button>
+          <button id="endsGen">&#8635; új térkép</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 -->
+    <section id="cost">
+      <div class="sec-head"><span class="idx">04</span><h2>A költségmező — az út lelke</h2></div>
+      <p>Eddig csak a végpontokról beszéltünk — de ami az utat <em>úttá</em> teszi (és nem csak egy egyenes vonallá), az a <strong>költségmező</strong>: minden cellához egy szám, ami azt mondja, <em>mennyibe kerül átjárni</em>. Az A* (05) ez alapján keresi a legolcsóbb utat — és mivel minden biom máshogy „drága", az út <strong>természetesen követi a tájat</strong>: síkságon egyenesen megy, kikerüli a vizet, a hágón megy át a hegyen.</p>
+      <p>A költségmező három tényezőből áll — érdemes őket külön elkódolni, mert külön is hangolhatók:</p>
+      <pre><code class="rust">use bevy::math::IVec2;
+
+#[derive(Resource)]
+struct BiomeMap { cells: Vec&lt;Biome&gt;, elev: Vec&lt;f32&gt; }   // elev: a zaj magassága 0..1
+
+/// A költségmező három rétege:
+///  1) TEREP-költség: biomonként — víz drága/járhatatlan, síkság olcsó.
+///  2) LEJTŐ-büntetés: a magasságkülönbség — hegyi út kerüli a meredeket.
+///  3) (hálózatnál) MÁR-ÉPÜLT-út bónusz: a meglévő utak olcsók → összeér az út.
+fn cost(map: &amp;BiomeMap, from: IVec2, to: IVec2) -&gt; f32 {
+    let b = map.cells[(to.y * W + to.x) as usize];
+    let base = match b {
+        Biome::Plains   =&gt; 1.0,    // a síkság a természetes útfelület
+        Biome::Desert   =&gt; 1.4,    // homok: lassabb
+        Biome::Forest   =&gt; 1.8,    // erdő: vágni kell
+        Biome::Snow     =&gt; 2.4,    // hó: lassú, de járható
+        Biome::Mountain =&gt; 3.5,    // hegy: drága, de NEM járhatatlan!
+        Biome::Water    =&gt; 1e6,    // víz: gyakorlatilag tilos (komp = külön eset)
+    };
+    // (2) LEJTŐ: a szomszéd cella magasságkülönbsége. Meredek = drága.
+    let e_from = map.elev[(from.y * W + from.x) as usize];
+    let e_to   = map.elev[(to.y   * W + to.x  ) as usize];
+    let slope  = (e_to - e_from).abs() * 6.0;          // hangolható súly
+    base + slope
+}</code></pre>
+      <h3>Miért NEM járhatatlan a hegy?</h3>
+      <p>Ez a legfontosabb design-döntés. Ha a hegyet <code class="inl">f32::INFINITY</code>-re teszed (mint a vizet), az A* <strong>soha nem megy fel</strong> — a biom-út („a sivatagból fel a hegyekbe") értelmét veszti, mert a végpont maga a hegyben van. A hegyet <strong>drágának, de járhatónak</strong> kell tartani: az út <em>tényleg felmegy</em>, csak a legkisebb szintkülönbségű (legolcsóbb) hágót keresi. A víz ezzel szemben <em>sosem</em> cél — azt tényleg tilosnak vesszük, hacsak nem akarsz hidat/kompot generálni (ami külön tutorial).</p>
+      <div class="box tip"><span class="lbl">A víz = járhatatlan, de a „1e6" trükk</span><p>A <code class="inl">1e6</code> (nem <code class="inl">INFINITY</code>) apró trükk: az A* <em>elméletileg</em> képes átmenni rajta, ha <strong>nincs más út</strong> (pl. egy vékony vízcsík, amit megér egy híd ára). Így a generálás sosem akad el „nincs út" hibával — csak akkor megy át a vízen, ha tényleg muszáj. Ha viszont <em>sosem</em> akarsz víz-átkelést, használj <code class="inl">INFINITY</code>-t és kezeld az „elérhetetlen" esetet külön (03 végén: a kapu nem jó, ha nem ér el).</p></div>
+      <h3>A lejtő-súly a titkos fűszerező</h3>
+      <p>A terep-költség önmagában egy <em>vázlát</em> ad: az út kikerüli a vizet, de a síkságon belül még mindig <strong>túl egyenes</strong> lehet. A lejtő-súly (a magasságkülönbség büntetése) az, ami az utat <em>kígyózóvá</em> teszi: a zaj finom domborzatát követi, a gerinceken halad, a völgyeket kedveli. Ezt a demóban külön fel tudod tolni — és látni fogod, ahogy az út hirtelen elkezd kanyarogni.</p>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: a költségmező hatása az útra</div>
+        <div class="dd">Ugyanaz a térkép, ugyanaz a kapu (sivatag → hegy), a költségmező három súlyával játszva. <strong>Terep-költség</strong>: ha 1-re állítod (minden cella egyforma), az út egy egyenes vonal lesz — nincs tájkövetés. Feljebb tolva az út kikerüli a vizet és erdőt. <strong>Lejtő-súly</strong>: a magasságkülönbség büntetése — feljebb tolva az út a völgyeket/gerinceket követi, kígyózó lesz. <strong>Síkság-preferencia</strong>: a síkságokhoz adott bónusz csökkentése — egyenessé teszi az utat a nyílt terepen.</div>
+        <canvas id="costCanvas" width="760" height="420"></canvas>
+        <div class="ctrls">
+          <label>Terep-költség:
+            <input type="range" id="costTer" min="0" max="100" value="70">
+            <span class="val" id="costTerVal">0.70</span>
+          </label>
+          <label>Lejtő-súly:
+            <input type="range" id="costSlope" min="0" max="100" value="35">
+            <span class="val" id="costSlopeVal">0.35</span>
+          </label>
+          <button id="costField" class="on">költségmező rajza</button>
+        </div>
+      </div>
+      <div class="box note"><span class="lbl">A költségmező = a biomok-lecke „nehézség-mezője" egy szinttel lejjebb</span><p>A biomok-lecke <a href="bevy-biomok-tutorial.html#difficulty">nehézség-mezője</a> a <em>játékos</em> számára mondta meg, mennyire veszélyes egy cella. Itt ugyanez a gondolat, csak az <em>út-építő</em> számára: a költségmező mondja meg, mennyire „drága" egy cellán átjárni. Ugyanaz az adat (a biom + a magasság), két különböző olvasatban — és ezért van külön rétegben (01).</p></div>
+    </section>
+
+    <!-- 05 -->
+    <section id="astar">
+      <div class="sec-head"><span class="idx">05</span><h2>A* — az útvonal megkeresése</h2></div>
+      <p>Most már megvan a két végpont (03) és a költségmező (04). A kettő közé kell húzni az utat — és erre az A* a klasszikus eszköz. A <a href="bevy-pathfinding-tutorial.html">pathfinding tutorial</a> ezt teljesen kifejti (BFS, Dijkstra, A*, heurisztikák); itt csak annyit veszünk át, amennyi az utakhoz kell. A különbség a karakter-mozgáshoz képest: <strong>az út-generálás egyszer fut le, tervezéskor</strong>, nem képkockánként — így megengedhetünk egy picit drágább, de <em>szép</em> utat.</p>
+      <p>A legfontosabb beállítások, amik az utakat másokká teszik, mint a karakter-útkövetést:</p>
+      <ul>
+        <li><strong>8-irányú mozgás.</strong> A 4-irányú (Manhattan) út lépcsőzetes, „lépcsőházas" — csúnya. A 8-irányú megengedi az átlós lépést, így az út <em>ferde</em> szakaszokat is tud. Vigyázz: az átlós lépés ne <strong>vágjon át sarkon</strong> (a két oldalsó szomszéd mindkettő ne járhatatlan legyen) — lásd lent.</li>
+        <li><strong>Súlyozott lépésköltség.</strong> Az átlós lépés <code class="inl">√2 ≈ 1.41</code>-szerese az egyenesnek (Pythagorasz), különben az A* az átlóst túlzottan preferálja. A lépésköltség maga a <code class="inl">cost()</code> a 04-ből.</li>
+        <li><strong>Heurisztika: oktáli-távolság.</strong> A Manhattan-távolság 8-irányú mozgásnál <em>nem engedi meg</em> az optimális megoldást (felülbecsli). Az oktáli-távolság (a 8 irány közti max + a maradék) a helyes választás.</li>
+      </ul>
+      <pre><code class="rust">use std::collections::BinaryHeap;
+use bevy::math::IVec2;
+
+/// A* a költségmezőn, 8-irányú mozgással. Visszaadja a cellák sorrendjét
+/// (starttal és céllal együtt), vagy `None`-t, ha nem ér el.
+/// `cost(from, to)` a 04-es költségmező; `passable(to)` a víz-szabály.
+fn astar&lt;C: Fn(IVec2, IVec2) -&gt; f32, P: Fn(IVec2) -&gt; bool&gt;(
+    start: IVec2, goal: IVec2, cost: C, passable: P,
+) -&gt; Option&lt;Vec&lt;IVec2&gt;&gt; {
+    let mut open: BinaryHeap&lt;Node&gt; = BinaryHeap::new();
+    let mut g = std::collections::HashMap::&lt;IVec2, f32&gt;::new();
+    let mut parent = std::collections::HashMap::&lt;IVec2, IVec2&gt;::new();
+    g.insert(start, 0.0);
+    open.push(Node { pos: start, f: octile(start, goal) });
+
+    while let Some(Node { pos, .. }) = open.pop() {
+        if pos == goal { return Some(reconstruct(&amp;parent, goal)); }
+        let g_pos = *g.get(&amp;pos)?;
+        for (n, diag) in neighbors8(pos) {
+            if !passable(n) { continue; }
+            // NE VÁGJON SARKON: két oldalsó szomszéd ne legyen egyszerre tilos.
+            if diag &amp;&amp; (!passable(IVec2::new(pos.x, n.y)) || !passable(IVec2::new(n.x, pos.y))) {
+                continue;
+            }
+            let step = cost(pos, n) * if diag { 1.41421 } else { 1.0 };
+            let tentative = g_pos + step;
+            if tentative &lt; *g.get(&amp;n).unwrap_or(&amp;f32::INFINITY) {
+                parent.insert(n, pos);
+                g.insert(n, tentative);
+                open.push(Node { pos: n, f: tentative + octile(n, goal) });
+            }
+        }
+    }
+    None
+}
+
+/// Oktáli-távolság: 8-irányú mozgásra a helyes (admisszibilis) heurisztika.
+fn octile(a: IVec2, b: IVec2) -&gt; f32 {
+    let dx = (a.x - b.x).abs() as f32;
+    let dy = (a.y - b.y).abs() as f32;
+    (dx + dy) + (1.41421 - 2.0) * dx.min(dy)   // = 1.41*min + (max-min)
+}
+fn neighbors8(p: IVec2) -&gt; impl Iterator&lt;Item = (IVec2, bool)&gt; {
+    const DIRS: [(IVec2, bool); 8] = [
+        (IVec2::new(1,0),false),(IVec2::new(-1,0),false),
+        (IVec2::new(0,1),false),(IVec2::new(0,-1),false),
+        (IVec2::new(1,1),true),(IVec2::new(-1,-1),true),
+        (IVec2::new(1,-1),true),(IVec2::new(-1,1),true),
+    ];
+    DIRS.into_iter().map(move |(d, diag)| (p + d, diag))
+}
+#[derive(PartialEq)] struct Node { pos: IVec2, f: f32 }
+impl Eq for Node {}
+impl Ord for Node { fn cmp(&amp;self, o: &amp;Self) -&gt; std::cmp::Ordering { o.f.partial_cmp(&amp;self.f).unwrap() } }
+impl PartialOrd for Node { fn partial_cmp(&amp;self, o: &amp;Self) -&gt; Option&lt;std::cmp::Ordering&gt; { Some(self.cmp(o)) } }</code></pre>
+      <div class="box tip"><span class="lbl">A sarkon-vágás szabály</span><p>A <code class="inl">diag</code> feltétel kritikus: ha átlósan lépsz, és a <em>két oldalsó</em> szomszéd (a „sarkok") közül valamelyik járhatatlan, akkor az út <strong>átmegy a falon</strong>. Ez a pathfinding tutorial <a href="bevy-pathfinding-tutorial.html">3. fejezete</a> „sarkon-vágás" problémája. Utaknál ez nemcsak csúnya, hanem <em>narratíva-romboló</em> is: egy út, ami átmegy a hegy gerincén, értelmetlen.</p></div>
+      <div class="box note"><span class="lbl">Determinizmus</span><p>Az A* a <strong>seedelt zajból</strong> számolt költségmezővel determinisztikus — ugyanaz a seed ugyanazt az utat adja. SOHA ne vigyél be <code class="inl">rand()</code>-ot az A*-ba (pl. a nyitott halmaz rendezésébe) — az út minden indításkor más lesz, és nem reprodukálható a hiba. Ha „kicsit véletlenszerűbb" utat akarsz, a <em>költségmezőbe</em> tegyél hash-jittert (mint a biomok <a href="bevy-biomok-tutorial.html#borders">domain warpingje</a>), nem a keresőbe.</p></div>
+    </section>
+
+    <!-- 06 -->
+    <section id="smooth">
+      <div class="sec-head"><span class="idx">06</span><h2>Simítás & szélesítés — a nyers A* csúnya</h2></div>
+      <p>Az A* egy <strong>cella-listát</strong> ad vissza — és az nyersen <em>csúnya</em>. Két baja van: (1) a 8-irányú mozgás <strong>„lépcsős" átlókat</strong> hoz létre (mert az átlós lépés valójában egyetlen cella-ugrás, nem folytonos vonal), és (2) az út <strong>túl kígyózó</strong> lehet, ha a költségmező finom zajjal van tele. Mindkettőt egy utófeldolgozó lépés javítja — <em>miután</em> az A* lefutott, és <em>anélkül</em>, hogy az útvonalat elhagyná a terepről.</p>
+      <h3>1 · String-pulling — a felesleges kanyarok elhagyása</h3>
+      <p>Az A* gyakran tesz felesleges köztes lépéseket: az út megy A→B→C, de A-ból C is <em>egyenesen látható</em> (nincs drága cella köztük). A string-pulling (vagy line-of-sight-simplification) ezeket a felesleges pontokat eldobja: minden pontra megnézi, a legmesszebbi olyan pont elérhető-e egyenes vonalban, és ha igen, a közteseket kihagyja. Az eredmény: <strong>rövidebb, egyenesebb, természetesebb</strong> út.</p>
+      <pre><code class="rust">/// String-pulling: elhagyja a felesleges köztes pontokat. Az A* útvonalából
+/// csak azokat a pontokat tartja meg, amik közt NINCS egyenes vonalú átjárás.
+/// `visible(a, b)` = az a→b egyenes (Bresenham) mentén minden cella járható.
+fn simplify&lt;V: Fn(IVec2, IVec2) -&gt; bool&gt;(path: &amp;[IVec2], visible: V) -&gt; Vec&lt;IVec2&gt; {
+    if path.len() &lt;= 2 { return path.to_vec(); }
+    let mut out = vec![path[0]];
+    let mut anchor = 0;
+    for i in 1..path.len() {
+        // ha az anchor→i+1 már nem látható, az i a legutolsó látható pont
+        if i + 1 == path.len() || !visible(path[anchor], path[i + 1]) {
+            out.push(path[i]);
+            anchor = i;
+        }
+    }
+    out
+}</code></pre>
+      <h3>2 · Út-szélesítés — a „csapásból út"</h3>
+      <p>Egy 1-cella széles út egy <em>csapás</em>, nem út. A valós utak <strong>1–2 cella szélesek</strong>. A szélesítés egyszerű: a simított út minden cellájának <strong>oldalsó szomszédját</strong> is megjelöljük útnak — de csak akkor, ha az nem víz/nem járhatatlan. Ez ad egy „szélességet", anélkül, hogy az út elhagyná a terepet. A demóban külön bekapcsolható.</p>
+      <pre><code class="rust">/// Út-szélesítés: a simított út mindkét oldalán 1 cellát hozzáadunk,
+/// ha az járható. A `normal(p)` az út iránya az előző pontból (a merőlegeshez).
+fn widen(layer: &amp;mut RoadLayer, path: &amp;[IVec2], map: &amp;BiomeMap) {
+    for w in path.windows(2) {
+        let dir = w[1] - w[0];              // iránya (pl. (1,0))
+        // a két merőleges irány: (−dy, dx) és (dy, −dx)
+        let perp = IVec2::new(-dir.y, dir.x);
+        for &amp;p in &amp;[w[0], w[1]] {
+            for n in [p + perp, p - perp] {
+                if in_bounds(n) &amp;&amp; map.cells[..].get(idx(n)).map_or(false, |b| *b != Biome::Water) {
+                    let i = idx(n);
+                    if layer.cells[i].is_none() { layer.cells[i] = Some(u32::MAX); } // széles
+                }
+            }
+        }
+    }
+}</code></pre>
+      <div class="box warn"><span class="lbl">A szélesítés felülírhatja a terepet?</span><p>NEM. A szélesítés csak az <strong>út-rétegbe</strong> ír (01) — a <code class="inl">Tile</code>-t nem módosítja. Az út-csempe (08) megjeleníti az „út-tal" a fűt, de az alatt a fű <em>még mindig fű</em> marad a terep-rétegben. Ezért nem tör el semmit, ha később az utat eltolod vagy elhagyod. Soha ne végy le egy fát csak azért, mert ott út van — az egy külön (játékmeneti) döntés.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: nyers A* vs. simított + szélesített</div>
+        <div class="dd">Ugyanaz az út, három állapotban. <strong>Nyers A*:</strong> a 8-irányú lépések „lépcsős" átlókat adnak, és a finom költségmező kígyózást. <strong>+ Simítás:</strong> string-pulling elhagyja a felesleges kanyarokat — egyenesebb, természetesebb. <strong>+ Szélesítés:</strong> az út 1 celláról 3-ra nő (oldalsó szomszédok) — ez már „út", nem „csapás".</div>
+        <canvas id="smoothCanvas" width="760" height="420"></canvas>
+        <div class="ctrls">
+          <button id="smRaw" class="on">nyers A*</button>
+          <button id="smSmooth">+ simítás</button>
+          <button id="smWide">+ szélesítés</button>
+          <span class="sep">|</span>
+          <button id="smGen">&#8635; új térkép</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 07 -->
+    <section id="net">
+      <div class="sec-head"><span class="idx">07</span><h2>Hálózat — MST & elágazások</h2></div>
+      <p>Eddig egyetlen utat generáltunk: A-ból B-be. De egy térképen ritkán <em>egy</em> út van — több tárgyat kell összekötni, és azokat egy <strong>hálózatként</strong>, nem független utakkal. Ha minden tárgyat mindennel összekötsz, a térkép <em>aszfalt-tenger</em> lesz (a teljes gráf <code class="inl">N²/2</code> út). Ha viszont csak egy <em>vonalat</em> húzol (lánc), a két szélső tárgy egymástól nagyon messze kerül. A helyes megoldás a <strong>minimális feszítőfa (MST)</strong>: a lehető legkevesebb út, ami még <em>minden</em> tárgyat elér.</p>
+      <h3>A recept: MST az út-végpontokon, majd A* minden élen</h3>
+      <p>A folyamat két lépésből áll — és fontos, hogy a kettő <strong>külön</strong> maradjon. Először a tárgyakon (mint csúcsokon) felépítesz egy <strong>távolsággráfot</strong>: minden tárgypárhoz a <em>költségmező szerinti</em> távolságot (nem a légvonalat!) számolod. Ezen az MST-t keressed (Prim vagy Kruskal). Az MST élei mondják meg, <strong>melyik két tárgyat kösd össze</strong> — és csak ezután, minden élre külön lefuttatod az A*-t (05).</p>
+      <pre><code class="rust">use std::collections::HashSet;
+
+/// A tárgyakon minimális feszítőfát (MST) építünk, hogy a lehető
+/// LEGKEVESEBB úttal kapcsoljunk össze mindent. Az élek súlya = a
+/// tárgyak közti költségmező-távolság (nem légvonal!).
+fn mst_edges(landmarks: &amp;[IVec2], dist: &amp;dyn Fn(IVec2, IVec2) -&gt; f32) -&gt; Vec&lt;(usize, usize)&gt; {
+    let n = landmarks.len();
+    if n &lt; 2 { return vec![]; }
+    // Prim-algoritmus: egy csúcsból indulunk, mindig a legolcsóbb új élt vesszük.
+    let mut in_tree = vec![false; n];
+    let mut min_edge = vec![(f32::INFINITY, 0); n];  // (költség, honnan)
+    in_tree[0] = true;
+    let mut edges = vec![];
+    for _ in 1..n {
+        for j in 0..n {
+            if !in_tree[j] {
+                let d = dist(landmarks[0/*...függ a fától*/], landmarks[j]);
+                // (teljes impl-ben az éppen vizsgált fában lévőkhöz mérünk)
+            }
+        }
+        // válaszd a legkisebb min_edge-et, vedd be a fába, rögzítsd az élt
+        // (rövidített — a Prim klasszikus, lásd a pathfinding tutorial gráf-fejezetét)
+    }
+    edges
+}
+
+/// A teljes hálózat-generálás: MST → minden élre A* → simítás → rétegbe.
+fn build_landmark_network(
+    landmarks: &amp;[IVec2],
+    map: &amp;BiomeMap,
+    layer: &amp;mut RoadLayer,
+) {
+    // 1) távolságfüggvény: A* költsége (nem légvonal!) — cache-elve, mert N²
+    let dist = |a: IVec2, b: IVec2| {
+        astar(a, b, |f, t| cost(map, f, t), |p| map.get(p) != Some(Biome::Water))
+            .map(|p| path_cost(&amp;p, map)).unwrap_or(f32::INFINITY)
+    };
+    // 2) MST megmondja, mely tárgypárokat kössük össze
+    for (i, j) in mst_edges(landmarks, &amp;dist) {
+        // 3) minden MST-élen A* → simítás → stamp
+        if let Some(path) = astar(landmarks[i], landmarks[j],
+            |f, t| cost(map, f, t), |p| map.get(p) != Some(Biome::Water)) {
+            let simple = simplify(&amp;path, |a, b| los_clear(a, b, map));
+            layer.stamp(simple, RoadKind::Landmark);   // 01-es réteg
+        }
+    }
+    // 4) a MÁR-ÉPÜLT utakat olcsóvá tesszük (cost-bónusz) → a későbbi utak rájuk futnak,
+    //    és a hálózat ÖSSZEÉR ahelyett, hogy párhuzamos szálakat húzna.
+}</code></pre>
+      <h3>A „már-épült út bónusz" — miért forr össze a hálózat</h3>
+      <p>Egy apró, de varázslatos trükk: amikor a második út generálódik, a <strong>költségmezőbe</strong> belevesszük, hogy a <em>már lerakott út cellái</em> <strong>nagyon olcsók</strong> (pl. 0.2). Az eredmény: a második út, ahelyett hogy párhuzamosan menne az első mellett, <strong>rátalál az első útra, és azon megy tovább</strong>. Ez hozza létre a <strong>elágazásokat</strong> és a <strong>kereszteződéseket</strong> — anélkül, hogy explicit módon „elágazást" generálnál. A hálózat önszerveződővé válik: az út mindig a legolcsóbbat keresi, és a legolcsóbb a már meglévő út.</p>
+      <div class="box tip"><span class="lbl">A bónusz = a „hálózat" eleme</span><p>Ez a trükk az, ami miatt az út-generálás nem egyszerű „A* sokszor". A <code class="inl">cost()</code> függvény (04) iteratívan újraszámolódik: miután az 1. út lekerült, a 2. út költségmezője már tartalmazza azt. Így a 7. tárgy-út <em>automatikusan ráakad</em> a korábbi utak hálózatára. Ez a „már-épült út bónusz" a 04-es költségmező harmadik (hálózati) rétege.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: teljes gráf vs. MST vs. + bónusz</div>
+        <div class="dd">Három különböző hálózat-stratégia ugyanazon a tárgyhalmazon. <strong>Teljes gráf:</strong> minden tárgyat mindennel összeköt — aszfalt-tenger. <strong>MST:</strong> minimális feszítőfa — legkevesebb út, de még párhuzamos szálak (nincs bónusz). <strong>MST + bónusz:</strong> a már-épült utak olcsóak → az utak rátalálnak a korábbiakra, elágaznak, összeérnek. Kapcsold be a <strong>biom-utat</strong> is, és lásd, ahogy a tárgy-hálózat rácsatlakozik a biom-út végére.</div>
+        <canvas id="netCanvas" width="760" height="440"></canvas>
+        <div class="ctrls">
+          <button id="netFull">teljes gráf</button>
+          <button id="netMst" class="on">MST</button>
+          <button id="netBonus">MST + bónusz</button>
+          <span class="sep">|</span>
+          <button id="netBiome" class="on">biom-út is</button>
+          <button id="netGen">&#8635; új térkép</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 08 -->
+    <section id="tiles">
+      <div class="sec-head"><span class="idx">08</span><h2>Út-csempék — autotiling a maszk alapján</h2></div>
+      <p>Az út-réteg (01) eddig csak adat: „van-e út a cellán". Ebből kell <strong>csempévé</strong> válnia — és pont úgy, mint a terep autotilingja (proc-gen <a href="bevy-proceduralis-terkep-tutorial.html#auto">10. szakasz</a>), a csempe választása a <strong>szomszédokból</strong> történik. A különbség: az út egy <em>vékony csík</em>, így a maszk nem „mi van körülöttem", hanem <strong>„melyik szomszédokon van út"</strong>. Ebből a maszkból indexeljük az út-csempét: egyenes, sarok, T, kereszt, csonk.</p>
+      <h3>A 4-bites maszk — 16 csempe elég</h3>
+      <p>Minden út-cellához megnézzük a 4 fő-irányú szomszédot (É/K/D/Ny), és felépítünk egy 4-bites maszkot: bit <code class="inl">i</code> = 1, ha az <code class="inl">i</code>-edik irányban út van. Ez a maszk (0..15) indexel egy út-csempét. A 16 maszkból azonban csak <strong>6 eset</strong> hordoz jelentést — a többi szimmetria-változat:</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Szomszédok</th><th>Példa maszk</th><th>Csempe típus</th><th>Db (forgatottal)</th></tr></thead>
+        <tbody>
+          <tr><td>0 (egyedül)</td><td>0000</td><td>pont-csempe (állomás)</td><td>1</td></tr>
+          <tr><td>1 (végpont)</td><td>0001</td><td>csatlakozó csonk</td><td>4</td></tr>
+          <tr><td>2 (átellenes)</td><td>0101</td><td>egyenes szakasz</td><td>2 (vízszintes/függőleges)</td></tr>
+          <tr><td>2 (szomszédos)</td><td>0011</td><td>kanyar / sarok</td><td>4</td></tr>
+          <tr><td>3</td><td>0111</td><td>T-elágazás</td><td>4</td></tr>
+          <tr><td>4</td><td>1111</td><td>kereszt (X)</td><td>1</td></tr>
+        </tbody>
+      </table></div>
+      <pre><code class="rust">/// 4-bites szomszéd-maszk: bit 0=É, 1=K, 2=D, 3=Ny. 1, ha ott út van.
+fn road_mask(layer: &amp;RoadLayer, x: i32, y: i32) -&gt; u8 {
+    let n = |dx, dy| layer.has(x + dx, y + dy) as u8;
+    (n(0,-1) &lt;&lt; 0) | (n(1,0) &lt;&lt; 1) | (n(0,1) &lt;&lt; 2) | (n(-1,0) &lt;&lt; 3)
+}
+
+/// A maszk → csempe-típus. A forgatást (melyik irányba nyílik) a Sprite
+/// `rotation`-ja oldja meg, így mindössze 6 CSEMPÉT kell rajzolni.
+#[derive(Clone, Copy)]
+enum RoadTile { Dot, Stub, Straight, Corner, TJunction, Cross }
+
+fn road_tile(mask: u8) -&gt; RoadTile {
+    let count = mask.count_ones();
+    match count {
+        0 =&gt; RoadTile::Dot,
+        1 =&gt; RoadTile::Stub,
+        2 =&gt; if mask == 0b0101 || mask == 0b1010 { RoadTile::Straight } else { RoadTile::Corner },
+        3 =&gt; RoadTile::TJunction,
+        _ =&gt; RoadTile::Cross,        // count == 4
+    }
+}</code></pre>
+      <div class="box tip"><span class="lbl">6 csempe + forgatás = 16 maszk</span><p>Ez ugyanaz a trükk, mint a proc-gen <a href="bevy-proceduralis-terkep-tutorial.html#auto">autotiling</a>: a maszk mondja meg <em>mit</em>, a forgatás mondja meg <em>melyik irányba</em>. A 16 maszkból így elég 6 csempét megrajzolni (pont, csonk, egyenes, sarok, T, kereszt), és a maradék 10 a forgatással előáll. A <a href="csempe-bitmaszkolas.html">csempe-bitmaszkolás lecke</a> ezt teljesen kifejti (8-bites sarkokkal, 47/256 redukcióval) — ha a 4-bites sima vonalak túl „geometriaiak", az a mélyebb verzió.</p></div>
+      <div class="box note"><span class="lbl">Hova kerül az út-csempe?</span><p>Az út-csempe <strong>külön entitás</strong> a terep-csempe fölött (kisebb Z-értékkel, hogy látszódjon). Soha ne írd felül a terep-csempét az út-csempével — a kettő különböző réteg (01). A megjelenítő rendszer csak akkor spawnol út-csempét, ha a <code class="inl">RoadLayer</code> szerint van ott út; ha az utat megszünteted (pl. egy quest hatására), csak az út-entitást tünteted el, a fű ott marad. Pont az az elválasztás, amit a biomok-lecke <a href="bevy-biomok-tutorial.html#bevy">10. szakasza</a> is követ.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: a 6 út-csempe + maszk-térkép</div>
+        <div class="dd">Fent: a 6 út-csempe-típus, mindegyik a hozzá tartozó maszkkal. Lent: egy generált út-hálózat, ahol minden cellát a megfelelő (forgatott) csempe rajzol — figyeld meg a T-elágazásokat és a kereszteződéseket ott, ahol az utak összeérnek (07). A maszk <em>automatikusan</em> felismeri a junction-t — nem kell külön logika.</div>
+        <canvas id="tilesCanvas" width="760" height="500"></canvas>
+        <div class="ctrls">
+          <button id="tilesMask" class="on">maszk rajza</button>
+          <button id="tilesTiles">út-csempék</button>
+          <span class="sep">|</span>
+          <button id="tilesGen">&#8635; új hálózat</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 09 -->
+    <section id="recipe">
+      <div class="sec-head"><span class="idx">09</span><h2>A teljes recept — minden együtt</h2></div>
+      <p>Rakjuk össze. Egy teljes út-réteg generálása öt lépésből áll, és a lépések sorrendje <strong>számít</strong> — az 1. lépés kimenete a 2. lépés bemenete:</p>
+      <ol>
+        <li><strong>Végpontok.</strong> Biom-utakra: a kapu (legközelebbi cellapár, 03). Tárgy-utakra: maguk a tárgyak (proc-gen <a href="bevy-proceduralis-terkep-tutorial.html#features">09</a>).</li>
+        <li><strong>Költségmező.</strong> Terep-költség + lejtő-súly (+ már-épült út bónusz a hálózathoz, 04).</li>
+        <li><strong>Útvonal.</strong> A* 8-irányban, oktáli-heurisztikával, sarkon-vágás-szabállyal (05).</li>
+        <li><strong>Utófeldolgozás.</strong> String-pulling (simítás) + szélesítés (06).</li>
+        <li><strong>Rétegbe + csempe.</strong> <code class="inl">RoadLayer.stamp()</code> (01) → maszk → út-csempe (08).</li>
+      </ol>
+      <p>A hálózatnál (07) a 2–5. lépés <strong>iteratívan</strong> ismétlődik minden MST-élen, és a 2. lépés költségmezője minden iterációban frissül a már-épült utakkal. A játszótéren az egész folyamatot lépésenként kapcsolhatod be:</p>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: a teljes recept — játszótér</div>
+        <div class="dd">Válassz biom-útvonalat és tárgy-hálózatot, majd kapcsold be a rétegeket egyenként. <strong>Minden ki:</strong> a néma biom-térkép (00 bal fele). <strong>Minden be:</strong> a teljes út-réteg (00 jobb fele). A különbség pont a lecke tartalma.</div>
+        <canvas id="playCanvas" width="760" height="440"></canvas>
+        <div class="ctrls">
+          <button id="playBiome" class="on">biom-út (kapu)</button>
+          <button id="playLandmark">tárgy-hálózat (MST)</button>
+          <span class="sep">|</span>
+          <button id="playSmooth" class="on">simítás</button>
+          <button id="playWide">szélesítés</button>
+          <button id="playBonus" class="on">bónusz (hálózat-összeérés)</button>
+          <span class="sep">|</span>
+          <button id="playGen">&#8635; új térkép</button>
+        </div>
+      </div>
+      <div class="box tip"><span class="lbl">Sorrend számít</span><p>A biom-utakat <strong>előbb</strong> generáld, mint a tárgy-utakat: a biom-út a táj nagy szerkezetét adja, a tárgy-hálózat pedig „rácsatlakozik". Ha a bónusz (07) be van kapcsolva, a tárgy-utak automatikusan rátalálnak a biom-útra — ez az, ami a 00-ás jobb félen látható. Ez ugyanaz az „előbb adat, aztán kép" elv, mint a <a href="bevy-biom-atmenetek-tutorial.html#recipe">biom-átmenetek teljes receptjében</a>.</p></div>
+    </section>
+
+    <!-- 10 -->
+    <section id="bevy">
+      <div class="sec-head"><span class="idx">10</span><h2>Bevy integráció</h2></div>
+      <p>A generálás egyetlen <code class="inl">system</code>, ami a biom-térkép elkészülte után fut (a biomok-lecke <a href="bevy-biomok-tutorial.html#bevy">10. szakaszának</a> generálási fázisa után). A kimenet egy <code class="inl">RoadLayer</code> resource és a út-csempe entitások. A logika (út-réteg) és a megjelenítés (csempe) külön — ezért a stratégiát (költségmező súlyok) cserélheted a megjelenítő rendszer átírása nélkül.</p>
+      <pre><code class="rust">use bevy::prelude::*;
+
+const W: i32 = 64;
+const H: i32 = 48;
+const TILE: f32 = 32.0;
+
+#[derive(Component)]
+struct RoadTileMarker { x: i32, y: i32 }
+
+/// A generálási rendszer: biomok után fut, az út-réteget építi.
+/// A költségmező és az A* a 04/05-ből; itt csak a vezérlés látszik.
+fn generate_roads(
+    biomes: Res&lt;BiomeMap&gt;,
+    landmarks: Query&lt;&amp;Landmark&gt;,
+    mut commands: Commands,
+) {
+    if !biomes.is_changed() { return; }      // csak ha (újra)generálódott a térkép
+
+    let mut layer = RoadLayer::default();
+    layer.cells = vec![None; (W * H) as usize];
+
+    // 1 · BIOM-ÚT: sivatag → hegy kapu (03), A* (05), simítás (06), stamp (01)
+    let desert: Vec&lt;IVec2&gt; = cells_of(&amp;biomes, Biome::Desert);
+    let mountain: Vec&lt;IVec2&gt; = cells_of(&amp;biomes, Biome::Mountain);
+    if let Some((a, b)) = gate(&amp;desert, &amp;mountain) {
+        let cost = |f, t| cost(&amp;biomes, f, t);
+        let pass = |p| biomes.get(p) != Some(Biome::Water);
+        if let Some(path) = astar(a, b, cost, pass) {
+            let simple = simplify(&amp;path, |x, y| los_clear(x, y, &amp;biomes));
+            layer.stamp(simple, RoadKind::BiomeLink);
+        }
+    }
+
+    // 2 · TÁRGY-HÁLÓZAT: MST a tárgyakon (07), minden élen A* + bónusz.
+    let pts: Vec&lt;IVec2&gt; = landmarks.iter().map(|l| l.pos).collect();
+    build_landmark_network(&amp;pts, &amp;biomes, &amp;mut layer);   // 07
+
+    // 3 · MEGJELENÍTÉS: minden út-cellára spawnolunk egy út-csempe-entitást.
+    for y in 0..H { for x in 0..W {
+        if layer.has(x, y) {
+            let mask = road_mask(&amp;layer, x, y);
+            let tile = road_tile(mask);
+            let rot = rotation_for(mask);     // a forgatás a maszk alapján
+            commands.spawn((
+                Sprite {
+                    image: road_atlas.clone(),         // 6 csempe (08)
+                    texture_atlas: Some(TextureAtlas {
+                        layout: road_layout.clone(),
+                        index: tile as usize,
+                    }),
+                    custom_size: Some(Vec2::splat(TILE)),
+                    color: road_tint_for(layer.cells[idx]),  // biom-út vs. tárgy-út szín
+                    ..default()
+                },
+                Transform::from_xyz(x as f32 * TILE, y as f32 * TILE, 1.0), // a fű felett
+                RoadTileMarker { x, y },
+            ));
+        }
+    }}
+
+    commands.insert_resource(layer);
+}</code></pre>
+      <p>Ha az út futásidőben változik (a játékos felépít egy újat, vagy egy quest nyit egy utat), nem kell újra-spawnolni a teljes réteget — csak a <strong>megváltozott cellákon</strong> frissíted a maszkot és a csempét. A Z-érték (<code class="inl">1.0</code>) biztosítja, hogy az út-csempe a terep fölött, de a tárgyak alatt jelenjen meg:</p>
+      <pre><code class="rust">/// Futásidejű frissítés: ha a RoadLayer változik, az érintett cellák
+/// maszkját és csempéjét újra számoljuk. Nem spawnolunk újra mindent.
+fn refresh_road_tiles(
+    layer: Res&lt;RoadLayer&gt;,
+    mut tiles: Query&lt;(&amp;RoadTileMarker, &amp;mut Sprite)&gt;,
+) {
+    if !layer.is_changed() { return; }
+    for (m, mut sprite) in &amp;mut tiles {
+        let mask = road_mask(&amp;layer, m.x, m.y);
+        let tile = road_tile(mask);
+        if let Some(atlas) = &amp;mut sprite.texture_atlas {
+            atlas.index = tile as usize;     // csempe-típus
+        }
+        sprite.rotation = rotation_for(mask); // forgatás
+    }
+}</code></pre>
+      <div class="box warn"><span class="lbl">Skálázás</span><p>Cellánként egy út-entitás egy 64×48-as térképen kiváló tanulni, de egy nagy nyílt világhoz <code class="inl">bevy_ecs_tilemap</code> kell (chunkolt mesh) — ott a <code class="inl">TileTextureIndex</code>-et írod a maszk alapján. Az út-generálás logikája (költségmező, A*, MST) változatlan; csak a megjelenítő réteg cserélődik. Telepítés előtt nézd meg, melyik Bevy-verziót támogat a crate — lásd a biomok-lecke <a href="bevy-biomok-tutorial.html#bevy">skálázási tippjét</a>.</p></div>
+      <div class="box note"><span class="lbl">Mikor fut a generálás?</span><p>Az út-generálás <strong>egyszer</strong> fut, a biom-térkép generálása után. Ha a térkép statikus (egy dungeon, egy pálya), ez indításkor megtörténik. Ha a térkép <em>folyamatosan</em> generálódik (chunkok, végtelen világ), akkor a generálás <strong>chunkonként</strong> fut — és az utak <em>át</em> a chunk-határokon csak akkor folytatódnak, ha a költségmező a szomszéd chunk adatait is látja. Ez egy külön (haladó) téma; a gyakorlatban az utakat egy <em>regionális</em> léptékben tervezik meg, és csak a chunkokra „vágják”.</p></div>
+    </section>
+
+    <!-- 11 -->
+    <section id="tips">
+      <div class="sec-head"><span class="idx">11</span><h2>Gyakorlati tippek & buktatók</h2></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>Tartsd az utat <strong>külön rétegben</strong> (01) — soha ne írd az útat a <code class="inl">Tile</code>-ba. A terep, az út és a tárgy három független réteg; a megjelenítés és a játékmenet mindegyiket külön olvassa.</p></div>
+      <div class="box warn"><span class="lbl">Ne</span><p>Ne használj <strong>centroidot</strong> biom-út végpontnak (03). A matematikai közép lehet a víz alatt vagy a hegy csúcsán. A <strong>kapu</strong> (legközelebbi cellapár) a helyes — ez adja a természetes átjárót.</p></div>
+      <div class="box warn"><span class="lbl">Ne</span><p>Ne tedd a hegyet <strong>járhatatlannak</strong> (04). A hegy drága legyen, de <em>járható</em> — különben a „sivatagból fel a hegyekbe" biom-út értelmét veszti, mert a végpont maga a hegyben van. Csak a víz legyen tényleg tilos (és ott is érdemes <code class="inl">1e6</code>, nem <code class="inl">INFINITY</code>).</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>A „már-épült út bónusz" (07) az, ami a hálózatot <strong>összeforró</strong> varázslattá teszi. Kapcsold be: az utak rátalálnak a korábbiakra, elágazások és kereszteződések <em>automatikusan</em> jönnek létre — nem kell külön „elágazás"-logika.</p></div>
+      <div class="box warn"><span class="lbl">Ne</span><p>Ne felejtsd el a <strong>sarkon-vágás szabályt</strong> (05). 8-irányú A* nélküle átmegy a hegy gerincén — narratíva-romboló. A két oldalsó szomszéd közül valamelyik járhatatlan → az átlós lépés tilos.</p></div>
+      <div class="box warn"><span class="lbl">Vigyázz</span><p>A <strong>lejtő-súly</strong> (04) a legerősebb fűszer — de túl felhúzva az út <em>túl kígyózó</em> lesz, és elveszti az „út" karakterét. Kezdd 0.3 körül, és finomhangold a demóban.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>A biom-utakat <strong>előbb</strong> generáld, mint a tárgy-utakat (09). A biom-út a táj nagy szerkezetét adja; a tárgy-hálózat (a bónusszal) automatikusan rácsatlakozik. Így a két típus <em>összenő</em>, nem keresztezi egymást értelmetlenül.</p></div>
+      <div class="box note"><span class="lbl">A 6 csempe elég</span><p>A 4-bites maszkból 6 csempe + forgatás elég (08). Ha a 4-bites „lépcsőzetes" túl geometriai, a <a href="csempe-bitmaszkolas.html">8-bites bitmaszkolás</a> vagy a <a href="bevy-dual-grid-tutorial.html">dual-grid</a> simábbat ad — de a 4-bites a legtöbb úthálózatnál bőven elég. Ne túlbonyolítsd.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>A generálást <strong>determinisztikusan</strong> végezd a seedelt zajból. Soha ne vigyél be <code class="inl">rand()</code>-ot az A*-ba vagy a végpont-választásba — a koordináta hash (a biomok-lecke <a href="bevy-biomok-tutorial.html#bevy">mintája</a>) a helyes, különben az út minden indításkor más.</p></div>
+    </section>
+
+    <!-- 12 -->
+    <section id="tldr">
+      <div class="sec-head"><span class="idx">12</span><h2>TL;DR</h2></div>
+      <div class="tldr">
+        <h3>A lényeg egy kártyán</h3>
+        <ul>
+          <li><strong>Az út = külön réteg</strong> (01): <code class="inl">RoadLayer</code> (Option&lt;u32&gt; cellánként) a terep-réteg fölött. Soha ne írd az útat a <code class="inl">Tile</code>-ba — a terep, az út és a tárgy három független réteg.</li>
+          <li><strong>Két út-típus:</strong> <em>biom-út</em> (két biom-régiót köt, a végpontokat választani kell) és <em>tárgy-út</em> (konkrét kitüntetett pontokat). A különbség a végpont-kiválasztásban és a költségmező súlyozásában van; maga a nyomkeresés közös.</li>
+          <li><strong>Végpontok (03):</strong> a tárgy-út végpontjai adottak; a biom-út végpontja a <strong>kapu</strong> = a két régió <em>legközelebbi cellapárja</em>. Ne centroidot használj — az gyakran rossz cellán van.</li>
+          <li><strong>Költségmező (04):</strong> terep-költség (víz tilos, síkság olcsó, hegy drága de járható) + lejtő-súly (magasságkülönbség-büntetés) + már-épült út bónusz (hálózat). Ez teszi az utat tájkövetővé.</li>
+          <li><strong>A* (05):</strong> 8-irányú, oktáli-heurisztika, sarkon-vágás-szabály, <code class="inl">√2</code>-es átlós lépésköltség. Determinisztikus — sose <code class="inl">rand()</code>.</li>
+          <li><strong>Simítás & szélesítés (06):</strong> string-pulling (felesleges kanyarok elhagyása, line-of-sight-tal) + oldalsó szomszédok megjelölése (1 cella → 3 cella széles).</li>
+          <li><strong>Hálózat (07):</strong> MST a tárgyakon (minimális út, ami mindent elér), minden élen A*. A „már-épült út bónusz" miatt az utak rátalálnak a korábbiakra → elágazások <em>automatikusan</em> jönnek.</li>
+          <li><strong>Út-csempék (08):</strong> 4-bites szomszéd-maszk → 6 csempe-típus (pont, csonk, egyenes, sarok, T, kereszt) + forgatás. A junction-öt a maszk automatikusan felismeri.</li>
+          <li><strong>Sorrend (09):</strong> biom-út előbb, mint a tárgy-hálózat; a bónusz miatt a tárgy-utak rácsatlakoznak a biom-útra. Előbb adat, aztán kép.</li>
+          <li><strong>Bevy (10):</strong> egy generálási rendszer a biomok után; az út-csempe külön entitás Z=1-en a fű felett. Futásidejű változás: csak a megváltozott cellák maszkját/csempéjét frissítsd. Nagy világ: <code class="inl">bevy_ecs_tilemap</code>.</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer>
+      Bevy 0.18 · Utak a procedurális térképen: biom-utak + tárgy-utak · egyetlen fájlos HTML · a biom-térkép a zajból generálódik, az utak fölötte egy külön rétegben
+    </footer>
+  </main>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- Rust szintaxiskiemelő ---------- */
+function highlightRust(src){
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  var token = /(\/\/[^\n]*)|("(?:[^"\\]|\\.)*")|(\b(?:fn|let|mut|for|in|if|else|match|struct|enum|impl|trait|pub|use|mod|return|self|Self|as|where|move|loop|while|break|continue|const|static|ref|dyn|crate|true|false|then_some|then)\b)|(\b[A-Z][A-Za-z0-9_]*\b)|(\b[a-z_][A-Za-z0-9_]*!)|(\b\d[\d_]*\.?\d*(?:f32|f64|u32|i32|u8|usize)?\b)/g;
+  var out="", last=0, m;
+  while((m=token.exec(src))!==null){
+    out += esc(src.slice(last, m.index));
+    var text = esc(m[0]);
+    if(m[1]) out += '<span class="c">'+text+'</span>';
+    else if(m[2]) out += '<span class="s">'+text+'</span>';
+    else if(m[3]) out += '<span class="k">'+text+'</span>';
+    else if(m[4]) out += '<span class="t">'+text+'</span>';
+    else if(m[5]) out += '<span class="m">'+text+'</span>';
+    else if(m[6]) out += '<span class="n">'+text+'</span>';
+    last = token.lastIndex;
+  }
+  out += esc(src.slice(last));
+  return out;
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+  document.querySelectorAll("pre code.rust").forEach(function(el){
+    el.innerHTML = highlightRust(el.textContent);
+  });
+
+  /* scrollspy */
+  var links = Array.prototype.slice.call(document.querySelectorAll("#nav a"));
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute("href").slice(1)] = a; });
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){
+        links.forEach(function(a){ a.classList.remove("active"); });
+        var act = map[e.target.id];
+        if(act) act.classList.add("active");
+      }
+    });
+  }, { rootMargin: "-20% 0px -70% 0px" });
+  document.querySelectorAll("section").forEach(function(s){ obs.observe(s); });
+
+  /* mobil menü */
+  var btn = document.getElementById("menuBtn");
+  var sb = document.getElementById("sidebar");
+  if(btn){
+    btn.addEventListener("click", function(){ sb.classList.toggle("open"); });
+    document.querySelectorAll("#nav a").forEach(function(a){
+      a.addEventListener("click", function(){ sb.classList.remove("open"); });
+    });
+  }
+
+  initDemos();
+});
+
+/* ===================== közös segédek ===================== */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function makeValueNoise(seed){
+  function hash(x,y){
+    var h = (x*374761393) ^ (y*668265263) ^ (seed*2147483647);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  }
+  function smooth(t){ return t*t*(3-2*t); }
+  return function(x,y){
+    var x0 = Math.floor(x), y0 = Math.floor(y);
+    var fx = smooth(x-x0), fy = smooth(y-y0);
+    var v00=hash(x0,y0), v10=hash(x0+1,y0), v01=hash(x0,y0+1), v11=hash(x0+1,y0+1);
+    var a = v00 + (v10-v00)*fx;
+    var b = v01 + (v11-v01)*fx;
+    return a + (b-a)*fy;
+  };
+}
+function fbm(noise, x, y, octaves){
+  var sum=0, amp=1, freq=1, norm=0;
+  for(var i=0;i<octaves;i++){ sum += noise(x*freq, y*freq)*amp; norm += amp; amp *= 0.5; freq *= 2; }
+  return sum/norm;
+}
+function hash2(x,y,seed){
+  var h = (x*374761393) ^ (y*668265263) ^ ((seed||0)*2147483647);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/* ===================== biom-térkép generálás ===================== */
+var BIOME = { Water:0, Desert:1, Plains:2, Forest:3, Mountain:4, Snow:5 };
+var BIOME_COL = {
+  0:'#2c6f9e', 1:'#d8c089', 2:'#6ba84f', 3:'#356b3a', 4:'#7d6f5e', 5:'#e8edf2'
+};
+var BIOME_NAME = {0:'Víz',1:'Sivatag',2:'Mező',3:'Erdő',4:'Hegy',5:'Hó'};
+
+// terep-költség alapértelmezett súlyok (a costCanvas hangolja őket)
+var TERRAIN_COST = {0:1e6, 1:1.4, 2:1.0, 3:1.8, 4:3.5, 5:2.4};
+
+/// Egy teljes biom-térképet generál: biome[], elev[], W, H.
+function genMap(seed, W, H){
+  var elevN = makeValueNoise(seed);
+  var moistN = makeValueNoise(seed+9173);
+  var biome = new Uint8Array(W*H);
+  var elev = new Float32Array(W*H);
+  var moist = new Float32Array(W*H);
+  for(var y=0;y<H;y++) for(var x=0;x<W;x++){
+    // domain warp a biomok-lecke szerint — organikus határok
+    var wx = x + (fbm(elevN, x*0.08, y*0.08, 3)-0.5)*8;
+    var wy = y + (fbm(elevN, x*0.08+5, y*0.08+5, 3)-0.5)*8;
+    var e = fbm(elevN, wx*0.045, wy*0.045, 5);
+    var m = fbm(moistN, wx*0.06, wy*0.06, 4);
+    // sziget-alak: a szélek felé süllyed
+    var nx = x/(W-1)*2-1, ny = y/(H-1)*2-1;
+    var d = 1 - Math.min(1, Math.sqrt(nx*nx+ny*ny)*1.05);
+    e = e*0.65 + d*0.35;
+    elev[y*W+x] = e; moist[y*W+x] = m;
+    var b;
+    if(e < 0.30) b = BIOME.Water;
+    else if(e > 0.62) b = (m > 0.55 ? BIOME.Snow : BIOME.Mountain);
+    else if(m < 0.38) b = BIOME.Desert;
+    else if(m < 0.62) b = BIOME.Plains;
+    else b = BIOME.Forest;
+    biome[y*W+x] = b;
+  }
+  return {W:W,H:H,biome:biome,elev:elev,moist:moist,seed:seed};
+}
+
+/// Költségmező adott súlyokkal. slopeW = lejtő-súly, terScale = terep-költség erőssége (0..1).
+function costAt(map, from, to, slopeW, terScale){
+  var idx = to.y*map.W + to.x;
+  var b = map.biome[idx];
+  var base = TERRAIN_COST[b];
+  // terScale 0 → minden cella 1.0; 1 → teljes terep-költség
+  var ter = 1.0 + (base - 1.0) * terScale;
+  var slope = Math.abs(map.elev[to.y*map.W+to.x] - map.elev[from.y*map.W+from.x]) * slopeW * 10.0;
+  return ter + slope;
+}
+function passable(map, p){
+  if(p.x<0||p.y<0||p.x>=map.W||p.y>=map.H) return false;
+  return map.biome[p.y*map.W+p.x] !== BIOME.Water;   // víz = tilos
+}
+function inB(p, W, H){ return p.x>=0&&p.y>=0&&p.x<W&&p.y<H; }
+
+/// A* a rácson, 8-irányban, sarkon-vágás nélkül. costFn(from,to) -> f32.
+function astar(map, start, goal, costFn, passFn){
+  var W = map.W, H = map.H;
+  var idx = function(x,y){ return y*W+x; };
+  var g = new Float32Array(W*H).fill(Infinity);
+  var parX = new Int32Array(W*H).fill(-1), parY = new Int32Array(W*H).fill(-1);
+  var closed = new Uint8Array(W*H);
+  var open = [];   // [f, x, y] — egyszerű bináris kupac helyett rendezett tömb
+  function octile(a,b,c,d){
+    var dx=Math.abs(a-c), dy=Math.abs(b-d);
+    return (dx+dy) + (1.41421-2.0)*Math.min(dx,dy);
+  }
+  g[idx(start.x,start.y)] = 0;
+  open.push([octile(start.x,start.y,goal.x,goal.y), start.x, start.y]);
+  var DIRS = [[1,0,false],[-1,0,false],[0,1,false],[0,-1,false],
+              [1,1,true],[-1,-1,true],[1,-1,true],[-1,1,true]];
+  var goalI = idx(goal.x, goal.y);
+  var guard = 0;
+  while(open.length && guard++ < W*H*8){
+    // legkisebb f kivétele (lineáris keresés — demóhoz elég)
+    var bi=0; for(var i=1;i<open.length;i++){ if(open[i][0]<open[bi][0]) bi=i; }
+    var cur = open.splice(bi,1)[0];
+    var cx=cur[1], cy=cur[2], ci=idx(cx,cy);
+    if(closed[ci]) continue;
+    closed[ci]=1;
+    if(ci===goalI) break;
+    for(var d=0; d<8; d++){
+      var nx=cx+DIRS[d][0], ny=cy+DIRS[d][1], diag=DIRS[d][2];
+      if(nx<0||ny<0||nx>=W||ny>=H) continue;
+      if(!passFn({x:nx,y:ny})) continue;
+      if(diag){
+        // sarkon-vágás szabály: a két oldalsó szomszéd ne legyen tilos
+        if(!passFn({x:cx,y:ny}) || !passFn({x:nx,y:cy})) continue;
+      }
+      var ni = idx(nx,ny);
+      if(closed[ni]) continue;
+      var step = costFn({x:cx,y:cy}, {x:nx,y:ny}) * (diag?1.41421:1.0);
+      var tent = g[ci] + step;
+      if(tent < g[ni]){
+        g[ni] = tent; parX[ni]=cx; parY[ni]=cy;
+        open.push([tent + octile(nx,ny,goal.x,goal.y), nx, ny]);
+      }
+    }
+  }
+  if(g[goalI]===Infinity) return null;
+  // rekonstrukció
+  var path = [];
+  var cx=goal.x, cy=goal.y;
+  while(!(cx===start.x && cy===start.y)){
+    path.push({x:cx,y:cy});
+    var pi=idx(cx,cy);
+    var px=parX[pi], py=parY[pi];
+    if(px<0) break;
+    cx=px; cy=py;
+  }
+  path.push({x:start.x,y:start.y});
+  path.reverse();
+  return path;
+}
+
+/// Kapu: két régió legközelebbi cellapárja. Csak perem-cellákat hasonlít össze.
+function gate(regionA, regionB){
+  var best=Infinity, ba=null, bb=null;
+  for(var i=0;i<regionA.length;i++){
+    var a=regionA[i];
+    for(var j=0;j<regionB.length;j++){
+      var b=regionB[j];
+      var d2=(a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y);
+      if(d2<best){ best=d2; ba=a; bb=b; }
+    }
+  }
+  return ba?{a:ba,b:bb}:null;
+}
+function regionCells(map, biome){
+  var r=[]; for(var y=0;y<map.H;y++) for(var x=0;x<map.W;x++){
+    if(map.biome[y*map.W+x]===biome) r.push({x:x,y:y});
+  } return r;
+}
+/// Centroid (lebegőpontos — nem feltétlenül létező cella).
+function centroid(region){
+  var sx=0, sy=0; for(var i=0;i<region.length;i++){ sx+=region[i].x; sy+=region[i].y; }
+  return {x:Math.round(sx/region.length), y:Math.round(sy/region.length)};
+}
+/// Egy determinisztikus perem-cellát választ.
+function edgeCell(map, biome, seed){
+  var cells=[]; for(var y=0;y<map.H;y++) for(var x=0;x<map.W;x++){
+    if(map.biome[y*map.W+x]!==biome) continue;
+    // perem: van nem-saját szomszéd
+    var perim=[[1,0],[-1,0],[0,1],[0,-1]].some(function(d){
+      var nx=x+d[0], ny=y+d[1];
+      if(nx<0||ny<0||nx>=map.W||ny>=map.H) return true;
+      return map.biome[ny*map.W+nx]!==biome;
+    });
+    if(perim) cells.push({x:x,y:y});
+  }
+  if(!cells.length) return null;
+  var h = Math.floor(hash2(7,11,seed)*cells.length);
+  return cells[h];
+}
+
+/// String-pulling: line-of-sight alapú simítás. visible(a,b)=Bresenham tiszta.
+function bresenham(a, b){
+  var pts=[]; var x0=a.x,y0=a.y,x1=b.x,y1=b.y;
+  var dx=Math.abs(x1-x0), dy=Math.abs(y1-y0);
+  var sx=x0<x1?1:-1, sy=y0<y1?1:-1;
+  var err=dx-dy; var x=x0,y=y0;
+  while(true){ pts.push({x:x,y:y}); if(x===x1&&y===y1) break; var e2=2*err;
+    if(e2>-dy){ err-=dy; x+=sx; } if(e2<dx){ err+=dx; y+=sy; } }
+  return pts;
+}
+/// Egy lépés költsége (átlós = ×√2), a hívó (from,to) költségfüggvényével.
+function segStep(p, c, costFn){
+  var diag=(p.x!==c.x && p.y!==c.y);
+  return costFn(p, c) * (diag?1.41421:1.0);
+}
+/// KÖLTSÉG-TUDATOS string-pulling. A nyers A*-útból csak ott tart meg köztes
+/// pontot, ahol a kanyar VALÓDI: ahol az egyenes „átvágás" lényegesen drágább
+/// lenne, mint az eredeti (mert vízen/hegyen/meredeken menne át). Így a lépcsős
+/// átlók eltűnnek, DE a táj kikerülése megmarad — pont, ahogy a 06. szakasz
+/// ígéri („nincs drága cella köztük"). A `costFn(from,to)` ugyanaz, amivel az
+/// A* keresett — ha nincs megadva, az alap súlyokat (0.35/0.70) használjuk.
+function simplifyPath(map, path, costFn){
+  if(!costFn) costFn=function(f,t){return costAt(map,f,t,0.35,0.7);};
+  if(path.length<=2) return path.slice();
+  var pre=[0];                                   // az eredeti út előfix-költsége
+  for(var i=1;i<path.length;i++) pre[i]=pre[i-1]+segStep(path[i-1],path[i],costFn);
+  var out=[path[0]]; var anchor=0;
+  for(i=1;i<path.length;i++){
+    if(i+1===path.length){ out.push(path[i]); anchor=i; continue; }
+    // az anchor → i+1 EGYENES szakasz költsége (Bresenham mentén)
+    var pts=bresenham(path[anchor], path[i+1]);
+    var straight=0, blocked=false;
+    for(var k=0;k<pts.length;k++){
+      if(!passable(map,pts[k])){ blocked=true; break; }   // víz: sosem vágunk át
+      if(k>0) straight+=segStep(pts[k-1],pts[k],costFn);
+    }
+    var actual=pre[i+1]-pre[anchor];
+    // ha az egyenes drágább az eredeti kanyargós ×1.12-nél (+kis tolerancia),
+    // a path[i] valódi kanyar (drága cellát kerül ki) → megtartjuk
+    if(blocked || straight > actual*1.12 + 0.4){ out.push(path[i]); anchor=i; }
+  }
+  return out;
+}
+
+/// Út-szélesítés: a simított út cellái mellé oldalsó szomszédot ad (ha járható).
+function widen(path, map){
+  var set={};
+  for(var i=0;i<path.length;i++){ set[path[i].x+','+path[i].y]=1; }
+  for(var i=0;i<path.length-1;i++){
+    var a=path[i], b=path[i+1];
+    var dir={x:b.x-a.x, y:b.y-a.y};
+    var perp={x:-dir.y, y:dir.x};
+    for(var c=0;c<2;c++){
+      var p=(c===0)?a:b;
+      for(var s=0;s<2;s++){
+        var off=(s===0)?perp:{x:-perp.x,y:-perp.y};
+        var n={x:p.x+off.x, y:p.y+off.y};
+        if(!inB(n,map.W,map.H)) continue;
+        if(map.biome[n.y*map.W+n.x]===BIOME.Water) continue;
+        set[n.x+','+n.y]=1;
+      }
+    }
+  }
+  return set;
+}
+
+/* ===================== közös rajzolók ===================== */
+function drawMap(ctx, map, cell, ox, oy){
+  for(var y=0;y<map.H;y++) for(var x=0;x<map.W;x++){
+    var b=map.biome[y*map.W+x];
+    ctx.fillStyle = BIOME_COL[b];
+    ctx.fillRect(ox+x*cell, oy+y*cell, cell, cell);
+  }
+}
+/// Költségmező hőtérképes rajza (a víz fekete, síkság zöld, hegy piros).
+function drawCost(ctx, map, cell, ox, oy, slopeW, terScale){
+  var maxc=0;
+  var costs=new Float32Array(map.W*map.H);
+  for(var y=0;y<map.H;y++) for(var x=0;x<map.W;x++){
+    var from={x:Math.max(0,x-1),y:y};
+    var c=costAt(map, from, {x:x,y:y}, slopeW, terScale);
+    if(c>1e5) c=1e5;
+    costs[y*map.W+x]=c; if(c>maxc) maxc=c;
+  }
+  for(var y=0;y<map.H;y++) for(var x=0;x<map.W;x++){
+    var c=costs[y*map.W+x];
+    var t=Math.min(1, c/Math.max(4, maxc*0.6));
+    // zöld (olcsó) → sárga → piros (drága); víz = sötétkék
+    var b=map.biome[y*map.W+x];
+    if(b===BIOME.Water){ ctx.fillStyle='#10243a'; }
+    else {
+      var r=Math.floor(40+215*t), g=Math.floor(200-150*t), bl=Math.floor(80-60*t);
+      ctx.fillStyle='rgb('+r+','+g+','+bl+')';
+    }
+    ctx.fillRect(ox+x*cell, oy+y*cell, cell, cell);
+  }
+}
+/// Út cellahalmaz rajzolása (szélesítés-support). color az út színe.
+function drawRoadSet(ctx, set, cell, ox, oy, color){
+  ctx.fillStyle=color;
+  for(var k in set){ var p=k.split(','); var x=+p[0], y=+p[1];
+    ctx.fillRect(ox+x*cell+0.5, oy+y*cell+0.5, cell-1, cell-1);
+  }
+}
+/// Út vonalként (cella-közepek összekötése) — sima, kanyargós megjelenítés.
+function drawRoadLine(ctx, path, cell, ox, oy, color, width){
+  if(path.length<2) return;
+  ctx.strokeStyle=color; ctx.lineWidth=width||Math.max(2,cell*0.55);
+  ctx.lineJoin='round'; ctx.lineCap='round';
+  ctx.beginPath();
+  ctx.moveTo(ox+path[0].x*cell+cell/2, oy+path[0].y*cell+cell/2);
+  for(var i=1;i<path.length;i++){
+    ctx.lineTo(ox+path[i].x*cell+cell/2, oy+path[i].y*cell+cell/2);
+  }
+  ctx.stroke();
+}
+function drawLandmark(ctx, p, cell, ox, oy, kind){
+  var cx=ox+p.x*cell+cell/2, cy=oy+p.y*cell+cell/2;
+  ctx.fillStyle='#1a1a28';
+  ctx.beginPath(); ctx.arc(cx,cy,cell*0.42,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = kind==='mine'?'#f2c14e': kind==='well'?'#56d4c4':
+                 kind==='camp'?'#ec6a9c' : '#a78bfa';
+  ctx.font='700 '+(cell*0.7|0)+'px "Pixelify Sans", sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  var sym = kind==='mine'?'⛏': kind==='well'?'◉': kind==='camp'?'⚑':'★';
+  ctx.fillText(sym, cx, cy+1);
+}
+function label(ctx, txt, x, y, color){
+  ctx.font="700 12px 'JetBrains Mono', monospace"; ctx.textAlign='left'; ctx.textBaseline='top';
+  var w=ctx.measureText(txt).width+10;
+  ctx.fillStyle='rgba(10,10,18,.75)'; ctx.fillRect(x-2,y-2,w,18);
+  ctx.fillStyle=color||'#e3e3ec'; ctx.fillText(txt, x+3, y);
+}
+function divider(ctx, x, h){
+  ctx.setLineDash([6,5]); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.6)';
+  ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); ctx.setLineDash([]);
+}
+
+/* ===================== DEMÓ 0: hero — néma vs. utas ===================== */
+function makeHeroMap(){ return genMap(96, 60, 34); }
+function initHero(){
+  var cv=document.getElementById("heroCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var map=makeHeroMap();
+  function draw(){
+    var cell=11;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    var mid=cv.width/2;
+    // bal: néma
+    drawMap(ctx, map, cell, 0, 0);
+    // jobb: utas (ugyanaz a térkép)
+    drawMap(ctx, map, cell, mid+2, 0);
+    // biom-út: sivatag → hegy (kapu)
+    var d=regionCells(map,BIOME.Desert), m=regionCells(map,BIOME.Mountain);
+    var g=gate(d,m);
+    if(g){
+      var slopeW=0.35, terScale=0.7;
+      var cf=function(f,t){return costAt(map,f,t,slopeW,terScale);};
+      var pa=function(p){return passable(map,p);};
+      var p=astar(map, g.a, g.b, cf, pa);
+      if(p){
+        var s=simplifyPath(map,p,cf);
+        drawRoadLine(ctx, s, cell, mid+2, 0, 'rgba(120,95,70,.95)', cell*0.5);
+      }
+    }
+    // tárgy-hálózat (MST + bónusz) a jobb oldalon
+    var lms=placeLandmarks(map, 5, map.seed+1);
+    var net=buildNet(map, lms, 0.35, 0.7, true);
+    for(var i=0;i<net.roads.length;i++){
+      drawRoadLine(ctx, net.roads[i], cell, mid+2, 0, 'rgba(150,130,100,.95)', cell*0.42);
+    }
+    for(i=0;i<lms.length;i++) drawLandmark(ctx, lms[i], cell, mid+2, 0, lms[i].kind);
+    divider(ctx, mid, cv.height);
+    label(ctx, "néma térkép", 8, 8, "#ff6b6b");
+    label(ctx, "utas térkép", mid+10, 8, "#8ce99a");
+  }
+  draw();
+}
+
+/* ===================== tárgyak elhelyezése ===================== */
+function placeLandmarks(map, count, seed){
+  var kinds=['mine','well','camp','shrine'];
+  var out=[]; var tries=0;
+  var rng=mulberry32(seed);
+  while(out.length<count && tries<count*200){
+    tries++;
+    var x=Math.floor(rng()*map.W), y=Math.floor(rng()*map.H);
+    var b=map.biome[y*map.W+x];
+    // tárgy-specifikus terep: bánya hegyre/kőre, kút síkságra/víz mellé, tábor síkságra.
+    // a típust a próbálkozás-számból forgatjuk (NEM az out.length-ből): különben egy
+    // nem elhelyezhető első típus (pl. bánya hegyek nélküli térképen) megakasztaná az egészet.
+    var kind=kinds[tries%kinds.length];
+    if(kind==='mine' && b!==BIOME.Mountain && b!==BIOME.Snow) continue;
+    if(kind==='well' && b!==BIOME.Plains && b!==BIOME.Desert) continue;
+    if(kind==='camp' && b!==BIOME.Plains && b!==BIOME.Forest) continue;
+    if(kind==='shrine' && b===BIOME.Water) continue;
+    // min. távolság
+    var ok=true;
+    for(var i=0;i<out.length;i++){ var dx=out[i].x-x, dy=out[i].y-y; if(dx*dx+dy*dy<64){ ok=false; break; } }
+    if(!ok) continue;
+    out.push({x:x,y:y,kind:kind});
+  }
+  return out;
+}
+
+/* ===================== hálózat (MST + bónusz) ===================== */
+function buildNet(map, landmarks, slopeW, terScale, bonus, smooth){
+  var n=landmarks.length;
+  var roads=[]; var cells={}; // már-épült út cellák (bónuszhoz)
+  if(n<2) return {roads:roads};
+  // távolságmátrix: légvonal (demó gyors); életszerűbb lenne A*-költség, de az O(n²·A*) drága
+  // a bónuszhatás miatt az utakat sorban építjük, és az új költségmezőben olcsó a régi út
+  function dist(i,j){ var dx=landmarks[i].x-landmarks[j].x, dy=landmarks[i].y-landmarks[j].y; return Math.sqrt(dx*dx+dy*dy); }
+  // Prim MST
+  var inTree=[false]; for(var k=1;k<n;k++) inTree.push(false);
+  var minEdge=[]; for(k=0;k<n;k++) minEdge.push([Infinity,-1]);
+  var edges=[];
+  inTree[0]=true;
+  for(var it=1;it<n;it++){
+    for(var j=0;j<n;j++){
+      if(!inTree[j]){
+        // a fában lévőkhöz legközelebbi
+        for(var ii=0;ii<n;ii++) if(inTree[ii] && ii!==j){
+          var d=dist(ii,j);
+          if(d<minEdge[j][0]){ minEdge[j]=[d,ii]; }
+        }
+      }
+    }
+    var best=-1, bd=Infinity;
+    for(j=0;j<n;j++){ if(!inTree[j] && minEdge[j][0]<bd){ bd=minEdge[j][0]; best=j; } }
+    if(best<0) break;
+    edges.push([minEdge[best][1], best]);
+    inTree[best]=true;
+  }
+  // minden élen A* (bónusszal: a régi út cellák olcsók)
+  var cf=function(f,t){
+    var c=costAt(map,f,t,slopeW,terScale);
+    if(bonus && cells[t.x+','+t.y]) c = Math.min(c, 0.25);
+    return c;
+  };
+  var pa=function(p){ return passable(map,p); };
+  for(var e=0;e<edges.length;e++){
+    var a=landmarks[edges[e][0]], b=landmarks[edges[e][1]];
+    var p=astar(map, a, b, cf, pa);
+    if(p){
+      var s=(smooth===false)?p:simplifyPath(map,p,cf);
+      roads.push(s);
+      for(var i=0;i<s.length;i++) cells[s[i].x+','+s[i].y]=1;
+    } else {
+      roads.push([a,b]); // fallback egyenes
+    }
+  }
+  return {roads:roads, cells:cells};
+}
+
+/* ===================== DEMÓ 1: végpont-stratégiák ===================== */
+function initEnds(){
+  var cv=document.getElementById("endsCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var seed=224; var map=genMap(seed, 56, 36);
+  var mode='gate'; var showCost=true;
+  function endpoints(){
+    var d=regionCells(map,BIOME.Desert), m=regionCells(map,BIOME.Mountain);
+    if(mode==='centroid'){
+      var ca=centroid(d), cb=centroid(m);
+      return {a:{x:Math.max(0,Math.min(map.W-1,ca.x)),y:Math.max(0,Math.min(map.H-1,ca.y))},
+              b:{x:Math.max(0,Math.min(map.W-1,cb.x)),y:Math.max(0,Math.min(map.H-1,cb.y))}};
+    } else if(mode==='edge'){
+      return {a:edgeCell(map,BIOME.Desert,map.seed), b:edgeCell(map,BIOME.Mountain,map.seed)};
+    } else {
+      var g=gate(d,m); return g?{a:g.a,b:g.b}:null;
+    }
+  }
+  function draw(){
+    var cell=11;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    if(showCost) drawCost(ctx, map, cell, 0, 0, 0.35, 0.7);
+    else drawMap(ctx, map, cell, 0, 0);
+    var ep=endpoints();
+    if(ep && ep.a && ep.b){
+      var cf=function(f,t){return costAt(map,f,t,0.35,0.7);};
+      var pa=function(p){return passable(map,p);};
+      var p=astar(map, ep.a, ep.b, cf, pa);
+      if(p){
+        var s=simplifyPath(map,p,cf);
+        drawRoadLine(ctx, s, cell, 0, 0, 'rgba(120,95,70,.95)', cell*0.5);
+      }
+      // végpont-jelölők
+      ctx.fillStyle='#ec6a9c';
+      ctx.beginPath(); ctx.arc(ep.a.x*cell+cell/2, ep.a.y*cell+cell/2, cell*0.6,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#56d4c4';
+      ctx.beginPath(); ctx.arc(ep.b.x*cell+cell/2, ep.b.y*cell+cell/2, cell*0.6,0,Math.PI*2); ctx.fill();
+    }
+    label(ctx, "sivatag ●", 8, 8, "#ec6a9c");
+    label(ctx, "hegy ●", 110, 8, "#56d4c4");
+  }
+  function setMode(m){ mode=m;
+    ['Centroid','Edge','Gate'].forEach(function(k){
+      document.getElementById('ends'+k).classList.toggle('on', k.toLowerCase()===m || (k==='Gate'&&m==='gate'));
+    });
+    draw();
+  }
+  document.getElementById("endsCentroid").onclick=function(){setMode('centroid');};
+  document.getElementById("endsEdge").onclick=function(){setMode('edge');};
+  document.getElementById("endsGate").onclick=function(){setMode('gate');};
+  document.getElementById("endsCost").onclick=function(){showCost=!showCost; this.classList.toggle("on",showCost); draw();};
+  document.getElementById("endsGen").onclick=function(){seed++; map=genMap(seed,56,36); draw();};
+  draw();
+}
+
+/* ===================== DEMÓ 2: költségmező hatása ===================== */
+function initCost(){
+  var cv=document.getElementById("costCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var seed=224; var map=genMap(seed, 56, 36);
+  var terS=document.getElementById("costTer"), terV=document.getElementById("costTerVal");
+  var slS=document.getElementById("costSlope"), slV=document.getElementById("costSlopeVal");
+  var fB=document.getElementById("costField");
+  var showField=true;
+  function draw(){
+    var cell=11;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    var ter=parseInt(terS.value,10)/100;
+    var sl=parseInt(slS.value,10)/100;
+    if(showField) drawCost(ctx, map, cell, 0, 0, sl, ter);
+    else drawMap(ctx, map, cell, 0, 0);
+    var d=regionCells(map,BIOME.Desert), m=regionCells(map,BIOME.Mountain);
+    var g=gate(d,m);
+    if(g){
+      var cf=function(f,t){return costAt(map,f,t,sl,ter);};
+      var pa=function(p){return passable(map,p);};
+      var p=astar(map, g.a, g.b, cf, pa);
+      if(p){ var s=simplifyPath(map,p,cf); drawRoadLine(ctx, s, cell, 0, 0, 'rgba(60,40,25,.95)', cell*0.5); }
+      ctx.fillStyle='#ec6a9c'; ctx.beginPath(); ctx.arc(g.a.x*cell+cell/2,g.a.y*cell+cell/2,cell*0.55,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#56d4c4'; ctx.beginPath(); ctx.arc(g.b.x*cell+cell/2,g.b.y*cell+cell/2,cell*0.55,0,Math.PI*2); ctx.fill();
+    }
+  }
+  terS.oninput=function(){terV.textContent=(parseInt(terS.value,10)/100).toFixed(2); draw();};
+  slS.oninput=function(){slV.textContent=(parseInt(slS.value,10)/100).toFixed(2); draw();};
+  fB.onclick=function(){showField=!showField; this.classList.toggle("on",showField); draw();};
+  terV.textContent=(parseInt(terS.value,10)/100).toFixed(2);
+  slV.textContent=(parseInt(slS.value,10)/100).toFixed(2);
+  draw();
+}
+
+/* ===================== DEMÓ 3: simítás & szélesítés ===================== */
+function initSmooth(){
+  var cv=document.getElementById("smoothCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var seed=224; var map=genMap(seed, 56, 36);
+  var mode='raw';
+  function draw(){
+    var cell=11;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    drawMap(ctx, map, cell, 0, 0);
+    var d=regionCells(map,BIOME.Desert), m=regionCells(map,BIOME.Mountain);
+    var g=gate(d,m);
+    if(g){
+      var cf=function(f,t){return costAt(map,f,t,0.35,0.7);};
+      var pa=function(p){return passable(map,p);};
+      var p=astar(map, g.a, g.b, cf, pa);
+      if(p){
+        if(mode==='raw'){
+          // nyers A* — cellánként rajzolva, hogy látszódjanak a „lépcsék"
+          for(var i=0;i<p.length;i++){
+            ctx.fillStyle='rgba(120,95,70,.9)';
+            ctx.fillRect(p[i].x*cell+1, p[i].y*cell+1, cell-2, cell-2);
+          }
+        } else if(mode==='smooth'){
+          var s=simplifyPath(map,p,cf);
+          drawRoadLine(ctx, s, cell, 0, 0, 'rgba(120,95,70,.95)', cell*0.5);
+        } else { // wide
+          var s2=simplifyPath(map,p,cf);
+          var set=widen(s2, map);
+          drawRoadSet(ctx, set, cell, 0, 0, 'rgba(120,95,70,.9)');
+          drawRoadLine(ctx, s2, cell, 0, 0, 'rgba(90,65,45,.95)', cell*0.3);
+        }
+      }
+      ctx.fillStyle='#ec6a9c'; ctx.beginPath(); ctx.arc(g.a.x*cell+cell/2,g.a.y*cell+cell/2,cell*0.5,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#56d4c4'; ctx.beginPath(); ctx.arc(g.b.x*cell+cell/2,g.b.y*cell+cell/2,cell*0.5,0,Math.PI*2); ctx.fill();
+    }
+  }
+  function setMode(m){ mode=m;
+    ['Raw','Smooth','Wide'].forEach(function(k){
+      document.getElementById('sm'+k).classList.toggle('on', k.toLowerCase()===m);
+    });
+    draw();
+  }
+  document.getElementById("smRaw").onclick=function(){setMode('raw');};
+  document.getElementById("smSmooth").onclick=function(){setMode('smooth');};
+  document.getElementById("smWide").onclick=function(){setMode('wide');};
+  document.getElementById("smGen").onclick=function(){seed++; map=genMap(seed,56,36); draw();};
+  draw();
+}
+
+/* ===================== DEMÓ 4: hálózat (MST/bónusz) ===================== */
+function initNet(){
+  var cv=document.getElementById("netCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var seed=224; var map=genMap(seed, 58, 36);
+  var mode='mst'; var withBiome=true;
+  function draw(){
+    var cell=11;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    drawMap(ctx, map, cell, 0, 0);
+    var lms=placeLandmarks(map, 6, map.seed+1);
+    // biom-út (a tárgy-hálózat előtt, hogy a bónusz rátaláljon)
+    if(withBiome){
+      var d=regionCells(map,BIOME.Desert), m=regionCells(map,BIOME.Mountain);
+      var g=gate(d,m);
+      if(g){
+        var cf0=function(f,t){return costAt(map,f,t,0.35,0.7);};
+        var pa0=function(p){return passable(map,p);};
+        var p0=astar(map, g.a, g.b, cf0, pa0);
+        if(p0){ var s0=simplifyPath(map,p0,cf0); drawRoadLine(ctx, s0, cell, 0, 0, 'rgba(100,75,55,.95)', cell*0.5); }
+      }
+    }
+    // tárgy-hálózat
+    if(mode==='full'){
+      // teljes gráf: minden párt összeköt
+      for(var i=0;i<lms.length;i++) for(var j=i+1;j<lms.length;j++){
+        var cf=function(f,t){return costAt(map,f,t,0.35,0.7);};
+        var pa=function(p){return passable(map,p);};
+        var p=astar(map, lms[i], lms[j], cf, pa);
+        if(p){ var s=simplifyPath(map,p,cf); drawRoadLine(ctx, s, cell, 0, 0, 'rgba(150,130,100,.6)', cell*0.3); }
+      }
+    } else {
+      var bonus = (mode==='bonus');
+      var net=buildNet(map, lms, 0.35, 0.7, bonus);
+      for(var r=0;r<net.roads.length;r++){
+        drawRoadLine(ctx, net.roads[r], cell, 0, 0, 'rgba(150,130,100,.95)', cell*0.4);
+      }
+    }
+    for(i=0;i<lms.length;i++) drawLandmark(ctx, lms[i], cell, 0, 0, lms[i].kind);
+    label(ctx, "biom-út (sivatag→hegy)", 8, 8, "#c9a06a");
+  }
+  function setMode(m){ mode=m;
+    ['Full','Mst','Bonus'].forEach(function(k){
+      document.getElementById('net'+k).classList.toggle('on', k.toLowerCase()===m);
+    });
+    draw();
+  }
+  document.getElementById("netFull").onclick=function(){setMode('full');};
+  document.getElementById("netMst").onclick=function(){setMode('mst');};
+  document.getElementById("netBonus").onclick=function(){setMode('bonus');};
+  document.getElementById("netBiome").onclick=function(){withBiome=!withBiome; this.classList.toggle("on",withBiome); draw();};
+  document.getElementById("netGen").onclick=function(){seed++; map=genMap(seed,58,36); draw();};
+  draw();
+}
+
+/* ===================== DEMÓ 5: út-csempék (autotiling) ===================== */
+var ROAD_COL = '#b8a07a';
+function roadMask(set, x, y){
+  var n=function(dx,dy){ return set[(x+dx)+','+(y+dy)]?1:0; };
+  return (n(0,-1)<<0)|(n(1,0)<<1)|(n(0,1)<<2)|(n(-1,0)<<3);
+}
+function drawRoadTile(ctx, cx, cy, size, mask, fill){
+  // egy cella középpontja; rajzolunk egy út-csempét a maszk alapján
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.fillStyle = fill || ROAD_COL;
+  ctx.strokeStyle = fill || ROAD_COL;
+  ctx.lineWidth = size*0.42; ctx.lineCap='round';
+  var h=size*0.5;
+  var dirs=[[0,-1],[1,0],[0,1],[-1,0]]; // É K D Ny
+  var count=0;
+  for(var i=0;i<4;i++) if(mask&(1<<i)) count++;
+  if(count===0){
+    // pont
+    ctx.beginPath(); ctx.arc(0,0,size*0.28,0,Math.PI*2); ctx.fill();
+  } else {
+    for(i=0;i<4;i++){
+      if(mask&(1<<i)){
+        ctx.beginPath(); ctx.moveTo(0,0);
+        ctx.lineTo(dirs[i][0]*h, dirs[i][1]*h);
+        ctx.stroke();
+      }
+    }
+    // kis csomópont a középen
+    ctx.beginPath(); ctx.arc(0,0,size*0.16,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+function initTiles(){
+  var cv=document.getElementById("tilesCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var seed=187; var map=genMap(seed, 56, 34);
+  var view='mask'; // mask | tiles
+  var net=null; var set=null;
+  function regen(){
+    var lms=placeLandmarks(map, 6, map.seed+1);
+    // biom-út + tárgy-hálózat egy közös set-be
+    set={};
+    var addPath=function(p){ for(var i=0;i<p.length;i++) set[p[i].x+','+p[i].y]=1; };
+    var d=regionCells(map,BIOME.Desert), m=regionCells(map,BIOME.Mountain);
+    var g=gate(d,m);
+    if(g){
+      var cf=function(f,t){return costAt(map,f,t,0.35,0.7);};
+      var pa=function(p){return passable(map,p);};
+      var p=astar(map, g.a, g.b, cf, pa);
+      if(p){ addPath(simplifyPath(map,p,cf)); }
+    }
+    net=buildNet(map, lms, 0.35, 0.7, true);
+    for(var r=0;r<net.roads.length;r++) addPath(net.roads[r]);
+    net.landmarks=lms;
+  }
+  function draw(){
+    var cell=12;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    drawMap(ctx, map, cell, 0, 0);
+    // hálózat cellái: maszk vagy út-csempe
+    for(var k in set){
+      var parts=k.split(','); var x=+parts[0], y=+parts[1];
+      var cx=x*cell+cell/2, cy=y*cell+cell/2;
+      if(view==='mask'){
+        // a maszk = a szomszéd-útból; rajzoljunk szürke cellát + maszk szám
+        var mask=roadMask(set, x, y);
+        ctx.fillStyle='rgba(120,95,70,.85)';
+        ctx.fillRect(x*cell+1,y*cell+1,cell-2,cell-2);
+        ctx.fillStyle='#10101a';
+        ctx.fillRect(x*cell+2, y*cell+2, cell-4, cell-4);
+        ctx.fillStyle='#56d4c4';
+        ctx.font='700 9px "JetBrains Mono", monospace';
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(mask.toString(2).padStart(4,'0'), cx, cy);
+      } else {
+        var m2=roadMask(set, x, y);
+        drawRoadTile(ctx, cx, cy, cell, m2, ROAD_COL);
+      }
+    }
+    if(net && net.landmarks){
+      for(var i=0;i<net.landmarks.length;i++) drawLandmark(ctx, net.landmarks[i], cell, 0, 0, net.landmarks[i].kind);
+    }
+  }
+  function setView(v){ view=v;
+    document.getElementById('tilesMask').classList.toggle('on', v==='mask');
+    document.getElementById('tilesTiles').classList.toggle('on', v==='tiles');
+    draw();
+  }
+  document.getElementById("tilesMask").onclick=function(){setView('mask');};
+  document.getElementById("tilesTiles").onclick=function(){setView('tiles');};
+  document.getElementById("tilesGen").onclick=function(){seed++; map=genMap(seed,56,34); regen(); draw();};
+  regen(); draw();
+}
+
+/* ===================== DEMÓ 6: játszótér (teljes recept) ===================== */
+function initPlay(){
+  var cv=document.getElementById("playCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var seed=187; var map=genMap(seed, 58, 34);
+  var biome=true, landmark=true, smooth=true, wide=false, bonus=true;
+  function draw(){
+    var cell=11;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    drawMap(ctx, map, cell, 0, 0);
+    var set={}; // minden út-cellák (biom + tárgy)
+    var addPath=function(p){ for(var i=0;i<p.length;i++) set[p[i].x+','+p[i].y]=1; };
+    var cfBase=function(f,t){
+      var c=costAt(map,f,t,0.35,0.7);
+      if(bonus && set[t.x+','+t.y]) c=Math.min(c,0.25);
+      return c;
+    };
+    var pa=function(p){return passable(map,p);};
+    // 1) biom-út
+    if(biome){
+      var d=regionCells(map,BIOME.Desert), m=regionCells(map,BIOME.Mountain);
+      var g=gate(d,m);
+      if(g){
+        var p=astar(map, g.a, g.b, cfBase, pa);
+        if(p){
+          var s = smooth ? simplifyPath(map,p,cfBase) : p;
+          if(wide){ var w=widen(s,map); drawRoadSet(ctx, w, cell, 0, 0, 'rgba(120,95,70,.85)'); }
+          drawRoadLine(ctx, s, cell, 0, 0, 'rgba(90,65,45,.95)', wide?cell*0.3:cell*0.5);
+          addPath(s);
+        }
+      }
+    }
+    // 2) tárgy-hálózat
+    if(landmark){
+      var lms=placeLandmarks(map, 6, map.seed+1);
+      var net=buildNet(map, lms, 0.35, 0.7, bonus, smooth);
+      for(var r=0;r<net.roads.length;r++){
+        var rr = net.roads[r];
+        if(wide){ var w2=widen(rr,map); drawRoadSet(ctx, w2, cell, 0, 0, 'rgba(150,130,100,.8)'); }
+        drawRoadLine(ctx, rr, cell, 0, 0, 'rgba(110,85,55,.95)', wide?cell*0.28:cell*0.4);
+        addPath(rr);
+      }
+      for(var i=0;i<lms.length;i++) drawLandmark(ctx, lms[i], cell, 0, 0, lms[i].kind);
+    }
+  }
+  var state={biome:true,landmark:true,smooth:true,wide:false,bonus:true};
+  function bind(id,key){ var b=document.getElementById(id);
+    b.onclick=function(){ state[key]=!state[key]; b.classList.toggle("on",state[key]); draw2(); }; }
+  bind("playBiome","biome"); bind("playLandmark","landmark");
+  bind("playSmooth","smooth"); bind("playWide","wide"); bind("playBonus","bonus");
+  document.getElementById("playGen").onclick=function(){seed++; map=genMap(seed,58,34); draw2();};
+  function draw2(){
+    biome=state.biome; landmark=state.landmark; smooth=state.smooth; wide=state.wide; bonus=state.bonus;
+    // a gomb állapotok frissítése
+    document.getElementById("playSmooth").classList.toggle("on",state.smooth);
+    document.getElementById("playWide").classList.toggle("on",state.wide);
+    document.getElementById("playBonus").classList.toggle("on",state.bonus);
+    document.getElementById("playBiome").classList.toggle("on",state.biome);
+    document.getElementById("playLandmark").classList.toggle("on",state.landmark);
+    draw();
+  }
+  draw2();
+}
+
+function initDemos(){
+  initHero();
+  initEnds();
+  initCost();
+  initSmooth();
+  initNet();
+  initTiles();
+  initPlay();
+}
+</script>
+</body>
+</html>
