@@ -1,0 +1,2051 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Játékérzés (game juice) top-down játékhoz — mozgás, ütés, hang · Bevy 0.18</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#10101a; --panel:#1a1a28; --panel2:#21212f; --code-bg:#14141f;
+    --ink:#e3e3ec; --muted:#8b8b9e; --border:#2c2c40;
+    --cyan:#56d4c4; --amber:#f2c14e; --pink:#ec6a9c; --green:#8ce99a; --red:#ff6b6b; --violet:#a78bfa;
+    --kw:#ec6a9c; --ty:#56d4c4; --str:#8ce99a; --com:#6b6b80; --mac:#f2c14e; --num:#f4a259;
+    --sidebar-w:260px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    background-image:radial-gradient(var(--border) 1px, transparent 1px);
+    background-size:22px 22px;
+    color:var(--ink);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--cyan);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ---- layout ---- */
+  .shell{display:flex;max-width:1400px;margin:0 auto}
+  .sidebar{
+    width:var(--sidebar-w);flex:0 0 var(--sidebar-w);
+    position:sticky;top:0;height:100vh;overflow-y:auto;
+    padding:28px 18px;border-right:2px solid var(--border);
+    background:linear-gradient(180deg,var(--panel) 0%,var(--bg) 100%);
+  }
+  .sidebar h2{
+    font-family:"Pixelify Sans",sans-serif;font-size:18px;font-weight:700;
+    color:var(--amber);letter-spacing:.5px;margin-bottom:4px;
+  }
+  .sidebar .sub{font-size:11px;color:var(--muted);font-family:"JetBrains Mono",monospace;margin-bottom:20px}
+  .nav a{
+    display:block;color:var(--muted);font-size:13.5px;padding:7px 10px;
+    border-left:3px solid transparent;border-radius:0 4px 4px 0;transition:all .12s;
+    text-decoration:none;
+  }
+  .nav a .num{font-family:"JetBrains Mono",monospace;color:var(--border);font-size:11px;margin-right:8px}
+  .nav a:hover{color:var(--ink);background:var(--panel2);text-decoration:none}
+  .nav a.active{color:var(--ink);border-left-color:var(--pink);background:var(--panel2)}
+  .nav a.active .num{color:var(--pink)}
+
+  .main{flex:1 1 auto;min-width:0;padding:48px 56px 120px}
+
+  /* ---- hero ---- */
+  .hero{margin-bottom:56px;border:2px solid var(--border);background:var(--panel);
+    padding:38px 36px;position:relative;box-shadow:6px 6px 0 rgba(0,0,0,.35)}
+  .hero .eyebrow{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--pink);
+    letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+  .hero h1{font-family:"Pixelify Sans",sans-serif;font-size:42px;font-weight:700;
+    line-height:1.1;color:var(--ink);margin-bottom:16px}
+  .hero h1 .hl{color:var(--amber)}
+  .hero p{color:var(--muted);font-size:16px;max-width:640px}
+  .hero .chips{margin-top:22px;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font-family:"JetBrains Mono",monospace;font-size:11.5px;padding:4px 10px;
+    border:1px solid var(--border);background:var(--code-bg);color:var(--cyan);border-radius:3px}
+
+  /* ---- sections ---- */
+  section{margin-bottom:54px;scroll-margin-top:24px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;
+    padding-bottom:12px;border-bottom:2px solid var(--border)}
+  .sec-head .idx{font-family:"Pixelify Sans",sans-serif;font-size:26px;color:var(--pink);
+    flex:0 0 auto}
+  .sec-head h2{font-family:"Pixelify Sans",sans-serif;font-size:27px;font-weight:700;color:var(--ink)}
+  h3{font-family:"Pixelify Sans",sans-serif;font-size:19px;color:var(--amber);
+    margin:26px 0 12px}
+  p{margin:0 0 14px}
+  .main p{font-size:15.5px}
+  ul,ol{margin:0 0 16px 22px}
+  li{margin-bottom:7px;font-size:15.5px}
+  strong{color:var(--ink);font-weight:600}
+  code.inl{font-family:"JetBrains Mono",monospace;font-size:13px;background:var(--code-bg);
+    border:1px solid var(--border);padding:1.5px 6px;border-radius:3px;color:var(--cyan)}
+
+  /* ---- code blocks ---- */
+  pre{background:var(--code-bg);border:1px solid var(--border);border-left:3px solid var(--cyan);
+    padding:16px 18px;overflow-x:auto;margin:0 0 18px;border-radius:0 4px 4px 0;
+    box-shadow:3px 3px 0 rgba(0,0,0,.25)}
+  pre code{font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1.6;color:var(--ink);white-space:pre}
+  .k{color:var(--kw)} .t{color:var(--ty)} .s{color:var(--str)}
+  .c{color:var(--com);font-style:italic} .m{color:var(--mac)} .n{color:var(--num)}
+
+  /* ---- callouts ---- */
+  .box{border:1px solid var(--border);border-left:4px solid var(--cyan);background:var(--panel);
+    padding:14px 18px;margin:0 0 18px;border-radius:0 4px 4px 0}
+  .box.tip{border-left-color:var(--green)} .box.tip .lbl{color:var(--green)}
+  .box.warn{border-left-color:var(--red)} .box.warn .lbl{color:var(--red)}
+  .box.note{border-left-color:var(--violet)} .box.note .lbl{color:var(--violet)}
+  .box .lbl{font-family:"JetBrains Mono",monospace;font-size:11px;text-transform:uppercase;
+    letter-spacing:1.5px;color:var(--cyan);display:block;margin-bottom:6px}
+  .box p:last-child{margin-bottom:0}
+
+  /* ---- table ---- */
+  .tbl-wrap{overflow-x:auto;margin:0 0 18px}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:480px}
+  th,td{border:1px solid var(--border);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);font-family:"Pixelify Sans",sans-serif;color:var(--amber);font-weight:700}
+  td:first-child{font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--cyan);white-space:nowrap}
+  tr:nth-child(even) td{background:rgba(255,255,255,.012)}
+
+  /* ---- demos ---- */
+  .demo{border:2px solid var(--border);background:var(--panel);padding:18px;margin:0 0 20px;
+    border-radius:4px;box-shadow:4px 4px 0 rgba(0,0,0,.3)}
+  .demo .dh{font-family:"Pixelify Sans",sans-serif;color:var(--amber);font-size:15px;margin-bottom:4px}
+  .demo .dd{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .demo canvas{display:block;width:100%;background:var(--code-bg);border:1px solid var(--border);
+    border-radius:3px;image-rendering:pixelated;cursor:crosshair;touch-action:none}
+  .ctrls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px;
+    font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--muted)}
+  .ctrls label{display:flex;align-items:center;gap:8px}
+  .ctrls input[type=range]{accent-color:var(--pink);width:140px}
+  .ctrls .val{color:var(--cyan);min-width:60px;display:inline-block}
+  .ctrls button{font-family:"JetBrains Mono",monospace;font-size:12px;background:var(--panel2);
+    color:var(--ink);border:1px solid var(--border);padding:6px 12px;border-radius:3px;cursor:pointer}
+  .ctrls button:hover{border-color:var(--pink);color:var(--pink)}
+  .ctrls button.on{border-color:var(--cyan);color:var(--cyan);background:var(--code-bg)}
+  .readout{display:flex;gap:22px;flex-wrap:wrap;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:12.5px}
+  .readout b{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:400}
+  .readout span{color:var(--cyan);font-size:17px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--muted)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .legend i{width:13px;height:13px;border-radius:2px;display:inline-block;border:1px solid rgba(255,255,255,.15)}
+
+  /* ---- tldr ---- */
+  .tldr{border:2px dashed var(--pink);background:var(--panel);padding:24px 28px;border-radius:4px}
+  .tldr h3{margin-top:0;color:var(--pink)}
+  .tldr ul{list-style:none;margin-left:0}
+  .tldr li{padding-left:26px;position:relative}
+  .tldr li::before{content:"\25B8";position:absolute;left:0;color:var(--amber)}
+
+  footer{margin-top:60px;padding-top:24px;border-top:2px solid var(--border);
+    color:var(--muted);font-size:12.5px;font-family:"JetBrains Mono",monospace;text-align:center}
+
+  /* ---- responsive ---- */
+  .menu-btn{display:none}
+  @media(max-width:920px){
+    .sidebar{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:transform .2s;
+      box-shadow:8px 0 24px rgba(0,0,0,.5)}
+    .sidebar.open{transform:translateX(0)}
+    .main{padding:64px 22px 100px}
+    .hero{padding:26px 22px} .hero h1{font-size:30px}
+    .sec-head h2{font-size:21px} .sec-head .idx{font-size:20px}
+    .menu-btn{display:flex;position:fixed;top:14px;left:14px;z-index:50;
+      font-family:"Pixelify Sans",sans-serif;background:var(--pink);color:#10101a;border:none;
+      padding:8px 14px;border-radius:4px;cursor:pointer;font-size:15px;box-shadow:3px 3px 0 rgba(0,0,0,.4)}
+  }
+</style>
+</head>
+<body>
+<!-- olvasási haladásjelző (progress bar) -->
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,#56d4c4,#ec6a9c);
+  box-shadow:0 0 10px rgba(86,212,196,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-btn" id="menuBtn">&#9776; menü</button>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <h2>BEVY · GAME JUICE</h2>
+    <div class="sub">// top-down érzés · 0.18</div>
+    <nav class="nav" id="nav">
+      <a href="#intro"><span class="num">00</span>Mi a game feel?</a>
+      <a href="#mozgas"><span class="num">01</span>Mozgás: gyorsulás &amp; súrlódás</a>
+      <a href="#squish"><span class="num">02</span>Squish &amp; stretch</a>
+      <a href="#nyom"><span class="num">03</span>Nyomkövetés: por &amp; lábnyom</a>
+      <a href="#shake"><span class="num">04</span>Screen shake</a>
+      <a href="#hitstop"><span class="num">05</span>Hit-stop / freeze frame</a>
+      <a href="#buffer"><span class="num">06</span>Input buffering &amp; leniency</a>
+      <a href="#hang"><span class="num">07</span>Hang: pitch &amp; audio control</a>
+      <a href="#pickup"><span class="num">08</span>Pickup &amp; UI polish</a>
+      <a href="#bevy"><span class="num">09</span>Bevy integráció</a>
+      <a href="#tips"><span class="num">10</span>Tippek &amp; buktatók</a>
+      <a href="#tldr"><span class="num">11</span>TL;DR</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="hero">
+      <div class="eyebrow">Bevy 0.18 · Rust · top-down játékérzés</div>
+      <h1>Játékérzés — <span class="hl">game juice</span><br>egy top-down világban</h1>
+      <p>A <em>game feel</em> (vagy <em>game juice</em>) az a réteg, ami egy mechanikailag helyes játékot <strong>élvezetessé</strong> tesz. A mozgás kódja lehet tökéletes — ha a karakter azonnal full sebességre kap és azonnal megáll, „robotos" lesz. Ha ugyanaz a sebesség egy kis gyorsulással és súrlódással érkezik, a karakternek <strong>súlya</strong> lesz. Ez a lecke a klasszikus platformeres technikákat (gyorsulás, squish, hit-stop, coyote time) <strong>top-down</strong> játékra adaptálja — ahol nincs gravitáció és nincs ugrás, de van irány, lendület, támadás és találat. Minden technikát külön körbejárunk Bevy 0.18 kóddal és interaktív demóval.</p>
+      <div class="chips">
+        <span class="chip">acceleration / friction</span>
+        <span class="chip">squish &amp; stretch</span>
+        <span class="chip">porfelhő + lábnyom</span>
+        <span class="chip">screen shake</span>
+        <span class="chip">hit-stop (TimeScale)</span>
+        <span class="chip">dash buffer</span>
+        <span class="chip">pitch randomizáció</span>
+        <span class="chip">pickup polish</span>
+      </div>
+    </header>
+
+    <!-- 00 -->
+    <section id="intro">
+      <div class="sec-head"><span class="idx">00</span><h2>Mi a game feel, és miért top-down máshogy?</h2></div>
+      <p>A kifejezés — <em>game feel</em>, <em>game juice</em>, <em>punch</em> — arra a megfoghatatlan minőségre utal, amit a <em>Celeste</em>, a <em>Hollow Knight</em> vagy a <em>Hades</em> érezetet, egy „halott halacska" rajzolatú prototípus pedig nem. A meglepő hír: a különbség <strong>nem a grafikában</strong> és <strong>nem is a kód helyességében</strong> van. Ugyanaz a mozgás, ugyanaz az ütközés — csak a másikhoz egy tucat apró réteg van hozzáadva: gyorsulás, sprite-nyújtás, porfelhő, apró rázkódás, egy pár frame fagyás, hang. Mindegyik önmagában szinte észrevétlen; együtt drámai különbséget csinálnak.</p>
+      <p>Ez a lecke az eredetileg platformerekre kidolgozott technikákat <strong>top-down</strong> környezetre fordítja. Miért kell külön? Mert a top-down játék fizikája más:</p>
+      <ul>
+        <li><strong>Nincs gravitáció.</strong> A karakter nem „érkezik" — így a „land dust" és a „landing squish" helyét a <em>támadásütközés</em> és a <em>dash vége</em> veszi át.</li>
+        <li><strong>Négy irányú mozgás.</strong> A gyorsulás nem egy tengelyen megy — egy <code class="inl">Vec2</code>-ben kell simítani, és a squish a <em>mozgásirányba</em> nyújt, nem felfelé.</li>
+        <li><strong>A „talaj" mindenhol.</strong> Nincs „lelépés a peremről" — de a <em>coyote time</em> logikája (egy kis türelmi ablak) átvihető a <em>dash</em>-re és az <em>input buffering</em>-ra.</li>
+        <li><strong>A kamera felsőnézetből.</strong> A screen shake más irányba hat — és a „súly" érzését a <em>zoom-pulse</em> adja, nem a függőleges rázkódás.</li>
+      </ul>
+      <p>A videó, ami ezt a leckét inspirálta (egy platformer „megjuiceolását" mutatja be), ezt a hat+két technikát veszi végig: <strong>(1)</strong> gyorsulás és súrlódás, <strong>(2)</strong> squish &amp; stretch, <strong>(3)</strong> porfelhő és apró screen shake érkezéskor, <strong>(4)</strong> finom játék-fagyasztás (hit-stop), <strong>(5)</strong> láthatatlan türelmi ablakok (coyote + buffer), <strong>(6)</strong> hang pitch-randomizálással, és bónuszként <strong>(7)</strong> pickup-polish (érme-lebegés, sparkle, score-punch). Ezt mind a saját top-down kontextusunkban építjük fel.</p>
+      <div class="box note">
+        <span class="lbl">Mire épül &amp; függőségek</span>
+        <p>Ez a lecke feltételezi a Bevy ECS-alapokat (entitás/komponens/system, Resource, állapotok) — lásd a <a href="bevy-tutorial_hu.html">Bevy alapok tutorialt</a>. A mozgás és ütközés hátteréhez az <a href="bevy-2d-utkozesek-tutorial.html">ütközések lecke</a>, az animációhoz a <a href="bevy-animaciok-tutorial.html">animációk</a>, a hanghoz a <a href="bevy-sound-and-music.html">hang &amp; zene</a> a párdokumentumok. A kód Bevy <strong>0.18</strong>-ra készült; a <code class="inl">DefaultPlugins</code> mindent tartalmaz, külön crate nem kell:</p>
+<pre><code class="toml">[dependencies]
+bevy = "0.18"</code></pre>
+      </div>
+      <div class="box warn">
+        <span class="lbl">A legfontosabb alapelv</span>
+        <p>A juice <strong>nem változtatja a játékszabályt</strong>. A squish csak a <em>sprite</em> skáláját módosítja, nem a hitboxot. A hit-stop pár frame-re lassítja az <em>időt</em>, de a mozgás logikája ugyanaz. A screen shake a <em>kamerát</em> mozgatja, nem a játékost. Ez a megkülönböztetés kritikus: a játékos sosem büntethető a juice miatt (ne kezdjen el egy shake miatt kiesni egy peremről), és a hálózati/szimulációs logika nem férhet hozzá a juice adatokhoz. A juice egy <strong>vizuális + auditív + időbeli réteg</strong>, ami a fizika fölé van rakva.</p>
+      </div>
+      <div class="demo">
+        <div class="dh">&#9654; Demó: holtpont vs. juice</div>
+        <div class="dd">Ugyanaz a mozgás-kód (azonos sebesség, azonos cél). A bal karakter „holtpont" — rögtön full sebességre ugrik, azonnal megáll, semmi extra. A jobb karakter „juice": gyorsulás/súrlódás, squish a megállás pillanatában, porfelhő, apró screen shake. <strong>A gombnyomástól (kattints a canvason vagy nyomj W/A/S/D-t) mindkét karakter ugyanarra a pontra megy</strong> — de csak az egyiknek van súlya.</div>
+        <canvas id="introCanvas" width="720" height="320"></canvas>
+        <div class="ctrls">
+          <button id="introRun">&#9654; küldés a célpontra</button>
+          <button id="introAuto" class="on">auto-lépés be</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 01 -->
+    <section id="mozgas">
+      <div class="sec-head"><span class="idx">01</span><h2>Mozgás: gyorsulás &amp; súrlódás</h2></div>
+      <p>A legelső és legnagyobb hatású juice-elem. A „robotos" mozgás oka: a karakter azonnal a maximális sebességre ugrik (gomb lenyom → <code class="inl">velocity = max</code>), és gomb felenged → <code class="inl">velocity = 0</code>. A való életben semmi sem mozog így — minden gyorsul és lassul. Egy kis <strong>gyorsulás</strong> (acceleration) induláskor és <strong>súrlódás</strong> (friction) megálláskor azonnal „súlyt" ad a karakternek: néhány frame alatt ér csak fel a teljes sebességre, és néhány frame alatt áll le.</p>
+      <p>A trükk lényege, amit a videó kiemel: <strong>a maximális sebesség ugyanaz marad</strong>. A karakter nem lassabb — csak lassabban <em>ér el</em> oda. Ez pont elég ahhoz, hogy „súlyosnak" hasson, anélkül, hogy a játékos lassabbnak érezné a kontrollt. A <em>Super Meat Boy</em> extrém gyors gyorsulást használ (csúszós, „lebegős" érzés); a <em>Celeste</em> szorosra hangolt, precíz de súlyos érzést.</p>
+      <h3>A platformeres alap → top-down</h3>
+      <p>Platformerben egy <code class="inl">move_toward(velocity.x, target, accel * dt)</code> hívás elég. Top-down-ban a mozgás <code class="inl">Vec2</code> — a gyorsulás is kétdimenziós. A bevált minta: az inputból először egy <em>célsebességet</em> számolsz (max sebesség × irányvektor), aztán a jelenlegi sebességet <code class="inl">move_toward</code>-dal (vektoronként) közelíted hozzá. Külön <code class="inl">accel</code> és <code class="inl">decel</code> — induláskor és megálláskor más értékkel.</p>
+<pre><code class="rust">use bevy::prelude::*;
+
+#[derive(Component)]
+struct Player {
+    velocity: Vec2,
+    max_speed: f32,   // a top speed — nem változik
+    accel: f32,       // induláskor milyen gyorsan gyorsul (px/s²)
+    decel: f32,       // megálláskor milyen gyorsan fékez (súrlódás)
+}
+
+impl Default for Player {
+    fn default() -> Self {
+        Self { velocity: Vec2::ZERO, max_speed: 180.0, accel: 1200.0, decel: 1600.0 }
+    }
+}
+
+fn player_movement(
+    keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    time: Res&lt;Time&gt;,
+    mut q: Query&lt;(&amp;mut Player, &amp;mut Transform)&gt;,
+) {
+    let dt = time.delta_secs();
+    for (mut p, mut tr) in &amp;mut q {
+        // 1) input → célsebesség vektor (max_speed × egységnyi irány)
+        let mut dir = Vec2::ZERO;
+        if keys.pressed(KeyCode::KeyW) { dir.y -= 1.0; }
+        if keys.pressed(KeyCode::KeyS) { dir.y += 1.0; }
+        if keys.pressed(KeyCode::KeyA) { dir.x -= 1.0; }
+        if keys.pressed(KeyCode::KeyD) { dir.x += 1.0; }
+        // normalizálás: átlós gombnyomás ne legyen gyorsabb (√2)
+        let target = if dir != Vec2::ZERO {
+            dir.normalize() * p.max_speed
+        } else { Vec2::ZERO };
+
+        // 2) gyorsulás/súrlódás komponensenként — a lényeg!
+        //    ha van input → accel; ha nincs → decel (súrlódás)
+        let rate = if dir != Vec2::ZERO { p.accel } else { p.decel };
+        p.velocity.x = p.velocity.x.move_toward(target.x, rate * dt);
+        p.velocity.y = p.velocity.y.move_toward(target.y, rate * dt);
+
+        // 3) pozíció frissítése az aktuális (még nem teljes) sebességgel
+        tr.translation.x += p.velocity.x * dt;
+        tr.translation.y += p.velocity.y * dt;
+    }
+}</code></pre>
+      <p>A <code class="inl">move_toward(current, target, max_delta)</code> függvény (a Rust <code class="inl">f32</code>-en) <code class="inl">current</code>-et <code class="inl">target</code> felé mozgatja legfeljebb <code class="inl">max_delta</code> lépéssel — pontosan az, amit egy platformeres <em>lerp-easing</em> csinál, csak lépéskorlátos. Ez a „súrlódásos" közérzet alapja: a gomb felengedése után a karakter még csúszik egy kicsit.</p>
+      <div class="box tip">
+        <span class="lbl">Külön accel és decel — miért?</span>
+        <p>A <em>decel</em> rendszerint nagyobb, mint az <code class="inl">accel</code>: a játékos azt akarja, hogy a karakter <strong>gyorsan álljon meg</strong>, ha elengedi a gombot, de <strong>kellemesen gyorsuljon</strong>, ha megnyomja. Ha a kettő egyenlő, a megállás túl „lebegős"; ha a decel sokkal nagyobb, „tapadós" lesz a kontroll. A fenti <code class="inl">1200/1600</code> arány egy jó kiindulópont — finomhangold a karakter egyéniségéhez.</p>
+      </div>
+      <div class="box note">
+        <span class="lbl">Top-down vs platformer — a különbség</span>
+        <p>Platformerben a súrlódás <em>csak vízszintesen</em> van (a gravitáció függőlegesen „megállítja" a karaktert). Top-down-ban mindkét tengelyen kell. A normalizálás azért kritikus, mert különben az átlós mozgás (√2 ≈ 1.41×) gyorsabb lenne, mint az egyenes — a játékos „átlósúszást" tanulna ki a sebességmaxoláshoz, ami rontja a játékérzést.</p>
+      </div>
+      <div class="demo">
+        <div class="dh">&#9654; Demó: gyorsulás/súrlódás hangolása</div>
+        <div class="dd">Kattints a canvason (vagy nyomj W/A/S/D-t), és mozog a kék karakter. A <strong>holtpont</strong> gomb azonnali sebességet mutat; a <strong>juice</strong> gomb a fenti gyorsulás/súrlódást. Húzd a csúszkákat — nézd, hogy a decel növelése „tapadósabbá", csökkentése „csúszósabbá" teszi a megállást. A sebességvektor rajzolva van.</div>
+        <canvas id="moveCanvas" width="720" height="320"></canvas>
+        <div class="ctrls">
+          <button id="moveRaw">holtpont (azonnali)</button>
+          <button id="moveJuice" class="on">juice (accel/decel)</button>
+          <label>accel: <input type="range" id="moveAccel" min="100" max="3000" value="1200"><span class="val" id="moveAccelV">1200</span></label>
+          <label>decel: <input type="range" id="moveDecel" min="100" max="4000" value="1600"><span class="val" id="moveDecelV">1600</span></label>
+          <button id="moveReset">&#8634; reset</button>
+        </div>
+        <div class="readout">
+          <div><b>sebesség</b><span id="moveSpeed">0</span></div>
+          <div><b>célsebesség</b><span id="moveTarget">0</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 -->
+    <section id="squish">
+      <div class="sec-head"><span class="idx">02</span><h2>Squish &amp; stretch</h2></div>
+      <p>A második leghatékonyabb juice-elem, és az egyik legolcsóbb. A karakter sprite-ját <strong>nyújtod</strong> (stretch) a mozgásirányba és <strong>összenyomod</strong> (squish), amikor megáll vagy ütközik — aztán egy rugós (elastic) tweennel visszaállítod az eredeti méretre. Ez „életet" lehel a karakterbe: súlya, lendülete, ütése van. A kulcs: a videó ismételten hangsúlyozza az <em>impact</em> szót — a squish az ütés/érkezés pillanatának megerősítése.</p>
+      <p>A trükk lényege, és ami a juice-elvek közül a legfontosabb: <strong>csak a sprite skáláját módosítod, nem a hitboxot</strong>. A játék logikája (ütközés, mozgás) változatlan marad; csak a vizuális megjelenés „lélegzik". Erre érdemes egy külön komponenst fenntartani, ami a <em>vizuális</em> transformot vezérli, fizikaitól függetlenül.</p>
+      <h3>Top-down squish — a mozgásirányba nyújtás</h3>
+      <p>Platformerben a squish függőleges: ugráskor magasabb/kisebb szélesség, érkezéskor szélesebb/kisebb magasság. Top-down-ban a <em>mozgásirányba</em> nyújtunk, és merőlegesen squishelünk — terelődik a karakter alakja. Megálláskor a squish „túlcsordul" a mozgás irányába (mint egy fékezést szimuláló rugó), és visszaugrik.</p>
+<pre><code class="rust">use bevy::prelude::*;
+
+// A vizuális scale-t külön komponensen tartjuk — a fizika transform nem lélegzik.
+#[derive(Component)]
+struct VisualScale {
+    base: Vec2,       // alap sprite-méret (1.0, 1.0)
+    current: Vec2,    // aktuális vizuális skála
+}
+
+impl Default for VisualScale {
+    fn default() -> Self { Self { base: Vec2::ONE, current: Vec2::ONE } }
+}
+
+// Squish-parancs: a mozgásirány + erő megadja, mennyit nyújtsunk.
+// A rendszer a squish után rugósan visszaállítja az alapméretre.
+#[derive(Component, Default)]
+struct Squish {
+    target: Vec2,    // pillanatnyi cél-skála (pl. (1.3, 0.8) = nyúlt vízszintesen)
+    spring: f32,     // rugó keménysége — magasabb = gyorsabb visszaugrás
+    damp: f32,       // csillapítás — 1.0 = tökéletes rugó, &lt;1 = lassabb, &gt;1 = ingadozik
+}
+
+fn apply_squish(
+    time: Res&lt;Time&gt;,
+    mut q: Query&lt;(&amp;mut Squish, &amp;mut VisualScale)&gt;,
+) {
+    let dt = time.delta_secs();
+    for (mut sq, mut vs) in &amp;mut q {
+        // rugós közelítés a célhoz — ez adja az „elastic" visszapattanást
+        let k = sq.spring * dt;
+        vs.current.x += (sq.target.x - vs.current.x) * k.min(1.0);
+        vs.current.y += (sq.target.y - vs.current.y) * k.min(1.0);
+        // a cél visszatér az (1,1) alap felé — így a squish „elpárolog"
+        sq.target.x += (1.0 - sq.target.x) * (sq.damp * dt).min(1.0);
+        sq.target.y += (1.0 - sq.target.y) * (sq.damp * dt).min(1.0);
+    }
+}
+
+// a vizuális scale-t a fizika transformtól FÜGGETLEN child-en tesszük
+fn sync_visual_scale(
+    q: Query&lt;(&amp;VisualScale, &amp;Children), Changed&lt;VisualScale&gt;&gt;,
+    mut sprites: Query&lt;&amp;mut Sprite&gt;,
+) {
+    for (vs, children) in &amp;q {
+        for child in children {
+            if let Ok(mut sprite) = sprites.get_mut(*child) {
+                // Sprite::custom_size vagy a Transform scale — mindkettő működik
+                // a fontos: a szülő (fizika) transformot nem piszkáljuk
+                sprite.custom_size = Some(Vec2::new(32.0 * vs.current.x, 32.0 * vs.current.y));
+            }
+        }
+    }
+}
+
+// megállás érzékelése → squish indítása a mozgás irányába
+fn squish_on_stop(
+    mut q: Query&lt;(&amp;Player, &amp;mut Squish), Changed&lt;Player&gt;&gt;,
+) {
+    for (p, mut sq) in &amp;mut q {
+        // ha a sebesség majdnem 0, de előzőleg volt lendület —&gt; squish
+        if p.velocity.length_squared() &lt; 5.0 {
+            // a mozgásirány meghatározása a sebességből (előző frame)
+            if let Some(dir) = p.velocity.try_normalize() {
+                // nyújtás mozgásirányba, squish merőlegesen
+                // (itt egyszerűség kedvéért csak a főirányt nézzük)
+                let stretch = if dir.x.abs() &gt; dir.y.abs() {
+                    Vec2::new(1.25, 0.8)   // vízszintes nyújtás
+                } else {
+                    Vec2::new(0.8, 1.25)   // függőleges nyújtás
+                };
+                sq.target = stretch;
+                sq.spring = 12.0;
+                sq.damp = 6.0;
+            }
+        }
+    }
+}</code></pre>
+      <div class="box tip">
+        <span class="lbl">Miért külön VisualScale?</span>
+        <p>A Bevy-ben egy entity <code class="inl">Transform</code>-ját használja a fizika <em>és</em> a renderelés is. Ha a fizika scale-t piszkálod, a hitbox is nő — ami megváltoztatja a játékot. A tiszta megoldás: a fizika-entitás <code class="inl">Transform</code>-ja csak pozíciót és forgást visz (scale = 1), és a sprite-on egy <em>gyermek</em> entity viszi a vizuális skálát. A <code class="inl">VisualScale</code> ezt a gyermek-skálát vezérli — a hitbox sértetlen marad. Ugyanez a minta a <a href="bevy-sprite-anim-vs-transform-tutorial.html">sprite-anim vs transform leckén</a> szerepel.</p>
+      </div>
+      <div class="box warn">
+        <span class="lbl">Ne vidd túlzásba</span>
+        <p>A videó figyelmeztet: ha az összes juice-effektust egyszerre maximumon kapcsolod be, <strong>szédítő</strong> lesz. A squish legyen <em>finom</em> — 1.2–1.3× nyújtás, nem 2×. A cél az „észrevehetetlen, de hiányzik, ha nincs ott" érzés, nem a karikatúra. Ha a játékos <em>észreveszi</em> a squishet minden ütésnél, az már sok — csak a nagy pillanatokban (megállás, ütközés, támadás) hangsúlyos.</p>
+      </div>
+      <div class="demo">
+        <div class="dh">&#9654; Demó: squish &amp; stretch</div>
+        <div class="dd">A kék karakter a célpontra mozog. Megálláskor <strong>squish</strong>-t kap a mozgásirányba, és rugósan visszaáll. Húzd a <strong>stretch</strong> csúszkát, és kapcsold be/ki a squishet — nézd, mennyi „élet" jön bele. A szürke téglalap a <em>hitbox</em>: nem változik, csak a sprite-é.</div>
+        <canvas id="squishCanvas" width="720" height="320"></canvas>
+        <div class="ctrls">
+          <button id="squishToggle" class="on">squish BE</button>
+          <button id="squishOff">squish KI</button>
+          <label>nyújtás: <input type="range" id="squishAmt" min="100" max="180" value="125"><span class="val" id="squishAmtV">1.25</span></label>
+          <button id="squishRun">&#9654; küldés a célpontra</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03 -->
+    <section id="nyom">
+      <div class="sec-head"><span class="idx">03</span><h2>Nyomkövetés: porfelhő &amp; lábnyom</h2></div>
+      <p>A platformer „land dust" (érkezéskor pukkanó porfelhő) top-down megfelelője: <strong>mozgás közbeni porfelhő</strong> és <strong>lábnyomok</strong>. Mivel nincs „érkezés", a vizuális nyomkövetés a mozgás <em>folyamatos</em> jele — elmondja a játékosnak, hogy a karakter súlyos, és a talajon van, nem lebeg. Ez a legkönnyebben „hiányzik, ha nincs ott": egy porfelhő nélküli top-down karakter úgy néz ki, mint egy slide-en csúszó ikon.</p>
+      <p>Két réteg:</p>
+      <ul>
+        <li><strong>Porfelhő</strong>: mozgás közben (elsősorban gyorsuláskor vagy irányváltáskor) pukkan egy kis felhő a karakter talajánál. Ez a mozgás „lenyomata".</li>
+        <li><strong>Lábnyom</strong>: ritkábban (lépésenként) egy halvány folt marad a talajon, ami lassan elhalványul. Ez térbeli folytonosságot ad — a játékos <em>látja</em>, hol járt.</li>
+      </ul>
+      <h3>Bevy-ben: spawn + életciklus</h3>
+      <p>Mindkettő rövid életű <strong>entitás</strong>: spawnolod, rajzolod, pár másodperc múlva despawnol. A Bevy ECS-ben ez természetes: egy <code class="inl">Lifetime</code> komponens, egy rendszer ami lecsökkenti és eltávolítja, és egy másik ami a vizuális megjelenést (átlátszóság, méret) az életkorhoz köti.</p>
+<pre><code class="rust">use bevy::prelude::*;
+
+// egy rövid életű vizuális effekt: porfelhő vagy lábnyom
+#[derive(Component)]
+struct Lifetime {
+    remaining: f32,    // másodperc
+    total: f32,        // eredeti — az alpha/scala interpolálásához
+}
+
+#[derive(Component)]
+struct DustPuff {
+    start_size: f32,
+    end_size: f32,
+}
+
+#[derive(Component)]
+struct Footprint {
+    base_alpha: f32,
+}
+
+fn tick_lifetime(
+    time: Res&lt;Time&gt;,
+    mut commands: Commands,
+    mut q: Query&lt;(Entity, &amp;mut Lifetime)&gt;,
+) {
+    let dt = time.delta_secs();
+    for (e, mut life) in &amp;mut q {
+        life.remaining -= dt;
+        if life.remaining &lt;= 0.0 {
+            commands.entity(e).despawn();
+        }
+    }
+}
+
+// porfelhő vizuális frissítése: nő + halványul
+fn animate_dust(
+    mut q: Query&lt;(&amp;mut DustPuff, &amp;Lifetime, &amp;mut Sprite, &amp;mut Transform)&gt;,
+) {
+    for (mut dust, life, mut sprite, mut tr) in &amp;mut q {
+        let t = 1.0 - (life.remaining / life.total).max(0.0);  // 0 → 1 az idő múlásával
+        let size = dust.start_size + (dust.end_size - dust.start_size) * t;
+        if let Some(cs) = sprite.custom_size.as_mut() {
+            cs.x = size; cs.y = size;
+        }
+        // alpha halványul
+        sprite.color.set_alpha((1.0 - t).max(0.0) * 0.6);
+    }
+}
+
+// porfelhő spawnolása mozgáskor (ritkábban, hogy ne spammeljük)
+#[derive(Resource, Default)]
+struct DustTimer(f32);
+
+fn spawn_dust_while_moving(
+    time: Res&lt;Time&gt;,
+    mut timer: ResMut&lt;DustTimer&gt;,
+    q: Query&lt;&amp;Transform, With&lt;Player&gt;&gt;,
+    p: Res&lt;Player&gt;,  // egyszerűsítés: a Player adata
+    mut commands: Commands,
+) {
+    timer.0 -= time.delta_secs();
+    if p.velocity.length() &lt; 30.0 || timer.0 &gt; 0.0 { return; }
+    timer.0 = 0.08;  // 80ms a két porfelhő közt — ritkítja a spawnolást
+
+    for tr in &amp;q {
+        // a karakter talajánál spawnolunk (kicsit lejjebb, hogy a „talajon" legyen)
+        commands.spawn((
+            Sprite::from_color(Color::srgba(0.8, 0.8, 0.85, 0.6), Vec2::new(8.0, 8.0)),
+            Transform::from_xyz(tr.translation.x, tr.translation.y + 8.0, -1.0),
+            DustPuff { start_size: 6.0, end_size: 18.0 },
+            Lifetime { remaining: 0.35, total: 0.35 },
+        ));
+    }
+}</code></pre>
+      <div class="box tip">
+        <span class="lbl">Spawn-ritkítás — miért timer?</span>
+        <p>Ha mozgáskor <em>minden frame-ben</em> spawnolnál egy porfelhőt, 60 FPS-nél másodpercenként 60 entitás keletkezne — a képernyő tele lenne, és az ECS is szenvedne. A <code class="inl">DustTimer</code> resource egy egyszerű cooldown: csak <code class="inl">0.08s</code> (80 ms) elteltével spawnol újabbat. Ez az egyszerű „pacing" minta minden juice-effektnél megjelenik (screen shake, hit-stop spark, lábnyom) — <strong>mindig timer mögé tedd a spawnolást</strong>, sose spammelj.</p>
+      </div>
+      <div class="box note">
+        <span class="lbl">Lábnyom: szárazon vagy olajosan?</span>
+        <p>A lábnyomok akkor működnek a legjobban, ha a <em>környezet</em> is reagál: havon sötét nyom, sárban mélyebb, kövén alig látható. A technika ugyanaz (spawn + halványulás), de az <code class="inl">base_alpha</code> a biome-tól függ. Ha a pályád <a href="bevy-biomok-tutorial.html">biomokból</a> épül, a biome adja a lábnyom színét/alfáját — egy fillér extra adat, de hatalmas különbség a „helyérzésben".</p>
+      </div>
+      <div class="demo">
+        <div class="dh">&#9654; Demó: porfelhő + lábnyom</div>
+        <div class="dd">Mozgasd a karaktert (W/A/S/D vagy katt). A <strong>porfelhő</strong> a talajnál pukkan és nő/halványul; a <strong>lábnyomok</strong> lépésenként maradnak a talajon és lassan eltűnnek. Kapcsold ki mindkettőt — nézd, mennyire „lebegős" lesz a karakter nélkülük.</div>
+        <canvas id="dustCanvas" width="720" height="320"></canvas>
+        <div class="ctrls">
+          <button id="dustToggle" class="on">porfelhő BE</button>
+          <button id="footToggle" class="on">lábnyom BE</button>
+          <button id="dustReset">&#8634; reset</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 -->
+    <section id="shake">
+      <div class="sec-head"><span class="idx">04</span><h2>Screen shake</h2></div>
+      <p>A screen shake a leggyakrabban <em>túlzásba vitt</em> juice-elem — és éppen ezért a videó ennyire hangsúlyozza a „<em>tiny</em>" szót. Egy apró rázkódás (1–3 px, pár frame) súlyt és ütést ad egy eseménynek; egy nagy rázkódás (10+ px, másfél másodperc) már szédítő és zavaró. A kulcs: <strong>arányos az eseménnyel</strong>. Egy lépésnek ne legyen shake-e; egy találatnak 2px; egy robbanásnak 8px; a halálnak 12px. A kontraszt a fontos, nem az abszolút érték.</p>
+      <p>Top-down-ban a screen shake más, mint platformerben: a kamera <em>felsőnézetből</em> mozog, így a rázkódás <code class="inl">Vec2</code>-es eltolás a kamera pozíción — gyakran egy <em>trauma</em>-alapú modell, ami nem lineárisan csillapodik, hanem <em>exponenciálisan</em>, és minden frame-ben új véletlens irányt vesz. Ez az, ami a „természetes" rázkódást adja — egy fix irányú eltolás gépies lenne.</p>
+      <h3>A trauma-modell</h3>
+      <p>A bevált módszer (a „<em>Scream of the Bullet</em>" / GDC talk óta standard): egy <code class="inl">0..1</code> <strong>trauma</strong> érték, amit események <em>hozzáadnak</em> (nem beállítanak), és ami exponenciálisan csillapodik. A vizuális eltolás <code class="inl">trauma²</code> × max amplitúdó × véletlens irány — a négyzetre emelés azt adja, hogy kis trauma alig látszik, nagy trauma drámai, és az átmenet nem egyenletes.</p>
+<pre><code class="rust">use bevy::prelude::*;
+
+#[derive(Resource, Default)]
+struct CameraShake {
+    trauma: f32,        // 0..1, események hozzáadják
+    max_offset: f32,    // max amplitúdó pixelben (pl. 8.0)
+    decay: f32,         // exponenciális csillapodás sebessége (pl. 5.0)
+}
+
+impl CameraShake {
+    fn add(&amp;mut self, amount: f32) {
+        // hozzáadás, felülírás helyett — több ütés halmozódhat
+        self.trauma = (self.trauma + amount).min(1.0);
+    }
+}
+
+// esemény: küldő rendszerek ezt írják
+#[derive(Message)]
+struct ShakeEvent { trauma: f32 }
+
+fn read_shake_events(
+    mut ev: MessageReader&lt;ShakeEvent&gt;,
+    mut shake: ResMut&lt;CameraShake&gt;,
+) {
+    for e in ev.read() {
+        shake.add(e.trauma);
+    }
+}
+
+// kamera rendszer: traumából offset, exponenciális csillapodás
+fn apply_camera_shake(
+    time: Res&lt;Time&gt;,
+    mut shake: ResMut&lt;CameraShake&gt;,
+    mut q: Query&lt;&amp;mut Transform, With&lt;Camera&gt;&gt;,
+) {
+    let dt = time.delta_secs();
+    // exponenciális csillapodás: trauma *= e^(-decay * dt)
+    shake.trauma *= (-shake.decay * dt).exp();
+    if shake.trauma &lt; 0.001 { shake.trauma = 0.0; }
+
+    // offset = trauma² × max × véletlen irány
+    let amp = shake.trauma * shake.trauma * shake.max_offset;
+    let angle = rand::random::&lt;f32&gt;() * std::f32::consts::TAU;
+    let offset = Vec2::new(angle.cos(), angle.sin()) * amp;
+
+    for mut tr in &amp;mut q {
+        // a kamera alap-pozíciója fix; a shake csak eltolás
+        tr.translation.x = offset.x;
+        tr.translation.y = offset.y;
+    }
+}
+
+// használat: találat → 0.3 trauma, robbanás → 0.8, halál → 1.0
+fn on_hit(mut ev: MessageWriter&lt;ShakeEvent&gt;) {
+    // ...találat detektálása...
+    ev.write(ShakeEvent { trauma: 0.3 });
+}</code></pre>
+      <div class="box warn">
+        <span class="lbl">Egy abszolút szabály: skálázható + kikapcsolható</span>
+        <p>A screen shake egy <em>hozzáférhetőségi kérdés</em> is. Sok játékos (mozgásbetegség, vestibularis érzékenység) nem bírja. <strong>Mindig</strong> legyen egy „screen shake" csúszka a beállításokban, ami a <code class="inl">max_offset</code>-et skálázza (0 = kikapcsolva). A <code class="inl">prefers-reduced-motion</code> böngészőbeállítás detektálható (webes játék), és alapból lecsökkentheti a shake-et. Ez nem opció — kötelező.</p>
+      </div>
+      <div class="box tip">
+        <span class="lbl">Trauma² miért?</span>
+        <p>Ha lineáris lenne az amplitúdó (<code class="inl">trauma × max</code>), a kis értékek túl „hangosak", a nagyok pedig nem elég drámaiak. A <code class="inl">trauma²</code> miatt: 0.3 trauma → 0.09 amplitúdó (alig látszik), 0.7 → 0.49 (feltűnő), 1.0 → 1.0 (max). A átmenet „túlcsorduló" — pont az, amit egy ütésnél akarsz. Ugyanez az elv a hit-stop időtartamánál is.</p>
+      </div>
+      <div class="demo">
+        <div class="dh">&#9654; Demó: screen shake trauma-modellel</div>
+        <div class="dd">A gombok különböző traumaértékeket küldenek. A rázkódás exponenciálisan csillapodik, minden frame-ben új véletlen irányba. Húzd a <strong>max_offset</strong>-et — nézd, hogy a trauma² miatt a 0.3 alig látszik, az 1.0 viszont maximális. Kapcsold be a „reduced motion"-t (szimulálja a hozzáférhetőségi beállítást).</div>
+        <canvas id="shakeCanvas" width="720" height="320"></canvas>
+        <div class="ctrls">
+          <button id="shakeS">találat · 0.3</button>
+          <button id="shakeM">robbanás · 0.6</button>
+          <button id="shakeL">halál · 1.0</button>
+          <label>max px: <input type="range" id="shakeMax" min="0" max="20" value="8"><span class="val" id="shakeMaxV">8</span></label>
+          <button id="shakeReduced">reduced motion</button>
+        </div>
+        <div class="readout">
+          <div><b>trauma</b><span id="shakeTrauma">0.00</span></div>
+          <div><b>amplitúdó</b><span id="shakeAmp">0.0px</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 -->
+    <section id="hitstop">
+      <div class="sec-head"><span class="idx">05</span><h2>Hit-stop / freeze frame</h2></div>
+      <p>Ez a „nagyon finom, de érezhető" technika, amit a videó úgy ír: „<em>megfagyasztod a játékot, nagyon rövid időre</em>". Amikor valami fontos történik — egy találat, egy ütközés, egy támadás kezdete — a játék <strong>pár frame-re lelassul vagy megáll</strong>, aztán visszamegy a normál sebességre. Ezt a játékos alig veszi észre tudatosan, de <em>érzi</em>: az ütésnek „súlya" lesz, a tap-ból igazi ütés lesz. Ez a „<em>impact</em>", amit a videó a squish-nél említ — a hit-stop az időbeli megfelelője a vizuális squish-nek.</p>
+      <p>A platformeres „freeze a jump pillanatában" top-down megfelelője: <strong>freeze a találat/támadás pillanatában</strong>. Egy jól időzített 40–80 ms-os fagyás elképesztő különbséget csinál — a „katt" érzetből „csatt" lesz.</p>
+      <h3>Bevy-ben: TimeScale a Time&lt;Virtual&gt;-ön</h3>
+      <p>A Bevy <code class="inl">Time&lt;Virtual&gt;</code> erőforrás (a <code class="inl">Time</code> virtuális változata) rendelkezik egy <em>relatív sebességgel</em>, amit <code class="inl">set_relative_speed</code>-del állíthatsz. Ha a mozgásrendszered a virtuális időt használja (alapból a <code class="inl">Time</code> = <code class="inl">Time&lt;Virtual&gt;</code>), akkor egy rendszer, ami 0-ra állítja a sebességet, pár frame múlva 1-re vissza — kész a hit-stop. A <em>fix timestep</em> fizika ettől függetlenül mehet, de a vizuális mozgás megfagy.</p>
+<pre><code class="rust">use bevy::prelude::*;
+use bevy::time::Time;
+
+#[derive(Resource, Default)]
+struct HitStop {
+    timer: Timer,           // hátralévő fagyási idő
+    speed_target: f32,       // fagyás alatt milyen sebességgel menjen (0 = teljes stop)
+}
+
+// esemény: küldő rendszerek indítják
+#[derive(Message)]
+struct HitStopEvent {
+    duration: f32,    // másodperc (pl. 0.06 = 60ms)
+    speed: f32,        // fagyás alatti time scale (0.0 = teljes stop, 0.1 = lassított)
+}
+
+fn read_hitstop_events(
+    mut ev: MessageReader&lt;HitStopEvent&gt;,
+    mut hs: ResMut&lt;HitStop&gt;,
+) {
+    for e in ev.read() {
+        // a leghosszabb/megerősebb fagyás nyer — ne „törölje" egy gyengébb
+        if e.duration &gt; hs.timer.remaining_secs() {
+            hs.timer.set_duration(std::time::Duration::from_secs_f32(e.duration));
+            hs.timer.reset();
+            hs.speed_target = e.speed;
+        }
+    }
+}
+
+fn apply_hitstop(
+    time: Res&lt;Time&gt;,
+    mut virtual_time: ResMut&lt;Time&lt;Virtual&gt;&gt;,
+    mut hs: ResMut&lt;HitStop&gt;,
+) {
+    hs.timer.tick(time.delta());  // valós idővel tickel — nem a fagyottal!
+    if hs.timer.just_finished() {
+        // fagyás vége: vissza a normál sebességre
+        virtual_time.set_relative_speed(1.0);
+    } else if !hs.timer.finished() {
+        virtual_time.set_relative_speed(hs.speed_target);
+    }
+}
+
+// használat: találat → 60ms-os teljes stop
+fn on_sword_hit(mut ev: MessageWriter&lt;HitStopEvent&gt;) {
+    // ...találat detektálása...
+    ev.write(HitStopEvent { duration: 0.06, speed: 0.0 });
+}</code></pre>
+      <div class="box warn">
+        <span class="lbl">A timer-t valósidejűen tickeld!</span>
+        <p>A leggyakoribb hiba: a hit-stop timert <em>a virtuális idővel</em> tickelik (mert a többi rendszer azt használja), de a time scale 0 — így a timer sosem megy tovább, és a játék <strong>örökre megfagy</strong>. A fenti kód <code class="inl">time.delta()</code>-t használ (a valós <code class="inl">Time</code>-ot, ami a virtuálistól független), így a hit-stop akkor is lejár, ha a virtuális idő megállt. Ez egy apró, de végzetes részlet.</p>
+      </div>
+      <div class="box tip">
+        <span class="lbl">A „lassított" hit-stop</span>
+        <p>A <code class="inl">speed: 0.0</code> teljes fagyást ad — ez a leggyakoribb és legütősebb. De néha jobb a <code class="inl">speed: 0.1</code> (10%-os sebesség): a játék nem áll meg teljesen, csak <em>nagyon lelassul</em>, ami egy „bullet-time" pillanatot ad. Ez különösen hatásos <em>nagy</em> találatoknál (boss-ütés, fejlövés) — a sima találatnál maradj a 0.0. A kettő keverése (kis ütés → 0.0/40ms, nagy ütés → 0.1/120ms) gazdag skálát ad.</p>
+      </div>
+      <div class="box note">
+        <span class="lbl">Mozgásrendszer idősíkjának szétválasztása</span>
+        <p>A hit-stop csak akkor működik, ha a <em>vizuális</em> mozgás (játékos, ellenségek, projektil) a virtuális időt használja. Ha egy rendszer <code class="inl">Fixed&lt;T&gt;</code>-t használ (fix timestep fizika), az tovább megy a fagyás alatt is — ami lehet, hogy <em>akarod</em> (a fizika ne omoljon), vagy nem (a hit-stop „átjárja" a fizikát). A tiszta megoldás: a <a href="bevy-idozites.html">időzítés leckén</a> részletezett módon a fizikát fix, a vizualitást virtuális időre tedd. A hit-stop a virtuálisat állítja.</p>
+      </div>
+      <div class="demo">
+        <div class="dh">&#9654; Demó: hit-stop</div>
+        <div class="dd">A gomb elindít egy „támadást" (kék kör kiterjed). <strong>Hit-stop BE</strong>: a támadás pillanatában a játék 60 ms-ra megfagy — az ellenfél (piros) megáll, a porfelhő is. <strong>KI</strong>: minden folyamatos. Nézd meg többször — az a különbség, hogy a hit-stopos változatnál az ütésnek „súlya" van. (Figyeld a mozgó piros pontot a támadás alatt.)</div>
+        <canvas id="hitstopCanvas" width="720" height="320"></canvas>
+        <div class="ctrls">
+          <button id="hsAttack">&#9876; támadás</button>
+          <button id="hsToggle" class="on">hit-stop BE</button>
+          <label>időtartam: <input type="range" id="hsDur" min="0" max="160" value="60"><span class="val" id="hsDurV">60ms</span></label>
+        </div>
+        <div class="readout">
+          <div><b>time scale</b><span id="hsScale">1.00</span></div>
+          <div><b>állapot</b><span id="hsState">normál</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 06 -->
+    <section id="buffer">
+      <div class="sec-head"><span class="idx">06</span><h2>Input buffering &amp; leniency</h2></div>
+      <p>A platformer klasszikus <em>coyote time</em> és <em>jump buffering</em> két „láthatatlan" türelmi ablak, amit a videó kiemel: <strong>coyote time</strong> = ha a játékos lelép egy peremről, még pár tizedmásodpercig ugorhat; <strong>jump buffering</strong> = ha egy kicsit azelőtt nyom ugrást, mielőtt földet érne, az ugrás „pufferel" és végrehajtódik, amint lehet. Ezek teszik, hogy a <em>Celeste</em> igazságosabbnak érződjön annál, amilyen nehéz — a játékos nem a <em>frame-pontos időzítésért</em> küzd, hanem a döntésért.</p>
+      <p>Top-down-ban nincs „perem" és nincs „földet érés". De a <strong>logika</strong> átvihető: minden olyan cselekvésre, ami <em>csak bizonyos feltételekkel</em> hajtható végre (dash csak ha nincs cooldown, támadás csak ha fegyver készen, interakció csak ha célpont közelben), adhatsz egy türelmi ablakot. Két minta:</p>
+      <ul>
+        <li><strong>Input buffer</strong>: a játékos megnyomja a gombot, de a cselekvés <em>még nem</em> lehetséges (cooldown) → a gombnyomás „vár" egy rövid ideig, és ha időben lehetőség nyílik, végrehajtódik. „Korai gombnyomás" = nem büntet.</li>
+        <li><strong>Leniency window</strong>: a cselekvés <em>épp most</em> volt lehetséges, de a játékos egy kicsit késik → még egy pár tizedmásodpercig elérhető. „Késői gombnyomás" = nem büntet. Ez a coyote time analógia.</li>
+      </ul>
+      <h3>Dash-buffer: a leggyakoribb top-down minta</h3>
+      <p>A dash (roham, görbe) egy cooldown-alapú cselekvés. Ha a játékos a cooldown alatt nyomja a gombot, a hagyományos megközelítés <em>elveti</em> a gombnyomást — frusztráló. A bufferelt megközelítés <em>megjegyzi</em> a gombnyomást, és a cooldown végén automatikusan elindítja a dasht — feltéve, hogy a gombnyomás elég friss.</p>
+<pre><code class="rust">use bevy::prelude::*;
+
+#[derive(Component)]
+struct DashController {
+    cooldown: Timer,         // hátralévő várakozás
+    buffer: Option&lt;Timer&gt;,   // pufferelt gombnyomás (ha van) + hátralévő élettartam
+    dash_duration: Timer,    // ha dashel, mennyi ideig tart
+    buffer_window: f32,      // mennyi ideig él a puffer (pl. 0.15 = 150ms)
+}
+
+fn dash_input(
+    keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    time: Res&lt;Time&gt;,
+    mut q: Query&lt;&amp;mut DashController&gt;,
+) {
+    let dt = time.delta_secs();
+    for mut d in &amp;mut q {
+        // 1) timer-ek tickelése
+        d.cooldown.tick(time.delta());
+        d.dash_duration.tick(time.delta());
+
+        // 2) buffer lejár — ha a pufferelt gombnyomás túl régi, eldobjuk
+        if let Some(buf) = &amp;mut d.buffer {
+            buf.tick(time.delta());
+            if buf.finished() { d.buffer = None; }
+        }
+
+        // 3) új gombnyomás: ha dashelne, de cooldown van → pufferba
+        if keys.just_pressed(KeyCode::ShiftLeft) {
+            if d.cooldown.finished() &amp;&amp; d.dash_duration.finished() {
+                // azonnal dashelhet — itt elindítod a dasht
+                start_dash(&amp;mut d);
+            } else {
+                // puffer: megjegyezzük, amíg a cooldown le nem jár
+                d.buffer = Some(Timer::from_seconds(d.buffer_window, TimerMode::Once));
+            }
+        }
+
+        // 4) bufferelt gombnyomás végrehajtása, amint lehet
+        if d.buffer.is_some() &amp;&amp; d.cooldown.finished() &amp;&amp; d.dash_duration.finished() {
+            start_dash(&amp;mut d);
+            d.buffer = None;  // elfogyott
+        }
+    }
+}
+
+fn start_dash(d: &amp;mut DashController) {
+    d.dash_duration = Timer::from_seconds(0.18, TimerMode::Once);
+    d.cooldown = Timer::from_seconds(0.6, TimerMode::Once);
+    // a tényleges dash-sebesség adását a mozgásrendszer végzi, ha dash_duration megy
+}</code></pre>
+      <div class="box tip">
+        <span class="lbl">A türelmi ablak mérete — érzés kérdése</span>
+        <p>A videó ezt nem részletezi, de a gyakorlati érték: <strong>100–200 ms</strong>. Rövidebb (50 ms) alatt a játékos nem érzi a segítséget; hosszabb (300+ ms) alatt „dupla dash" bugok jelennek meg (egy gombnyomás kétszer hajtódik végre). A <em>Celeste</em> coyote-ja 6 frame (~100 ms 60 FPS-nél), a jump buffer 8 frame (~133 ms). Ez a tartomány a „eszrevétlen segítség" — kezdésnek a 150 ms jó kompromisszum.</p>
+      </div>
+      <div class="box note">
+        <span class="lbl">Mikor NE legyen buffer?</span>
+        <p>Nem minden inputot kell pufferelni. A <em>mozgás</em> input (W/A/S/D) sosem pufferel — az valós idejű. A <em>committal</em> cselekvések (nagy támadás, amibe belementél) esetén is gondolkozz: ha a buffer miatt a játékos „véletlenül" elindít egy második támadást, amit nem akart, az rosszabb, mint a frusztráció a kihagyott gombnyomás miatt. A buffer a <em>gyors, ismétlődő</em> cselekvéseknél (dash, ugrás, kis támadás) működik a legjobban.</p>
+      </div>
+      <div class="demo">
+        <div class="dh">&#9654; Demó: dash buffer</div>
+        <div class="dd">A <strong>Shift</strong> (vagy katt) elindítja a dasht (kék sáv). A dash után 0.6 s cooldown van (szürke sáv). <strong>Buffer KI</strong>: ha cooldown alatt nyomsz, semmi nem történik — eldobódik a gombnyomás. <strong>Buffer BE</strong>: a gombnyomás pufferelődik (lila), és a cooldown végén automatikusan elindul a dash. Próbáld cooldown közben nyomni — érezni fogod a különbséget.</div>
+        <canvas id="bufferCanvas" width="720" height="320"></canvas>
+        <div class="ctrls">
+          <button id="bufToggle" class="on">buffer BE</button>
+          <button id="bufOff">buffer KI</button>
+          <label>ablak: <input type="range" id="bufWindow" min="50" max="300" value="150"><span class="val" id="bufWindowV">150ms</span></label>
+          <span style="color:var(--muted)">(katt vagy Shift)</span>
+        </div>
+        <div class="readout">
+          <div><b>cooldown</b><span id="bufCd">készen</span></div>
+          <div><b>puffer</b><span id="bufState">—</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 07 -->
+    <section id="hang">
+      <div class="sec-head"><span class="idx">07</span><h2>Hang: pitch &amp; audio control</h2></div>
+      <p>A videó szerint — és itt a legerősebb az állítása — <strong>a hang a legfontosabb juice-elem</strong>, és a leggyakrabban elhanyagolt. Egy ugrás hang nélkül csak egy pozícióváltozás; hanggal súlya van. Egy találat hang nélkül egy animáció; hanggal „csatt" lesz. A hang az a réteg, ami a <em>testnek</em> szól — a másik kettő (vizualitás, idő) a szemnek és az érzékelésnek.</p>
+      <p>De a videó nem csak „legyen hang"-ot mond. A konkrét technika, amit kiemel: <strong>pitch randomizálás</strong>. Ugyanaz az efekt, minden lejátszáskor egy kicsit más magassággal — elkerüli a mechanikus ismétlődésérzést. A szimmetria, az állandóság a játékban <em>rossz érzés</em>; a láthatatlan randomizáció adja meg az „életérzetet". Ez egy apró, de drámai különbséget csinál: egy „katt" vs. egy „katt, katt, katt" ugyanabból a fájlból.</p>
+      <h3>Bevy-ben: AudioSink + pitch</h3>
+      <p>A Bevy 0.18-ban a hang entitás-alapú: spawnolsz egy <code class="inl">AudioPlayer</code>-t, Bevy ráteszi az <code class="inl">AudioSink</code>-et, és azon vezérled a hangerőt, sebességet (ami pitch-et is ad!), szünetet. A pitch-randomizáláshoz a <code class="inl">set_speed</code>-et használjuk — ami egyúttal magasságot is változtat. Egy kis ±5–10% ingadozás elég.</p>
+<pre><code class="rust">use bevy::prelude::*;
+use bevy::audio::{AudioPlayer, AudioSink, AudioSinkPlayback, PlaybackSettings, PlaybackMode};
+
+#[derive(Resource)]
+struct SfxLibrary {
+    step: Handle&lt;AudioSource&gt;,
+    hit:  Handle&lt;AudioSource&gt;,
+}
+
+// marker: csak ezekre az entitásokra akarunk pitch-randomizációt (a zenére pl. nem)
+#[derive(Component)]
+struct RandomizePitch;
+
+// pitch-randomizáló rendszer: amint Bevy ráteszi az AudioSink-et (a spawn UTÁNI
+// frame-ben!), beállítjuk a véletlen magasságot. Added&lt;AudioSink&gt; kell, NEM
+// Added&lt;AudioPlayer&gt;: a sink a spawn pillanatában még nem létezik, így a régi
+// `get_mut`-os változat sosem találta volna meg.
+fn randomize_pitch(
+    mut sinks: Query&lt;&amp;mut AudioSink, (Added&lt;AudioSink&gt;, With&lt;RandomizePitch&gt;)&gt;,
+) {
+    for mut sink in &amp;mut sinks {
+        // véletlenszerű pitch: 0.9–1.1 (±10%) — a set_speed pitch-et is ad
+        let pitch = 0.9 + rand::random::&lt;f32&gt;() * 0.2;
+        sink.set_speed(pitch);
+    }
+}
+
+// helper: efekt lejátszása (Despawn mód — öntisztító)
+fn sfx(commands: &amp;mut Commands, handle: Handle&lt;AudioSource&gt;, volume: f32) {
+    commands.spawn((
+        AudioPlayer::new(handle),
+        PlaybackSettings {
+            mode: PlaybackMode::Despawn,
+            volume: volume.into(),
+            ..default()
+        },
+        RandomizePitch,   // ez kapja majd a véletlen pitch-et, amint elindul
+    ));
+}
+
+// használat: lépéshang (halk, gyakori), találat (hangos, ritka)
+fn on_step(mut commands: Commands, sfx: Res&lt;SfxLibrary&gt;) {
+    sfx(&amp;mut commands, sfx.step.clone(), 0.3);  // halkabb
+}
+fn on_hit(mut commands: Commands, sfx: Res&lt;SfxLibrary&gt;) {
+    sfx(&amp;mut commands, sfx.hit.clone(), 0.8);   // hangosabb
+}</code></pre>
+      <div class="box note">
+        <span class="lbl">Hangerő is randomizálható</span>
+        <p>A pitch mellett a <strong>hangerő</strong> enyhe randomizálása (±5%) is segít — különösen, ha ugyanaz az efekt gyakran szól (pl. lépéshang). A kettő együtt azt az érzést adja, hogy „ugyanaz az esemény, de sosem pontosan ugyanúgy" — ami pont az, amit a való világ tesz. De vigyázat: túl sok randomizáció <em>chaotikussá</em> válik. A ±10% pitch + ±5% hangerő egy jó kiindulópont.</p>
+      </div>
+      <div class="box warn">
+        <span class="lbl">set_speed ≠ valódi pitch-shift</span>
+        <p>A <code class="inl">set_speed</code> a lejátszás sebességét változtatja, ami <em>magával hozza</em> a pitch-et — de a hossz is változik (gyorsabb = rövidebb). Egy rövid effektnél (kattanás, csatt) ez észrevehetetlen, és pont az, amit akarsz. De hosszabb effektnél (egy zenés motívum) a gyorsítás torzít. Ha „lassított, de eredeti magasságú" effekt kell (pl. lassított halál-megfagyás), arra a Bevy beépítetten nem ad — külső DSP/crate kell. A részleteket a <a href="bevy-sound-and-music.html">hang &amp; zene lecke</a> 04-es szakasza tárgyalja.</p>
+      </div>
+      <div class="box tip">
+        <span class="lbl">A három hangerő-szint — mixer</span>
+        <p>Minden juice-hangnak három hangerő-rétege van: <strong>(1) master</strong> (a játék fő hangerője, a beállításokból), <strong>(2) csatorna</strong> (SFX/zene/ambient külön csúszka), <strong>(3) saját</strong> (az egyes efekt helyi hangerője, pl. lépés halk, találat hangos). A végleges hangerő a három szorzata. Ez a <a href="bevy-sound-and-music.html#mixer">mixer modell</a> — nélküle a játékos nem tudja külön állítani a zenét és az effektt, ami hozzáférhetőségi probléma. Korán érdemes beépíteni.</p>
+      </div>
+      <div class="demo">
+        <div class="dh">&#9654; Demó: pitch randomizáció</div>
+        <div class="dd">Egy szintetikus „katt" efekt (Web Audio API-val generálva). A <strong>rögzített</strong> gomb ugyanazt a magasságot játssza minden alkalommal — hallgasd sokszor, és érzed a „ gépies" ismétlést. A <strong>randomizált</strong> gomb ±10% pitch-ingadozást ad — azonnal „élőbb". (A demó valódi hangot generál — kapcsold be a hangerőt.)</div>
+        <canvas id="audioCanvas" width="720" height="180"></canvas>
+        <div class="ctrls">
+          <button id="audFixed">rögzített pitch</button>
+          <button id="audRandom" class="on">randomizált pitch</button>
+          <button id="audPlay">&#9654; lejátszás</button>
+          <label>szórás: <input type="range" id="audSpread" min="0" max="30" value="10"><span class="val" id="audSpreadV">±10%</span></label>
+        </div>
+        <div class="readout">
+          <div><b>utolsó pitch</b><span id="audPitch">1.00</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 08 -->
+    <section id="pickup">
+      <div class="sec-head"><span class="idx">08</span><h2>Pickup &amp; UI polish</h2></div>
+      <p>A videó utolsó, bónuszpontja: az apró vizuális flourishes, amik a játék „kész" érzetét adják. Három konkrét elemet emel ki:</p>
+      <ul>
+        <li><strong>Érme lebegése.</strong> Az érme nem csak eltűnik — felugrik egy picit, méretezik, és „elúszik" felfelé, mielőtt eltűnne. Egy <em>tween</em> a pozíción és a méreten.</li>
+        <li><strong>Sparkle burst.</strong> Begyűjtéskor egy kis szikra-robbanás (néhány gyors, kicsi, szétáló partikula) jelenik meg az érme helyén.</li>
+        <li><strong>Score punch.</strong> A pontszám-címke skálája „megüt" (1.3× lesz), aztán visszaáll — a szám nem csak nő, hanem <em>üt</em>.</li>
+      </ul>
+      <p>Ezek mind <strong>rövid, automatikus animációk</strong> — a játékos nem csinálja, csak látja. A Bevy-ben mindegyik egy-egy <code class="inl">Timer</code>-vezérelt rendszer, ami egy komponenst interpolál. A lényeg ugyanaz, mint a squish-nél: egy <em>célállapot</em> felé közelítés, ami aztán visszaáll.</p>
+      <h3>A három elem egyben</h3>
+<pre><code class="rust">use bevy::prelude::*;
+
+// 1) Pickup animáció: az érme felugrik, nő, halványul, eltűnik
+#[derive(Component)]
+struct PickupAnim {
+    timer: Timer,
+    start_pos: Vec3,
+}
+
+fn animate_pickup(
+    time: Res&lt;Time&gt;,
+    mut commands: Commands,
+    mut q: Query&lt;(Entity, &amp;mut PickupAnim, &amp;mut Transform, &amp;mut Sprite)&gt;,
+) {
+    for (e, mut anim, mut tr, mut sprite) in &amp;mut q {
+        anim.timer.tick(time.delta());
+        let t = anim.timer.fraction();  // 0 → 1 az idő múlásával
+
+        // felugrás: a pozíció felfelé megy (egy íven)
+        tr.translation.y = anim.start_pos.y + 24.0 * (1.0 - (1.0 - t).powi(2));
+        // méret: először nő, aztán zsugorodik
+        let scale = if t &lt; 0.3 { 1.0 + t * 1.5 } else { 1.45 - (t - 0.3) * 2.0 };
+        tr.scale = Vec3::splat(scale.max(0.0));
+        // alpha: végig halványul
+        sprite.color.set_alpha(1.0 - t);
+
+        if anim.timer.just_finished() {
+            commands.entity(e).despawn();
+        }
+    }
+}
+
+// 2) Sparkle: rövid életű partikulák, sugarasan szét
+#[derive(Component)]
+struct Sparkle {
+    vel: Vec2,
+    timer: Timer,
+}
+
+fn animate_sparkles(
+    time: Res&lt;Time&gt;,
+    mut commands: Commands,
+    mut q: Query&lt;(Entity, &amp;mut Sparkle, &amp;mut Transform, &amp;mut Sprite)&gt;,
+) {
+    for (e, mut sp, mut tr, mut sprite) in &amp;mut q {
+        sp.timer.tick(time.delta());
+        let t = sp.timer.fraction();
+        // mozgás a sebességvektorral (lassuló)
+        tr.translation.x += sp.vel.x * time.delta_secs() * (1.0 - t);
+        tr.translation.y += sp.vel.y * time.delta_secs() * (1.0 - t);
+        tr.scale = Vec3::splat((1.0 - t).max(0.0));
+        sprite.color.set_alpha((1.0 - t).max(0.0));
+        if sp.timer.just_finished() {
+            commands.entity(e).despawn();
+        }
+    }
+}
+
+// 3) Score punch: a UI-címke skálája „üt" és visszaáll
+#[derive(Component)]
+struct ScorePunch {
+    timer: Timer,
+    max_scale: f32,
+}
+
+fn animate_score_punch(
+    time: Res&lt;Time&gt;,
+    mut q: Query&lt;(&amp;ScorePunch, &amp;mut Transform)&gt;,
+) {
+    for (punch, mut tr) in &amp;mut q {
+        let t = punch.timer.fraction();  // 0 → 1
+        // először felfelé (üt), aztán vissza — egy „spring" görbe
+        let scale = if t &lt; 0.3 {
+            1.0 + (punch.max_scale - 1.0) * (t / 0.3)
+        } else {
+            punch.max_scale - (punch.max_scale - 1.0) * ((t - 0.3) / 0.7)
+        };
+        tr.scale = Vec3::splat(scale);
+    }
+}
+
+// gyűjtő: mindhárom elindítása
+fn on_coin_collected(
+    coin_pos: Vec3,
+    mut commands: Commands,
+    score_query: Single&lt;Entity, With&lt;ScorePunch&gt;&gt;,
+    mut score_punch: Query&lt;&amp;mut ScorePunch&gt;,
+) {
+    // 1) pickup animáció az érmén
+    commands.spawn((
+        Sprite::from_color(Color::srgba(1.0, 0.85, 0.3, 1.0), Vec2::new(12.0, 12.0)),
+        Transform::from_translation(coin_pos),
+        PickupAnim { timer: Timer::from_seconds(0.3, TimerMode::Once), start_pos: coin_pos },
+    ));
+    // 2) 6 sparkle sugarasan
+    for i in 0..6 {
+        let angle = (i as f32 / 6.0) * std::f32::consts::TAU;
+        commands.spawn((
+            Sprite::from_color(Color::srgba(1.0, 1.0, 0.6, 1.0), Vec2::new(4.0, 4.0)),
+            Transform::from_translation(coin_pos),
+            Sparkle {
+                vel: Vec2::new(angle.cos(), angle.sin()) * 80.0,
+                timer: Timer::from_seconds(0.25, TimerMode::Once),
+            },
+        ));
+    }
+    // 3) score punch
+    if let Ok(mut punch) = score_punch.get_mut(*score_query) {
+        punch.timer.reset();
+    }
+}</code></pre>
+      <div class="box tip">
+        <span class="lbl">A „spring" görbe — miért nem lineáris?</span>
+        <p>A score punch és a pickup méret is <em>először felfelé, aztán vissza</em> megy. A lineáris átmenet (egyenletes növekedés, aztán egyenletes csökkenés) „mesterségesen" hat — a való világban a rugó <em>lassulva</em> ér a végébe. A fenti kód az <code class="inl">t &lt; 0.3</code> fázisban lineárisan felmegy (gyors „ütés"), aztán <code class="inl">0.3–1.0</code> között lineárisan vissza — ez egy leegyszerűsített spring. A valódi (easing-függvényes) változat jobban néz ki, de bonyolultabb. A Bevy <code class="inl">bevy::math::cubic_spline</code> vagy az <code class="inl">ease</code> crate segíthet.</p>
+      </div>
+      <div class="box note">
+        <span class="lbl">A pickup = mini-event</span>
+        <p>A pickup polish <em>eseményvezérelt</em> — egy <code class="inl">CoinCollected</code> event indítja mind a három animációt. Ez a minta (event → több rendszer reagál) a Bevy idiomaticus módja az ilyen „szétcsapódó" reakcióknak. Az <a href="bevy-uzenetek-tutorial.html">üzenetek lecke</a> és az <a href="bevy-observerek-tutorial.html">observerek lecke</a> részletezi — a juice-rendszerek természetesen illeszkednek az esemény-architektúrába.</p>
+      </div>
+      <div class="demo">
+        <div class="dh">&#9654; Demó: pickup polish</div>
+        <div class="dd">Kattints az érmére (vagy a gombra). A <strong>holtpont</strong> változatban az érme egyszerűen eltűnik és a pontszám nő. A <strong>juice</strong> változatban: az érme felugrik és halványul, 6 sparkle szétlövell, a pontszám-címke „megüt" (skálázódik). Mindegyik elem külön is bekapcsolható.</div>
+        <canvas id="pickupCanvas" width="720" height="320"></canvas>
+        <div class="ctrls">
+          <button id="puRaw">holtpont</button>
+          <button id="puJuice" class="on">juice</button>
+          <button id="puToggleCoin" class="on">érme anim BE</button>
+          <button id="puToggleSpark" class="on">sparkle BE</button>
+          <button id="puTogglePunch" class="on">score punch BE</button>
+          <button id="puCollect">&#9654; begyűjtés</button>
+        </div>
+        <div class="readout">
+          <div><b>pontszám</b><span id="puScore">0</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 09 -->
+    <section id="bevy">
+      <div class="sec-head"><span class="idx">09</span><h2>Bevy integráció: egyben a plugin</h2></div>
+      <p>A fenti elemek mindegyike önálló rendszer. A Bevy idiomaticus módja, hogy egy <strong>plugin</strong> fogja össze őket — egy <code class="inl">GameJuicePlugin</code>, amit egyetlen sorral hozzáadsz az apphoz, és kész. Ez a plugin tartalmazza a screen shake-et, hit-stop-ot, squish-et, a hang-randomizációt és a pickup-rendszert. Az <a href="bevy-plugin-rendszer-tutorial.html">plugin-rendszer lecke</a> részletezi a mintát; itt a teljes kép.</p>
+<pre><code class="rust">use bevy::prelude::*;
+
+pub struct GameJuicePlugin;
+impl Plugin for GameJuicePlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app
+            // erőforrások
+            .init_resource::&lt;CameraShake&gt;()
+            .init_resource::&lt;HitStop&gt;()
+            .init_resource::&lt;DustTimer&gt;()
+            // események
+            .add_message::&lt;ShakeEvent&gt;()
+            .add_message::&lt;HitStopEvent&gt;()
+            // rendszerek
+            .add_systems(Update, (
+                read_shake_events,
+                read_hitstop_events,
+                apply_camera_shake,
+                apply_hitstop,
+                apply_squish,
+                sync_visual_scale,
+                squish_on_stop,
+                spawn_dust_while_moving,
+                tick_lifetime,
+                animate_dust,
+                animate_pickup,
+                animate_sparkles,
+                animate_score_punch,
+                randomize_pitch,
+            ).chain());
+    }
+}
+
+// használat:
+// app.add_plugins((DefaultPlugins, GameJuicePlugin))</code></pre>
+      <div class="box note">
+        <span class="lbl">A .chain() — miért fontos?</span>
+        <p>A rendszer-sorrend itt számít. Ha az <code class="inl">apply_camera_shake</code> <em>előtt</em> fut az <code class="inl">apply_hit_stop</code> (ami a time scale-t 0-ra állítja), a shake-rendszer <em>leáll</em> a hit-stop alatt — ami nem akarod (a shake épp az ütés pillanatában legyen erős). A <code class="inl">.chain()</code> garantálja a sorrendet. De vigyázat: ha a hit-stop megfagyasztja a virtuális időt, minden <code class="inl">Time&lt;Virtual&gt;</code>-et használó rendszer <em>megáll</em> — így a screen shake-nek vagy a valós időt kell használnia, vagy külön kell kezelni. Ez egy finom, de fontos architekturális döntés.</p>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Rendszer</th><th>Idősík</th><th>Mikor fusson</th></tr></thead>
+        <tbody>
+          <tr><td>apply_hitstop</td><td>valós (Time)</td><td>mindig — még a fagyás alatt is</td></tr>
+          <tr><td>apply_camera_shake</td><td>valós</td><td>mindig — a shake pont a fagyás alatt legerősebb</td></tr>
+          <tr><td>player_movement</td><td>virtuális</td><td>csak ha nem fagyott — a játékos megáll</td></tr>
+          <tr><td>enemy_ai</td><td>virtuális</td><td>csak ha nem fagyott — az ellenség is megáll</td></tr>
+          <tr><td>animate_dust</td><td>virtuális</td><td>megáll a hit-stop alatt — a por is megfagy</td></tr>
+          <tr><td>animate_pickup</td><td>valós</td><td>mindig — a pickup animáció ne fagyjon</td></tr>
+        </tbody>
+      </table></div>
+      <div class="box tip">
+        <span class="lbl">A valós vs virtuális osztás</span>
+        <p>A fenti tábla a kulcs: a <em>juice-renderelési</em> rendszerek (shake, sparkle, pickup animáció, score punch) a <strong>valós időt</strong> használják — nem fagynak a hit-stop alatt. A <em>játékmenet</em> (mozgás, AI, fizika) a <strong>virtuális időt</strong> — az megáll. Ez a kettőválasztás teszi, hogy a hit-stop „súlyt" ad: a játék megáll, de a vizuális flourishes (sparkle, shake) pont akkor a legaktívabbak. Ha mindkettő fagyna, az ütés üres lenne; ha egyik sem, nem lenne hit-stop.</p>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section id="tips">
+      <div class="sec-head"><span class="idx">10</span><h2>Tippek &amp; buktatók</h2></div>
+      <h3>Gyakori hibák</h3>
+      <ul>
+        <li><strong>Túl sok juice egyszerre.</strong> A videó figyelmeztetése: ha mindent maxon kapcsolod be, <em>szédítő</em> lesz. A juice legyen <em>arányos</em> az eseménnyel — egy lépésnek ne legyen shake-e, csak porfelhő; egy találatnak shake + hit-stop + squish; egy halálnak minden maximalisan. A <em>kontraszt</em> a fontos, nem az abszolút mennyiség.</li>
+        <li><strong>Squish a hitboxon.</strong> Ha a squish a fizika transformot módosítja, a hitbox nő/zsugorodik — a játékszabály megváltozik. Védekezés: külön <code class="inl">VisualScale</code> komponens gyermek entity-n; a fizika transform scale = 1 fix.</li>
+        <li><strong>Hit-stop örökfagyás.</strong> Ha a hit-stop timert a virtuális idővel tickeled (ami 0), sosem jár le. Védekezés: <code class="inl">time.delta()</code> (valós idő) a timer tickelésére.</li>
+        <li><strong>Screen shake fix irányba.</strong> Egy fix <code class="inl">(offset_x, offset_y)</code> rázkódás „gépies" — nem természetes. Védekezés: trauma-modell, minden frame-ben új véletlen irány.</li>
+        <li><strong>Screen shake nem skálázható.</strong> Ha nincs „shake intensity" beállítás, a mozgásérzékeny játékosok nem tudják kikapcsolni. Védekezés: <code class="inl">max_offset</code> csúszka a beállításokban, <code class="inl">prefers-reduced-motion</code> tiszteletben tartása.</li>
+        <li><strong>Spawn-spam.</strong> Ha minden frame-ben porfelhőt/sparkle-t spawnolsz, az ECS tele lesz, és a vizuális is kaotikus. Védekezés: timer-vezérelt spawnolás (cooldown), és a <code class="inl">Lifetime</code> komponens mindig takarít.</li>
+        <li><strong>Hang szimmetrikus.</strong> Ugyanaz a pitch minden lejátszásnál = gépies. Védekezés: <code class="inl">set_speed(0.9 + rand * 0.2)</code> — ±10% elég.</li>
+        <li><strong>Input buffer túl hosszú.</strong> 300+ ms buffer → „dupla dash" bugok. Védekezés: 100–200 ms; teszteld gyors gombnyomással.</li>
+        <li><strong>Buffer commitmentális cselekvésnél.</strong> A nagy támadásnál a buffer miatt a játékos „véletlenül" második támadást indít. Védekezés: csak a <em>gyors, ismétlődő</em> cselekvéseknél (dash, kis támadás).</li>
+        <li><strong>A juice büntet.</strong> Ha a screen shake miatt a játékos kiesik egy peremről, vagy a hit-stop miatt elvéti a következő támadást — a juice <em>kárt</em> okoz. Védekezés: a juice sosem módosítja a játéklogikát; csak vizuális/auditív/időbeli.</li>
+      </ul>
+      <h3>Checklista</h3>
+      <ul>
+        <li><strong>Gyorsulás &amp; súrlódás.</strong> A mozgás nem azonnali; külön accel/decel; átlós normalizálás.</li>
+        <li><strong>Squish külön entitáson.</strong> A fizika transform scale = 1 fix; a vizuális gyermek-skála „lélegzik".</li>
+        <li><strong>Spawn-cooldown.</strong> Minden gyakori effekt (por, sparkle) timer-vezérelt, nem spam.</li>
+        <li><strong>Lifetime takarít.</strong> Minden rövid életű entitás <code class="inl">Lifetime</code>-tel; egy rendszer despawnol.</li>
+        <li><strong>Screen shake trauma-modell.</strong> <code class="inl">trauma² × max × véletlen irány</code>; exponenciális csillapodás.</li>
+        <li><strong>Screen shake skálázható.</strong> <code class="inl">max_offset</code> csúszka; <code class="inl">prefers-reduced-motion</code> tisztelet.</li>
+        <li><strong>Hit-stop valós idővel tickel.</strong> A timer <code class="inl">time.delta()</code>-t használ, nem virtuálist.</li>
+        <li><strong>Hit-stop csak a virtuális időt állítja.</strong> A juice-renderelés (shake, sparkle) a valós időt használja, tovább megy.</li>
+        <li><strong>Input buffer 100–200 ms.</strong> Csak gyors, ismétlődő cselekvéseknél; nem commitmentálisnál.</li>
+        <li><strong>Pitch randomizáció ±10%.</strong> Minden gyakori efektnél; hangerő ±5% kiegészítés.</li>
+        <li><strong>Három hangerő-szint.</strong> Master × csatorna × saját — a játékos tudja állítani.</li>
+        <li><strong>Egy plugin fogja össze.</strong> <code class="inl">GameJuicePlugin</code> egy sorral hozzáadható; rendszer-sorrend <code class="inl">.chain()</code>-nel.</li>
+      </ul>
+      <div class="box tip">
+        <div class="lbl">◆ Hol kezdj?</div>
+        <p>Ha mindent egyszerre akarsz betenni, az túl sok. A javasolt sorrend (a legnagyobb hatás/hányadviszony szerint): <strong>(1)</strong> gyorsulás/súrlódás (a legnagyobb egyetlen különbség), <strong>(2)</strong> squish (második legnagyobb, olcsó), <strong>(3)</strong> hang pitch-randomizáció (a videó szerint a legfontosabb, és a leggyakrabban hiányzik), <strong>(4)</strong> screen shake (trauma-modell), <strong>(5)</strong> hit-stop (a legfinomabb, de a legütősebb az ütéseknél), <strong>(6)</strong> porfelhő + lábnyom, <strong>(7)</strong> input buffer, <strong>(8)</strong> pickup polish. Az első három már drámai különbséget csinál; a többi finomítás. Teszteld az egészet <code class="inl">prefers-reduced-motion</code>-nel is.</p>
+      </div>
+    </section>
+
+    <!-- 11 -->
+    <section id="tldr">
+      <div class="sec-head"><span class="idx">11</span><h2>TL;DR</h2></div>
+      <div class="tldr">
+        <h3>A game juice top-down összefoglaló</h3>
+        <ul>
+          <li>A <strong>game feel</strong> egy vizuális + auditív + időbeli réteg a fizika fölött — nem változtatja a játékszabályt, csak az <em>érzést</em>.</li>
+          <li><strong>Gyorsulás/súrlódás</strong>: <code class="inl">move_toward(velocity, target, accel*dt)</code>; külön accel/decel; átlós normalizálás. A max sebesség ugyanaz, csak lassabban éri el.</li>
+          <li><strong>Squish &amp; stretch</strong>: csak a sprite skálája, külön <code class="inl">VisualScale</code> gyermeken; rugós visszaállás; a hitbox érintetlen.</li>
+          <li><strong>Porfelhő + lábnyom</strong>: rövid életű entitások <code class="inl">Lifetime</code>-tel; timer-vezérelt spawn, nem spam.</li>
+          <li><strong>Screen shake</strong>: trauma-modell, <code class="inl">trauma² × max × véletlen irány</code>, exponenciális csillapodás; <em>skálázható + kikapcsolható</em>.</li>
+          <li><strong>Hit-stop</strong>: <code class="inl">Time&lt;Virtual&gt;::set_relative_speed(0)</code> pár frame-re; a timer <em>valós idővel</em> tickel; csak a virtuális időt fagyasztja, a juice-renderelés megy tovább.</li>
+          <li><strong>Input buffer</strong>: 100–200 ms türelmi ablak; csak gyors, ismétlődő cselekvéseknél; nem commitmentálisnál.</li>
+          <li><strong>Hang</strong>: a legfontosabb (a videó szerint); <code class="inl">set_speed(0.9 + rand*0.2)</code> pitch-randomizáció; három hangerő-szint (master × csatorna × saját).</li>
+          <li><strong>Pickup polish</strong>: érme felugrás + sparkle burst + score punch — mindegyik rövid <code class="inl">Timer</code>-vezérelt animáció, eseményből indítva.</li>
+          <li><strong>Plugin</strong>: egy <code class="inl">GameJuicePlugin</code> fogja össze; rendszer-sorrend <code class="inl">.chain()</code>-nel; valós vs virtuális idő szétválasztása kritikus.</li>
+          <li><strong>A legfőbb elv</strong>: a juice <em>arányos</em> az eseménnyel, nem <em>maximális</em>. A kontraszt a fontos — lépésnek por, találatnak shake+stop, halálnak minden.</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer>
+      GAME_JUICE_TOPDOWN_REFERENCE · v1.0 · single-file HTML · Bevy 0.18<br>
+      „Ugyanaz a kód, ugyanaz a játék — csak az egyiknek súlya van. A különbség egy tucat apró réteg, ami nem változtat semmit, csak mindent."
+    </footer>
+  </main>
+</div>
+
+<script>
+// ============================================================
+// KÖZÖS SEGÉDEK
+// ============================================================
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function pal(){
+  var css = getComputedStyle(document.documentElement);
+  function c(n,f){ return css.getPropertyValue(n).trim() || f; }
+  return { bg:c("--code-bg","#14141f"), muted:c("--muted","#8b8b9e"),
+           pink:c("--pink","#ec6a9c"), cyan:c("--cyan","#56d4c4"),
+           amber:c("--amber","#f2c14e"), green:c("--green","#8ce99a"),
+           red:c("--red","#ff6b6b"), violet:c("--violet","#a78bfa"), ink:c("--ink","#e3e3ec") };
+}
+function pointerPos(cv, e){
+  var r = cv.getBoundingClientRect();
+  var t = (e.touches && e.touches[0]) ? e.touches[0] : e;
+  return { x:(t.clientX - r.left) * (cv.width / r.width),
+           y:(t.clientY - r.top)  * (cv.height / r.height) };
+}
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function reducedMotion(){ try{ return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; } }
+function lerp(a,b,t){ return a + (b-a)*t; }
+function moveToward(cur, target, maxDelta){
+  var d = target - cur;
+  if (Math.abs(d) <= maxDelta) return target;
+  return cur + Math.sign(d) * maxDelta;
+}
+
+// ============================================================
+// SYNTAX HIGHLIGHT (rust / toml)
+// ============================================================
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function highlightRust(src){
+  src = esc(src);
+  var token = /(\"[^\"]*\"|\'[^\']*\')|(\b(?:fn|let|mut|struct|impl|for|in|use|pub|enum|match|if|else|while|loop|return|self|Self|as|where|move|ref|const|static|trait|type|mod|crate|super|unsafe|async|await|dyn|box)\b)|(\b(?:i8|i16|i32|i64|u8|u16|u32|u64|usize|isize|f32|f64|bool|char|str|String|Vec|Option|Result|Box|HashMap|Handle|Commands|Query|Res|ResMut|Entity|Transform|Vec2|Vec3|Sprite|Time|Timer|Color|Camera|App|Plugin|KeyCode|ButtonInput|Event|EventReader|EventWriter|Message|MessageReader|MessageWriter|Single|Changed|Added|With|Without|Children|Lifetime|Player|VisualScale|Squish|CameraShake|HitStop|DashController|PickupAnim|Sparkle|ScorePunch|DustPuff|Footprint|SfxLibrary|RandomizePitch|ShakeEvent|HitStopEvent|AudioSink|AudioPlayer|PlaybackSettings|PlaybackMode|AudioSource|Virtual)\b)|(#\[[^\]]+\])|(\b\d[\d_]*(?:\.\d+)?(?:f32|f64|u32|i32|usize)?\b)/g;
+  var out = "", last = 0, m;
+  while ((m = token.exec(src)) !== null){
+    out += src.slice(last, m.index);
+    var text = m[0];
+    if (m[1]) out += '<span class="s">'+text+'</span>';
+    else if (m[2]) out += '<span class="k">'+text+'</span>';
+    else if (m[3]) out += '<span class="t">'+text+'</span>';
+    else if (m[4]) out += '<span class="m">'+text+'</span>';
+    else if (m[5]) out += '<span class="n">'+text+'</span>';
+    last = token.lastIndex;
+  }
+  out += esc(src.slice(last));
+  return out;
+}
+function highlightToml(src){
+  return esc(src)
+    .replace(/(#[^\n]*)/g,'<span class="c">$1</span>')
+    .replace(/(&quot;[^&]*&quot;|"[^"]*")/g,'<span class="s">$1</span>')
+    .replace(/^(\s*)([A-Za-z0-9_\-]+)(\s*=)/gm,'$1<span class="t">$2</span>$3')
+    .replace(/(\[[^\]]+\])/g,'<span class="m">$1</span>');
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+  document.querySelectorAll("pre code.rust").forEach(function(el){
+    el.innerHTML = highlightRust(el.textContent);
+  });
+  document.querySelectorAll("pre code.toml").forEach(function(el){
+    el.innerHTML = highlightToml(el.textContent);
+  });
+
+  /* scrollspy */
+  var links = Array.prototype.slice.call(document.querySelectorAll("#nav a"));
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute("href").slice(1)] = a; });
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if (e.isIntersecting){
+        links.forEach(function(a){ a.classList.remove("active"); });
+        var act = map[e.target.id];
+        if (act) act.classList.add("active");
+      }
+    });
+  }, { rootMargin: "-20% 0px -70% 0px" });
+  document.querySelectorAll("section").forEach(function(s){ obs.observe(s); });
+
+  /* mobil menü */
+  var btn = document.getElementById("menuBtn");
+  var sb = document.getElementById("sidebar");
+  if (btn){
+    btn.addEventListener("click", function(){ sb.classList.toggle("open"); });
+    document.querySelectorAll("#nav a").forEach(function(a){
+      a.addEventListener("click", function(){ sb.classList.remove("open"); });
+    });
+  }
+
+  initIntroDemo();
+  initMoveDemo();
+  initSquishDemo();
+  initDustDemo();
+  initShakeDemo();
+  initHitstopDemo();
+  initBufferDemo();
+  initAudioDemo();
+  initPickupDemo();
+});
+
+// ============================================================
+// DEMÓ 0: intro — holtpont vs juice
+// ============================================================
+function initIntroDemo(){
+  var cv = document.getElementById("introCanvas"); if (!cv) return;
+  var ctx = cv.getContext("2d"), P = pal();
+  var target = { x: cv.width - 80, y: cv.height/2 };
+  var A = { x: 80, y: cv.height/2, vx: 0, vy: 0, juice: false, sx: 1, sy: 1, tsx: 1, tsy: 1, dust: [] };
+  var B = { x: 80, y: cv.height/2 + 0, vx: 0, vy: 0, juice: true,  sx: 1, sy: 1, tsx: 1, tsy: 1, dust: [] };
+  // A az alsó, B a felső sáv
+  A.y = cv.height*0.32; B.y = cv.height*0.68;
+  var auto = true, running = false, restTimer = 0;
+  var runBtn = document.getElementById("introRun");
+  var autoBtn = document.getElementById("introAuto");
+
+  function reset(){ A.x = 80; A.vx = 0; A.sx=1; A.sy=1; A.tsx=1; A.tsy=1; A.dust=[];
+                    B.x = 80; B.vx = 0; B.sx=1; B.sy=1; B.tsx=1; B.tsy=1; B.dust=[];
+                    startMove(A); startMove(B); running = true; restTimer = 0; }
+  runBtn.addEventListener("click", reset);
+  autoBtn.addEventListener("click", function(){ auto = !auto; autoBtn.classList.toggle("on", auto); });
+  function startMove(o){ o.vx = 0; o.to = target.x; o.moving = true; }
+  function step(o, dt){
+    var max = 220;
+    if (o.moving){
+      if (o.juice){
+        var accel = 1200, decel = 1600;
+        var dist = o.to - o.x;
+        if (Math.abs(dist) < 6){
+          // megérkezett → squish a mozgásirányba, majd leáll
+          o.x = o.to; o.vx = 0; o.tsx = 1.25; o.tsy = 0.8; o.moving = false;
+        } else {
+          // féktávon kívül gyorsul (accel), azon belül fékez (decel) — nincs túllövés
+          var brakeDist = (o.vx * o.vx) / (2 * decel);
+          var target_v = (Math.abs(dist) > brakeDist + 2) ? Math.sign(dist) * max : 0;
+          var rate = (target_v !== 0) ? accel : decel;
+          o.vx = moveToward(o.vx, target_v, rate * dt);
+          o.x += o.vx * dt;
+          // por (ritkán) mozgás közben
+          if (Math.abs(o.vx) > 30 && Math.random() < 0.3){
+            o.dust.push({ x:o.x, y:o.y+12, t:0, life:0.35 });
+          }
+        }
+      } else {
+        // holtpont: azonnal teljes sebesség, kemény megállás a célnál
+        if (o.to - o.x <= max * dt){ o.x = o.to; o.vx = 0; o.moving = false; }
+        else { o.vx = max; o.x += o.vx * dt; }
+      }
+    }
+    // squish rugós visszaállása — mindig fut, így a nyújtás „elpárolog"
+    if (o.juice){
+      o.sx = lerp(o.sx, o.tsx, 0.25); o.sy = lerp(o.sy, o.tsy, 0.25);
+      o.tsx = lerp(o.tsx, 1, 0.12); o.tsy = lerp(o.tsy, 1, 0.12);
+    }
+    // por frissítése — mindig fut
+    for (var i=o.dust.length-1;i>=0;i--){
+      o.dust[i].t += dt;
+      if (o.dust[i].t > o.dust[i].life) o.dust.splice(i,1);
+    }
+  }
+  function drawChar(o, col){
+    ctx.fillStyle = col;
+    ctx.fillRect(o.x - 16*o.sx, o.y - 16*o.sy, 32*o.sx, 32*o.sy);
+    ctx.strokeStyle = col; ctx.lineWidth = 2;
+    ctx.strokeRect(o.x - 16*o.sx, o.y - 16*o.sy, 32*o.sx, 32*o.sy);
+    // por
+    o.dust.forEach(function(d){
+      var t = d.t/d.life; var sz = 6 + 12*t;
+      ctx.fillStyle = "rgba(180,180,190,"+((1-t)*0.5)+")";
+      ctx.beginPath(); ctx.arc(d.x, d.y, sz/2, 0, Math.PI*2); ctx.fill();
+    });
+  }
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    // sávok
+    ctx.fillStyle = "rgba(255,255,255,0.02)";
+    ctx.fillRect(0, cv.height*0.32 - 30, cv.width, 60);
+    ctx.fillRect(0, cv.height*0.68 - 30, cv.width, 60);
+    ctx.strokeStyle = "rgba(255,255,255,0.05)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, cv.height*0.5); ctx.lineTo(cv.width, cv.height*0.5); ctx.stroke();
+    // cél
+    ctx.strokeStyle = P.amber; ctx.lineWidth = 2; ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.arc(target.x, A.y, 14, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(target.x, B.y, 14, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+    // címkék
+    ctx.fillStyle = P.muted; ctx.font = "11px JetBrains Mono";
+    ctx.fillText("holtpont", 12, A.y - 36);
+    ctx.fillText("juice", 12, B.y - 36);
+    drawChar(A, P.muted);
+    drawChar(B, P.cyan);
+  }
+  var last = 0;
+  function frame(ts){
+    var dt = last ? Math.min(0.05, (ts-last)/1000) : 0; last = ts;
+    if (running){
+      step(A, dt); step(B, dt);
+      if (!A.moving && !B.moving) running = false;   // mindketten megérkeztek
+    } else if (auto){
+      restTimer += dt;
+      if (restTimer > 0.8) reset();                  // kis szünet után újra
+    }
+    draw();
+    requestAnimationFrame(frame);
+  }
+  reset();
+  requestAnimationFrame(frame);
+}
+
+// ============================================================
+// DEMÓ 1: mozgás — accel/decel hangolás
+// ============================================================
+function initMoveDemo(){
+  var cv = document.getElementById("moveCanvas"); if (!cv) return;
+  var ctx = cv.getContext("2d"), P = pal();
+  var mode = "juice";
+  var accel = 1200, decel = 1600, maxSpeed = 200;
+  var pos = { x: cv.width/2, y: cv.height/2 };
+  var vel = { x: 0, y: 0 };
+  var keys = {};
+  var target = { x: 0, y: 0, active: false };
+
+  function reset(){ pos.x = cv.width/2; pos.y = cv.height/2; vel.x = 0; vel.y = 0; }
+  document.getElementById("moveReset").addEventListener("click", reset);
+  document.getElementById("moveRaw").addEventListener("click", function(){ mode="raw"; this.classList.add("on"); document.getElementById("moveJuice").classList.remove("on"); });
+  document.getElementById("moveJuice").addEventListener("click", function(){ mode="juice"; this.classList.add("on"); document.getElementById("moveRaw").classList.remove("on"); });
+  var accelS = document.getElementById("moveAccel"), accelV = document.getElementById("moveAccelV");
+  var decelS = document.getElementById("moveDecel"), decelV = document.getElementById("moveDecelV");
+  accelS.addEventListener("input", function(){ accel = +accelS.value; accelV.textContent = accel; });
+  decelS.addEventListener("input", function(){ decel = +decelS.value; decelV.textContent = decel; });
+  accelV.textContent = accel; decelV.textContent = decel;
+
+  window.addEventListener("keydown", function(e){
+    var k = e.key.toLowerCase();
+    if (["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"].indexOf(k) >= 0){
+      keys[k] = true; e.preventDefault();
+    }
+  });
+  window.addEventListener("keyup", function(e){ keys[e.key.toLowerCase()] = false; });
+  cv.addEventListener("pointerdown", function(e){
+    var p = pointerPos(cv, e); target.x = p.x; target.y = p.y; target.active = true;
+  });
+
+  function step(dt){
+    var dir = { x: 0, y: 0 };
+    if (keys["w"] || keys["arrowup"]) dir.y = -1;
+    if (keys["s"] || keys["arrowdown"]) dir.y = 1;
+    if (keys["a"] || keys["arrowleft"]) dir.x = -1;
+    if (keys["d"] || keys["arrowright"]) dir.x = 1;
+    // kattintás-cél is irányként
+    if (target.active){
+      var dx = target.x - pos.x, dy = target.y - pos.y;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4){
+        var len = Math.hypot(dx, dy);
+        dir.x = dx/len; dir.y = dy/len;
+      } else { target.active = false; }
+    }
+    var len = Math.hypot(dir.x, dir.y);
+    var t = (len > 0) ? { x: dir.x/len * maxSpeed, y: dir.y/len * maxSpeed } : { x:0, y:0 };
+    if (mode === "raw"){
+      vel.x = t.x; vel.y = t.y;
+    } else {
+      var rate = (len > 0) ? accel : decel;
+      vel.x = moveToward(vel.x, t.x, rate * dt);
+      vel.y = moveToward(vel.y, t.y, rate * dt);
+    }
+    pos.x = clamp(pos.x + vel.x * dt, 16, cv.width - 16);
+    pos.y = clamp(pos.y + vel.y * dt, 16, cv.height - 16);
+  }
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    // target
+    if (target.active){
+      ctx.strokeStyle = P.amber; ctx.lineWidth = 1.5; ctx.setLineDash([4,3]);
+      ctx.beginPath(); ctx.arc(target.x, target.y, 12, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+    }
+    // karakter
+    ctx.fillStyle = P.cyan;
+    ctx.fillRect(pos.x - 14, pos.y - 14, 28, 28);
+    ctx.strokeStyle = P.ink; ctx.lineWidth = 1.5;
+    ctx.strokeRect(pos.x - 14, pos.y - 14, 28, 28);
+    // sebességvektor
+    var sp = Math.hypot(vel.x, vel.y);
+    if (sp > 1){
+      ctx.strokeStyle = P.pink; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
+      ctx.lineTo(pos.x + vel.x*0.1, pos.y + vel.y*0.1); ctx.stroke();
+    }
+    // readout
+    document.getElementById("moveSpeed").textContent = sp.toFixed(0);
+    var tx = Math.hypot( (target.active ? (target.x-pos.x) : 0), (target.active ? (target.y-pos.y) : 0) );
+    document.getElementById("moveTarget").textContent = target.active ? "klikk cél" : (sp>1?"gomb":"—");
+  }
+  var last = 0;
+  function frame(ts){
+    var dt = last ? Math.min(0.05, (ts-last)/1000) : 0; last = ts;
+    step(dt); draw(); requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+// ============================================================
+// DEMÓ 2: squish
+// ============================================================
+function initSquishDemo(){
+  var cv = document.getElementById("squishCanvas"); if (!cv) return;
+  var ctx = cv.getContext("2d"), P = pal();
+  var on = true, amt = 1.25;
+  var pos = { x: 80, y: cv.height/2 };
+  var target = { x: cv.width - 80, y: cv.height/2 };
+  var vel = { x: 0 };
+  var sx = 1, sy = 1, tsx = 1, tsy = 1;
+  var moving = false;
+
+  document.getElementById("squishToggle").addEventListener("click", function(){ on = true; this.classList.add("on"); document.getElementById("squishOff").classList.remove("on"); });
+  document.getElementById("squishOff").addEventListener("click", function(){ on = false; this.classList.add("on"); document.getElementById("squishToggle").classList.remove("on"); });
+  var amtS = document.getElementById("squishAmt"), amtV = document.getElementById("squishAmtV");
+  amtS.addEventListener("input", function(){ amt = +amtS.value/100; amtV.textContent = amt.toFixed(2); });
+  amtV.textContent = amt.toFixed(2);
+  document.getElementById("squishRun").addEventListener("click", function(){
+    pos.x = 80; vel.x = 0; moving = true;
+  });
+
+  function step(dt){
+    var max = 220, accel = 1200, decel = 1600;
+    if (moving){
+      var dist = target.x - pos.x;
+      if (Math.abs(dist) < 6){
+        // megérkezett → squish a mozgásirányba (ha be van kapcsolva), majd leáll
+        if (on){ tsx = amt; tsy = 2 - amt; }
+        pos.x = target.x; vel.x = 0; moving = false;
+      } else {
+        // féktávon kívül gyorsul (accel), azon belül fékez (decel) — nincs oszcilláció
+        var brakeDist = (vel.x * vel.x) / (2 * decel);
+        var target_v = (Math.abs(dist) > brakeDist + 2) ? Math.sign(dist) * max : 0;
+        var rate = (target_v !== 0) ? accel : decel;
+        vel.x = moveToward(vel.x, target_v, rate * dt);
+        pos.x += vel.x * dt;
+      }
+    }
+    // rugós visszaállás — mindig fut, így a squish „elpárolog"
+    sx = lerp(sx, tsx, 0.25); sy = lerp(sy, tsy, 0.25);
+    tsx = lerp(tsx, 1, 0.15); tsy = lerp(tsy, 1, 0.15);
+  }
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    // cél
+    ctx.strokeStyle = P.amber; ctx.lineWidth = 2; ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.arc(target.x, target.y, 14, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+    // hitbox (fix, szürke) — NEM változik
+    ctx.strokeStyle = "rgba(140,140,160,0.5)"; ctx.lineWidth = 1; ctx.setLineDash([3,3]);
+    ctx.strokeRect(pos.x - 16, pos.y - 16, 32, 32); ctx.setLineDash([]);
+    // sprite (skálázott, kék)
+    ctx.fillStyle = P.cyan;
+    ctx.fillRect(pos.x - 16*sx, pos.y - 16*sy, 32*sx, 32*sy);
+    ctx.strokeStyle = P.ink; ctx.lineWidth = 1.5;
+    ctx.strokeRect(pos.x - 16*sx, pos.y - 16*sy, 32*sx, 32*sy);
+    // címkék
+    ctx.fillStyle = P.muted; ctx.font = "10px JetBrains Mono";
+    ctx.fillText("hitbox (fix)", pos.x - 16, pos.y + 30);
+  }
+  var last = 0;
+  function frame(ts){
+    var dt = last ? Math.min(0.05, (ts-last)/1000) : 0; last = ts;
+    step(dt); draw(); requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+// ============================================================
+// DEMÓ 3: porfelhő + lábnyom
+// ============================================================
+function initDustDemo(){
+  var cv = document.getElementById("dustCanvas"); if (!cv) return;
+  var ctx = cv.getContext("2d"), P = pal();
+  var dustOn = true, footOn = true;
+  var pos = { x: cv.width/2, y: cv.height/2 };
+  var vel = { x: 0, y: 0 };
+  var keys = {};
+  var dust = []; // {x,y,t,life}
+  var foot = []; // {x,y,t,life}
+  var dustTimer = 0, footTimer = 0;
+  var maxSpeed = 180, accel = 1200, decel = 1600;
+
+  document.getElementById("dustToggle").addEventListener("click", function(){
+    dustOn = !dustOn; this.classList.toggle("on", dustOn);
+  });
+  document.getElementById("footToggle").addEventListener("click", function(){
+    footOn = !footOn; this.classList.toggle("on", footOn);
+  });
+  document.getElementById("dustReset").addEventListener("click", function(){
+    pos.x = cv.width/2; pos.y = cv.height/2; vel.x = 0; vel.y = 0; dust = []; foot = [];
+  });
+  window.addEventListener("keydown", function(e){
+    var k = e.key.toLowerCase();
+    if (["w","a","s","d"].indexOf(k) >= 0){ keys[k] = true; e.preventDefault(); }
+  });
+  window.addEventListener("keyup", function(e){ keys[e.key.toLowerCase()] = false; });
+  cv.addEventListener("pointerdown", function(e){
+    var p = pointerPos(cv, e);
+    var dx = p.x - pos.x, dy = p.y - pos.y; var len = Math.hypot(dx,dy);
+    if (len > 4){ vel.x = dx/len * maxSpeed; vel.y = dy/len * maxSpeed; }
+  });
+
+  function step(dt){
+    var dir = { x: 0, y: 0 };
+    if (keys["w"]) dir.y = -1; if (keys["s"]) dir.y = 1;
+    if (keys["a"]) dir.x = -1; if (keys["d"]) dir.x = 1;
+    var len = Math.hypot(dir.x, dir.y);
+    var t = (len > 0) ? { x: dir.x/len * maxSpeed, y: dir.y/len * maxSpeed } : { x:0, y:0 };
+    var rate = (len > 0) ? accel : decel;
+    vel.x = moveToward(vel.x, t.x, rate * dt);
+    vel.y = moveToward(vel.y, t.y, rate * dt);
+    pos.x = clamp(pos.x + vel.x * dt, 16, cv.width - 16);
+    pos.y = clamp(pos.y + vel.y * dt, 16, cv.height - 16);
+    // por
+    dustTimer -= dt;
+    if (dustOn && Math.hypot(vel.x, vel.y) > 30 && dustTimer <= 0){
+      dust.push({ x: pos.x, y: pos.y + 12, t: 0, life: 0.35 });
+      dustTimer = 0.08;
+    }
+    // lábnyom
+    footTimer -= dt;
+    if (footOn && Math.hypot(vel.x, vel.y) > 40 && footTimer <= 0){
+      foot.push({ x: pos.x, y: pos.y, t: 0, life: 1.5 });
+      footTimer = 0.22;
+    }
+    // frissítés
+    for (var i = dust.length-1; i >= 0; i--){
+      dust[i].t += dt; if (dust[i].t > dust[i].life) dust.splice(i, 1);
+    }
+    for (var j = foot.length-1; j >= 0; j--){
+      foot[j].t += dt; if (foot[j].t > foot[j].life) foot.splice(j, 1);
+    }
+  }
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    // lábnyomok (halvány, mélyülők)
+    foot.forEach(function(f){
+      var t = f.t/f.life;
+      ctx.fillStyle = "rgba(86,212,196,"+((1-t)*0.25)+")";
+      ctx.beginPath(); ctx.ellipse(f.x, f.y, 5, 4, 0, 0, Math.PI*2); ctx.fill();
+    });
+    // por
+    dust.forEach(function(d){
+      var t = d.t/d.life; var sz = 4 + 10*t;
+      ctx.fillStyle = "rgba(180,180,200,"+((1-t)*0.5)+")";
+      ctx.beginPath(); ctx.arc(d.x, d.y, sz/2, 0, Math.PI*2); ctx.fill();
+    });
+    // karakter
+    ctx.fillStyle = P.cyan;
+    ctx.fillRect(pos.x - 14, pos.y - 14, 28, 28);
+    ctx.strokeStyle = P.ink; ctx.lineWidth = 1.5;
+    ctx.strokeRect(pos.x - 14, pos.y - 14, 28, 28);
+    // sebességvektor
+    if (Math.hypot(vel.x, vel.y) > 1){
+      ctx.strokeStyle = P.pink; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
+      ctx.lineTo(pos.x + vel.x*0.1, pos.y + vel.y*0.1); ctx.stroke();
+    }
+  }
+  var last = 0;
+  function frame(ts){
+    var dt = last ? Math.min(0.05, (ts-last)/1000) : 0; last = ts;
+    step(dt); draw(); requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+// ============================================================
+// DEMÓ 4: screen shake (trauma-modell)
+// ============================================================
+function initShakeDemo(){
+  var cv = document.getElementById("shakeCanvas"); if (!cv) return;
+  var ctx = cv.getContext("2d"), P = pal();
+  var trauma = 0, maxOffset = 8, decay = 5;
+  var reduced = false;
+  var center = { x: cv.width/2, y: cv.height/2 };
+  var dummyEnemies = [
+    { x: cv.width*0.3, y: cv.height*0.4 },
+    { x: cv.width*0.7, y: cv.height*0.6 }
+  ];
+
+  function add(t){ trauma = Math.min(1, trauma + t); }
+  document.getElementById("shakeS").addEventListener("click", function(){ add(0.3); });
+  document.getElementById("shakeM").addEventListener("click", function(){ add(0.6); });
+  document.getElementById("shakeL").addEventListener("click", function(){ add(1.0); });
+  var maxS = document.getElementById("shakeMax"), maxV = document.getElementById("shakeMaxV");
+  maxS.addEventListener("input", function(){ maxOffset = +maxS.value; maxV.textContent = maxOffset; });
+  var redBtn = document.getElementById("shakeReduced");
+  redBtn.addEventListener("click", function(){ reduced = !reduced; redBtn.classList.toggle("on", reduced); });
+
+  var tEl = document.getElementById("shakeTrauma"), aEl = document.getElementById("shakeAmp");
+  function step(dt){
+    trauma *= Math.exp(-decay * dt);
+    if (trauma < 0.001) trauma = 0;
+  }
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    var amp = trauma * trauma * (reduced ? maxOffset * 0.2 : maxOffset);
+    var angle = Math.random() * Math.PI * 2;
+    var ox = Math.cos(angle) * amp, oy = Math.sin(angle) * amp;
+    // „kamera" eltolás: mindent rajzolunk eltolva
+    ctx.save(); ctx.translate(ox, oy);
+    // háttér grid (így látszik a rázkódás)
+    ctx.strokeStyle = "rgba(140,140,160,0.1)"; ctx.lineWidth = 1;
+    for (var x = 0; x < cv.width; x += 40){
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cv.height); ctx.stroke();
+    }
+    for (var y = 0; y < cv.height; y += 40){
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cv.width, y); ctx.stroke();
+    }
+    // „játékos" (fix a világban — csak a kamera mozog)
+    ctx.fillStyle = P.cyan;
+    ctx.fillRect(center.x - 16, center.y - 16, 32, 32);
+    ctx.strokeStyle = P.ink; ctx.lineWidth = 1.5;
+    ctx.strokeRect(center.x - 16, center.y - 16, 32, 32);
+    // ellenségek
+    dummyEnemies.forEach(function(e){
+      ctx.fillStyle = P.red;
+      ctx.fillRect(e.x - 10, e.y - 10, 20, 20);
+    });
+    ctx.restore();
+    // trauma mutató (a keret mozgatása nélkül)
+    ctx.fillStyle = P.muted; ctx.font = "11px JetBrains Mono";
+    ctx.fillText("trauma² = " + (trauma*trauma).toFixed(3), 12, 18);
+    tEl.textContent = trauma.toFixed(2);
+    aEl.textContent = amp.toFixed(1) + "px";
+  }
+  var last = 0;
+  function frame(ts){
+    var dt = last ? Math.min(0.05, (ts-last)/1000) : 0; last = ts;
+    step(dt); draw(); requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+// ============================================================
+// DEMÓ 5: hit-stop
+// ============================================================
+function initHitstopDemo(){
+  var cv = document.getElementById("hitstopCanvas"); if (!cv) return;
+  var ctx = cv.getContext("2d"), P = pal();
+  var on = true, dur = 0.06;
+  var timeScale = 1, stopTimer = 0, attackTimer = 0, attacking = false;
+  var enemyPos = { x: cv.width*0.75, y: cv.height/2 };
+  var enemyVel = { x: -40, y: 0 }; // mindig mozog, hogy lássuk a fagyást
+  var attackPos = { x: cv.width*0.3, y: cv.height/2 };
+
+  var togBtn = document.getElementById("hsToggle");
+  togBtn.onclick = function(){ on = !on; togBtn.classList.toggle("on", on); togBtn.textContent = on ? "hit-stop BE" : "hit-stop KI"; };
+  document.getElementById("hsAttack").addEventListener("click", function(){
+    attacking = true; attackTimer = 0;
+    if (on){ stopTimer = dur; timeScale = 0; }
+  });
+  var durS = document.getElementById("hsDur"), durV = document.getElementById("hsDurV");
+  durS.addEventListener("input", function(){ dur = +durS.value/1000; durV.textContent = (+durS.value) + "ms"; });
+  durV.textContent = (+durS.value) + "ms";
+
+  var scaleEl = document.getElementById("hsScale"), stateEl = document.getElementById("hsState");
+  function step(realDt){
+    // a hit-stop timert VALÓS idővel tickeljük — nem a lassítotttal
+    if (stopTimer > 0){
+      stopTimer -= realDt;
+      if (stopTimer <= 0){ stopTimer = 0; timeScale = 1; }
+    }
+    var simDt = realDt * timeScale;
+    // ellenség a szimulált idővel mozog — megáll a fagyás alatt
+    enemyPos.x += enemyVel.x * simDt;
+    if (enemyPos.x < cv.width*0.55 || enemyPos.x > cv.width*0.85) enemyVel.x *= -1;
+    // támadás animáció is szimulált idővel
+    if (attacking){
+      attackTimer += simDt;
+      if (attackTimer > 0.4){ attacking = false; attackTimer = 0; }
+    }
+  }
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    // támadó
+    ctx.fillStyle = P.cyan;
+    ctx.fillRect(attackPos.x - 16, attackPos.y - 16, 32, 32);
+    // támadás kör (terjedő)
+    if (attacking){
+      var r = 20 + attackTimer * 120;
+      ctx.strokeStyle = P.pink; ctx.lineWidth = 3;
+      ctx.globalAlpha = 1 - (attackTimer/0.4);
+      ctx.beginPath(); ctx.arc(attackPos.x + 40, attackPos.y, r, 0, Math.PI*2); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    // ellenség
+    ctx.fillStyle = P.red;
+    ctx.fillRect(enemyPos.x - 12, enemyPos.y - 12, 24, 24);
+    // sebességvektor (látszik, hogy áll-e)
+    ctx.strokeStyle = P.amber; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(enemyPos.x, enemyPos.y);
+    ctx.lineTo(enemyPos.x + enemyVel.x*0.3, enemyPos.y); ctx.stroke();
+    // állapot
+    scaleEl.textContent = timeScale.toFixed(2);
+    stateEl.textContent = stopTimer > 0 ? "FAGYOTT " + (stopTimer*1000).toFixed(0) + "ms" : "normál";
+    stateEl.style.color = stopTimer > 0 ? P.red : P.green;
+  }
+  var last = 0;
+  function frame(ts){
+    var dt = last ? Math.min(0.05, (ts-last)/1000) : 0; last = ts;
+    step(dt); draw(); requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+// ============================================================
+// DEMÓ 6: dash buffer
+// ============================================================
+function initBufferDemo(){
+  var cv = document.getElementById("bufferCanvas"); if (!cv) return;
+  var ctx = cv.getContext("2d"), P = pal();
+  var on = true, bufWin = 0.15;
+  var pos = { x: cv.width/2, y: cv.height/2 };
+  var dashTimer = 0, dashDur = 0.18, cdTimer = 0, cdDur = 0.6;
+  var dashDir = { x: 1, y: 0 };
+  var bufferTimer = 0; // > 0 = pufferelt gombnyomás
+  var keys = {};
+  var maxSpeed = 120, dashSpeed = 400;
+
+  var togBtn = document.getElementById("bufToggle");
+  togBtn.onclick = function(){ on = true; togBtn.classList.add("on"); document.getElementById("bufOff").classList.remove("on"); };
+  document.getElementById("bufOff").onclick = function(){ on = false; this.classList.add("on"); togBtn.classList.remove("on"); };
+  var wS = document.getElementById("bufWindow"), wV = document.getElementById("bufWindowV");
+  wS.addEventListener("input", function(){ bufWin = +wS.value/1000; wV.textContent = (+wS.value) + "ms"; });
+  wV.textContent = (+wS.value) + "ms";
+
+  window.addEventListener("keydown", function(e){
+    var k = e.key.toLowerCase();
+    if (["w","a","s","d"].indexOf(k) >= 0) keys[k] = true;
+    if (k === "shift" || e.key === "Shift") tryDash();
+  });
+  cv.addEventListener("pointerdown", function(){ tryDash(); });
+  function tryDash(){
+    // irány a lenyomott gombokból
+    var dx = (keys["d"]?1:0) - (keys["a"]?1:0);
+    var dy = (keys["s"]?1:0) - (keys["w"]?1:0);
+    if (dx === 0 && dy === 0) { dx = dashDir.x; dy = dashDir.y; }
+    var len = Math.hypot(dx, dy); if (len > 0){ dashDir = { x: dx/len, y: dy/len }; }
+    if (cdTimer <= 0 && dashTimer <= 0){
+      dashTimer = dashDur; cdTimer = cdDur; bufferTimer = 0;
+    } else if (on){
+      bufferTimer = bufWin; // puffereljük
+    }
+  }
+  var cdEl = document.getElementById("bufCd"), stEl = document.getElementById("bufState");
+  function step(dt){
+    // timerek
+    if (cdTimer > 0) cdTimer -= dt;
+    if (dashTimer > 0) dashTimer -= dt;
+    if (bufferTimer > 0){
+      bufferTimer -= dt;
+      if (bufferTimer <= 0){ bufferTimer = 0; }
+      else if (cdTimer <= 0 && dashTimer <= 0){
+        // pufferelt gombnyomás végrehajtása
+        dashTimer = dashDur; cdTimer = cdDur; bufferTimer = 0;
+      }
+    }
+    // mozgás
+    var dx = (keys["d"]?1:0) - (keys["a"]?1:0);
+    var dy = (keys["s"]?1:0) - (keys["w"]?1:0);
+    var len = Math.hypot(dx, dy);
+    var spd = (len > 0) ? { x: dx/len*maxSpeed, y: dy/len*maxSpeed } : { x:0, y:0 };
+    if (dashTimer > 0){ spd = { x: dashDir.x*dashSpeed, y: dashDir.y*dashSpeed }; }
+    pos.x = clamp(pos.x + spd.x * dt, 16, cv.width - 16);
+    pos.y = clamp(pos.y + spd.y * dt, 16, cv.height - 16);
+    // readout
+    cdEl.textContent = cdTimer > 0 ? (cdTimer*1000).toFixed(0) + "ms" : "készen";
+    cdEl.style.color = cdTimer > 0 ? P.red : P.green;
+    stEl.textContent = bufferTimer > 0 ? "pufferelve " + (bufferTimer*1000).toFixed(0) + "ms" : "—";
+    stEl.style.color = bufferTimer > 0 ? P.violet : P.muted;
+  }
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    // cooldown sáv
+    var barY = 24, barX = 16, barW = cv.width - 32;
+    ctx.fillStyle = "rgba(140,140,160,0.15)";
+    ctx.fillRect(barX, barY, barW, 8);
+    // dash aktív (kék)
+    if (dashTimer > 0){
+      ctx.fillStyle = P.cyan;
+      ctx.fillRect(barX, barY, barW * (dashTimer/dashDur), 8);
+    }
+    // cooldown (szürke)
+    if (cdTimer > 0){
+      ctx.fillStyle = P.muted;
+      ctx.fillRect(barX + barW * (1 - cdTimer/cdDur), barY, barW * (cdTimer/cdDur), 8);
+    }
+    // puffer (lila marker)
+    if (bufferTimer > 0){
+      ctx.fillStyle = P.violet;
+      ctx.fillRect(barX + barW - 4, barY - 2, 4, 12);
+    }
+    // karakter + dash csík
+    ctx.fillStyle = P.cyan;
+    ctx.fillRect(pos.x - 12, pos.y - 12, 24, 24);
+    if (dashTimer > 0){
+      ctx.strokeStyle = P.pink; ctx.lineWidth = 3; ctx.globalAlpha = dashTimer/dashDur;
+      ctx.strokeRect(pos.x - 14, pos.y - 14, 28, 28); ctx.globalAlpha = 1;
+    }
+    // utasítás
+    ctx.fillStyle = P.muted; ctx.font = "11px JetBrains Mono";
+    ctx.fillText("Shift / katt → dash   (cooldown 0.6s, dash 0.18s)", 16, cv.height - 12);
+  }
+  var last = 0;
+  function frame(ts){
+    var dt = last ? Math.min(0.05, (ts-last)/1000) : 0; last = ts;
+    step(dt); draw(); requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+// ============================================================
+// DEMÓ 7: hang (Web Audio API, pitch randomizáció)
+// ============================================================
+function initAudioDemo(){
+  var cv = document.getElementById("audioCanvas"); if (!cv) return;
+  var ctx = cv.getContext("2d"), P = pal();
+  var random = true, spread = 0.1;
+  var lastPitch = 1;
+  var bars = [];
+  for (var i = 0; i < 48; i++) bars.push(0);
+  var audioCtx = null;
+  function ensureAudio(){
+    if (!audioCtx){
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch(e){ audioCtx = null; }
+    }
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+  }
+  function play(){
+    ensureAudio(); if (!audioCtx) return;
+    var pitch = random ? (1 - spread + Math.random() * 2 * spread) : 1;
+    lastPitch = pitch;
+    var now = audioCtx.currentTime;
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(440 * pitch, now);
+    osc.frequency.exponentialRampToValueAtTime(180 * pitch, now + 0.12);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.3, now + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(now); osc.stop(now + 0.16);
+    // vizualizáció: egy „spike"
+    bars.push(1); if (bars.length > 48) bars.shift();
+  }
+  document.getElementById("audFixed").onclick = function(){ random = false; this.classList.add("on"); document.getElementById("audRandom").classList.remove("on"); };
+  document.getElementById("audRandom").onclick = function(){ random = true; this.classList.add("on"); document.getElementById("audFixed").classList.remove("on"); };
+  document.getElementById("audPlay").onclick = play;
+  var spS = document.getElementById("audSpread"), spV = document.getElementById("audSpreadV");
+  spS.addEventListener("input", function(){ spread = +spS.value/100; spV.textContent = "±" + (+spS.value) + "%"; });
+  spV.textContent = "±" + (+spS.value) + "%";
+  var pitchEl = document.getElementById("audPitch");
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    // hullámformák
+    var bw = cv.width / bars.length;
+    bars.forEach(function(b, i){
+      var h = b * (cv.height - 20);
+      ctx.fillStyle = random ? P.pink : P.cyan;
+      ctx.fillRect(i * bw, cv.height - 10 - h, bw - 1, h);
+      bars[i] *= 0.92;
+    });
+    // vonal
+    ctx.strokeStyle = "rgba(140,140,160,0.2)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, cv.height - 10); ctx.lineTo(cv.width, cv.height - 10); ctx.stroke();
+    ctx.fillStyle = P.muted; ctx.font = "11px JetBrains Mono";
+    ctx.fillText(random ? "randomizált pitch (±" + (spread*100).toFixed(0) + "%)" : "rögzített pitch (1.00)", 12, 20);
+    pitchEl.textContent = lastPitch.toFixed(2);
+  }
+  function frame(){ draw(); requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+}
+
+// ============================================================
+// DEMÓ 8: pickup polish
+// ============================================================
+function initPickupDemo(){
+  var cv = document.getElementById("pickupCanvas"); if (!cv) return;
+  var ctx = cv.getContext("2d"), P = pal();
+  var mode = "juice";
+  var coinOn = true, sparkOn = true, punchOn = true;
+  var score = 0;
+  var coin = { x: cv.width/2, y: cv.height/2, anim: null };
+  var sparkles = [];
+  var punch = 0; // score punch timer
+  var punchScale = 1;
+
+  document.getElementById("puRaw").onclick = function(){ mode = "raw"; this.classList.add("on"); document.getElementById("puJuice").classList.remove("on"); };
+  document.getElementById("puJuice").onclick = function(){ mode = "juice"; this.classList.add("on"); document.getElementById("puRaw").classList.remove("on"); };
+  document.getElementById("puToggleCoin").onclick = function(){ coinOn = !coinOn; this.classList.toggle("on", coinOn); };
+  document.getElementById("puToggleSpark").onclick = function(){ sparkOn = !sparkOn; this.classList.toggle("on", sparkOn); };
+  document.getElementById("puTogglePunch").onclick = function(){ punchOn = !punchOn; this.classList.toggle("on", punchOn); };
+  document.getElementById("puCollect").onclick = collect;
+  cv.addEventListener("pointerdown", function(e){ var p = pointerPos(cv, e); if (Math.hypot(p.x - coin.x, p.y - coin.y) < 20) collect(); });
+  var scoreEl = document.getElementById("puScore");
+
+  function collect(){
+    if (coin.anim) return;
+    score += 1;
+    scoreEl.textContent = score;
+    if (mode === "juice"){
+      if (coinOn) coin.anim = { t: 0, life: 0.35, sx: coin.x, sy: coin.y };
+      if (sparkOn){
+        for (var i = 0; i < 8; i++){
+          var a = (i/8) * Math.PI*2;
+          sparkles.push({ x: coin.x, y: coin.y, vx: Math.cos(a)*80, vy: Math.sin(a)*80, t: 0, life: 0.3 });
+        }
+      }
+      if (punchOn){ punch = 0.3; }
+    } else {
+      // holtpont: az érme csak „eltűnik" egy pillanatra (gyors respawn)
+      coin.anim = { t: 0, life: 0.1, sx: coin.x, sy: coin.y, raw: true };
+    }
+  }
+  function step(dt){
+    if (coin.anim){
+      coin.anim.t += dt;
+      if (coin.anim.t >= coin.anim.life){
+        coin.anim = null;
+        // respawn coin egy kicsit arrébb
+        coin.x = cv.width/2 + (Math.random()-0.5)*120;
+        coin.y = cv.height/2 + (Math.random()-0.5)*80;
+      }
+    }
+    for (var i = sparkles.length-1; i >= 0; i--){
+      var s = sparkles[i];
+      s.t += dt;
+      if (s.t >= s.life){ sparkles.splice(i,1); continue; }
+      var k = 1 - s.t/s.life;
+      s.x += s.vx * dt * k;
+      s.y += s.vy * dt * k;
+    }
+    if (punch > 0){
+      punch -= dt;
+      var pt = 1 - punch/0.3; // 0 → 1
+      if (pt < 0.3) punchScale = 1 + 0.4 * (pt/0.3);
+      else punchScale = 1.4 - 0.4 * ((pt-0.3)/0.7);
+    } else { punchScale = 1; }
+  }
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    // érme
+    if (!coin.anim || !coin.anim.raw){
+      if (coin.anim){
+        var t = coin.anim.t / coin.anim.life;
+        var y = coin.anim.sy - 24 * (1 - Math.pow(1-t, 2));
+        var sc = (t < 0.3) ? 1 + t*1.5 : 1.45 - (t-0.3)*2;
+        sc = Math.max(0, sc);
+        ctx.fillStyle = "rgba(255,200,80," + (1-t) + ")";
+        ctx.beginPath(); ctx.arc(coin.anim.sx, y, 8*sc, 0, Math.PI*2); ctx.fill();
+      } else {
+        // álló érme (légzés)
+        var pulse = 1 + Math.sin(Date.now()/300)*0.06;
+        ctx.fillStyle = P.amber;
+        ctx.beginPath(); ctx.arc(coin.x, coin.y, 8*pulse, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+    // sparkles
+    sparkles.forEach(function(s){
+      var t = s.t/s.life;
+      ctx.fillStyle = "rgba(255,255,180," + (1-t) + ")";
+      var sz = 3 * (1-t);
+      ctx.fillRect(s.x - sz/2, s.y - sz/2, sz, sz);
+    });
+    // score label (punch)
+    ctx.save();
+    ctx.translate(cv.width - 100, 40);
+    ctx.scale(punchScale, punchScale);
+    ctx.fillStyle = punchScale > 1.05 ? P.pink : P.cyan;
+    ctx.font = "bold 24px Pixelify Sans, monospace";
+    ctx.textAlign = "right";
+    ctx.fillText(score.toString(), 0, 0);
+    ctx.restore();
+    ctx.fillStyle = P.muted; ctx.font = "10px JetBrains Mono"; ctx.textAlign = "right";
+    ctx.fillText("PONT", cv.width - 100, 18); ctx.textAlign = "left";
+    ctx.fillText("kattints az érmére vagy a gombra", 12, cv.height - 12);
+  }
+  var last = 0;
+  function frame(ts){
+    var dt = last ? Math.min(0.05, (ts-last)/1000) : 0; last = ts;
+    step(dt); draw(); requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+</script>
+</body>
+</html>
