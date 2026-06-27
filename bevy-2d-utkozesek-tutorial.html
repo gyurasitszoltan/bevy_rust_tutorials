@@ -1,0 +1,1798 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2D ütközések egy top-down játékhoz — detektálás, válasz, csúszás · Bevy 0.18</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#10101a; --panel:#1a1a28; --panel2:#21212f; --code-bg:#14141f;
+    --ink:#e3e3ec; --muted:#8b8b9e; --border:#2c2c40;
+    --cyan:#56d4c4; --amber:#f2c14e; --pink:#ec6a9c; --green:#8ce99a; --red:#ff6b6b; --violet:#a78bfa;
+    --kw:#ec6a9c; --ty:#56d4c4; --str:#8ce99a; --com:#6b6b80; --mac:#f2c14e; --num:#f4a259;
+    --sidebar-w:260px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    background-image:radial-gradient(var(--border) 1px, transparent 1px);
+    background-size:22px 22px;
+    color:var(--ink);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--cyan);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ---- layout ---- */
+  .shell{display:flex;max-width:1400px;margin:0 auto}
+  .sidebar{
+    width:var(--sidebar-w);flex:0 0 var(--sidebar-w);
+    position:sticky;top:0;height:100vh;overflow-y:auto;
+    padding:28px 18px;border-right:2px solid var(--border);
+    background:linear-gradient(180deg,var(--panel) 0%,var(--bg) 100%);
+  }
+  .sidebar h2{
+    font-family:"Pixelify Sans",sans-serif;font-size:18px;font-weight:700;
+    color:var(--amber);letter-spacing:.5px;margin-bottom:4px;
+  }
+  .sidebar .sub{font-size:11px;color:var(--muted);font-family:"JetBrains Mono",monospace;margin-bottom:20px}
+  .nav a{
+    display:block;color:var(--muted);font-size:13.5px;padding:7px 10px;
+    border-left:3px solid transparent;border-radius:0 4px 4px 0;transition:all .12s;
+    text-decoration:none;
+  }
+  .nav a .num{font-family:"JetBrains Mono",monospace;color:var(--border);font-size:11px;margin-right:8px}
+  .nav a:hover{color:var(--ink);background:var(--panel2);text-decoration:none}
+  .nav a.active{color:var(--ink);border-left-color:var(--pink);background:var(--panel2)}
+  .nav a.active .num{color:var(--pink)}
+
+  .main{flex:1 1 auto;min-width:0;padding:48px 56px 120px}
+
+  /* ---- hero ---- */
+  .hero{margin-bottom:56px;border:2px solid var(--border);background:var(--panel);
+    padding:38px 36px;position:relative;box-shadow:6px 6px 0 rgba(0,0,0,.35)}
+  .hero .eyebrow{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--pink);
+    letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+  .hero h1{font-family:"Pixelify Sans",sans-serif;font-size:42px;font-weight:700;
+    line-height:1.1;color:var(--ink);margin-bottom:16px}
+  .hero h1 .hl{color:var(--amber)}
+  .hero p{color:var(--muted);font-size:16px;max-width:640px}
+  .hero .chips{margin-top:22px;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font-family:"JetBrains Mono",monospace;font-size:11.5px;padding:4px 10px;
+    border:1px solid var(--border);background:var(--code-bg);color:var(--cyan);border-radius:3px}
+
+  /* ---- sections ---- */
+  section{margin-bottom:54px;scroll-margin-top:24px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;
+    padding-bottom:12px;border-bottom:2px solid var(--border)}
+  .sec-head .idx{font-family:"Pixelify Sans",sans-serif;font-size:26px;color:var(--pink);
+    flex:0 0 auto}
+  .sec-head h2{font-family:"Pixelify Sans",sans-serif;font-size:27px;font-weight:700;color:var(--ink)}
+  h3{font-family:"Pixelify Sans",sans-serif;font-size:19px;color:var(--amber);
+    margin:26px 0 12px}
+  p{margin:0 0 14px}
+  .main p{font-size:15.5px}
+  ul,ol{margin:0 0 16px 22px}
+  li{margin-bottom:7px;font-size:15.5px}
+  strong{color:var(--ink);font-weight:600}
+  code.inl{font-family:"JetBrains Mono",monospace;font-size:13px;background:var(--code-bg);
+    border:1px solid var(--border);padding:1.5px 6px;border-radius:3px;color:var(--cyan)}
+
+  /* ---- code blocks ---- */
+  pre{background:var(--code-bg);border:1px solid var(--border);border-left:3px solid var(--cyan);
+    padding:16px 18px;overflow-x:auto;margin:0 0 18px;border-radius:0 4px 4px 0;
+    box-shadow:3px 3px 0 rgba(0,0,0,.25)}
+  pre code{font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1.6;color:var(--ink);white-space:pre}
+  .k{color:var(--kw)} .t{color:var(--ty)} .s{color:var(--str)}
+  .c{color:var(--com);font-style:italic} .m{color:var(--mac)} .n{color:var(--num)}
+
+  /* ---- callouts ---- */
+  .box{border:1px solid var(--border);border-left:4px solid var(--cyan);background:var(--panel);
+    padding:14px 18px;margin:0 0 18px;border-radius:0 4px 4px 0}
+  .box.tip{border-left-color:var(--green)} .box.tip .lbl{color:var(--green)}
+  .box.warn{border-left-color:var(--red)} .box.warn .lbl{color:var(--red)}
+  .box.note{border-left-color:var(--violet)} .box.note .lbl{color:var(--violet)}
+  .box .lbl{font-family:"JetBrains Mono",monospace;font-size:11px;text-transform:uppercase;
+    letter-spacing:1.5px;color:var(--cyan);display:block;margin-bottom:6px}
+  .box p:last-child{margin-bottom:0}
+
+  /* ---- table ---- */
+  .tbl-wrap{overflow-x:auto;margin:0 0 18px}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:480px}
+  th,td{border:1px solid var(--border);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);font-family:"Pixelify Sans",sans-serif;color:var(--amber);font-weight:700}
+  td:first-child{font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--cyan);white-space:nowrap}
+  tr:nth-child(even) td{background:rgba(255,255,255,.012)}
+
+  /* ---- demos ---- */
+  .demo{border:2px solid var(--border);background:var(--panel);padding:18px;margin:0 0 20px;
+    border-radius:4px;box-shadow:4px 4px 0 rgba(0,0,0,.3)}
+  .demo .dh{font-family:"Pixelify Sans",sans-serif;color:var(--amber);font-size:15px;margin-bottom:4px}
+  .demo .dd{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .demo canvas{display:block;width:100%;background:var(--code-bg);border:1px solid var(--border);
+    border-radius:3px;image-rendering:pixelated;cursor:crosshair;touch-action:none}
+  .ctrls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px;
+    font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--muted)}
+  .ctrls label{display:flex;align-items:center;gap:8px}
+  .ctrls input[type=range]{accent-color:var(--pink);width:140px}
+  .ctrls .val{color:var(--cyan);min-width:60px;display:inline-block}
+  .ctrls button{font-family:"JetBrains Mono",monospace;font-size:12px;background:var(--panel2);
+    color:var(--ink);border:1px solid var(--border);padding:6px 12px;border-radius:3px;cursor:pointer}
+  .ctrls button:hover{border-color:var(--pink);color:var(--pink)}
+  .ctrls button.on{border-color:var(--cyan);color:var(--cyan);background:var(--code-bg)}
+  .readout{display:flex;gap:22px;flex-wrap:wrap;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:12.5px}
+  .readout b{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:400}
+  .readout span{color:var(--cyan);font-size:17px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--muted)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .legend i{width:13px;height:13px;border-radius:2px;display:inline-block;border:1px solid rgba(255,255,255,.15)}
+
+  /* ---- tldr ---- */
+  .tldr{border:2px dashed var(--pink);background:var(--panel);padding:24px 28px;border-radius:4px}
+  .tldr h3{margin-top:0;color:var(--pink)}
+  .tldr ul{list-style:none;margin-left:0}
+  .tldr li{padding-left:26px;position:relative}
+  .tldr li::before{content:"\25B8";position:absolute;left:0;color:var(--amber)}
+
+  footer{margin-top:60px;padding-top:24px;border-top:2px solid var(--border);
+    color:var(--muted);font-size:12.5px;font-family:"JetBrains Mono",monospace;text-align:center}
+
+  /* ---- responsive ---- */
+  .menu-btn{display:none}
+  @media(max-width:920px){
+    .sidebar{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:transform .2s;
+      box-shadow:8px 0 24px rgba(0,0,0,.5)}
+    .sidebar.open{transform:translateX(0)}
+    .main{padding:64px 22px 100px}
+    .hero{padding:26px 22px} .hero h1{font-size:30px}
+    .sec-head h2{font-size:21px} .sec-head .idx{font-size:20px}
+    .menu-btn{display:flex;position:fixed;top:14px;left:14px;z-index:50;
+      font-family:"Pixelify Sans",sans-serif;background:var(--pink);color:#10101a;border:none;
+      padding:8px 14px;border-radius:4px;cursor:pointer;font-size:15px;box-shadow:3px 3px 0 rgba(0,0,0,.4)}
+  }
+</style>
+</head>
+<body>
+<!-- olvasási haladásjelző (progress bar) -->
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,#56d4c4,#ec6a9c);
+  box-shadow:0 0 10px rgba(86,212,196,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-btn" id="menuBtn">&#9776; menü</button>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <h2>BEVY · ÜTKÖZÉSEK</h2>
+    <div class="sub">// detektálás + válasz · 2D</div>
+    <nav class="nav" id="nav">
+      <a href="#intro"><span class="num">00</span>Miért kell ütközés?</a>
+      <a href="#data"><span class="num">01</span>A collider mint adat</a>
+      <a href="#tests"><span class="num">02</span>Átfedés-tesztek</a>
+      <a href="#bounding"><span class="num">03</span>Bounding volumok</a>
+      <a href="#raycast"><span class="num">04</span>Raycast &amp; látótávolság</a>
+      <a href="#mtv"><span class="num">05</span>Kiszorítás (MTV)</a>
+      <a href="#slide"><span class="num">06</span>Csúszás a fal mentén</a>
+      <a href="#corners"><span class="num">07</span>Átlós mozgás &amp; sarkok</a>
+      <a href="#static"><span class="num">08</span>Statikus vs dinamikus</a>
+      <a href="#layers"><span class="num">09</span>Ütközési rétegek</a>
+      <a href="#sensors"><span class="num">10</span>Szenzorok &amp; triggerek</a>
+      <a href="#tiles"><span class="num">11</span>Csempe-alapú ütközés</a>
+      <a href="#broad"><span class="num">12</span>Broad phase</a>
+      <a href="#swept"><span class="num">13</span>CCD: gyors mozgás</a>
+      <a href="#events"><span class="num">14</span>Üzenet vagy observer?</a>
+      <a href="#bevy"><span class="num">15</span>Bevy integráció</a>
+      <a href="#full"><span class="num">16</span>Komplett minta</a>
+      <a href="#tips"><span class="num">17</span>Tippek &amp; buktatók</a>
+      <a href="#tldr"><span class="num">18</span>TL;DR</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="hero">
+      <div class="eyebrow">Bevy 0.18 · Rust · top-down játékmenet</div>
+      <h1>2D ütközések — <span class="hl">detektálás</span><br>és <span class="hl">válasz</span> egy top-down világban</h1>
+      <p>Egy top-down játékban az ütközés nem mellékszál: ez dönti el, hogy a karakter <em>kézreáll-e</em>. Falon nem megyünk át — de a fal mentén simán <strong>elcsúszunk</strong>. Az érmét felvesszük, de nem ütközünk vele. Ez a lecke szétszedi a problémát a két felére (<strong>detektálás</strong> és <strong>válasz</strong>), felépíti kézzel az AABB-, kör- és bounding-tesztektől a raycaston, a fal menti csúszáson, az ütközési rétegeken és a csempe-ütközésen át a broad phase-ig és a CCD-ig — tíz interaktív demóval, tiszta Bevy 0.18 kóddal.</p>
+      <div class="chips">
+        <span class="chip">AABB &amp; kör + bounding</span>
+        <span class="chip">átfedés + MTV</span>
+        <span class="chip">csúszás (tengelyenként)</span>
+        <span class="chip">raycast &amp; látótávolság</span>
+        <span class="chip">ütközési rétegek</span>
+        <span class="chip">csempe-ütközés</span>
+        <span class="chip">broad phase</span>
+        <span class="chip">CCD / swept</span>
+        <span class="chip">Message / observer</span>
+      </div>
+    </header>
+
+    <!-- 00 -->
+    <section id="intro">
+      <div class="sec-head"><span class="idx">00</span><h2>Miért kell ütközés? Detektálás vs. válasz</h2></div>
+      <p>Ütközés nélkül a játékos átsétál a falon, az ellenfél egymásba olvad, az érme sosem kerül a zsebbe. De „az ütközés" valójában <strong>két, élesen különböző feladat</strong>, és a legtöbb zűrzavar abból ered, hogy összemossák őket:</p>
+      <ul>
+        <li><strong>Detektálás (broad + narrow phase).</strong> Átfed-e A és B? Ez tisztán geometria: egy igen/nem (és néha: mennyivel). A <a href="#broad">broad phase</a> gyorsan kiszórja a lehetetlen párokat, a <em>narrow phase</em> pontosan eldönti a maradékot.</li>
+        <li><strong>Válasz (response).</strong> Mit kezdünk az átfedéssel? Toljuk ki a testet? Csússzon a fal mentén? Pattanjon? Vagy csak <em>jelezzünk</em> (sebződés, pickup), és semmi fizikai? Ez már <strong>játéktervezői döntés</strong>, nem geometria.</li>
+      </ul>
+      <p>Egy top-down játékban a válasz a fontosabb és a kényesebb. A „falon nem megyek át" könnyű; a „falnak ütközve <em>elcsúszom</em> a mentén, nem ragadok be a sarokba" — ez különbözteti meg a jó kontrollt a bosszantótól. A <a href="#slide">06. szakasz</a> erről szól, és ez a lecke centrumdarabja.</p>
+      <div class="box note"><span class="lbl">A lecke gerince</span><p>Végig ezt a két szálat fonjuk: előbb a <strong>detektálás</strong> primitíveit építjük fel (01–02) és a Bevy bounding-eszköztárat (03–04), aztán a <strong>választ</strong> rétegezzük rá — kiszorítás (05), csúszás (06), átlós/sarok-esetek (07), statikus/dinamikus szerepek (08), ütközési rétegek (09), szenzorok (10). Utána jön a méretezés: csemperács (11), broad phase (12), gyors testek / CCD (13), majd a Bevy-integráció: üzenetek vs observerek (14), rendszer-sorrend (15) és egy komplett, futtatható minta (16).</p></div>
+      <div class="box tip"><span class="lbl">Miért kézzel, ha van avian/rapier?</span><p>Egy top-down arcade-mozgáshoz a <strong>kézzel írt AABB-ütközés</strong> sokszor jobb, mint egy teljes fizikai motor: nincs nem kívánt lendület, súrlódás vagy pattogás, teljes kontroll a „mozdulj és csússz" fölött, és kristálytisztán megérted. Ha viszont valódi merevtest-fizika kell (lökhullám, halmozódó dobozok, ízületek), nyúlj <a href="https://github.com/Jondolf/avian">avian2d</a>-hez vagy <code class="inl">bevy_rapier2d</code>-hez. A döntésről bővebben a <a href="#tips">17. szakaszban</a>.</p></div>
+    </section>
+
+    <!-- 01 -->
+    <section id="data">
+      <div class="sec-head"><span class="idx">01</span><h2>A collider mint adat</h2></div>
+      <p>Az első és legfontosabb szétválasztás: a <strong>collider nem a sprite</strong>. A megjelenített kép lehet 48×64 pixeles, dekorációkkal teli karakter; az ütköző teste mégis egy szűk, 16×20-as doboz a lába körül. A collider a <em>logikai</em> alak — külön komponens, amit a fizika lát, a renderelő nem.</p>
+      <p>Top-downban két alak visz el szinte mindent: a tengely-igazított doboz (<strong>AABB</strong>) és a <strong>kör</strong>. A doboz a falakhoz, akadályokhoz tökéletes; a kör a karakterekhez ideális, mert nincs „beakadó" sarka — simán siklik a geometrián.</p>
+      <pre><code class="rust">use bevy::prelude::*;
+
+/// A collider a sprite-tól FÜGGETLEN adat: a logikai test alakja.
+/// A közepe mindig a Transform; az alak ehhez relatív.
+#[derive(Component, Clone, Copy)]
+enum Collider {
+    /// tengely-igazított doboz: `half` a fél-szélesség és fél-magasság
+    Aabb { half: Vec2 },
+    /// kör: olcsó teszt, nincs beakadó sarok — karakterekhez
+    Circle { radius: f32 },
+}
+
+/// Sebesség külön komponensben — az integrálás ezt adja a pozícióhoz.
+#[derive(Component, Default)]
+struct Velocity(Vec2);
+
+/// Szerep-markerek: a rendszerek ezekkel válogatnak (lásd 05).
+#[derive(Component)] struct Mover;   // mozog: játékos, ellenfél, lövedék
+#[derive(Component)] struct Solid;   // áll: fal, akadály, határ</code></pre>
+      <div class="box tip"><span class="lbl">A fél-méret (half-extent) a barátod</span><p>Tárold a dobozt <strong>közép + fél-méret</strong> formában (<code class="inl">center</code>, <code class="inl">half</code>), ne <code class="inl">min</code>/<code class="inl">max</code> sarkokkal. A közép egybeesik a <code class="inl">Transform</code>-mal (ingyen mozog vele), és minden teszt szebb lesz: az AABB-átfedés egyetlen <code class="inl">abs() &lt;= ha + hb</code> tengelyenként. A <code class="inl">min</code>/<code class="inl">max</code> alak csak a rajzolásnál kell.</p></div>
+    </section>
+
+    <!-- 02 -->
+    <section id="tests">
+      <div class="sec-head"><span class="idx">02</span><h2>Átfedés-tesztek: a narrow phase primitívei</h2></div>
+      <p>A detektálás magja három apró függvény. Mindegyik egy <code class="inl">bool</code>-t ad — „átfed-e?" —, és mindegyik néhány sor. Bevy ad rájuk beépített primitívet (a <code class="inl">bevy::math::bounding</code> modul), de érdemes kézzel is látni őket, mert a <a href="#mtv">válaszhoz</a> a puszta <code class="inl">bool</code> kevés lesz.</p>
+      <h3>AABB × AABB</h3>
+      <pre><code class="rust">/// Két doboz átfed, ha a középpontjaik távolsága MINDEN tengelyen
+/// kisebb-egyenlő a fél-méretek összegénél. Ha egy tengelyen "szét"
+/// vannak, akkor van elválasztó vonal — nincs ütközés.
+fn aabb_hit(ca: Vec2, ha: Vec2, cb: Vec2, hb: Vec2) -&gt; bool {
+    (ca.x - cb.x).abs() &lt;= ha.x + hb.x &amp;&amp;
+    (ca.y - cb.y).abs() &lt;= ha.y + hb.y
+}</code></pre>
+      <h3>Kör × kör</h3>
+      <pre><code class="rust">/// A legolcsóbb teszt: a középpontok távolsága &lt;= a sugarak összege.
+/// (Élesben gyökvonás nélkül: a NÉGYZETES távolságot hasonlítsd.)
+fn circle_hit(ca: Vec2, ra: f32, cb: Vec2, rb: f32) -&gt; bool {
+    ca.distance_squared(cb) &lt;= (ra + rb) * (ra + rb)
+}</code></pre>
+      <h3>Kör × AABB</h3>
+      <p>A trükk: keresd meg a dobozon a kör középpontjához <strong>legközelebbi pontot</strong> (a középpontot a doboz határai közé csípve), és mérd onnan a távolságot. Ez a pont a csúcson, az élen vagy a doboz belsejében lehet — a <code class="inl">clamp</code> mindhárom esetet lefedi.</p>
+      <pre><code class="rust">fn circle_aabb_hit(c: Vec2, r: f32, bc: Vec2, bh: Vec2) -&gt; bool {
+    let closest = c.clamp(bc - bh, bc + bh);   // legközelebbi pont a dobozon
+    c.distance_squared(closest) &lt;= r * r
+}</code></pre>
+
+      <div class="box note"><span class="lbl">Bevy beépítve: a detektálás készen van</span><p>A <code class="inl">bevy::math::bounding</code> ugyanezt adja, csiszoltan. A lényeg, hogy az <code class="inl">IntersectsVolume</code> trait <code class="inl">.intersects()</code>-e egy <strong>igen/nem</strong> — a detektáláshoz tökéletes, a válaszhoz nem elég (nem mondja meg, <em>mennyivel</em> fednek át):</p>
+      <pre><code class="rust">use bevy::math::bounding::{Aabb2d, BoundingCircle, IntersectsVolume};
+
+let player = Aabb2d::new(player_pos, Vec2::splat(8.0)); // közép + fél-méret
+let wall   = Aabb2d::new(wall_pos,   Vec2::new(16.0, 8.0));
+if player.intersects(&amp;wall) { /* átfedés — de a MENNYIT magunk számoljuk (05) */ }
+
+// kör is megy, keverve is: kör vs doboz egyetlen hívásban
+let body = BoundingCircle::new(enemy_pos, 6.0);
+if body.intersects(&amp;wall) { /* ... */ }</code></pre></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: átfedés-tesztek</div>
+        <div class="dd">Húzd a két alakzatot egymásba. A kék test mindig doboz (AABB); a másodikat váltsd dobozra vagy körre — és nézd, melyik teszt fut, és van-e átfedés. Kör×doboznál a szaggatott vonal a dobozon a körhöz <strong>legközelebbi pontig</strong> mutat: ez a teszt lelke.</div>
+        <canvas id="hitCanvas" width="720" height="380"></canvas>
+        <div class="ctrls">
+          <button id="hitBox" class="on">B: doboz</button>
+          <button id="hitCircle">B: kör</button>
+        </div>
+        <div class="readout">
+          <div><b>Teszt</b><span id="hitKind">AABB × AABB</span></div>
+          <div><b>Átfedés</b><span id="hitState">nincs</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03 -->
+    <section id="bounding">
+      <div class="sec-head"><span class="idx">03</span><h2>Bounding volumok: a Bevy eszköztár</h2></div>
+      <p>A 02 tesztjeit kézzel írtuk meg — érdemes is érteni őket. De Bevy csomagban is adja ugyanezt, és ráadásnak két olyan műveletet, amire később építünk: a <strong>tágítást</strong> (CCD) és az <strong>egyesítést</strong> (broad phase). Ez a <code class="inl">bevy::math::bounding</code> modul.</p>
+      <p>Két 2D térfogata van: az <code class="inl">Aabb2d</code> (tengely-igazított doboz, belül <code class="inl">min</code>/<code class="inl">max</code> sarokkal) és a <code class="inl">BoundingCircle</code>. Mindkettő olcsón megépíthető közép + méret formából:</p>
+      <pre><code class="rust">use bevy::math::bounding::{Aabb2d, BoundingCircle, BoundingVolume, IntersectsVolume};
+use bevy::math::{Isometry2d, Rot2};
+
+// közép + fél-méret, illetve közép + sugár
+let a = Aabb2d::new(pos_a, Vec2::new(16.0, 8.0));
+let c = BoundingCircle::new(pos_b, 10.0);
+
+// metszés: ugyanaz, mint a 02 — de készen, és KEVERVE is megy (doboz × kör)
+if a.intersects(&amp;c) { /* átfed */ }</code></pre>
+      <h3>Honnan jön a térfogat? — <code class="inl">Bounded2d</code></h3>
+      <p>Egy <strong>forgó</strong> sprite befoglalóját nem kézzel számolod: a primitív (<code class="inl">Rectangle</code>, <code class="inl">Circle</code>, <code class="inl">Capsule2d</code>…) maga adja egy <code class="inl">Isometry2d</code> (eltolás + forgatás) mellett. A tanulság látványos: egy forgatott doboz tengely-igazított befoglalója <em>nő</em>, a köré írt kör viszont nem.</p>
+      <pre><code class="rust">use bevy::math::bounding::Bounded2d;
+use bevy::math::primitives::Rectangle;
+
+let shape = Rectangle::new(40.0, 16.0);
+let iso   = Isometry2d::new(pos, Rot2::radians(angle));
+let aabb   = shape.aabb_2d(iso);          // forgásnál NŐ (lélegzik)
+let circle = shape.bounding_circle(iso);  // forgástól független, állandó</code></pre>
+      <h3>A két ráadás-művelet: <code class="inl">merge</code> és <code class="inl">grow</code></h3>
+      <p>A <code class="inl">BoundingVolume</code> trait adja a térfogat-műveleteket. Kettő kulcsfontosságú a következő szakaszokhoz:</p>
+      <pre><code class="rust">// merge: két térfogat KÖZÖS befoglalója — egy entitás-csoport vagy egy
+// térkép-chunk EGYETLEN AABB-je a broad phase-hez (12).
+let group = aabb_a.merge(&amp;aabb_b);
+
+// grow: Minkowski-tágítás a mozgó fél-méretével — a swept/CCD (13) alapja.
+// A kinagyított falba lőtt sugár pont a mozgó ÉRINTKEZÉSÉT adja.
+let expanded = wall_aabb.grow(mover_half);
+
+// a szokásos lekérdezések is megvannak
+if group.contains(&amp;aabb_a) { /* teljesen benne */ }
+let mid  = group.center();
+let half = group.half_size();</code></pre>
+      <div class="box warn"><span class="lbl">A térfogat eldobható, ne tárold</span><p>A bounding volume egy <em>pillanatkép</em> a test mostani helyzetéről — minden kereten újraszámolod a <code class="inl">Transform</code>-ból, nem komponensként tárolod. Egy elavult <code class="inl">Aabb2d</code> a tavalyi helyen tesztel. Forgó sprite-nál külön figyelj: a befoglaló minden kereten más.</p></div>
+      <div class="box note"><span class="lbl">A detektálás itt is csak igen/nem</span><p>Az <code class="inl">.intersects()</code> egy <code class="inl">bool</code> — a <em>választ</em> (mennyivel, merre = MTV) továbbra is magad számolod, lásd a <a href="#mtv">05. szakaszt</a>. A <code class="inl">bounding</code> modul „sugár-vető" testvéreit (<code class="inl">RayCast2d</code>, <code class="inl">AabbCast2d</code>) a következő szakasz és a <a href="#swept">CCD (13)</a> használja.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: bounding volumok</div>
+        <div class="dd">Egy téglalp forog a közepén. A <span style="color:var(--cyan)">tengely-igazított AABB</span> (<code class="inl">Bounded2d::aabb_2d</code>) forgás közben <strong>nő és zsugorodik</strong> — ezért „lélegzik" egy forgó sprite befoglalója. A <span style="color:var(--amber)">bounding kör</span> viszont forgástól független. A <strong>grow</strong> a Minkowski-tágítást mutatja (a CCD alapja), a <strong>merge</strong> két alak közös befoglalóját (a broad phase alapja).</div>
+        <canvas id="bvCanvas" width="720" height="400"></canvas>
+        <div class="ctrls">
+          <label>Forgatás: <input type="range" id="bvAngle" min="0" max="180" value="30"><span class="val" id="bvAngleVal">30°</span></label>
+          <label>Grow: <input type="range" id="bvGrow" min="0" max="40" value="0"><span class="val" id="bvGrowVal">0</span></label>
+          <button id="bvMerge">merge 2. alak</button>
+        </div>
+        <div class="readout">
+          <div><b>AABB méret</b><span id="bvSize">&mdash;</span></div>
+          <div><b>Kör átmérő</b><span id="bvRad">&mdash;</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 -->
+    <section id="raycast">
+      <div class="sec-head"><span class="idx">04</span><h2>Raycast: sugarak a világban</h2></div>
+      <p>Az átfedés-teszt azt kérdi: „összeér-e két térfogat?" A <strong>raycast</strong> mást kérdez: „mit talál el egy sugár <em>először</em>, és milyen messze?" Top-downban ez legalább négy helyen kell:</p>
+      <ul>
+        <li><strong>Hitscan lövés.</strong> A puska golyója azonnal a legközelebbi falig / ellenfélig ér — nincs repülő lövedék.</li>
+        <li><strong>Látótávolság (line-of-sight).</strong> Lát-e az őr a játékosra? Lövünk egy sugarat kettejük közt; ha fal megszakítja, nincs rálátás.</li>
+        <li><strong>Kurzor-kijelölés.</strong> Mire mutat az egér? A kurzorból (vagy a kamerából) vetett sugár első találata.</li>
+        <li><strong>MI-érzékelés, lézer-irányzék.</strong> Ugyanaz a sugár, más felhasználásban.</li>
+      </ul>
+      <p>Bevy a <code class="inl">bounding</code> modulban adja: a <code class="inl">RayCast2d</code> egy origóból egy <code class="inl">Dir2</code> irányba, adott <code class="inl">max</code> hosszig fut, és megmondja a találat <em>távolságát</em>:</p>
+      <pre><code class="rust">use bevy::math::bounding::{Aabb2d, RayCast2d};
+use bevy::math::Dir2;
+
+/// Lát-e az őr a célpontra? Ha BÁRMELYIK fal közelebb metszi a sugarat,
+/// mint a célpont távolsága, akkor takarásban van.
+fn has_line_of_sight(from: Vec2, to: Vec2, walls: &amp;[Aabb2d]) -&gt; bool {
+    let delta = to - from;
+    let Ok(dir) = Dir2::new(delta) else { return true; };  // egy helyben: lát
+    let ray = RayCast2d::new(from, dir, delta.length());   // max hossz = a célpontig
+    // ha a sugár (a célpontig érő hosszán belül) bármit elér, az takar
+    !walls.iter().any(|w| ray.aabb_intersection_at(w).is_some())
+}</code></pre>
+      <p>Hitscanhez ugyanez, de a <strong>legközelebbi</strong> találat kell — a legkisebb <code class="inl">t</code> távolságú fal:</p>
+      <pre><code class="rust">/// A legközelebbi fal a sugár mentén (index + távolság), vagy None.
+fn raycast_first(origin: Vec2, dir: Dir2, max: f32, walls: &amp;[Aabb2d]) -&gt; Option&lt;(usize, f32)&gt; {
+    let ray = RayCast2d::new(origin, dir, max);
+    walls.iter().enumerate()
+        .filter_map(|(i, w)| ray.aabb_intersection_at(w).map(|t| (i, t)))
+        .min_by(|x, y| x.1.total_cmp(&amp;y.1))
+}</code></pre>
+      <div class="box tip"><span class="lbl">Kurzor → világ</span><p>A képernyő-kurzort a <code class="inl">camera.viewport_to_world_2d(cam_tf, cursor)</code> teszi világ-koordinátává (Result-ot ad) — innen indíthatod a pick-sugarat, vagy egy pontszerű <code class="inl">Aabb2d</code>-vel közvetlenül <code class="inl">.intersects</code>-elsz. Ugyanez a hívás vezérli a kattintás-mozgást a <a href="bevy-pathfinding-tutorial.html">pathfinding leckében</a>.</p></div>
+      <div class="box note"><span class="lbl">Vékony és vastag sugár</span><p>A <code class="inl">RayCast2d</code> egy <em>vékony</em> (nulla vastagságú) sugár. Ha a „sugárnak" mérete van — egy mozgó test söprése —, akkor az <code class="inl">AabbCast2d</code> / <code class="inl">BoundingCircleCast</code> kell: ugyanaz az ötlet, de egy térfogatot söpör végig. Ez a gyors testek alagutazásának megoldása, lásd a <a href="#swept">CCD (13)</a> szakaszt.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: raycast &amp; látótávolság</div>
+        <div class="dd">Az <span style="color:var(--amber)">őr</span> (balról) a kurzor felé néz. Egy sugarat lövünk felé: ha fal takarja, a sugár a falnál <strong>megáll</strong> és a cél <span style="color:var(--red)">piros</span> (nincs rálátás); ha tiszta az út, eléri, és a cél <span style="color:var(--green)">zöld</span>. Kapcsold be a <strong>látómező</strong>-t: sok sugár legyezőben — pont így „lát" egy őr, vagy így terjed a lézer-irányzék.</div>
+        <canvas id="rayCanvas" width="720" height="420"></canvas>
+        <div class="ctrls">
+          <button id="rayFan">látómező legyező</button>
+          <button id="rayGen">&#8635; új falak</button>
+        </div>
+        <div class="readout">
+          <div><b>Rálátás</b><span id="rayLos">&mdash;</span></div>
+          <div><b>Találati táv</b><span id="rayDist">&mdash;</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 -->
+    <section id="mtv">
+      <div class="sec-head"><span class="idx">05</span><h2>A válasz I.: kiszorítás (penetráció + MTV)</h2></div>
+      <p>A <code class="inl">bool</code> tudja, hogy ütköztünk — de a válaszhoz tudni kell, <strong>mennyivel</strong> és <strong>merre</strong> lapolódunk át. Ez a <em>penetrációs vektor</em>, közismert nevén a <strong>MTV</strong> (Minimum Translation Vector): a legrövidebb eltolás, ami épp szétválasztja a két testet.</p>
+      <p>Két AABB-nél kiszámítjuk az átfedést mindkét tengelyen, és a <strong>kisebbik</strong> mentén tolunk ki — ez a legkevésbé feltűnő korrekció. (Ha fentről nyomod a falba, fentre ugraszt vissza; ha oldalról, oldalra.)</p>
+      <pre><code class="rust">/// A penetrációs vektor (MTV) az A testre nézve: None, ha nincs átfedés.
+fn aabb_mtv(ca: Vec2, ha: Vec2, cb: Vec2, hb: Vec2) -&gt; Option&lt;Vec2&gt; {
+    let d  = cb - ca;                      // A-ból B felé mutat
+    let ox = (ha.x + hb.x) - d.x.abs();    // átfedés az X tengelyen
+    let oy = (ha.y + hb.y) - d.y.abs();    // átfedés az Y tengelyen
+    if ox &lt;= 0.0 || oy &lt;= 0.0 {
+        return None;                       // valamelyik tengelyen szét → nincs ütközés
+    }
+    if ox &lt; oy {
+        Some(Vec2::new(if d.x &gt; 0.0 { -ox } else { ox }, 0.0))   // kisebb átfedés: X
+    } else {
+        Some(Vec2::new(0.0, if d.y &gt; 0.0 { -oy } else { oy }))   // kisebb átfedés: Y
+    }
+}
+
+// használat: a DINAMIKUS testet toljuk ki, a fal marad
+if let Some(push) = aabb_mtv(player_pos, player_half, wall_pos, wall_half) {
+    player_pos += push;          // a játékost toljuk, nem a falat
+    velocity.0 = Vec2::ZERO;     // a legegyszerűbb: az ütközés "lenyeli" a sebességet
+}</code></pre>
+      <div class="box warn"><span class="lbl">A „legkisebb tengely" buktatója</span><p>A min-tengelyű MTV egyetlen, mély átfedésnél meglepő irányba tud lökni: ha a test mélyen belóg a falba, és véletlenül az Y-átfedés kisebb, akkor Y-ban tol ki, pedig X-ben mozogtál bele. A megoldás nem a bonyolítás, hanem a megelőzés: <strong>ne hagyd mélyre jutni</strong> — minden kereten oldd fel, és — ami a top-down kulcsa — oldd fel <strong>tengelyenként</strong>, a mozgás után rögtön. Pont erről szól a következő szakasz.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: kiszorítás (MTV)</div>
+        <div class="dd">A sötét doboz egy fix fal. Húzd a kék dobozt bele: a <span style="color:var(--red)">piros szellem</span> a nyers (átfedő) pozíció, a <span style="color:var(--cyan)">tömör kék</span> a kitolt, feloldott. A sárga nyíl a penetrációs vektor — mindig a <strong>kisebb átfedés</strong> tengelye mentén tol. Told oldalról: oldalra ugrik; told fentről: fentre.</div>
+        <canvas id="mtvCanvas" width="720" height="400"></canvas>
+        <div class="readout">
+          <div><b>Átfedés X</b><span id="mtvOx">&mdash;</span></div>
+          <div><b>Átfedés Y</b><span id="mtvOy">&mdash;</span></div>
+          <div><b>Kitolás</b><span id="mtvAxis">&mdash;</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 06 -->
+    <section id="slide">
+      <div class="sec-head"><span class="idx">06</span><h2>A válasz II.: csúszás a fal mentén</h2></div>
+      <p>Itt dől el a top-down kontroll minősége. Képzeld el: a játékos átlósan nekifut egy <em>függőleges</em> falnak. A naiv válasz — „ha a mozgás ütközést okoz, dobd el az egész mozgást" — a testet <strong>beragasztja</strong>: nem megy a falba (jó), de a fal mentén sem (rossz). A játékos a falhoz tapad, amíg pontosan párhuzamosan nem nyomja az irányt. Idegesítő.</p>
+      <p>A megoldás meglepően egyszerű, és ez a lecke egyetlen legfontosabb fogása: <strong>mozgasd és oldd fel az X és az Y tengelyt KÜLÖN.</strong></p>
+      <pre><code class="rust">/// Egyetlen tengely feloldása: ha a mozgás után átfedés van, told vissza
+/// PONTOSAN ezen a tengelyen, épp az átfedés mértékével.
+fn resolve_x(pos: &amp;mut Vec2, half: Vec2, wc: Vec2, wh: Vec2) {
+    if aabb_hit(*pos, half, wc, wh) {
+        let overlap = (half.x + wh.x) - (pos.x - wc.x).abs();
+        pos.x += if pos.x &lt; wc.x { -overlap } else { overlap };
+    }
+}
+fn resolve_y(pos: &amp;mut Vec2, half: Vec2, wc: Vec2, wh: Vec2) {
+    if aabb_hit(*pos, half, wc, wh) {
+        let overlap = (half.y + wh.y) - (pos.y - wc.y).abs();
+        pos.y += if pos.y &lt; wc.y { -overlap } else { overlap };
+    }
+}
+
+/// A "move and slide": előbb X-ben mozgunk és oldunk fel, AZTÁN Y-ban.
+fn move_and_slide(pos: &amp;mut Vec2, half: Vec2, vel: Vec2, dt: f32, walls: &amp;[(Vec2, Vec2)]) {
+    pos.x += vel.x * dt;                              // 1) X tengely
+    for &amp;(wc, wh) in walls { resolve_x(pos, half, wc, wh); }
+    pos.y += vel.y * dt;                              // 2) Y tengely
+    for &amp;(wc, wh) in walls { resolve_y(pos, half, wc, wh); }
+}</code></pre>
+      <p>Miért működik? Az átlós nekifutásnál a falra <strong>merőleges</strong> komponens elnyelődik (visszatoljuk azon a tengelyen), a fallal <strong>párhuzamos</strong> komponens viszont érintetlen marad — így a test <em>tovább halad</em> a fal mentén. A csúszás nem külön funkció: a tengelyenkénti feloldás <em>ajándékként</em> adja.</p>
+      <div class="box tip"><span class="lbl">A sorrend stabil, de nem szent</span><p>X-először vagy Y-először: legtöbbször mindegy. Ritka, beékelődő sarokesetnél a kettő picit más eredményt ad — ha tökéletes szimmetria kell, futtasd le mindkét sorrendben és válaszd a kisebb összkorrekciót. A 99%-hoz az egyszerű „X, majd Y" elég.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: csúszás vs. blokk — a top-down trükk</div>
+        <div class="dd">A kék korong a kurzort követi. Húzd a kurzort nekifeszülve egy falnak vagy egy saroknak. <strong>Csúszás</strong> módban a tengelyenkénti feloldás végigsiklatja a fal mentén; <strong>blokk</strong> módban ütközéskor az egész mozgást eldobjuk — a korong beragad, nem tud elcsúszni. Ez a különbség dönti el, kézreáll-e a játék.</div>
+        <canvas id="slideCanvas" width="720" height="430"></canvas>
+        <div class="ctrls">
+          <button id="slideSlide" class="on">csúszás (tengelyenként)</button>
+          <button id="slideBlock">blokk (mozgás eldobva)</button>
+        </div>
+        <div class="readout">
+          <div><b>Mód</b><span id="slideMode">csúszás</span></div>
+          <div><b>Korong sebessége</b><span id="slideSpeed">0</span></div>
+        </div>
+        <div class="box tip" style="margin-top:14px"><span class="lbl">A demóról</span><p>A korongot itt az egyszerűségért <strong>dobozként</strong> oldjuk fel (fél-méret = sugár). Valódi kör-colliderhez a <a href="#tests">02. szakasz</a> legközelebbi-pont képlete kell a tengelyenkénti feloldásban — a csúszás logikája viszont szóról szóra ugyanez.</p></div>
+      </div>
+    </section>
+
+    <!-- 07 -->
+    <section id="corners">
+      <div class="sec-head"><span class="idx">07</span><h2>Átlós mozgás &amp; sarok-esetek</h2></div>
+      <p>A tengelyenkénti csúszás (06) a gerinc, de az átlós irány három finomságot is felszínre hoz. Mindhárom apró, mindhárom érezhető a kézben.</p>
+      <h3>1. Átló-sebesség: ne legyél gyorsabb átlósan</h3>
+      <p>Ha a fel és a jobb gombot együtt nyomod, a nyers irányvektor <code class="inl">(1, 1)</code> — a hossza viszont <code class="inl">√2 ≈ 1,41</code>, vagyis a játékos átlósan <strong>41%-kal gyorsabb</strong>. Klasszikus, árulkodó hiba. A javítás egy sor: normalizáld az irányt, <em>mielőtt</em> a sebességgel szorzod.</p>
+      <pre><code class="rust">let mut dir = Vec2::ZERO;
+if up    { dir.y += 1.0; }  if down  { dir.y -= 1.0; }
+if left  { dir.x -= 1.0; }  if right { dir.x += 1.0; }
+let vel = dir.normalize_or_zero() * SPEED;   // átlósan sem gyorsabb (a nulla is kezelve)</code></pre>
+      <h3>2. Sarok-beakadás és a min-MTV csapdája</h3>
+      <p>Emlékszel a 05-ből: a min-tengelyű MTV a <em>kisebb</em> átfedés mentén tol ki. Ez egy fal lapjánál tökéletes, de egy <strong>külső sarok</strong> átlós megkerülésekor a választott tengely keretről keretre <em>átbillenhet</em> (egyszer X-re, egyszer Y-ra korrigál) — a test megrándul, beakad, „pattog" a sarkon. A tengelyenkénti feloldás (06) ezt elkerüli, mert minden tengelyt a tényleges <em>azirányú</em> mozgás alapján old fel, nem aszerint, hogy melyik átfedés kisebb. Ezért nyer a per-tengely a karaktermozgásnál — a demó pont ezt a billegést mutatja.</p>
+      <h3>3. Átlós rés: a sarok-átszökés</h3>
+      <p>A legalattomosabb: ahol két tömör csempe csak a <strong>sarkával</strong> érintkezik, marad köztük egy nulla szélességű átlós rés. Egy gyors átlós lépés <em>átbújhat</em> ezen — a lépés elején és végén a test egyik cellát sem fedi át, közben meg „átugorja" az érintkezési pontot. Ez átlós irányú <a href="#swept">alagutazás</a> (13), és a teljes megoldása a CCD. Csemperácson viszont van egy olcsó, bevett szabály: <strong>tiltsd az átlós lépést, ha mindkét érintett ortogonális szomszéd tömör</strong> (a „no corner cutting" szabály — a <a href="bevy-pathfinding-tutorial.html">pathfindingból</a> is ismerős).</p>
+      <pre><code class="rust">/// Átlós lépés tiltása, ha két fal SARKA közt vágna át.
+/// Csak akkor engedjük, ha legalább az egyik ortogonális szomszéd szabad.
+fn diagonal_blocked(map: &amp;TileMap, from: IVec2, dx: i32, dy: i32) -&gt; bool {
+    if dx != 0 &amp;&amp; dy != 0 {                       // tényleg átlós lépés?
+        map.is_solid(IVec2::new(from.x + dx, from.y))      // vízszintes szomszéd
+            &amp;&amp; map.is_solid(IVec2::new(from.x, from.y + dy))  // függőleges szomszéd
+    } else {
+        false
+    }
+}</code></pre>
+      <div class="box tip"><span class="lbl">A per-tengely már fél-megoldás</span><p>Mivel a 06 amúgy is külön mozgatja az X-et és az Y-t, a sarok-átszökés ott ritkább, mint egy „teljes vektort egyszerre" mozgatónál: a köztes (X-mozgás utáni) pozíció gyakran már elkapja a falat. Gyors testeknél azonban ez sem elég — ott a <a href="#swept">CCD (13)</a> a biztos megoldás.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: per-tengely vs. egyszeri min-MTV a saroknál</div>
+        <div class="dd">A korong a kurzort követi egy L-alakú belső sarok körül. <strong>Per-tengely</strong> (06): simán körbecsúszik. <strong>Egyszeri min-MTV</strong>: a teljes mozgás után EGYSZER tol ki a kisebb átfedés tengelyén — a saroknál a kitolási tengely <em>átbillen</em>, a korong megrándul. A „Kitolás tengelye" readout mutatja a billegést. Ezért nyer a per-tengely a karaktermozgásnál.</div>
+        <canvas id="cornCanvas" width="720" height="420"></canvas>
+        <div class="ctrls">
+          <button id="cornAxis" class="on">per-tengely (06)</button>
+          <button id="cornMtv">egyszeri min-MTV</button>
+        </div>
+        <div class="readout">
+          <div><b>Mód</b><span id="cornMode">per-tengely</span></div>
+          <div><b>Kitolás tengelye</b><span id="cornPush">&mdash;</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 08 -->
+    <section id="static">
+      <div class="sec-head"><span class="idx">08</span><h2>Statikus vs dinamikus testek</h2></div>
+      <p>Nem minden test egyforma. A <strong>statikus</strong> testek nem mozdulnak (falak, akadályok, határok); a <strong>dinamikusak</strong> igen (játékos, ellenfél, lövedék). Ez a megkülönböztetés két dolgot dönt el — és mindkettő spórol:</p>
+      <ul>
+        <li><strong>Ki mozdul a válaszban?</strong> Dinamikus–statikus ütközésnél csak a dinamikust toljuk ki, a fal marad. Dinamikus–dinamikusnál a kiszorítást <em>szét</em> kell osztani (fele-fele, vagy tömeg szerint), különben az egyik átlöki a másikat.</li>
+        <li><strong>Mit kell egyáltalán tesztelni?</strong> Statikus–statikus párt soha: két fal sosem fog ütközni. Ez ingyen feleslegmunka-spórolás a párosításnál.</li>
+      </ul>
+      <p>Bevy-ben a szerepeket marker-komponensek (<code class="inl">Mover</code> / <code class="inl">Solid</code>) jelölik, és <strong>két külön Query</strong> válogat. De itt jön a 0.18 (és minden korábbi verzió) egyik leggyakoribb pánikja:</p>
+      <pre><code class="rust">fn collision_system(
+    mut movers: Query&lt;(&amp;mut Transform, &amp;Collider), (With&lt;Mover&gt;, Without&lt;Solid&gt;)&gt;,
+    walls:      Query&lt;(&amp;Transform, &amp;Collider), With&lt;Solid&gt;&gt;,
+) {
+    for (mut tf, mc) in &amp;mut movers {
+        for (wtf, wc) in &amp;walls {
+            // … detektálás + tengelyenkénti kiszorítás (05–06) …
+        }
+    }
+}</code></pre>
+      <div class="box warn"><span class="lbl">A Query-aliasolás csapdája</span><p>Két Query, ami ugyanazt a komponenst kéri — és az egyik <code class="inl">&amp;mut</code> — <strong>indításkor azonnal panicra fut</strong> („conflicting access"). A <code class="inl">movers</code> a <code class="inl">&amp;mut Transform</code>-ot kéri, a <code class="inl">walls</code> a <code class="inl">&amp;Transform</code>-ot — ütköznek. A javítás a <strong>bizonyítottan diszjunkt</strong> halmaz: a <code class="inl">Without&lt;Solid&gt;</code> a movereken + a <code class="inl">With&lt;Solid&gt;</code> a falakon garantálja, hogy egyetlen entitás sincs mindkettőben, így Bevy elengedi. Ez nem stílus — e nélkül el sem indul.</p></div>
+      <div class="box note"><span class="lbl">Dinamikus–dinamikus: oszd meg a kiszorítást</span><p>Két mozgó test (két ellenfél) ütközésénél a párokon a <code class="inl">Query::iter_combinations_mut::&lt;2&gt;()</code> megy végig, és az MTV <strong>felét</strong> kapja az egyik, felét a másik (ellentétes irányban). Tömeg szerint: a nehezebb kevésbé mozdul. A statikus testet ebből mindig kihagyod — a fal „végtelen tömegű".</p></div>
+    </section>
+
+    <!-- 09 -->
+    <section id="layers">
+      <div class="sec-head"><span class="idx">09</span><h2>Ütközési rétegek bonyolultabb helyzetben</h2></div>
+      <p>Egy igazi játékban a nehéz kérdés nem az, hogy „átfed-e A és B", hanem hogy <strong>egyáltalán reagáljon-e a kettő egymásra</strong>. Gondold végig egy lövöldözős top-down párosait: a játékos lövedéke eltalálja az ellenfelet és a falat, de <em>nem</em> a játékost és <em>nem</em> a saját társait. Az ellenfelek egymáson átmennek, de a falon nem. A pickup csak a játékost érdekli. Ha ezt páronkénti <code class="inl">if</code>-ekkel kódolod, kombinatorikus rémálom lesz.</p>
+      <p>A tiszta eszköz az <strong>ütközési réteg + maszk</strong> (bitflag). Minden testnek két mezője van:</p>
+      <ul>
+        <li><strong>tagság</strong> (<code class="inl">is</code>): melyik réteg(ek) <em>ő maga</em> — <code class="inl">PLAYER</code>, <code class="inl">ENEMY</code>, <code class="inl">WALL</code>, <code class="inl">P_BULLET</code>…</li>
+        <li><strong>maszk</strong> (<code class="inl">mask</code>): mely rétegekkel <em>hajlandó</em> ütközni.</li>
+      </ul>
+      <p>Két test akkor hat egymásra, ha <strong>kölcsönösen</strong> szerepelnek egymás maszkjában — egyetlen bitművelet:</p>
+      <pre><code class="rust">/// Bitflag-rétegek: minden réteg egy bit. (Élesben a `bitflags` crate.)
+#[derive(Component, Clone, Copy)]
+struct Layers { is: u32, mask: u32 }
+
+mod layer {
+    pub const WALL:     u32 = 1 &lt;&lt; 0;
+    pub const PLAYER:   u32 = 1 &lt;&lt; 1;
+    pub const ENEMY:    u32 = 1 &lt;&lt; 2;
+    pub const P_BULLET: u32 = 1 &lt;&lt; 3;   // a játékos lövedéke
+    pub const E_BULLET: u32 = 1 &lt;&lt; 4;   // az ellenfél lövedéke
+    pub const PICKUP:   u32 = 1 &lt;&lt; 5;
+}
+
+/// Akkor ütközik, ha KÖLCSÖNÖSEN benne van a másik a maszkjában.
+fn layers_collide(a: Layers, b: Layers) -&gt; bool {
+    (a.mask &amp; b.is) != 0 &amp;&amp; (b.mask &amp; a.is) != 0
+}</code></pre>
+      <p>A bonyolult viselkedés így pár sornyi <em>adat</em> lesz, nem logika:</p>
+      <pre><code class="rust">use layer::*;
+
+// a játékost fal + ellenfél + ellenséges lövedék + pickup érdekli
+Layers { is: PLAYER,   mask: WALL | ENEMY | E_BULLET | PICKUP };
+
+// a játékos lövedéke CSAK falat és ellenfelet talál — magát és társait nem
+Layers { is: P_BULLET, mask: WALL | ENEMY };
+
+// az ellenfél: fal + játékos + a játékos lövedéke (de más ellenfélen átmegy)
+Layers { is: ENEMY,    mask: WALL | PLAYER | P_BULLET };
+
+// a fal mindenkit megállít, de maga sosem kezdeményez
+Layers { is: WALL,     mask: PLAYER | ENEMY | P_BULLET | E_BULLET };</code></pre>
+      <h3>Hova kerül a szűrő?</h3>
+      <p>A réteg-teszt a <strong>párosítás után, a drága narrow phase ELŐTT</strong> fut — ez az egyetlen kapcsoló, ami a komplex játékot is skálázza. A <a href="#broad">broad phase (12)</a> kiadja a jelölt-párokat; mindjárt az elején eldobod, ami réteg szerint nem érdekes:</p>
+      <pre><code class="rust">for (i, j) in broadphase(&amp;bodies) {
+    if !layers_collide(layer[i], layer[j]) { continue; }   // SZŰRÉS előbb
+    if narrow_overlap(i, j) {                               // csak utána a drága teszt
+        resolve_or_signal(i, j);
+    }
+}</code></pre>
+      <div class="box tip"><span class="lbl">A réteg és a szerep merőleges</span><p>Ne keverd össze: a <strong>réteg</strong> azt dönti el, <em>kik</em> hatnak egymásra; a <a href="#static">szerep (Mover / Solid)</a> és a <a href="#sensors">Sensor</a> azt, hogy <em>mi</em> történik (kitolás vagy csak jelzés). A kettő együtt: egy „tüskés zóna" lehet <code class="inl">ENEMY</code>-maszkú <strong>szenzor</strong> — érzékel, nem tol ki, és csak az ellenfeleket sebzi.</p></div>
+      <div class="box note"><span class="lbl">Motorban készen van</span><p>Ha fizikai motort használsz, ne írd újra: az <a href="https://github.com/Jondolf/avian">avian2d</a> a <code class="inl">CollisionLayers</code> (tagság + szűrő-maszk) komponenst adja, a <code class="inl">bevy_rapier2d</code> a <code class="inl">CollisionGroups</code> + <code class="inl">SolverGroups</code> párost. Pontosan ez a tagság/maszk-modell, csak becsomagolva.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: ütközési rétegek élesben</div>
+        <div class="dd">A <span style="color:var(--cyan)">játékos</span> középen, körülötte <span style="color:var(--amber)">ellenfelek</span>. A játékos <span style="color:var(--cyan)">kék lövedékei</span> kirepülnek: <strong>átmennek</strong> a játékoson és egymáson, de <strong>eltalálják</strong> az ellenfelet és a falat. Az ellenfelek <span style="color:var(--red)">piros lövedékei</span> a játékost találják, az ellenfeleken átmennek. Kapcsold be a <strong>baráti tüzet</strong> (az <code class="inl">E_BULLET</code> maszkjába kerül az <code class="inl">ENEMY</code>) — és az ellenfelek elkezdik lőni egymást. Ugyanaz a geometria, más maszk, más viselkedés.</div>
+        <canvas id="layCanvas" width="720" height="430"></canvas>
+        <div class="ctrls">
+          <button id="layFriendly">baráti tűz: ki</button>
+          <button id="layReset">&#8635; újraindít</button>
+        </div>
+        <div class="readout">
+          <div><b>Találat: kék → ellenfél</b><span id="layPhit">0</span></div>
+          <div><b>Találat: piros → játékos</b><span id="layEhit">0</span></div>
+          <div><b>Baráti találat</b><span id="layFhit">0</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section id="sensors">
+      <div class="sec-head"><span class="idx">10</span><h2>Szenzorok: detektálj, de ne blokkolj</h2></div>
+      <p>Nem minden ütközés fal. Az érme, a damage-zóna, a kapcsoló-lap, az ajtó-kioldó — ezek <strong>detektálnak, de nem tolnak ki</strong>. A játékos áthalad rajtuk; a kontaktus csak egy <em>esemény</em>, nem fizikai akadály. Ezt hívják <strong>szenzornak</strong> (vagy triggernek).</p>
+      <p>A kód örömteli: ugyanaz az átfedés-teszt, mint mindenütt — csak a válasz marad el. Nincs MTV, nincs kiszorítás; helyette egy hatás (felvétel, sebzés, kapu nyitása).</p>
+      <pre><code class="rust">/// Marker: ez a test érzékel, de nem akadály.
+#[derive(Component)] struct Sensor;
+#[derive(Resource, Default)] struct Score(u32);
+
+fn collect_pickups(
+    player: Query&lt;(&amp;Transform, &amp;Collider), With&lt;Mover&gt;&gt;,
+    coins:  Query&lt;(Entity, &amp;Transform, &amp;Collider), With&lt;Sensor&gt;&gt;,
+    mut commands: Commands,
+    mut score: ResMut&lt;Score&gt;,
+) {
+    // 0.18: a single() Result-ot ad — kezeljük le tisztán
+    let Ok((ptf, _pc)) = player.single() else { return; };
+    for (e, ctf, _cc) in &amp;coins {
+        if ptf.translation.distance(ctf.translation) &lt; 16.0 {   // egyszerű kör-teszt
+            score.0 += 1;
+            commands.entity(e).despawn();   // felvettük: eltűnik, de SOSEM tolt ki
+        }
+    }
+}</code></pre>
+      <div class="box tip"><span class="lbl">A szenzor egy harmadik szerep</span><p>A <code class="inl">Mover</code>/<code class="inl">Solid</code> mellé a <code class="inl">Sensor</code> a harmadik. A párosító rendszer a sensor-párokat a <em>narrow phase</em> után más ágra küldi: nincs kiszorítás, csak egy <a href="#events">esemény</a> (vagy azonnali observer-reakció). Egy entitás lehet egyszerre tömör és szenzor is — pl. egy tüskés akadály <em>blokkol</em> ÉS <em>sebez</em>.</p></div>
+    </section>
+
+    <!-- 11 -->
+    <section id="tiles">
+      <div class="sec-head"><span class="idx">11</span><h2>Csempe-alapú ütközés</h2></div>
+      <p>Egy top-down világ teste rendszerint nem szétszórt falak listája, hanem egy <strong>csemperács</strong> — pont az, amit a <a href="bevy-proceduralis-terkep-tutorial.html">procedurális térkép</a> és a <a href="bevy-biomok-tutorial.html">biom</a> leckében generáltunk. A rács óriási egyszerűsítést ad: nem kell minden fallal tesztelni, mert <strong>tudjuk, hol vannak</strong> — egy <code class="inl">O(1)</code> indexeléssel megnézhetők.</p>
+      <p>A kulcs: a mozgó AABB-je csak <strong>néhány cellát érint</strong>. Csak azokat teszteljük — a cella-tartományt a test min/max sarka adja —, sosem az egész térképet.</p>
+      <pre><code class="rust">const TILE: f32 = 16.0;
+
+/// Csak a mozgó AABB-je által ÉRINTETT cellákon iterálunk.
+/// Pár cella tucatnyi vagy ezernyi fal helyett.
+fn cells_touching(pos: Vec2, half: Vec2) -&gt; impl Iterator&lt;Item = IVec2&gt; {
+    let min = ((pos - half) / TILE).floor().as_ivec2();
+    let max = ((pos + half) / TILE).floor().as_ivec2();
+    (min.y..=max.y).flat_map(move |y| (min.x..=max.x).map(move |x| IVec2::new(x, y)))
+}
+
+/// Tengelyenkénti feloldás a rács ellen — ugyanaz a "move and slide" (06),
+/// csak a falak most a tömör cellák, a cella közepe (x+0.5)*TILE.
+fn move_on_grid(pos: &amp;mut Vec2, half: Vec2, vel: Vec2, dt: f32, map: &amp;TileMap) {
+    let cell_half = Vec2::splat(TILE / 2.0);
+    pos.x += vel.x * dt;                                   // X tengely
+    for c in cells_touching(*pos, half) {
+        if map.is_solid(c) {
+            let wc = (c.as_vec2() + 0.5) * TILE;
+            resolve_x(pos, half, wc, cell_half);
+        }
+    }
+    pos.y += vel.y * dt;                                   // Y tengely
+    for c in cells_touching(*pos, half) {
+        if map.is_solid(c) {
+            let wc = (c.as_vec2() + 0.5) * TILE;
+            resolve_y(pos, half, wc, cell_half);
+        }
+    }
+}</code></pre>
+      <div class="box note"><span class="lbl">Honnan a „tömör-e?" adat</span><p>A <code class="inl">map.is_solid(cell)</code> ugyanabból a forrásból olvas, amit a <a href="bevy-tile-editor-tutorial.html">tile-editor lecke</a> <code class="inl">LevelData</code>-ja megír és a render kirajzol — egyetlen igazságforrás, amiből a megjelenítés ÉS az ütközés is származik. A klikk-mozgásos, fal-kerülő mesterséges intelligenciát (A* + kör-vs-fal AABB) a <a href="bevy-pathfinding-tutorial.html">pathfinding lecke</a> építi rá ugyanerre a rácsra.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: csempe-rács ütközés + szenzorok</div>
+        <div class="dd">A korong a kurzort követi egy csempepályán. A <span style="color:var(--cyan)">halványkék</span> cellák azok, amiket a korong AABB-je épp ÉRINT — csak ezeket teszteljük, sosem az egész pályát. A falakon elcsúszik (tömör → kitolás), a <span style="color:var(--amber)">érméket</span> felszedi (szenzor → eltűnik, de sosem tol ki). A 06 és a 07 egy képben.</div>
+        <canvas id="tileCanvas" width="720" height="440"></canvas>
+        <div class="ctrls">
+          <button id="tileGen">&#8635; új pálya</button>
+          <button id="tileReset">érmék vissza</button>
+        </div>
+        <div class="readout">
+          <div><b>Tesztelt cellák</b><span id="tileCells">0</span></div>
+          <div><b>Érme</b><span id="tileCoins">0 / 0</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12 -->
+    <section id="broad">
+      <div class="sec-head"><span class="idx">12</span><h2>Broad phase: a párosítás méretezése</h2></div>
+      <p>A csemperács azért volt olyan kényelmes, mert a falak helye <em>ismert</em>. De a mozgó testek (50 ellenfél, 200 lövedék) egymással is ütközhetnek — és itt a naiv „mindenkit mindenkivel" megöli a teljesítményt. <code class="inl">N</code> testnél ez <code class="inl">N·(N−1)/2</code> párostesztelés: 200 testnél már ~20 000 keretenként, és <strong>négyzetesen</strong> romlik.</p>
+      <p>A megoldás a <strong>broad phase</strong>: egy olcsó előszűrő, ami kihajítja a nyilvánvalóan lehetetlen párokat, hogy a drága narrow phase csak a gyanús párokat lássa. A legegyszerűbb, top-downhoz tökéletes eszköz a <strong>spatial hash</strong> (térbeli hash-rács): a teret nagy cellákra osztjuk, minden testet a cellájába rakunk, és csak az <em>azonos és szomszédos</em> cellák lakóit párosítjuk.</p>
+      <pre><code class="rust">use std::collections::HashMap;
+use bevy::utils::HashMap as _;   // (a prelude-ban is van; std is jó)
+
+const CELL: f32 = 64.0;          // jóval nagyobb a testeknél: pár test / vödör
+
+fn cell_of(p: Vec2) -&gt; (i32, i32) {
+    ((p.x / CELL).floor() as i32, (p.y / CELL).floor() as i32)
+}
+
+/// Vödrökbe rakjuk a testeket, és csak a 3×3 szomszédságon belül
+/// párosítunk. N² helyett ~N·k összehasonlítás (k = a vödör-sűrűség).
+fn broadphase(bodies: &amp;[(Entity, Vec2)]) -&gt; Vec&lt;(usize, usize)&gt; {
+    let mut grid: HashMap&lt;(i32, i32), Vec&lt;usize&gt;&gt; = HashMap::new();
+    for (i, (_, p)) in bodies.iter().enumerate() {
+        grid.entry(cell_of(*p)).or_default().push(i);
+    }
+    let mut pairs = Vec::new();
+    for (i, (_, p)) in bodies.iter().enumerate() {
+        let (cx, cy) = cell_of(*p);
+        for gy in cy - 1..=cy + 1 {
+            for gx in cx - 1..=cx + 1 {
+                if let Some(bucket) = grid.get(&amp;(gx, gy)) {
+                    for &amp;j in bucket {
+                        if j &gt; i { pairs.push((i, j)); }   // j &gt; i: minden párt egyszer
+                    }
+                }
+            }
+        }
+    }
+    pairs
+}</code></pre>
+      <div class="box tip"><span class="lbl">A cellaméret a hangolható csavar</span><p>A <code class="inl">CELL</code> legyen <strong>nagyobb a legnagyobb testnél</strong> (különben egy test több cellát fed, és bonyolódik a könyvelés), de ne túl nagy (különben minden test egy vödörbe esik, és visszakaptuk az N²-et). Hüvelykujjszabály: a tipikus test 2–4-szerese. Egyenletes eloszlásnál a spatial hash veri a quadtree-t; erősen klaszteres jelenethez a quadtree/BVH lehet jobb — de top-down arcade-hoz a hash szinte mindig elég.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: broad phase — ne teszteld mindenkit mindenkivel</div>
+        <div class="dd">Sok test pattog a dobozban. A <strong>naív</strong> minden párt megnéz: N·(N−1)/2 ellenőrzés. A <strong>spatial hash</strong> rácsra oszt, és csak az azonos + szomszédos cellák lakóit párosítja — ugyanaz az eredmény, töredék munka. Told a testszámot, és figyeld, hogy szakad el a két számláló. (Az átfedő párok pirosra váltanak.)</div>
+        <canvas id="bpCanvas" width="720" height="430"></canvas>
+        <div class="ctrls">
+          <label>Testek: <input type="range" id="bpN" min="20" max="240" value="90"><span class="val" id="bpNVal">90</span></label>
+          <button id="bpNaive">aktív: naív</button>
+          <button id="bpGrid" class="on">aktív: rács</button>
+          <button id="bpGridShow" class="on">rács mutatása</button>
+        </div>
+        <div class="readout">
+          <div><b>Naív ellenőrzés / keret</b><span id="bpNaiveOut">&mdash;</span></div>
+          <div><b>Rács ellenőrzés / keret</b><span id="bpGridOut">&mdash;</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 13 -->
+    <section id="swept">
+      <div class="sec-head"><span class="idx">13</span><h2>CCD: gyors mozgás &amp; alagutazás</h2></div>
+      <p>Van egy hiba, ami csak gyors testeknél bukkan elő, és először mindig megzavar: a <strong>lövedék átmegy a falon</strong>. Nem hibás az ütközés-kód — a lövedék egyszerűen olyan messzire ugrik egy kereten belül, hogy az <em>előző</em> kockán a fal előtt volt, a <em>következőn</em> már mögötte, és a kettő közt sosem fedte át. Ez az <strong>alagutazás</strong> (tunneling), és az ellenszere a <strong>CCD</strong> (folytonos ütközés-detektálás, Continuous Collision Detection): nem pillanatképeket tesztelünk, hanem a <em>folytonos mozgáspályát</em>.</p>
+      <p>A diszkrét teszt akkor bukik, ha egy test egy kereten belül a <strong>saját méreténél többet</strong> mozdul. Innen a hüvelykujjszabály: ha <code class="inl">vel * dt</code> hossza nagyobb a test fél-méreténél, kell CCD. Három szint van, egyre pontosabb (és drágább):</p>
+      <h3>1. szint — aldarabolás (sub-stepping)</h3>
+      <p>A legbutább, mégis hatékony: ha a lépés túl nagy, bontsd több kicsire, és mindegyik után fuss le a sima diszkrét feloldás (06). Pár sor, és a legtöbb lövedéket megfogja.</p>
+      <pre><code class="rust">/// A mozgást a test méretéhez igazított allépésekre bontjuk.
+fn move_substepped(pos: &amp;mut Vec2, half: Vec2, vel: Vec2, dt: f32, walls: &amp;[(Vec2, Vec2)]) {
+    let dist     = (vel * dt).length();
+    let max_step = half.min_element() * 0.5;            // fél test-méretnyi lépések
+    let steps    = (dist / max_step).ceil().max(1.0) as u32;
+    let sub_dt   = dt / steps as f32;
+    for _ in 0..steps {
+        move_and_slide(pos, half, vel, sub_dt, walls);  // a 06-os feloldás, kicsiben
+    }
+}</code></pre>
+      <h3>2. szint — swept (söprő) teszt</h3>
+      <p>A pontos megoldás: végigsöpörjük a test útját, és megkeressük a <em>találat idejét</em> (egy <code class="inl">t</code> a 0..1 között). A trükk a <strong>Minkowski-tágítás</strong> (innen a <a href="#bounding">03-as <code class="inl">grow</code></a>): nagyítsd a falat a mozgó fél-méretével, és lődj egy <em>vékony</em> sugarat a mozgó közepéből. Ahol a sugár metszi a felnagyított falat, ott a mozgó épp érinti — a teljes test-átfedés egyetlen sugár-teszttel.</p>
+      <pre><code class="rust">use bevy::math::bounding::{Aabb2d, AabbCast2d, RayCast2d, BoundingVolume};
+use bevy::math::Dir2;
+
+// söpörj egy MOZGÓ AABB-t a fal felé, és kérdezd a találat idejét
+let Ok(dir) = Dir2::new(vel) else { return; };
+let cast = AabbCast2d::new(mover_aabb, origin, dir, max_dist);
+if let Some(t) = cast.aabb_collision_at(wall_aabb) {
+    pos = origin + *dir * t;          // a falig mozdulunk, nem át rajta
+}
+
+// ezzel ekvivalens "kézzel": a felnagyított falba lőtt vékony sugár
+let expanded = wall_aabb.grow(mover_half);                  // Minkowski-tágítás
+let ray = RayCast2d::new(origin, dir, max_dist);
+if let Some(t) = ray.aabb_intersection_at(&amp;expanded) { /* találat t-nél */ }</code></pre>
+      <h3>3. szint — spekulatív kontaktusok</h3>
+      <p>A motorok kedvence: a broad phase befoglalót kicsit kitágítjuk a mozgás irányába (<code class="inl">grow</code> a sebességgel), így a megoldó már <em>a becsapódás előtt</em> „látja" a közelgő falat, és lefékez, mielőtt áthatolna. Nincs külön swept-ág, jól illeszkedik az iteratív megoldóhoz — cserébe finomhangolást kíván.</p>
+      <div class="box note"><span class="lbl">Motorban egy kapcsoló</span><p>Ha fizikai motort viszel, a CCD egy komponens: az <a href="https://github.com/Jondolf/avian">avian2d</a>-ben a <code class="inl">SweptCcd</code>, a <code class="inl">bevy_rapier2d</code>-ben a <code class="inl">Ccd::enabled()</code>. Rakd rá a gyors testekre (lövedék, dash-elő játékos) — cserébe drágább, ezért ne tedd mindenre.</p></div>
+      <div class="box warn"><span class="lbl">Top-downban ritkán kell mindenhol</span><p>Normál karaktersebességnél a diszkrét + tengelyenkénti feloldás (06) bőven elég; CCD-t csak a tényleg gyorsakra tegyél. A legolcsóbb gyakorlat: alapból sub-stepping a lövedékeknek, és csak ha az is kevés, akkor swept.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: alagutazás — diszkrét vs. CCD</div>
+        <div class="dd">Egy lövedék ismételten nekirepül egy <strong>vékony falnak</strong>. <strong>Diszkrét</strong> módban, nagy sebességnél a lövedék <span style="color:var(--red)">átszökik</span> a falon (a két keret közt sosem fedte át). <strong>CCD</strong> (swept) módban a söprő teszt mindig elkapja, és a lövedék a falnál áll meg. Told fel a sebességet, amíg a diszkrét el nem kezd alagutazni — a CCD sosem fog.</div>
+        <canvas id="ccdCanvas" width="720" height="340"></canvas>
+        <div class="ctrls">
+          <label>Sebesség: <input type="range" id="ccdSpeed" min="200" max="4200" value="2600"><span class="val" id="ccdSpeedVal">2600</span></label>
+          <button id="ccdDisc">diszkrét</button>
+          <button id="ccdSwept" class="on">CCD (swept)</button>
+        </div>
+        <div class="readout">
+          <div><b>Lövés</b><span id="ccdShots">0</span></div>
+          <div><b>Átszökés</b><span id="ccdTunnel">0</span></div>
+          <div><b>Megállítva</b><span id="ccdStop">0</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 14 -->
+    <section id="events">
+      <div class="sec-head"><span class="idx">14</span><h2>Ütközés-jelzés: üzenet vagy observer?</h2></div>
+      <p>A detektálás megtörtént, a kiszorítás kész — de az ütközésnek <em>következménye</em> is van: hang, sebzés, részecske, pickup. A kérdés: hogyan jut el ez a jelzés a feloldó rendszertől a reagálókig? Bevy 0.18-ban <strong>két, élesen különböző</strong> eszköz van rá — és érdemes tudni, melyik mire való.</p>
+      <h3>Pufferelt jelzés → <code class="inl">Message</code></h3>
+      <p>Ha az ütközések egy keret alatt <em>gyűlnek</em>, és kötegben dolgozod fel őket (sok-a-sokhoz), a <strong>Message</strong> a kézenfekvő. (0.18-ban ez a régi <code class="inl">Event</code>/<code class="inl">EventWriter</code> új neve — részletek a <a href="bevy-uzenetek-tutorial.html">üzenetek leckében</a>.)</p>
+      <pre><code class="rust">/// Pufferelt, kötegelt jelzés — frame-ritmusú.
+#[derive(Message)]
+struct Collision { a: Entity, b: Entity, normal: Vec2 }
+
+fn resolve_collisions(/* queries */, mut hits: MessageWriter&lt;Collision&gt;) {
+    // … ütközéskor:
+    hits.write(Collision { a, b, normal });
+}
+
+fn react_to_hits(mut hits: MessageReader&lt;Collision&gt;) {
+    for c in hits.read() {
+        // hangeffekt, sebződés, részecske a c.normal mentén …
+    }
+}
+// a main()-ben:  app.add_message::&lt;Collision&gt;();</code></pre>
+      <h3>Azonnali, entitásra célzott reakció → observer</h3>
+      <p>Ha egy konkrét entitásra azonnal (még ugyanabban a parancs-folyamban) reagálni akarsz — pl. egy érme felvétele —, az <strong>observer</strong> a tisztább. (0.18: az observer első paramétere kötelezően <code class="inl">On&lt;E&gt;</code> — <em>nem</em> <code class="inl">Trigger&lt;E&gt;</code>. Bővebben az <a href="bevy-observerek-tutorial.html">observer leckében</a>.)</p>
+      <pre><code class="rust">/// Entitásra célzott esemény: az `entity` mező a célpont.
+#[derive(EntityEvent)]
+struct Picked { entity: Entity }
+
+fn setup(mut commands: Commands) {
+    commands.spawn((/* érme komponensei */,))
+        // az observer az entitáshoz tapad — vele együtt el is tűnik
+        .observe(|pick: On&lt;Picked&gt;, mut commands: Commands| {
+            commands.entity(pick.entity).despawn();   // On&lt;E&gt; deref-el az eseményre
+        });
+}
+
+// ütközéskor a feloldó rendszer csak ennyit tesz:
+//   commands.trigger(Picked { entity: coin });</code></pre>
+      <div class="box note"><span class="lbl">Melyiket mikor?</span><p><strong>Message</strong>: sok ütközés, kötegelt feldolgozás, laza csatolás (a hang-rendszernek nem kell tudnia, ki lőtt). <strong>Observer</strong>: ritka, célzott, „itt és most" reakció egy konkrét entitásra (pickup, halál, kapu). A kettő nem versengő — egy igazi játék mindkettőt használja: a fizikai ütközések üzenetként folynak, a játéklogikai triggerek observerként csattannak.</p></div>
+    </section>
+
+    <!-- 15 -->
+    <section id="bevy">
+      <div class="sec-head"><span class="idx">15</span><h2>Bevy integráció: a rendszer-sorrend</h2></div>
+      <p>A darabok megvannak; most fűzzük láncba. Az ütközésnél a <strong>sorrend nem ízlés kérdése</strong> — a feloldás minőségét dönti el. A helyes ritmus mindig ugyanaz:</p>
+      <ol>
+        <li><strong>Bemenet → szándék.</strong> A billentyűzet/AI beállítja a <code class="inl">Velocity</code>-t.</li>
+        <li><strong>Mozgás + feloldás.</strong> Integráljuk a sebességet, és <em>azonnal</em> feloldjuk az ütközést (tengelyenként). Ez egy rendszer, hogy a kettő közé semmi ne ékelődjön.</li>
+        <li><strong>Jelzés.</strong> A feloldás eredménye <code class="inl">Message</code>/observer formában megy a reagálókhoz.</li>
+        <li><strong>Reakció.</strong> Hang, sebzés, részecske — ezek már a feloldott állapotot látják.</li>
+      </ol>
+      <pre><code class="rust">#[derive(States, Default, Clone, PartialEq, Eq, Hash, Debug)]
+enum AppState { #[default] Loading, Playing }
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_message::&lt;Collision&gt;()
+        .init_state::&lt;AppState&gt;()
+        .add_systems(Update, (
+            read_input,            // 1) bemenet -&gt; Velocity
+            move_and_collide,      // 2) integrálás + tengelyenkénti feloldás
+            collect_pickups,       // 3) szenzorok (nem blokkol)
+            react_to_hits,         // 4) reakció a Collision üzenetekre
+        ).chain().run_if(in_state(AppState::Playing)))
+        .run();
+}</code></pre>
+      <div class="box warn"><span class="lbl">A mozgást és a feloldást ne válaszd szét</span><p>Csábító külön rendszerbe tenni az integrálást és a kiszorítást — de ha közéjük fut bármi, ami pozíciót olvas (kamera-követés, AI-érzékelés), az egy <em>félig feloldott</em> állapotot lát: a test még a falban van. Tartsd a kettőt egy rendszerben (vagy egy explicit <code class="inl">.chain()</code>-ben, barrier nélkül), és a kamerát mindig a feloldás <em>után</em> futtasd. A rendszer-sorrendről bővebben az <a href="bevy-idozites.html">időzítés lecke</a>.</p></div>
+    </section>
+
+    <!-- 16 -->
+    <section id="full">
+      <div class="sec-head"><span class="idx">16</span><h2>Komplett minta — összerakva</h2></div>
+      <p>Egy minimál, de teljes, futtatható top-down ütközés: WASD-del mozgó játékos egy falakból álló szobában, tengelyenkénti csúszással. Ez a csontváz — a csemperács, a broad phase és a jelzés mind erre épül rá.</p>
+      <pre><code class="rust">use bevy::prelude::*;
+
+const SPEED: f32 = 160.0;
+
+#[derive(Component)] struct Player;
+#[derive(Component)] struct Solid;
+#[derive(Component, Clone, Copy)] struct Aabb { half: Vec2 }
+#[derive(Component, Default)]      struct Velocity(Vec2);
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_systems(Startup, setup)
+        .add_systems(Update, (read_input, move_and_slide).chain())
+        .run();
+}
+
+fn setup(mut commands: Commands) {
+    commands.spawn(Camera2d);
+    // játékos
+    commands.spawn((
+        Player, Velocity::default(),
+        Aabb { half: Vec2::splat(12.0) },
+        Sprite::from_color(Color::srgb(0.34, 0.83, 0.77), Vec2::splat(24.0)),
+        Transform::from_xyz(0.0, 0.0, 1.0),
+    ));
+    // egy szoba: négy fal + egy belső pillér  (közép, fél-méret)
+    let walls = [
+        (Vec2::new(0.0,  140.0), Vec2::new(240.0, 12.0)),
+        (Vec2::new(0.0, -140.0), Vec2::new(240.0, 12.0)),
+        (Vec2::new(-228.0, 0.0), Vec2::new(12.0, 140.0)),
+        (Vec2::new( 228.0, 0.0), Vec2::new(12.0, 140.0)),
+        (Vec2::new(70.0, -30.0), Vec2::new(40.0, 40.0)),
+    ];
+    for (c, h) in walls {
+        commands.spawn((
+            Solid, Aabb { half: h },
+            Sprite::from_color(Color::srgb(0.23, 0.23, 0.32), h * 2.0),
+            Transform::from_xyz(c.x, c.y, 0.0),
+        ));
+    }
+}
+
+fn read_input(keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;, mut q: Query&lt;&amp;mut Velocity, With&lt;Player&gt;&gt;) {
+    let mut dir = Vec2::ZERO;
+    if keys.pressed(KeyCode::KeyW) { dir.y += 1.0; }
+    if keys.pressed(KeyCode::KeyS) { dir.y -= 1.0; }
+    if keys.pressed(KeyCode::KeyA) { dir.x -= 1.0; }
+    if keys.pressed(KeyCode::KeyD) { dir.x += 1.0; }
+    if let Ok(mut v) = q.single_mut() {
+        v.0 = dir.normalize_or_zero() * SPEED;     // átlósan se gyorsabb
+    }
+}
+
+fn move_and_slide(
+    time: Res&lt;Time&gt;,
+    mut movers: Query&lt;(&amp;mut Transform, &amp;Aabb, &amp;Velocity), (With&lt;Player&gt;, Without&lt;Solid&gt;)&gt;,
+    walls: Query&lt;(&amp;Transform, &amp;Aabb), With&lt;Solid&gt;&gt;,
+) {
+    let dt = time.delta_secs();
+    let Ok((mut tf, ab, vel)) = movers.single_mut() else { return; };
+    let half = ab.half;
+
+    // 1) X tengely: mozdulj, majd oldd fel minden fal ellen X-ben
+    tf.translation.x += vel.0.x * dt;
+    for (wtf, wb) in &amp;walls {
+        let (p, w) = (tf.translation.truncate(), wtf.translation.truncate());
+        if hit(p, half, w, wb.half) {
+            let overlap = (half.x + wb.half.x) - (p.x - w.x).abs();
+            tf.translation.x += if p.x &lt; w.x { -overlap } else { overlap };
+        }
+    }
+    // 2) Y tengely: ugyanez Y-ban → a csúszás ingyen jön
+    tf.translation.y += vel.0.y * dt;
+    for (wtf, wb) in &amp;walls {
+        let (p, w) = (tf.translation.truncate(), wtf.translation.truncate());
+        if hit(p, half, w, wb.half) {
+            let overlap = (half.y + wb.half.y) - (p.y - w.y).abs();
+            tf.translation.y += if p.y &lt; w.y { -overlap } else { overlap };
+        }
+    }
+}
+
+fn hit(ca: Vec2, ha: Vec2, cb: Vec2, hb: Vec2) -&gt; bool {
+    (ca.x - cb.x).abs() &lt; ha.x + hb.x &amp;&amp; (ca.y - cb.y).abs() &lt; ha.y + hb.y
+}</code></pre>
+      <div class="box warn"><span class="lbl">Skálázás</span><p>Ez a „minden mozgót minden fallal" lekérdezés egy szobához kiváló. Egy nagy pályához cseréld a falakat <strong>csemperácsra</strong> (11) — csak az érintett cellákat teszteled —, a sok mozgó testet pedig <strong>broad phase</strong>-szel (12) párosítsd. Az adatmodell (<code class="inl">Aabb</code> + tengelyenkénti feloldás) változatlan marad; csak a párkeresés okosodik.</p></div>
+    </section>
+
+    <!-- 17 -->
+    <section id="tips">
+      <div class="sec-head"><span class="idx">17</span><h2>Gyakorlati tippek &amp; buktatók</h2></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>Válaszd szét a <strong>collidert a sprite-tól</strong>. A test legyen a játékmenethez igazítva (szűk doboz a láb körül), ne a rajzhoz. Külön komponens, közép + fél-méret formában.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>Oldd fel <strong>tengelyenként</strong> (X, majd Y). Ez az egyetlen fogás, ami a fal menti csúszást ingyen adja — a top-down kontroll lelke. Ha csak egyet viszel el a leckéből, ez legyen az.</p></div>
+      <div class="box warn"><span class="lbl">Ne</span><p>Ne dobd el az egész mozgást ütközéskor („ha ütközik, ne mozdulj"). A test beragad a falba, és nem tud elcsúszni. A tengelyenkénti feloldás a javítás.</p></div>
+      <div class="box warn"><span class="lbl">Vigyázz</span><p>Két Query, ami ugyanazt a komponenst kéri (egyik <code class="inl">&amp;mut</code>) → <strong>indítási panic</strong>. Tedd diszjunkttá <code class="inl">With</code>/<code class="inl">Without</code> párral (08). E nélkül el sem indul a játék.</p></div>
+      <div class="box warn"><span class="lbl">Vigyázz</span><p>Gyors testek <strong>átalagutaznak</strong> a vékony falon. Ha bármi gyorsabb a saját méreténél keretenként (lövedék), kell swept teszt vagy sub-stepping (13).</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>Méretezd a párosítást: csemperács a statikus világhoz (11), spatial hash a mozgó tömeghez (12). A naiv N² 100+ testnél már fáj.</p></div>
+      <div class="box note"><span class="lbl">Mikor nyúlj fizikai motorhoz?</span><p>Maradj a kézzel írt AABB-nél, ha a mozgás <strong>arcade</strong> — azonnali gyorsulás/megállás, fal menti csúszás, nulla nem kívánt lendület (a legtöbb top-down: zelda-szerű, twin-stick, roguelike). Nyúlj <a href="https://github.com/Jondolf/avian">avian2d</a>-hez vagy <code class="inl">bevy_rapier2d</code>-hez, ha valódi merevtest-fizika kell: halmozódó/lökődő dobozok, ízületek, rugók, realisztikus pattogás, vagy ha egyszerűen nem akarsz magad bajlódni a broad/narrow phase-szel. A két világ keverhető: kézi karaktermozgás + motor a környezeti tárgyakhoz.</p></div>
+    </section>
+
+    <!-- 18 -->
+    <section id="tldr">
+      <div class="sec-head"><span class="idx">18</span><h2>TL;DR</h2></div>
+      <div class="tldr">
+        <h3>A lényeg egy kártyán</h3>
+        <ul>
+          <li><strong>Két feladat:</strong> detektálás (átfed-e? — geometria) és válasz (mit teszünk vele? — tervezői döntés). Ne mosd össze.</li>
+          <li><strong>Collider ≠ sprite:</strong> külön komponens, közép + fél-méret; a játékmenethez igazítva, nem a rajzhoz.</li>
+          <li><strong>Három teszt visz el mindent:</strong> AABB×AABB (<code class="inl">abs() &lt;= h+h</code> tengelyenként), kör×kör (négyzetes táv), kör×AABB (legközelebbi pont <code class="inl">clamp</code>-pal).</li>
+          <li><strong>Bevy beépítve:</strong> <code class="inl">bevy::math::bounding</code> — <code class="inl">Aabb2d</code>, <code class="inl">BoundingCircle</code>, <code class="inl">.intersects()</code>. De ez csak <em>bool</em>; az MTV-t magad számolod.</li>
+          <li><strong>Bounding-eszköztár:</strong> <code class="inl">Bounded2d</code> forgatott alak befoglalóját adja (a kör stabil, az AABB lélegzik); <code class="inl">merge</code> → broad phase, <code class="inl">grow</code> → CCD.</li>
+          <li><strong>Raycast:</strong> „mit talál el a sugár <em>először</em>?" — hitscan, látótávolság (LoS), kurzor-pick. <code class="inl">RayCast2d::aabb_intersection_at</code>; vastag sugár = <code class="inl">AabbCast2d</code>.</li>
+          <li><strong>Kiszorítás (MTV):</strong> a kisebb átfedés tengelye mentén told ki a dinamikus testet; a fal marad.</li>
+          <li><strong>★ Csúszás:</strong> mozgasd és oldd fel az X-et és az Y-t KÜLÖN. A fal menti csúszás így ingyen jön — ez a top-down kontroll lelke.</li>
+          <li><strong>Átlós:</strong> normalizáld az irányt (átlósan se légy gyorsabb); a per-tengely a saroknál is stabilabb, mint az egyszeri min-MTV; sarok-átszökés ellen „no corner cutting".</li>
+          <li><strong>Statikus vs dinamikus:</strong> csak a mozgót told; statikus–statikust sose teszteld; a Query-ket tedd diszjunktté (<code class="inl">With</code>/<code class="inl">Without</code>), különben panic.</li>
+          <li><strong>Ütközési rétegek:</strong> tagság + maszk bitflag; <code class="inl">(a.mask &amp; b.is) != 0 &amp;&amp; (b.mask &amp; a.is) != 0</code>; szűrj a narrow phase ELŐTT. A réteg = <em>kik</em>; a szerep = <em>mi történik</em>.</li>
+          <li><strong>Szenzor:</strong> detektálj, de ne blokkolj (érme, zóna). Ugyanaz a teszt, elmaradó válasz.</li>
+          <li><strong>Csemperács:</strong> csak a mozgó AABB-je által érintett cellákat teszteld, tengelyenkénti feloldással.</li>
+          <li><strong>Broad phase:</strong> N² helyett spatial hash — csak az azonos + szomszédos cellák lakóit párosítsd.</li>
+          <li><strong>CCD (gyors mozgás):</strong> ha a lépés &gt; a test mérete, alagutazik. Megoldás növekvő sorrendben: sub-stepping → swept (<code class="inl">AabbCast2d</code> / Minkowski-<code class="inl">grow</code> + sugár) → spekulatív kontaktus; motorban <code class="inl">SweptCcd</code> / <code class="inl">Ccd</code>.</li>
+          <li><strong>Jelzés:</strong> kötegelt → <code class="inl">Message</code> (<code class="inl">MessageWriter/Reader</code>); azonnali, célzott → observer (<code class="inl">On&lt;E&gt;</code>, <code class="inl">commands.trigger</code>).</li>
+          <li><strong>Sorrend:</strong> bemenet → mozgás+feloldás (együtt!) → jelzés → reakció; a kamera a feloldás UTÁN.</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer>
+      Bevy 0.18 · 2D ütközések top-down játékhoz: detektálás, válasz, csúszás · egyetlen fájlos HTML · készült offline használatra
+    </footer>
+  </main>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- Rust + TOML szintaxiskiemelő ---------- */
+function highlightRust(src){
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  var token = /(\/\/[^\n]*)|("(?:[^"\\]|\\.)*")|(\b(?:fn|let|mut|for|in|if|else|match|struct|enum|impl|trait|pub|use|mod|return|self|Self|as|where|move|loop|while|break|continue|const|static|ref|dyn|crate|true|false)\b)|(\b[A-Z][A-Za-z0-9_]*\b)|(\b[a-z_][A-Za-z0-9_]*!)|(\b\d[\d_]*\.?\d*(?:f32|f64|u32|i32|u8|usize)?\b)/g;
+  var out="", last=0, m;
+  while((m=token.exec(src))!==null){
+    out += esc(src.slice(last, m.index));
+    var text = esc(m[0]);
+    if(m[1]) out += '<span class="c">'+text+'</span>';
+    else if(m[2]) out += '<span class="s">'+text+'</span>';
+    else if(m[3]) out += '<span class="k">'+text+'</span>';
+    else if(m[4]) out += '<span class="t">'+text+'</span>';
+    else if(m[5]) out += '<span class="m">'+text+'</span>';
+    else if(m[6]) out += '<span class="n">'+text+'</span>';
+    last = token.lastIndex;
+  }
+  out += esc(src.slice(last));
+  return out;
+}
+function highlightToml(src){
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  return esc(src)
+    .replace(/(#[^\n]*)/g,'<span class="c">$1</span>')
+    .replace(/(&quot;[^&]*&quot;|"[^"]*")/g,'<span class="s">$1</span>')
+    .replace(/^(\s*)([A-Za-z0-9_\-]+)(\s*=)/gm,'$1<span class="t">$2</span>$3')
+    .replace(/(\[[^\]]+\])/g,'<span class="m">$1</span>');
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+  document.querySelectorAll("pre code.rust").forEach(function(el){
+    el.innerHTML = highlightRust(el.textContent);
+  });
+  document.querySelectorAll("pre code.toml").forEach(function(el){
+    el.innerHTML = highlightToml(el.textContent);
+  });
+
+  /* scrollspy */
+  var links = Array.prototype.slice.call(document.querySelectorAll("#nav a"));
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute("href").slice(1)] = a; });
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){
+        links.forEach(function(a){ a.classList.remove("active"); });
+        var act = map[e.target.id];
+        if(act) act.classList.add("active");
+      }
+    });
+  }, { rootMargin: "-20% 0px -70% 0px" });
+  document.querySelectorAll("section").forEach(function(s){ obs.observe(s); });
+
+  /* mobil menü */
+  var btn = document.getElementById("menuBtn");
+  var sb = document.getElementById("sidebar");
+  if(btn){
+    btn.addEventListener("click", function(){ sb.classList.toggle("open"); });
+    document.querySelectorAll("#nav a").forEach(function(a){
+      a.addEventListener("click", function(){ sb.classList.remove("open"); });
+    });
+  }
+
+  initHitDemo();
+  initBoundingDemo();
+  initRaycastDemo();
+  initMtvDemo();
+  initSlideDemo();
+  initCornerDemo();
+  initLayerDemo();
+  initTileDemo();
+  initBroadDemo();
+  initCcdDemo();
+});
+
+/* ===================== közös segédek ===================== */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function pal(){
+  var css = getComputedStyle(document.documentElement);
+  function c(n,f){ return css.getPropertyValue(n).trim() || f; }
+  return { bg:c("--code-bg","#14141f"), muted:c("--muted","#8b8b9e"),
+           pink:c("--pink","#ec6a9c"), cyan:c("--cyan","#56d4c4"),
+           amber:c("--amber","#f2c14e"), green:c("--green","#8ce99a"),
+           red:c("--red","#ff6b6b"), violet:c("--violet","#a78bfa"), ink:c("--ink","#e3e3ec") };
+}
+function pointerPos(cv, e){
+  var r = cv.getBoundingClientRect();
+  var t = (e.touches && e.touches[0]) ? e.touches[0] : e;
+  return { x:(t.clientX - r.left) * (cv.width / r.width),
+           y:(t.clientY - r.top)  * (cv.height / r.height) };
+}
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function reducedMotion(){ try{ return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; } }
+
+/* ===================== DEMÓ 1: átfedés-tesztek ===================== */
+function initHitDemo(){
+  var cv=document.getElementById("hitCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d"), P=pal();
+  var A={x:300,y:190,hx:72,hy:50};
+  var B={x:480,y:200,hx:54,hy:42,r:52,kind:'box'};
+  var kindEl=document.getElementById("hitKind"), stateEl=document.getElementById("hitState");
+  var boxB=document.getElementById("hitBox"), circB=document.getElementById("hitCircle");
+  var drag=null;
+
+  function aabbHit(a,b){ return Math.abs(a.x-b.x)<=a.hx+b.hx && Math.abs(a.y-b.y)<=a.hy+b.hy; }
+  function closest(c,box){ return { x:clamp(c.x,box.x-box.hx,box.x+box.hx), y:clamp(c.y,box.y-box.hy,box.y+box.hy) }; }
+  function test(){
+    if(B.kind==='box') return aabbHit(A,B);
+    var cl=closest(B,A), dx=B.x-cl.x, dy=B.y-cl.y; return dx*dx+dy*dy<=B.r*B.r;
+  }
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    var hit=test();
+    ctx.fillStyle = hit?'rgba(236,106,156,.28)':'rgba(86,212,196,.16)';
+    ctx.fillRect(A.x-A.hx,A.y-A.hy,A.hx*2,A.hy*2);
+    ctx.strokeStyle=hit?P.pink:P.cyan; ctx.lineWidth=2; ctx.strokeRect(A.x-A.hx,A.y-A.hy,A.hx*2,A.hy*2);
+    ctx.fillStyle = hit?'rgba(236,106,156,.28)':'rgba(242,193,78,.16)';
+    ctx.strokeStyle=hit?P.pink:P.amber; ctx.lineWidth=2;
+    if(B.kind==='box'){
+      ctx.fillRect(B.x-B.hx,B.y-B.hy,B.hx*2,B.hy*2);
+      ctx.strokeRect(B.x-B.hx,B.y-B.hy,B.hx*2,B.hy*2);
+    } else {
+      ctx.beginPath(); ctx.arc(B.x,B.y,B.r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      var cl=closest(B,A);
+      ctx.setLineDash([5,4]); ctx.strokeStyle=P.muted; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(B.x,B.y); ctx.lineTo(cl.x,cl.y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle=hit?P.pink:P.amber; ctx.beginPath(); ctx.arc(cl.x,cl.y,4,0,Math.PI*2); ctx.fill();
+    }
+    kindEl.textContent = B.kind==='box'?'AABB × AABB':'kör × AABB';
+    stateEl.textContent = hit?'ÁTFEDÉS':'nincs';
+    stateEl.style.color = hit?P.pink:P.muted;
+  }
+  function inA(p){ return Math.abs(p.x-A.x)<=A.hx && Math.abs(p.y-A.y)<=A.hy; }
+  function inB(p){ if(B.kind==='box') return Math.abs(p.x-B.x)<=B.hx && Math.abs(p.y-B.y)<=B.hy;
+                   var dx=p.x-B.x,dy=p.y-B.y; return dx*dx+dy*dy<=B.r*B.r; }
+  function down(e){ var p=pointerPos(cv,e); if(inB(p)) drag='B'; else if(inA(p)) drag='A'; if(drag) e.preventDefault(); }
+  function move(e){ if(!drag) return; var p=pointerPos(cv,e); var o=(drag==='A')?A:B;
+    o.x=clamp(p.x,0,cv.width); o.y=clamp(p.y,0,cv.height); draw(); e.preventDefault(); }
+  function up(){ drag=null; }
+  cv.addEventListener('mousedown',down); window.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
+  cv.addEventListener('touchstart',down,{passive:false}); window.addEventListener('touchmove',move,{passive:false}); window.addEventListener('touchend',up);
+  boxB.addEventListener('click',function(){ B.kind='box'; boxB.classList.add('on'); circB.classList.remove('on'); draw(); });
+  circB.addEventListener('click',function(){ B.kind='circle'; circB.classList.add('on'); boxB.classList.remove('on'); draw(); });
+  draw();
+}
+
+/* ===================== DEMÓ 2: kiszorítás (MTV) ===================== */
+function initMtvDemo(){
+  var cv=document.getElementById("mtvCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d"), P=pal();
+  var W={x:380,y:200,hx:92,hy:62};
+  var M={x:200,y:120,hx:46,hy:34};
+  var oxEl=document.getElementById("mtvOx"), oyEl=document.getElementById("mtvOy"), axEl=document.getElementById("mtvAxis");
+  var drag=false;
+
+  function mtv(){
+    var dx=W.x-M.x, dy=W.y-M.y;
+    var ox=(M.hx+W.hx)-Math.abs(dx), oy=(M.hy+W.hy)-Math.abs(dy);
+    if(ox<=0||oy<=0) return {ox:Math.max(0,ox),oy:Math.max(0,oy),push:null};
+    var push = (ox<oy) ? {x:(dx>0?-ox:ox),y:0} : {x:0,y:(dy>0?-oy:oy)};
+    return {ox:ox,oy:oy,push:push};
+  }
+  function arrow(x0,y0,x1,y1,col){
+    if(Math.abs(x1-x0)<0.5 && Math.abs(y1-y0)<0.5) return;
+    ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke();
+    var a=Math.atan2(y1-y0,x1-x0);
+    ctx.beginPath(); ctx.moveTo(x1,y1);
+    ctx.lineTo(x1-10*Math.cos(a-0.4),y1-10*Math.sin(a-0.4));
+    ctx.lineTo(x1-10*Math.cos(a+0.4),y1-10*Math.sin(a+0.4));
+    ctx.closePath(); ctx.fill();
+  }
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    var r=mtv(), over=(r.push!==null);
+    ctx.fillStyle='#23232f'; ctx.fillRect(W.x-W.hx,W.y-W.hy,W.hx*2,W.hy*2);
+    ctx.strokeStyle='#3a3a52'; ctx.lineWidth=2; ctx.strokeRect(W.x-W.hx,W.y-W.hy,W.hx*2,W.hy*2);
+    ctx.font="600 11px 'JetBrains Mono', monospace"; ctx.fillStyle=P.muted;
+    ctx.textAlign="center"; ctx.fillText("FAL (statikus)", W.x, W.y);
+    if(over){
+      ctx.fillStyle='rgba(255,107,107,.16)'; ctx.strokeStyle=P.red; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
+      ctx.fillRect(M.x-M.hx,M.y-M.hy,M.hx*2,M.hy*2); ctx.strokeRect(M.x-M.hx,M.y-M.hy,M.hx*2,M.hy*2); ctx.setLineDash([]);
+    }
+    var rx=M.x+(r.push?r.push.x:0), ry=M.y+(r.push?r.push.y:0);
+    ctx.fillStyle='rgba(86,212,196,.22)'; ctx.strokeStyle=P.cyan; ctx.lineWidth=2;
+    ctx.fillRect(rx-M.hx,ry-M.hy,M.hx*2,M.hy*2); ctx.strokeRect(rx-M.hx,ry-M.hy,M.hx*2,M.hy*2);
+    if(over) arrow(M.x,M.y,rx,ry,P.amber);
+    oxEl.textContent = r.ox>0?r.ox.toFixed(0)+' px':'0';
+    oyEl.textContent = r.oy>0?r.oy.toFixed(0)+' px':'0';
+    axEl.textContent = !over?'—':(r.push.x!==0?'X tengely':'Y tengely');
+    axEl.style.color = over?P.amber:P.muted;
+  }
+  function down(e){ var p=pointerPos(cv,e); if(Math.abs(p.x-M.x)<=M.hx && Math.abs(p.y-M.y)<=M.hy){ drag=true; e.preventDefault(); } }
+  function move(e){ if(!drag) return; var p=pointerPos(cv,e); M.x=clamp(p.x,0,cv.width); M.y=clamp(p.y,0,cv.height); draw(); e.preventDefault(); }
+  function up(){ drag=false; }
+  cv.addEventListener('mousedown',down); window.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
+  cv.addEventListener('touchstart',down,{passive:false}); window.addEventListener('touchmove',move,{passive:false}); window.addEventListener('touchend',up);
+  draw();
+}
+
+/* ===================== DEMÓ 3: csúszás vs blokk ===================== */
+function initSlideDemo(){
+  var cv=document.getElementById("slideCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d"), P=pal();
+  var W=cv.width, H=cv.height;
+  var mode='slide';
+  var modeEl=document.getElementById("slideMode"), spdEl=document.getElementById("slideSpeed");
+  var slideB=document.getElementById("slideSlide"), blockB=document.getElementById("slideBlock");
+  var R=15, SPEED=320;
+  var m={x:W*0.3, y:H*0.5};
+  var target={x:m.x, y:m.y};
+  // falak: keret + két pillér  (közép + fél-méret)
+  var walls=[
+    {x:W/2, y:14,    hx:W/2, hy:14},
+    {x:W/2, y:H-14,  hx:W/2, hy:14},
+    {x:14,  y:H/2,   hx:14,  hy:H/2},
+    {x:W-14,y:H/2,   hx:14,  hy:H/2},
+    {x:W*0.46, y:H*0.5, hx:70, hy:18},
+    {x:W*0.74, y:H*0.34, hx:18, hy:64}
+  ];
+  function hit(px,py){ for(var i=0;i<walls.length;i++){ var w=walls[i];
+    if(Math.abs(px-w.x)<=R+w.hx && Math.abs(py-w.y)<=R+w.hy) return true; } return false; }
+  function resolveX(){ for(var i=0;i<walls.length;i++){ var w=walls[i];
+    if(Math.abs(m.x-w.x)<=R+w.hx && Math.abs(m.y-w.y)<=R+w.hy){
+      var ov=(R+w.hx)-Math.abs(m.x-w.x); m.x += (m.x<w.x?-ov:ov); } } }
+  function resolveY(){ for(var i=0;i<walls.length;i++){ var w=walls[i];
+    if(Math.abs(m.x-w.x)<=R+w.hx && Math.abs(m.y-w.y)<=R+w.hy){
+      var ov=(R+w.hy)-Math.abs(m.y-w.y); m.y += (m.y<w.y?-ov:ov); } } }
+
+  var last=0, lastSpeed=0;
+  function step(dt){
+    var dx=target.x-m.x, dy=target.y-m.y, dist=Math.hypot(dx,dy);
+    var stepLen=Math.min(dist, SPEED*dt);
+    var vx = dist>0.001 ? dx/dist*stepLen : 0;
+    var vy = dist>0.001 ? dy/dist*stepLen : 0;
+    lastSpeed = dt>0 ? Math.round(Math.hypot(vx,vy)/dt) : 0;
+    if(mode==='slide'){
+      m.x += vx; resolveX();
+      m.y += vy; resolveY();
+    } else {
+      var ox=m.x, oy=m.y;
+      m.x += vx; m.y += vy;
+      if(hit(m.x,m.y)){ m.x=ox; m.y=oy; lastSpeed=0; }   // blokk: teljes mozgás eldobva
+    }
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    for(var i=0;i<walls.length;i++){ var w=walls[i];
+      ctx.fillStyle='#23232f'; ctx.fillRect(w.x-w.hx,w.y-w.hy,w.hx*2,w.hy*2);
+      ctx.strokeStyle='#3a3a52'; ctx.lineWidth=2; ctx.strokeRect(w.x-w.hx,w.y-w.hy,w.hx*2,w.hy*2);
+    }
+    // cél + vonal
+    ctx.setLineDash([4,4]); ctx.strokeStyle='rgba(139,139,158,.5)'; ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.moveTo(m.x,m.y); ctx.lineTo(target.x,target.y); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle=P.muted; ctx.beginPath(); ctx.arc(target.x,target.y,3,0,Math.PI*2); ctx.fill();
+    // korong
+    var stuck = (mode==='block' && lastSpeed===0 && Math.hypot(target.x-m.x,target.y-m.y)>R+4);
+    ctx.fillStyle = stuck?P.red:P.cyan;
+    ctx.beginPath(); ctx.arc(m.x,m.y,R,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(10,10,18,.6)'; ctx.lineWidth=2; ctx.stroke();
+    spdEl.textContent = lastSpeed; spdEl.style.color = stuck?P.red:P.cyan;
+  }
+  function frame(ts){
+    var dt=last?Math.min(0.05,(ts-last)/1000):0; last=ts;
+    step(dt); draw();
+    requestAnimationFrame(frame);
+  }
+  function moveT(e){ var p=pointerPos(cv,e); target.x=clamp(p.x,0,W); target.y=clamp(p.y,0,H); if(e.touches) e.preventDefault(); }
+  cv.addEventListener('mousemove',moveT);
+  cv.addEventListener('touchstart',moveT,{passive:false}); cv.addEventListener('touchmove',moveT,{passive:false});
+  function setMode(x){ mode=x; slideB.classList.toggle('on',x==='slide'); blockB.classList.toggle('on',x==='block');
+    modeEl.textContent = x==='slide'?'csúszás':'blokk'; }
+  slideB.addEventListener('click',function(){ setMode('slide'); });
+  blockB.addEventListener('click',function(){ setMode('block'); });
+  draw();
+  requestAnimationFrame(frame);
+}
+
+/* ===================== DEMÓ 4: csempe-rács + szenzorok ===================== */
+function initTileDemo(){
+  var cv=document.getElementById("tileCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d"), P=pal();
+  var GW=24, GH=16, cw=cv.width/GW, ch=cv.height/GH;
+  var R=Math.min(cw,ch)*0.36;
+  var solid=[], coins=[], seed=7, m={x:0,y:0}, target={x:0,y:0};
+  var testedSet={}, testedCount=0, gotCoins=0;
+  var cellsEl=document.getElementById("tileCells"), coinsEl=document.getElementById("tileCoins");
+  var genB=document.getElementById("tileGen"), resetB=document.getElementById("tileReset");
+
+  function idx(x,y){ return y*GW+x; }
+  function isSolid(x,y){ if(x<0||y<0||x>=GW||y>=GH) return true; return solid[idx(x,y)]; }
+  function build(){
+    var rng=mulberry32(seed);
+    solid=new Array(GW*GH);
+    for(var y=0;y<GH;y++) for(var x=0;x<GW;x++){
+      var border=(x===0||y===0||x===GW-1||y===GH-1);
+      solid[idx(x,y)] = border ? true : (rng()<0.16);
+    }
+    // spawn-régió szabad (bal-közép)
+    var sx=3, sy=(GH>>1);
+    for(var dy=-1;dy<=1;dy++) for(var dx=-1;dx<=1;dx++){ var cx=sx+dx, cy=sy+dy;
+      if(cx>0&&cy>0&&cx<GW-1&&cy<GH-1) solid[idx(cx,cy)]=false; }
+    m.x=(sx+0.5)*cw; m.y=(sy+0.5)*ch; target.x=m.x; target.y=m.y;
+    placeCoins();
+  }
+  function placeCoins(){
+    var rng=mulberry32(seed*977+13);
+    coins=[]; var tries=0;
+    while(coins.length<12 && tries<400){ tries++;
+      var x=1+((rng()*(GW-2))|0), y=1+((rng()*(GH-2))|0);
+      if(!isSolid(x,y) && !(Math.abs(x-3)<=1 && Math.abs(y-(GH>>1))<=1)){
+        var dup=false; for(var i=0;i<coins.length;i++){ if(coins[i].x===x&&coins[i].y===y){dup=true;break;} }
+        if(!dup) coins.push({x:x,y:y,got:false});
+      }
+    }
+    gotCoins=0;
+  }
+  function resolveAxis(axis){
+    var minx=Math.floor((m.x-R)/cw), maxx=Math.floor((m.x+R)/cw);
+    var miny=Math.floor((m.y-R)/ch), maxy=Math.floor((m.y+R)/ch);
+    for(var y=miny;y<=maxy;y++) for(var x=minx;x<=maxx;x++){
+      testedSet[x+'|'+y]=1;
+      if(!isSolid(x,y)) continue;
+      var wx=(x+0.5)*cw, wy=(y+0.5)*ch, whx=cw/2, why=ch/2;
+      if(Math.abs(m.x-wx)<=R+whx && Math.abs(m.y-wy)<=R+why){
+        if(axis==='x'){ var ox=(R+whx)-Math.abs(m.x-wx); m.x += (m.x<wx?-ox:ox); }
+        else          { var oy=(R+why)-Math.abs(m.y-wy); m.y += (m.y<wy?-oy:oy); }
+      }
+    }
+  }
+  var last=0, SPEED=260;
+  function step(dt){
+    testedSet={};
+    var dx=target.x-m.x, dy=target.y-m.y, dist=Math.hypot(dx,dy);
+    var stepLen=Math.min(dist, SPEED*dt);
+    var vx=dist>0.001?dx/dist*stepLen:0, vy=dist>0.001?dy/dist*stepLen:0;
+    m.x+=vx; resolveAxis('x');
+    m.y+=vy; resolveAxis('y');
+    testedCount=0; for(var k in testedSet){ if(testedSet.hasOwnProperty(k)) testedCount++; }
+    // érme-szenzor: átfedés → felvétel, nincs kiszorítás
+    for(var i=0;i<coins.length;i++){ var c=coins[i]; if(c.got) continue;
+      var cx=(c.x+0.5)*cw, cy=(c.y+0.5)*ch;
+      if(Math.hypot(m.x-cx,m.y-cy) < R+Math.min(cw,ch)*0.28){ c.got=true; gotCoins++; }
+    }
+  }
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    for(var y=0;y<GH;y++) for(var x=0;x<GW;x++){
+      if(isSolid(x,y)){ ctx.fillStyle='#26263a'; ctx.fillRect(x*cw,y*ch,cw,ch);
+        ctx.fillStyle='#30304a'; ctx.fillRect(x*cw+1,y*ch+1,cw-2,2); }
+      else { ctx.fillStyle='#16161f'; ctx.fillRect(x*cw,y*ch,cw,ch); }
+    }
+    // tesztelt cellák kiemelése
+    for(var k in testedSet){ if(!testedSet.hasOwnProperty(k)) continue;
+      var pp=k.split('|'), tx=+pp[0], ty=+pp[1];
+      ctx.fillStyle='rgba(86,212,196,.22)'; ctx.fillRect(tx*cw,ty*ch,cw,ch);
+      ctx.strokeStyle='rgba(86,212,196,.6)'; ctx.lineWidth=1; ctx.strokeRect(tx*cw+0.5,ty*ch+0.5,cw-1,ch-1);
+    }
+    // érmék
+    for(var i=0;i<coins.length;i++){ var c=coins[i]; if(c.got) continue;
+      var ex=(c.x+0.5)*cw, ey=(c.y+0.5)*ch;
+      ctx.fillStyle=P.amber; ctx.beginPath(); ctx.arc(ex,ey,Math.min(cw,ch)*0.26,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(10,10,18,.55)'; ctx.lineWidth=1.5; ctx.stroke();
+    }
+    // korong
+    ctx.fillStyle=P.cyan; ctx.beginPath(); ctx.arc(m.x,m.y,R,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(10,10,18,.6)'; ctx.lineWidth=2; ctx.stroke();
+    cellsEl.textContent=testedCount;
+    coinsEl.textContent=gotCoins+' / '+coins.length;
+  }
+  function frame(ts){
+    var dt=last?Math.min(0.05,(ts-last)/1000):0; last=ts;
+    step(dt); draw();
+    requestAnimationFrame(frame);
+  }
+  function moveT(e){ var p=pointerPos(cv,e); target.x=clamp(p.x,0,cv.width); target.y=clamp(p.y,0,cv.height); if(e.touches) e.preventDefault(); }
+  cv.addEventListener('mousemove',moveT);
+  cv.addEventListener('touchstart',moveT,{passive:false}); cv.addEventListener('touchmove',moveT,{passive:false});
+  genB.addEventListener('click',function(){ seed++; build(); });
+  resetB.addEventListener('click',function(){ placeCoins(); });
+  build(); draw();
+  requestAnimationFrame(frame);
+}
+
+/* ===================== DEMÓ 5: broad phase ===================== */
+function initBroadDemo(){
+  var cv=document.getElementById("bpCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d"), P=pal();
+  var W=cv.width, H=cv.height, CELL=70;
+  var active='grid', showGrid=true, N=90, bodies=[];
+  var nS=document.getElementById("bpN"), nV=document.getElementById("bpNVal");
+  var naiveB=document.getElementById("bpNaive"), gridB=document.getElementById("bpGrid"), gridShowB=document.getElementById("bpGridShow");
+  var naiveOut=document.getElementById("bpNaiveOut"), gridOut=document.getElementById("bpGridOut");
+  var still=reducedMotion();
+
+  function rebuild(){
+    var rng=mulberry32(99+N);
+    bodies=[];
+    for(var i=0;i<N;i++){
+      var ang=rng()*Math.PI*2, sp=40+rng()*70;
+      bodies.push({ x:30+rng()*(W-60), y:30+rng()*(H-60),
+                    vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp, r:6+rng()*4 });
+    }
+  }
+  function integrate(dt){
+    for(var i=0;i<bodies.length;i++){ var b=bodies[i];
+      b.x+=b.vx*dt; b.y+=b.vy*dt;
+      if(b.x<b.r){b.x=b.r;b.vx=Math.abs(b.vx);} if(b.x>W-b.r){b.x=W-b.r;b.vx=-Math.abs(b.vx);}
+      if(b.y<b.r){b.y=b.r;b.vy=Math.abs(b.vy);} if(b.y>H-b.r){b.y=H-b.r;b.vy=-Math.abs(b.vy);}
+    }
+  }
+  function naivePairs(){ var pairs=[]; for(var i=0;i<bodies.length;i++) for(var j=i+1;j<bodies.length;j++) pairs.push([i,j]); return pairs; }
+  function gridPairs(){
+    var buckets={};
+    for(var i=0;i<bodies.length;i++){ var b=bodies[i];
+      var k=Math.floor(b.x/CELL)+'|'+Math.floor(b.y/CELL); (buckets[k]||(buckets[k]=[])).push(i); }
+    var pairs=[];
+    for(var i2=0;i2<bodies.length;i2++){ var b2=bodies[i2];
+      var cx=Math.floor(b2.x/CELL), cy=Math.floor(b2.y/CELL);
+      for(var gy=cy-1;gy<=cy+1;gy++) for(var gx=cx-1;gx<=cx+1;gx++){
+        var arr=buckets[gx+'|'+gy]; if(!arr) continue;
+        for(var t=0;t<arr.length;t++){ var j=arr[t]; if(j>i2) pairs.push([i2,j]); }
+      }
+    }
+    return pairs;
+  }
+  function overlapping(pairs){
+    var hot={};
+    for(var p=0;p<pairs.length;p++){ var i=pairs[p][0], j=pairs[p][1], a=bodies[i], b=bodies[j];
+      var rr=a.r+b.r; if((a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y) <= rr*rr){ hot[i]=1; hot[j]=1; } }
+    return hot;
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    if(showGrid){
+      ctx.strokeStyle='rgba(86,212,196,.12)'; ctx.lineWidth=1;
+      for(var gx=CELL;gx<W;gx+=CELL){ ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,H); ctx.stroke(); }
+      for(var gy=CELL;gy<H;gy+=CELL){ ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(W,gy); ctx.stroke(); }
+    }
+    var naiveCount=bodies.length*(bodies.length-1)/2;
+    var gp=gridPairs();
+    var activePairs = (active==='naive') ? naivePairs() : gp;
+    var hot=overlapping(activePairs);
+    for(var i=0;i<bodies.length;i++){ var b=bodies[i];
+      ctx.fillStyle = hot[i]?P.pink:'rgba(86,212,196,.85)';
+      ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill();
+    }
+    naiveOut.textContent=naiveCount.toLocaleString('hu');
+    gridOut.textContent=gp.length.toLocaleString('hu');
+    naiveOut.style.color = active==='naive'?P.pink:P.muted;
+    gridOut.style.color  = active==='grid'?P.cyan:P.muted;
+  }
+  var last=0;
+  function frame(ts){
+    var dt=last?Math.min(0.05,(ts-last)/1000):0; last=ts;
+    if(!still) integrate(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+  nS.addEventListener('input',function(){ N=parseInt(nS.value,10); nV.textContent=N; rebuild(); draw(); });
+  naiveB.addEventListener('click',function(){ active='naive'; naiveB.classList.add('on'); gridB.classList.remove('on'); draw(); });
+  gridB.addEventListener('click',function(){ active='grid'; gridB.classList.add('on'); naiveB.classList.remove('on'); draw(); });
+  gridShowB.addEventListener('click',function(){ showGrid=!showGrid; gridShowB.classList.toggle('on',showGrid); draw(); });
+  nV.textContent=N; rebuild(); draw();
+  requestAnimationFrame(frame);
+}
+
+/* ===================== DEMÓ 6: bounding volumok ===================== */
+function initBoundingDemo(){
+  var cv=document.getElementById("bvCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d"), P=pal();
+  var aS=document.getElementById("bvAngle"), aV=document.getElementById("bvAngleVal");
+  var gS=document.getElementById("bvGrow"), gV=document.getElementById("bvGrowVal");
+  var mB=document.getElementById("bvMerge");
+  var sizeEl=document.getElementById("bvSize"), radEl=document.getElementById("bvRad");
+  var cx=cv.width*0.38, cy=cv.height*0.5, hw=92, hh=34;
+  var cx2=cv.width*0.74, cy2=cv.height*0.40, hs2=46;
+  var mergeOn=false;
+
+  function corners(ang){
+    var c=Math.cos(ang), s=Math.sin(ang), p=[[-hw,-hh],[hw,-hh],[hw,hh],[-hw,hh]], out=[];
+    for(var i=0;i<4;i++){ out.push({x:cx+p[i][0]*c-p[i][1]*s, y:cy+p[i][0]*s+p[i][1]*c}); }
+    return out;
+  }
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    var ang=parseInt(aS.value,10)*Math.PI/180, grow=parseInt(gS.value,10);
+    var pts=corners(ang);
+    // bounding kör (forgástól független)
+    var rad=Math.hypot(hw,hh)+grow;
+    ctx.strokeStyle=P.amber; ctx.lineWidth=1.5; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.arc(cx,cy,rad,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+    // AABB (lélegzik), grow-val tágítva
+    var minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
+    for(var i=0;i<4;i++){ minx=Math.min(minx,pts[i].x); miny=Math.min(miny,pts[i].y); maxx=Math.max(maxx,pts[i].x); maxy=Math.max(maxy,pts[i].y); }
+    var ax=minx-grow, ay=miny-grow, aw=(maxx-minx)+2*grow, ah=(maxy-miny)+2*grow;
+    ctx.strokeStyle=P.cyan; ctx.lineWidth=2; ctx.setLineDash([7,5]);
+    ctx.strokeRect(ax,ay,aw,ah); ctx.setLineDash([]);
+    // a forgatott téglalap
+    ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y);
+    for(var i=1;i<4;i++) ctx.lineTo(pts[i].x,pts[i].y); ctx.closePath();
+    ctx.fillStyle='rgba(86,212,196,.18)'; ctx.fill();
+    ctx.strokeStyle=P.cyan; ctx.lineWidth=2; ctx.stroke();
+    if(mergeOn){
+      ctx.fillStyle='rgba(242,193,78,.14)'; ctx.fillRect(cx2-hs2,cy2-hs2,hs2*2,hs2*2);
+      ctx.strokeStyle=P.amber; ctx.lineWidth=2; ctx.strokeRect(cx2-hs2,cy2-hs2,hs2*2,hs2*2);
+      var mnx=Math.min(ax,cx2-hs2), mny=Math.min(ay,cy2-hs2), mxx=Math.max(ax+aw,cx2+hs2), mxy=Math.max(ay+ah,cy2+hs2);
+      ctx.strokeStyle=P.pink; ctx.lineWidth=2.5; ctx.strokeRect(mnx,mny,mxx-mnx,mxy-mny);
+      ctx.fillStyle=P.pink; ctx.font="600 12px 'JetBrains Mono', monospace"; ctx.textAlign="left";
+      ctx.fillText("merge", mnx+5, mny+15);
+    }
+    aV.textContent=aS.value+'°'; gV.textContent=grow;
+    sizeEl.textContent=Math.round(aw)+'×'+Math.round(ah)+' px';
+    radEl.textContent=Math.round(rad*2)+' px';
+  }
+  aS.addEventListener('input',draw); gS.addEventListener('input',draw);
+  mB.addEventListener('click',function(){ mergeOn=!mergeOn; mB.classList.toggle('on',mergeOn); draw(); });
+  draw();
+}
+
+/* ===================== DEMÓ 7: raycast & látótávolság ===================== */
+function initRaycastDemo(){
+  var cv=document.getElementById("rayCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d"), P=pal();
+  var fanB=document.getElementById("rayFan"), genB=document.getElementById("rayGen");
+  var losEl=document.getElementById("rayLos"), distEl=document.getElementById("rayDist");
+  var W=cv.width, H=cv.height;
+  var guard={x:56, y:H*0.5}, target={x:W*0.72, y:H*0.4};
+  var walls=[], seed=3, fan=false;
+
+  function build(){
+    var rng=mulberry32(seed); walls=[];
+    for(var i=0;i<5;i++){
+      var w=46+rng()*90, h=40+rng()*120;
+      var x=170+rng()*(W-310-w), y=26+rng()*(H-h-52);
+      walls.push({minx:x,miny:y,maxx:x+w,maxy:y+h});
+    }
+  }
+  function rayRect(ox,oy,dx,dy,r){
+    var tmin=0, tmax=1e9, t1,t2,tmp;
+    if(Math.abs(dx)<1e-9){ if(ox<r.minx||ox>r.maxx) return null; }
+    else { t1=(r.minx-ox)/dx; t2=(r.maxx-ox)/dx; if(t1>t2){tmp=t1;t1=t2;t2=tmp;} tmin=Math.max(tmin,t1); tmax=Math.min(tmax,t2); if(tmin>tmax) return null; }
+    if(Math.abs(dy)<1e-9){ if(oy<r.miny||oy>r.maxy) return null; }
+    else { t1=(r.miny-oy)/dy; t2=(r.maxy-oy)/dy; if(t1>t2){tmp=t1;t1=t2;t2=tmp;} tmin=Math.max(tmin,t1); tmax=Math.min(tmax,t2); if(tmin>tmax) return null; }
+    if(tmax<0) return null;
+    return tmin>=0?tmin:null;
+  }
+  function cast(ox,oy,dx,dy,maxd){
+    var best=maxd;
+    for(var i=0;i<walls.length;i++){ var t=rayRect(ox,oy,dx,dy,walls[i]); if(t!==null && t<best) best=t; }
+    return best;
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    for(var i=0;i<walls.length;i++){ var r=walls[i];
+      ctx.fillStyle='#23232f'; ctx.fillRect(r.minx,r.miny,r.maxx-r.minx,r.maxy-r.miny);
+      ctx.strokeStyle='#3a3a52'; ctx.lineWidth=2; ctx.strokeRect(r.minx,r.miny,r.maxx-r.minx,r.maxy-r.miny);
+    }
+    if(fan){
+      var base=Math.atan2(target.y-guard.y, target.x-guard.x), n=64, spread=0.6, maxd=950;
+      ctx.fillStyle='rgba(242,193,78,.10)'; ctx.beginPath(); ctx.moveTo(guard.x,guard.y);
+      for(var k=0;k<=n;k++){ var a=base-spread+(2*spread)*(k/n), dx=Math.cos(a), dy=Math.sin(a), d=cast(guard.x,guard.y,dx,dy,maxd);
+        ctx.lineTo(guard.x+dx*d, guard.y+dy*d); }
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='rgba(242,193,78,.4)'; ctx.lineWidth=1; ctx.stroke();
+      losEl.textContent='legyező · '+(n+1)+' sugár'; losEl.style.color=P.amber; distEl.textContent='—';
+    } else {
+      var dx=target.x-guard.x, dy=target.y-guard.y, dist=Math.hypot(dx,dy)||1;
+      var ux=dx/dist, uy=dy/dist, hit=cast(guard.x,guard.y,ux,uy,dist), blocked=hit<dist-0.5;
+      var ex=guard.x+ux*hit, ey=guard.y+uy*hit;
+      ctx.strokeStyle=blocked?P.red:P.green; ctx.lineWidth=2.5;
+      ctx.beginPath(); ctx.moveTo(guard.x,guard.y); ctx.lineTo(ex,ey); ctx.stroke();
+      if(blocked){ ctx.fillStyle=P.red; ctx.beginPath(); ctx.arc(ex,ey,5,0,Math.PI*2); ctx.fill(); }
+      ctx.fillStyle=blocked?P.red:P.green; ctx.beginPath(); ctx.arc(target.x,target.y,9,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(10,10,18,.6)'; ctx.lineWidth=2; ctx.stroke();
+      losEl.textContent=blocked?'TAKARÁSBAN':'LÁTHATÓ'; losEl.style.color=blocked?P.red:P.green;
+      distEl.textContent=Math.round(hit)+' px';
+    }
+    ctx.fillStyle=P.amber; ctx.beginPath(); ctx.arc(guard.x,guard.y,11,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(10,10,18,.6)'; ctx.lineWidth=2; ctx.stroke();
+  }
+  function moveT(e){ var p=pointerPos(cv,e); target.x=clamp(p.x,0,W); target.y=clamp(p.y,0,H); draw(); if(e.touches) e.preventDefault(); }
+  cv.addEventListener('mousemove',moveT);
+  cv.addEventListener('touchstart',moveT,{passive:false}); cv.addEventListener('touchmove',moveT,{passive:false});
+  fanB.addEventListener('click',function(){ fan=!fan; fanB.classList.toggle('on',fan); draw(); });
+  genB.addEventListener('click',function(){ seed++; build(); draw(); });
+  build(); draw();
+}
+
+/* ===================== DEMÓ 8: sarok — per-tengely vs min-MTV ===================== */
+function initCornerDemo(){
+  var cv=document.getElementById("cornCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d"), P=pal();
+  var W=cv.width, H=cv.height, R=15, SPEED=300;
+  var mode='axis';
+  var modeEl=document.getElementById("cornMode"), pushEl=document.getElementById("cornPush");
+  var axisB=document.getElementById("cornAxis"), mtvB=document.getElementById("cornMtv");
+  var m={x:W*0.24,y:H*0.30}, target={x:m.x,y:m.y}, pushAxis='—';
+  var walls=[
+    {x:W/2,y:14,hx:W/2,hy:14},{x:W/2,y:H-14,hx:W/2,hy:14},
+    {x:14,y:H/2,hx:14,hy:H/2},{x:W-14,y:H/2,hx:14,hy:H/2},
+    {x:W*0.56,y:H*0.64,hx:150,hy:20},
+    {x:W*0.70,y:H*0.46,hx:20,hy:130}
+  ];
+  function hitW(px,py,w){ return Math.abs(px-w.x)<=R+w.hx && Math.abs(py-w.y)<=R+w.hy; }
+  function resX(){ for(var i=0;i<walls.length;i++){ var w=walls[i]; if(hitW(m.x,m.y,w)){ var ov=(R+w.hx)-Math.abs(m.x-w.x); m.x+=(m.x<w.x?-ov:ov); } } }
+  function resY(){ for(var i=0;i<walls.length;i++){ var w=walls[i]; if(hitW(m.x,m.y,w)){ var ov=(R+w.hy)-Math.abs(m.y-w.y); m.y+=(m.y<w.y?-ov:ov); } } }
+  function resMtv(){
+    var best=null, bestPen=0;
+    for(var i=0;i<walls.length;i++){ var w=walls[i];
+      var ox=(R+w.hx)-Math.abs(m.x-w.x), oy=(R+w.hy)-Math.abs(m.y-w.y);
+      if(ox>0&&oy>0){ var pen=Math.min(ox,oy); if(pen>bestPen){ bestPen=pen; best={w:w,ox:ox,oy:oy}; } } }
+    if(!best){ pushAxis='—'; return; }
+    if(best.ox<best.oy){ m.x+=(m.x<best.w.x?-best.ox:best.ox); pushAxis='X'; }
+    else { m.y+=(m.y<best.w.y?-best.oy:best.oy); pushAxis='Y'; }
+  }
+  var last=0;
+  function step(dt){
+    var dx=target.x-m.x, dy=target.y-m.y, dist=Math.hypot(dx,dy), s=Math.min(dist,SPEED*dt);
+    var vx=dist>0.001?dx/dist*s:0, vy=dist>0.001?dy/dist*s:0;
+    if(mode==='axis'){ m.x+=vx; resX(); m.y+=vy; resY(); pushAxis='per-tengely'; }
+    else { m.x+=vx; m.y+=vy; resMtv(); }
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    for(var i=0;i<walls.length;i++){ var w=walls[i];
+      ctx.fillStyle='#23232f'; ctx.fillRect(w.x-w.hx,w.y-w.hy,w.hx*2,w.hy*2);
+      ctx.strokeStyle='#3a3a52'; ctx.lineWidth=2; ctx.strokeRect(w.x-w.hx,w.y-w.hy,w.hx*2,w.hy*2); }
+    ctx.setLineDash([4,4]); ctx.strokeStyle='rgba(139,139,158,.5)'; ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.moveTo(m.x,m.y); ctx.lineTo(target.x,target.y); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle=P.muted; ctx.beginPath(); ctx.arc(target.x,target.y,3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=(mode==='mtv')?P.amber:P.cyan;
+    ctx.beginPath(); ctx.arc(m.x,m.y,R,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(10,10,18,.6)'; ctx.lineWidth=2; ctx.stroke();
+    pushEl.textContent=pushAxis; pushEl.style.color=(pushAxis==='X'||pushAxis==='Y')?P.amber:P.cyan;
+  }
+  function frame(ts){ var dt=last?Math.min(0.05,(ts-last)/1000):0; last=ts; step(dt); draw(); requestAnimationFrame(frame); }
+  function moveT(e){ var p=pointerPos(cv,e); target.x=clamp(p.x,0,W); target.y=clamp(p.y,0,H); if(e.touches) e.preventDefault(); }
+  cv.addEventListener('mousemove',moveT);
+  cv.addEventListener('touchstart',moveT,{passive:false}); cv.addEventListener('touchmove',moveT,{passive:false});
+  function setMode(x){ mode=x; axisB.classList.toggle('on',x==='axis'); mtvB.classList.toggle('on',x==='mtv'); modeEl.textContent=(x==='axis')?'per-tengely':'min-MTV'; }
+  axisB.addEventListener('click',function(){ setMode('axis'); });
+  mtvB.addEventListener('click',function(){ setMode('mtv'); });
+  draw(); requestAnimationFrame(frame);
+}
+
+/* ===================== DEMÓ 9: ütközési rétegek ===================== */
+function initLayerDemo(){
+  var cv=document.getElementById("layCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d"), P=pal();
+  var W=cv.width, H=cv.height, pad=16;
+  var friBtn=document.getElementById("layFriendly"), resetBtn=document.getElementById("layReset");
+  var phitEl=document.getElementById("layPhit"), ehitEl=document.getElementById("layEhit"), fhitEl=document.getElementById("layFhit");
+  var player, enemies, pB, eB, phit, ehit, fhit, friendly=false, t, fireAng, rng;
+  function reset(){
+    rng=mulberry32(424242);
+    player={x:W/2,y:H/2,r:14,flash:0};
+    enemies=[];
+    for(var i=0;i<5;i++){ var a=rng()*6.28, sp=28+rng()*38;
+      enemies.push({x:pad+50+rng()*(W-2*pad-100), y:pad+40+rng()*(H-2*pad-80), vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, r:12, flash:0, fire:20+((rng()*50)|0)}); }
+    pB=[]; eB=[]; phit=0; ehit=0; fhit=0; t=0; fireAng=0;
+  }
+  function inArena(x,y,r){ return x>pad+r && x<W-pad-r && y>pad+r && y<H-pad-r; }
+  function step(dt){
+    t++;
+    for(var i=0;i<enemies.length;i++){ var e=enemies[i];
+      e.x+=e.vx*dt; e.y+=e.vy*dt;
+      if(e.x<pad+e.r||e.x>W-pad-e.r){ e.vx=-e.vx; e.x=clamp(e.x,pad+e.r,W-pad-e.r); }
+      if(e.y<pad+e.r||e.y>H-pad-e.r){ e.vy=-e.vy; e.y=clamp(e.y,pad+e.r,H-pad-e.r); }
+      if(e.flash>0) e.flash-=dt;
+      e.fire--; if(e.fire<=0){ e.fire=70+((rng()*45)|0);
+        var dx=player.x-e.x, dy=player.y-e.y, d=Math.hypot(dx,dy)||1;
+        if(eB.length<70) eB.push({x:e.x,y:e.y,vx:dx/d*230,vy:dy/d*230,r:4}); } }
+    if(player.flash>0) player.flash-=dt;
+    if(t%9===0){ fireAng+=0.7; if(pB.length<90) pB.push({x:player.x,y:player.y,vx:Math.cos(fireAng)*300,vy:Math.sin(fireAng)*300,r:4}); }
+    for(var i=pB.length-1;i>=0;i--){ var b=pB[i]; b.x+=b.vx*dt; b.y+=b.vy*dt;
+      if(!inArena(b.x,b.y,b.r)){ pB.splice(i,1); continue; }
+      var hit=false;
+      for(var j=0;j<enemies.length;j++){ var e=enemies[j];
+        if((b.x-e.x)*(b.x-e.x)+(b.y-e.y)*(b.y-e.y) < (b.r+e.r)*(b.r+e.r)){ e.flash=0.22; phit++; hit=true; break; } }
+      if(hit) pB.splice(i,1);
+    }
+    for(var i=eB.length-1;i>=0;i--){ var b=eB[i]; b.x+=b.vx*dt; b.y+=b.vy*dt;
+      if(!inArena(b.x,b.y,b.r)){ eB.splice(i,1); continue; }
+      if((b.x-player.x)*(b.x-player.x)+(b.y-player.y)*(b.y-player.y) < (b.r+player.r)*(b.r+player.r)){ player.flash=0.22; ehit++; eB.splice(i,1); continue; }
+      if(friendly){ var fh=false;
+        for(var j=0;j<enemies.length;j++){ var e=enemies[j];
+          if((b.x-e.x)*(b.x-e.x)+(b.y-e.y)*(b.y-e.y) < (b.r+e.r)*(b.r+e.r)){ e.flash=0.22; fhit++; fh=true; break; } }
+        if(fh) eB.splice(i,1); }
+    }
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#1c1c28'; ctx.fillRect(0,0,W,pad); ctx.fillRect(0,H-pad,W,pad); ctx.fillRect(0,0,pad,H); ctx.fillRect(W-pad,0,pad,H);
+    ctx.strokeStyle='#3a3a52'; ctx.lineWidth=2; ctx.strokeRect(pad,pad,W-2*pad,H-2*pad);
+    for(var i=0;i<enemies.length;i++){ var e=enemies[i];
+      ctx.fillStyle=e.flash>0?'#ffffff':P.amber; ctx.beginPath(); ctx.arc(e.x,e.y,e.r,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(10,10,18,.6)'; ctx.lineWidth=2; ctx.stroke(); }
+    for(var i=0;i<pB.length;i++){ ctx.fillStyle=P.cyan; ctx.beginPath(); ctx.arc(pB[i].x,pB[i].y,pB[i].r,0,Math.PI*2); ctx.fill(); }
+    for(var i=0;i<eB.length;i++){ ctx.fillStyle=P.red; ctx.beginPath(); ctx.arc(eB[i].x,eB[i].y,eB[i].r,0,Math.PI*2); ctx.fill(); }
+    ctx.fillStyle=player.flash>0?'#ffffff':P.cyan; ctx.beginPath(); ctx.arc(player.x,player.y,player.r,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(10,10,18,.7)'; ctx.lineWidth=2.5; ctx.stroke();
+    phitEl.textContent=phit; ehitEl.textContent=ehit; fhitEl.textContent=fhit;
+    fhitEl.style.color=friendly?P.amber:P.muted;
+  }
+  var last=0;
+  function frame(ts){ var dt=last?Math.min(0.05,(ts-last)/1000):0; last=ts; step(dt); draw(); requestAnimationFrame(frame); }
+  friBtn.addEventListener('click',function(){ friendly=!friendly; friBtn.classList.toggle('on',friendly); friBtn.textContent='baráti tűz: '+(friendly?'be':'ki'); });
+  resetBtn.addEventListener('click',reset);
+  reset(); draw(); requestAnimationFrame(frame);
+}
+
+/* ===================== DEMÓ 10: CCD — diszkrét vs swept ===================== */
+function initCcdDemo(){
+  var cv=document.getElementById("ccdCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d"), P=pal();
+  var W=cv.width, H=cv.height;
+  var spS=document.getElementById("ccdSpeed"), spV=document.getElementById("ccdSpeedVal");
+  var discB=document.getElementById("ccdDisc"), sweptB=document.getElementById("ccdSwept");
+  var shotsEl=document.getElementById("ccdShots"), tunEl=document.getElementById("ccdTunnel"), stopEl=document.getElementById("ccdStop");
+  var mode='swept', wall={x:W*0.62,hx:4,hy:120}, R=7;
+  var launchX=26, rng=mulberry32(1234);
+  var proj={x:launchX,y:H/2,state:'fly',cool:0,col:P.cyan};
+  var shots=0, tun=0, stop=0;
+  // változó induló fázis: nagy sebességnél a diszkrét hol elkapja, hol átugorja a falat
+  function shoot(){ proj.x=launchX+rng()*32; proj.state='fly'; proj.col=P.cyan; shots++; }
+  function step(dt){
+    var speed=parseInt(spS.value,10);
+    if(proj.state!=='fly'){ proj.cool-=dt; if(proj.cool<=0) shoot(); return; }
+    var nx=proj.x+speed*dt, left=wall.x-wall.hx-R, right=wall.x+wall.hx+R;
+    if(mode==='swept'){
+      if(proj.x<=left && nx>=left){ proj.x=left; proj.state='stopped'; proj.col=P.green; stop++; proj.cool=0.45; }
+      else proj.x=nx;
+    } else {
+      proj.x=nx;
+      if(Math.abs(proj.x-wall.x)<=R+wall.hx){ proj.x=left; proj.state='stopped'; proj.col=P.green; stop++; proj.cool=0.45; }
+      else if(proj.x>right){ proj.state='tunnel'; proj.col=P.red; tun++; proj.cool=0.5; }
+    }
+    if(proj.x>W+30 && proj.state==='fly'){ proj.state='tunnel'; proj.col=P.red; proj.cool=0.2; }
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#2a2a3c'; ctx.fillRect(wall.x-wall.hx,H/2-wall.hy,wall.hx*2,wall.hy*2);
+    ctx.strokeStyle='#44445e'; ctx.lineWidth=1.5; ctx.strokeRect(wall.x-wall.hx,H/2-wall.hy,wall.hx*2,wall.hy*2);
+    ctx.fillStyle=P.muted; ctx.font="600 11px 'JetBrains Mono', monospace"; ctx.textAlign="center";
+    ctx.fillText("vékony fal", wall.x, H/2-wall.hy-8);
+    ctx.fillStyle='rgba(139,139,158,.4)'; ctx.fillRect(launchX-4,H/2-20,4,40);
+    ctx.strokeStyle='rgba(86,212,196,.3)'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(launchX,H/2); ctx.lineTo(proj.x,H/2); ctx.stroke();
+    ctx.fillStyle=proj.col; ctx.beginPath(); ctx.arc(proj.x,proj.y,R,0,Math.PI*2); ctx.fill();
+    shotsEl.textContent=shots; tunEl.textContent=tun; stopEl.textContent=stop;
+    tunEl.style.color=tun>0?P.red:P.muted; stopEl.style.color=stop>0?P.green:P.muted;
+    spV.textContent=spS.value;
+  }
+  var last=0;
+  function frame(ts){ var dt=last?Math.min(0.05,(ts-last)/1000):0; last=ts; step(dt); draw(); requestAnimationFrame(frame); }
+  spS.addEventListener('input',function(){ spV.textContent=spS.value; });
+  discB.addEventListener('click',function(){ mode='disc'; discB.classList.add('on'); sweptB.classList.remove('on'); });
+  sweptB.addEventListener('click',function(){ mode='swept'; sweptB.classList.add('on'); discB.classList.remove('on'); });
+  spV.textContent=spS.value; shoot(); draw(); requestAnimationFrame(frame);
+}
+</script>
+</body>
+</html>
