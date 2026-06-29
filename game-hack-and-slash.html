@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hack and Slash — A műfaj alapszabályai</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:        #110b12;
+    --bg-2:      #1b131c;
+    --panel:     #1d151f;
+    --panel-2:   #251a27;
+    --border:    #34233a;
+    --border-2:  #452c4c;
+    --text:      #ddd6df;
+    --muted:     #948c9b;
+    --faint:     #5f5566;
+    --blade:     #e94560;   /* kardvörös / sebzés */
+    --ember:     #f4b942;   /* arany / loot */
+    --steel:     #6fb3e8;   /* info / combo */
+    --toxic:     #6dd47e;   /* zöld / gyógyítás */
+    --void:      #b072d6;   /* mágia / crit */
+    --shadow:    #08050a;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+
+  body{
+    font-family:'IBM Plex Sans',sans-serif;
+    background-color:var(--bg);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(255,255,255,.045) 1px, transparent 0);
+    background-size:22px 22px;
+    color:var(--text);
+    line-height:1.7;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ====== LAYOUT ====== */
+  .wrap{
+    display:grid;
+    grid-template-columns:288px 1fr;
+    gap:0;
+    max-width:1280px;
+    margin:0 auto;
+    align-items:start;
+  }
+
+  /* ====== SIDEBAR ====== */
+  .sidebar{
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+    padding:34px 22px 60px 28px;
+    border-right:2px solid var(--border);
+    background:linear-gradient(180deg,var(--bg-2),var(--bg));
+  }
+  .sidebar::-webkit-scrollbar{width:8px}
+  .sidebar::-webkit-scrollbar-thumb{background:var(--border-2)}
+
+  .brand{
+    font-family:'Pixelify Sans',sans-serif;
+    font-size:26px;
+    line-height:1.1;
+    color:var(--blade);
+    letter-spacing:.5px;
+    margin-bottom:4px;
+    text-shadow:2px 2px 0 var(--shadow);
+  }
+  .brand .glyph{color:var(--text)}
+  .brand-sub{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--faint);
+    text-transform:uppercase;
+    letter-spacing:2px;
+    margin-bottom:26px;
+  }
+
+  .nav-label{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:2px;
+    color:var(--faint);
+    margin:22px 0 8px;
+  }
+  nav a{
+    display:block;
+    color:var(--muted);
+    text-decoration:none;
+    font-size:13.5px;
+    padding:6px 10px 6px 14px;
+    border-left:2px solid transparent;
+    transition:all .12s ease;
+  }
+  nav a:hover{color:var(--text);background:var(--panel)}
+  nav a.active{
+    color:var(--blade);
+    border-left-color:var(--blade);
+    background:var(--panel);
+  }
+  nav a .num{
+    font-family:'JetBrains Mono',monospace;
+    color:var(--faint);
+    font-size:11px;
+    margin-right:8px;
+  }
+  nav a.active .num{color:var(--blade)}
+
+  /* ====== MAIN ====== */
+  main{
+    padding:54px 64px 120px;
+    min-width:0;
+  }
+
+  header.hero{
+    border:2px solid var(--border);
+    background:
+      linear-gradient(135deg,var(--panel) 0%,var(--bg-2) 100%);
+    padding:44px 40px;
+    margin-bottom:54px;
+    box-shadow:8px 8px 0 var(--shadow);
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::before{
+    content:"⚔";
+    position:absolute;
+    right:-10px;top:-30px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:220px;
+    color:rgba(233,69,96,.07);
+    line-height:1;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--ember);
+    margin-bottom:16px;
+  }
+  h1{
+    font-family:'Pixelify Sans',sans-serif;
+    font-size:clamp(38px,6vw,64px);
+    line-height:1.02;
+    color:var(--text);
+    letter-spacing:.5px;
+    text-shadow:3px 3px 0 var(--shadow);
+    margin-bottom:18px;
+  }
+  h1 .hl{color:var(--blade)}
+  .lede{
+    font-size:18px;
+    color:var(--muted);
+    max-width:62ch;
+  }
+
+  section{margin-bottom:58px;scroll-margin-top:30px}
+
+  h2{
+    font-family:'Pixelify Sans',sans-serif;
+    font-size:32px;
+    color:var(--blade);
+    margin-bottom:18px;
+    padding-bottom:10px;
+    border-bottom:2px solid var(--border);
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+  }
+  h2 .sec-num{
+    font-family:'JetBrains Mono',monospace;
+    font-size:15px;
+    color:var(--faint);
+    background:var(--panel);
+    border:1px solid var(--border);
+    padding:2px 9px;
+  }
+  h3{
+    font-family:'Pixelify Sans',sans-serif;
+    font-size:22px;
+    color:var(--ember);
+    margin:30px 0 12px;
+  }
+  h4{
+    font-family:'IBM Plex Sans',sans-serif;
+    font-weight:600;
+    font-size:16px;
+    color:var(--text);
+    margin:22px 0 8px;
+  }
+
+  p{margin-bottom:14px;color:var(--text)}
+  p.muted{color:var(--muted)}
+
+  strong{color:var(--text);font-weight:600}
+  em{color:var(--ember);font-style:normal}
+
+  a.inline{color:var(--steel);text-decoration:none;border-bottom:1px dashed var(--faint)}
+  a.inline:hover{border-bottom-style:solid}
+
+  ul,ol{margin:0 0 16px 0;padding-left:26px}
+  li{margin-bottom:7px}
+  li::marker{color:var(--blade)}
+  ul.dash{list-style:none;padding-left:0}
+  ul.dash li{position:relative;padding-left:24px}
+  ul.dash li::before{
+    content:"›";
+    position:absolute;left:4px;
+    color:var(--blade);
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700;
+  }
+
+  code{
+    font-family:'JetBrains Mono',monospace;
+    font-size:.88em;
+    background:var(--panel-2);
+    color:var(--ember);
+    padding:1px 6px;
+    border:1px solid var(--border);
+  }
+
+  pre{
+    font-family:'JetBrains Mono',monospace;
+    background:var(--bg-2);
+    border:2px solid var(--border);
+    border-left:4px solid var(--blade);
+    padding:18px 20px;
+    overflow-x:auto;
+    font-size:13.5px;
+    line-height:1.6;
+    margin:18px 0;
+    box-shadow:5px 5px 0 var(--shadow);
+  }
+  pre code{background:none;border:none;color:var(--text);padding:0}
+  .c-kw{color:var(--void)}
+  .c-fn{color:var(--ember)}
+  .c-ty{color:var(--steel)}
+  .c-cm{color:var(--faint);font-style:italic}
+  .c-st{color:#c2a86b}
+  .c-nm{color:var(--toxic)}
+
+  /* callout boxes */
+  .box{
+    border:2px solid var(--border);
+    background:var(--panel);
+    padding:18px 22px;
+    margin:20px 0;
+    box-shadow:5px 5px 0 var(--shadow);
+  }
+  .box .box-title{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    margin-bottom:8px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .box.tip{border-left:4px solid var(--toxic)}
+  .box.tip .box-title{color:var(--toxic)}
+  .box.warn{border-left:4px solid var(--blade)}
+  .box.warn .box-title{color:var(--blade)}
+  .box.note{border-left:4px solid var(--steel)}
+  .box.note .box-title{color:var(--steel)}
+  .box p:last-child{margin-bottom:0}
+
+  /* definition pills */
+  .pill{
+    display:inline-block;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    background:var(--panel-2);
+    border:1px solid var(--border-2);
+    color:var(--ember);
+    padding:2px 8px;
+    margin:0 4px 4px 0;
+  }
+
+  /* tables */
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin:18px 0;
+    font-size:14.5px;
+    box-shadow:5px 5px 0 var(--shadow);
+  }
+  th,td{
+    border:1px solid var(--border);
+    padding:10px 14px;
+    text-align:left;
+    vertical-align:top;
+  }
+  th{
+    background:var(--panel-2);
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:var(--blade);
+  }
+  td{background:var(--panel)}
+  tr:nth-child(even) td{background:var(--bg-2)}
+
+  /* factor grid */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}
+  .card{
+    border:2px solid var(--border);
+    background:var(--panel);
+    padding:16px 18px;
+  }
+  .card h4{margin-top:0;color:var(--blade)}
+  .card.lo h4{color:var(--muted)}
+
+  /* checklist */
+  .check{list-style:none;padding-left:0}
+  .check li{
+    position:relative;padding-left:34px;margin-bottom:11px;
+    border-bottom:1px dotted var(--border);padding-bottom:11px;
+  }
+  .check li::before{
+    content:"[ ]";
+    position:absolute;left:0;top:0;
+    font-family:'JetBrains Mono',monospace;
+    color:var(--blade);font-weight:700;
+  }
+
+  hr{border:none;border-top:2px dashed var(--border);margin:40px 0}
+
+  footer{
+    border-top:2px solid var(--border);
+    margin-top:60px;
+    padding-top:24px;
+    color:var(--faint);
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+  }
+
+  /* mobile */
+  .menu-btn{display:none}
+  @media(max-width:920px){
+    .wrap{grid-template-columns:1fr}
+    .sidebar{
+      position:fixed;top:0;left:0;width:280px;z-index:50;
+      transform:translateX(-100%);transition:transform .2s ease;
+    }
+    .sidebar.open{transform:translateX(0)}
+    main{padding:30px 22px 90px}
+    .menu-btn{
+      display:flex;align-items:center;gap:8px;
+      position:fixed;top:14px;right:14px;z-index:60;
+      font-family:'JetBrains Mono',monospace;font-size:12px;
+      background:var(--panel);color:var(--blade);
+      border:2px solid var(--border);padding:8px 12px;cursor:pointer;
+      box-shadow:3px 3px 0 var(--shadow);
+    }
+    header.hero{padding:30px 22px}
+    .grid2{grid-template-columns:1fr}
+    h2{font-size:26px}
+  }
+  @media(prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    *{transition:none!important}
+  }
+</style>
+</head>
+<body>
+
+<!-- olvasási haladásjelző (progress bar) -->
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,var(--blade),var(--ember));
+  box-shadow:0 0 10px rgba(233,69,96,.55);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-btn" id="menuBtn">☰ MENÜ</button>
+
+<div class="wrap">
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><span class="glyph">⚔</span> Hack &amp; Slash</div>
+    <div class="brand-sub">design&nbsp;·&nbsp;alapszabályok</div>
+    <div class="nav-label">Tartalom</div>
+    <nav id="nav">
+      <a href="#mi-az"><span class="num">00</span>Mi az a hack and slash?</a>
+      <a href="#eredet"><span class="num">01</span>Eredet &amp; etimológia</a>
+      <a href="#definico"><span class="num">02</span>A műfaj határai</a>
+      <a href="#rokon"><span class="num">03</span>Rokon műfajok</a>
+      <a href="#mechanikak"><span class="num">04</span>Alapmechanikák</a>
+      <a href="#loop"><span class="num">05</span>A harci hurok anatómiája</a>
+      <a href="#combo"><span class="num">06</span>Combo &amp; input</a>
+      <a href="#ellenseg"><span class="num">07</span>Ellenség-design &amp; waves</a>
+      <a href="#palya"><span class="num">08</span>Pálya &amp; progresszió</a>
+      <a href="#build"><span class="num">09</span>Karakter &amp; build</a>
+      <a href="#juice"><span class="num">10</span>Game feel / juice</a>
+      <a href="#kamera"><span class="num">11</span>Kamera &amp; vizualitás</a>
+      <a href="#egyensuly"><span class="num">12</span>Egyensúly &amp; nehézség</a>
+      <a href="#elvek"><span class="num">13</span>Tervezési alapelvek</a>
+      <a href="#bevy"><span class="num">14</span>Implementáció (Bevy/ECS)</a>
+      <a href="#checklist"><span class="num">15</span>Checklista</a>
+    </nav>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main>
+    <header class="hero">
+      <div class="eyebrow">Műfaji leírás · fejlesztői referencia</div>
+      <h1>A <span class="hl">hack and slash</span> műfaj alapszabályai</h1>
+      <p class="lede">Mi pontosan egy hack and slash, mitől az, és hogyan kell felépíteni egyet — a műfaj kanonikus definíciójától a harci hurokig, a combo-rendszereken át az ECS-implementációig. Ez a dokumentum „szerződésnek” készült: olyan szabályhalmaznak, amit egy játék fejlesztése közben követni lehet.</p>
+    </header>
+
+    <!-- 00 -->
+    <section id="mi-az">
+      <h2><span class="sec-num">00</span>Mi az a hack and slash?</h2>
+      <p>A <strong>hack and slash</strong> (rövidítve gyakran <em>hack'n'slash</em>, H&amp;S) egy olyan akció-orientált játékműfaj, amelyben a játékos közvetlen, valós idejű közelharcot folytat nagy számú ellenféllel, és a <strong>folyamatos, ütemezett támadássorozat</strong> (<em>combat loop</em>) jelenti a játékmenet magját. A hangsúly a mozgáson, az ütközés-alapú vagy combo-alapú harcon és az ellenfelek tömeges leküzdésén van — nem a taktikai tervezésen vagy a stratégián.</p>
+      <p>A név két igét ötvöz: a <em>hack</em> (vagdalkodás, vágó fegyverek) és a <em>slash</em> (csapások, suhintás). Ez már önmagában jelzi a műfaj lényegét: a játékos <strong> folyamatosan, fizikai kontaktuson keresztül</strong> semmisít meg ellenségeket, és a cselekvés üteme, ritmusa a fő élmény. A feszültség nem a gondolkodási időből, hanem a <em>reflexekből, a pozicionálásból és a sorozatok megszakítás nélküli fenntartásából</em> fakad.</p>
+      <div class="box note">
+        <div class="box-title">▚ Egy mondatban</div>
+        <p>Valós idejű, akció-centrikus harci játék, ahol a játékos folyamatosan, közelharcos támadássorozatokkal semmisít meg ellenfeleket — az ütem, a mozgás és a combo a fő élmény, nem a stratégiai tervezés.</p>
+      </div>
+    </section>
+
+    <!-- 01 -->
+    <section id="eredet">
+      <h2><span class="sec-num">01</span>Eredet &amp; etimológia</h2>
+      <p>A „hack and slash” kifejezés eredetileg nem videójáték-műfaj volt, hanem a <strong> tabletop szerepjátékok</strong> (D&amp;D) zsargonjából származik. A játékosok/kalandmesterek úgy használták, hogy egy <em>„hack-and-slash campaign”</em> olyan kampányt jelent, amelyben a harc és a küzdelem dominál a szerepjátszás, a rejtély vagy a narratíva rovására — vagyis ahol a kalandozás lényege a szörnyek levágása.</p>
+      <p>A kifejezés az 1980-as években átment a videojáték-világba. Először a <strong>dungeon-crawler</strong> akció-játékokat (mint a <em>Hydlide</em>, 1984, vagy a <em>Dragon Slayer</em>) illették így, majd a ’90-es évekbeli <strong>beat ’em up</strong> műfajjal (pl. <em>Double Dragon</em>, <em>Streets of Rage</em>, <em>Golden Axe</em>) forrt össze, ahol az oldalnézetes, görgethető pályán sorjázó ellenségeket kellett ököllel vagy fegyverrel leverni. Innen csak egy lépés volt a 3D-s, karakter-központú <strong>akció-RPG-k</strong> megjelenése, ahol a hack and slash már egyértelműen önálló műfajként létezett.</p>
+      <p>A modern értelemben vett hack and slash klasszikus mérföldkövei: <span class="pill">Diablo (1996)</span><span class="pill">Devil May Cry (2001)</span><span class="pill">Dynasty Warriors (1997)</span><span class="pill">God of War (2005)</span><span class="pill">Bayonetta (2009)</span><span class="pill">Nier: Automata (2017)</span>. Két fő ág különült el: az <em>izometrikus, loot-orientált</em> (Diablo-vonal) és a <em>harmadik személyű, combo-orientált</em> (DMC-vonal) hack and slash.</p>
+      <div class="box tip">
+        <div class="box-title">◆ Miért fontos ezt ismerni?</div>
+        <p>A „hack and slash” kifejezés <strong>több alcsoportot</strong> fed le, és a játékosok/kritikusok gyakran mást értenek alatta. Ha nem rögzíted, melyik ágba illeszkedsz (combo-akció, musou, vagy izometrikus ARPG), könnyen olyan rendszereket építesz, amelyek nem a megcélzott élményt szolgálják. A definíció rögzítése a legelső tervezési döntés.</p>
+      </div>
+    </section>
+
+    <!-- 02 -->
+    <section id="definico">
+      <h2><span class="sec-num">02</span>A műfaj határai — mitől „hack and slash”?</h2>
+      <p>A „hack and slash” ellentétben a roguelike-kal <strong>nem rendelkezik kanonikus, konferencián rögzített definícióval</strong>. Ehelyett egy gyűjtőfogalom, amely több, egymással átfedésben lévő játéktípust takar. Hogy egy játék egyértelműen ide tartozzon, az alábbi <strong>mag faktorok</strong> nagy részének teljesülnie kell:</p>
+
+      <h3>Mag-faktorok</h3>
+      <div class="grid2">
+        <div class="card">
+          <h4>Valós idejű harc</h4>
+          <p class="muted">Nincsenek körök; a cselekvés folyamatos, a játékos és az ellenfelek egyszerre, valós időben mozognak és támadnak.</p>
+        </div>
+        <div class="card">
+          <h4>Közelharc dominál</h4>
+          <p class="muted">A fő élmény a fegyveres/ökölharcos kontaktus. Lehetnek távolsági fegyverek is, de a súlypont a közelharc.</p>
+        </div>
+        <div class="card">
+          <h4>Tömeges ellenfél</h4>
+          <p class="muted">Sok, gyakran egyszerre támadó ellenfél leküzdése a tipikus szituáció — nem 1v1 párbaj a fókusz.</p>
+        </div>
+        <div class="card">
+          <h4>Combo / láncolt támadás</h4>
+          <p class="muted">Az időzített, sorozatos inputok láncolható támadássorozatot adnak — a ritmus a játékmenet része.</p>
+        </div>
+        <div class="card">
+          <h4>Akció-centrikus</h4>
+          <p class="muted">A siker a reflexeken, pozicionáláson és időzítésen múlik, nem statisztikai/karakterlapon.</p>
+        </div>
+        <div class="card">
+          <h4>Lineáris / fejezetes előrehaladás</h4>
+          <p class="muted">A pályák sorrendben, gyakran hullámokban dobják az ellenfeleket; a haladás harconkénti.</p>
+        </div>
+        <div class="card">
+          <h4>Győzelmi érzés (power fantasy)</h4>
+          <p class="muted">A játékos erős, a sok ellenség a sikerérzetet (és a combo-építést) szolgálja, nem a survival horrort.</p>
+        </div>
+        <div class="card">
+          <h4>Loot / fejlesztés (gyakori)</h4>
+          <p class="muted">A legtöbb alcsoportban a tárgyak, statok, képességek fejlődése hosszú távú hajtóerő.</p>
+        </div>
+        <div class="card">
+          <h4>Erőteljes visszajelzés</h4>
+          <p class="muted">Hit-stop, screen shake, vér/villám-effektek — a „bevágás” fizikai súlyát vizuálisan erősítik.</p>
+        </div>
+      </div>
+
+      <div class="box warn">
+        <div class="box-title">⚠ A címke csapdája</div>
+        <p>Minden akció-játék, amiben van kard, „hack and slash” címkét kap a boltban — ez <em>leíró, nem előíró</em>. A fenti faktorok segítenek eldönteni, hogy a te játékod ténylegesen a műfaj <strong>magjában</strong> áll-e, vagy csak felhasználja néhány elemét. A különbség döntő a dizájn prioritásaiban.</p>
+      </div>
+    </section>
+
+    <!-- 03 -->
+    <section id="rokon">
+      <h2><span class="sec-num">03</span>Rokon műfajok &amp; a három fő ág</h2>
+      <p>A hack and slash alatt három jól elkülöníthető alkategória él, amelyek <em>közös maggal</em> (valós idejű közelharc), de <em>eltérő fókusszal</em> rendelkeznek. Ezeket külön tervezni kell.</p>
+
+      <table>
+        <thead>
+          <tr><th>Jellemző</th><th>Combo-akció (DMC-vonal)</th><th>Musou (Dynasty Warriors)</th><th>Izometrikus ARPG (Diablo-vonal)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Nézőpont</td><td>Harmadik személy, fix/vezérelt kamera</td><td>Harmadik személy, szabad forgás</td><td>Izometrikus, egér-vezérelt</td></tr>
+          <tr><td>Ellenségszám</td><td>Kevés, de erős (1–8)</td><td>Hatalmas tömeg (akár százak)</td><td>Közepes, csoportokban</td></tr>
+          <tr><td>Combo-mélység</td><td>Nagyon mély, stunt/ranking</td><td>Sekélyebb, „söprő” támadások</td><td>Gyakran nincs combo, csak spam</td></tr>
+          <tr><td>Fókusz</td><td>Stílus, teljesítmény, combo-lánc</td><td>Birtoklás, „one vs. army”</td><td>Loot, build, grind</td></tr>
+          <tr><td>Haladás</td><td>Fejezetes, mission-alapú</td><td>Csatamezők, birtoklás</td><td>Nyílt/változó pálya, dungeon</td></tr>
+          <tr><td>Példák</td><td>Devil May Cry, Bayonetta, Ninja Gaiden, God of War</td><td>Dynasty Warriors, Samurai Warriors, Hyrule Warriors</td><td>Diablo, Path of Exile, Titan Quest, Grim Dawn</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Szomszédos műfajok, amiktől el kell határolni</h3>
+      <ul class="dash">
+        <li><strong>Beat ’em up</strong>: szintén oldalnézetes/görgethető, tömeges ellenséges akció, de <em>2D-s, képernyőre zárt</em>, és gyakran ökölharcos. A hack and slash őse; a határ fluid. Modern példa: <em>Streets of Rage 4</em>.</li>
+        <li><strong>Character action / „spectacle fighter”</strong>: gyakran szinonimaként használják a combo-akció ággal; a hangsúly a „stílus” és a rangsorolás. A határ inkább marketing, mint mechanika.</li>
+        <li><strong>Action RPG</strong>: tágabb fogalom; minden hack and slash, ami RPG-elemeket tartalmaz, de nem minden ARPG hack and slash (pl. <em>Witcher 3</em> közelharcos, de narratíva-centrikus).</li>
+        <li><strong>Souls-like</strong>: szintén valós idejű közelharc, de <em>lassabb, büntető, 1v1 fókuszú</em> — a hack and slash power fantasy-ével ellentétes filozófia.</li>
+      </ul>
+
+      <div class="box tip">
+        <div class="box-title">◆ A te projektedhez</div>
+        <p>Egy top-down, pixel-art Bevy játéknál a leggyakoribb választás az <em>izometrikus ARPG</em> vagy egy <em>2D-s beat ’em up / combo-akció hibrid</em>. Érdemes először az <strong>ellenségszámot és a combo-mélységet</strong> rögzíteni — ezek vezérlik a kamera-, input- és AI-döntéseket. A combo-ág mély input-rendszert kíván; a musou-ág tömegrenderelési optimalizációt; a Diablo-ág inventory- és loot-rendszert.</p>
+      </div>
+    </section>
+
+    <!-- 04 -->
+    <section id="mechanikak">
+      <h2><span class="sec-num">04</span>Az alapmechanikák részletesen</h2>
+
+      <h3>Valós idejű, ütközés-alapú harc</h3>
+      <p>A játékos karaktere és az ellenfelek egy folyamatos szimulációban mozognak; a támadások <strong>hitbox/súlydoboz</strong> (hitbox/hurtbox) átfedéssel észlelhetők, nem célzás vagy dice-roll alapján. A sebzés közvetlenül a pozíciótól és az időzítéstől függ. Ez teszi lehetővé a <em>kitérést, a pozicionálást és a frame-perfekt reakciót</em> — a műfaj skill-tengelyét.</p>
+
+      <h3>Combo-rendszer</h3>
+      <p>Az egymás után, megfelelő időzítéssel megadott inputok <strong>láncolt támadássorozatot</strong> alkotnak, amelynek utolsó tagja gyakran erősebb (finisher). A combo fenntartása jutalmazza a folyamatos, megszakítás nélküli agressziót, és stíluspontokat/rangot adhat. Ez az egyik legfontosabb megkülönböztető jegy a sima „spam attack” játékoktól.</p>
+
+      <h3>Mozgás &amp; pozicionálás</h3>
+      <p>A mozgás nem csak közlekedés — <strong>taktikai eszköz</strong>. A dash/dodge-roll (invulnerability frame-ekkel, „i-frames”) a túlélés alapja; a positioning dönti el, hogy egyszerre hány ellenség tudjon támadni. A jó hack and slash a mozgást és a támadást <em>együtt</em> ritmizálja: támadás után rövid recovery, dash után rövid startup — a frame-adatok (frame data) a dizájn nyelve.</p>
+
+      <h3>Tömeges ellenség &amp; AI</h3>
+      <p>A „sok ellenfél” nem egyenlő a „nehezedik”-kel. A tömeg <strong>koreográfiát</strong> igényel: nem minden ellenség támad egyszerre (ez kaotikus és igazságtalan lenne), hanem <em>támadási tokenek</em> vagy <em>intent-rendszer</em> korlátozza, ki léphet. A játékos így mindig olvasható helyzetet kap, amelyre reagálhat.</p>
+
+      <h3>Loot &amp; fejlődés</h3>
+      <p>A legyőzött ellenségekből (vagy ládák/boltok) tárgyak, valuta és tapasztalat hullik. Ezek <strong>hosszú távú hajtóerőt</strong> adnak: erősebb fegyver, új képesség, magasabb stat. A Diablo-vonalban ez a fő fókusz; a combo-ágban inkább a képességek/lelkek feloldása. A loot legyen <em>érdekes döntés</em>, nem csak számnövekedés.</p>
+
+      <h3>Erőteljes visszajelzés (game feel)</h3>
+      <p>A hack and slash a <strong>bevágás fizikai súlyán</strong> él vagy hal. Hit-stop (a találat pillanatában a szimuláció pár frame-re megáll), screen shake, lassítás, vér/spark effekt, kamera-rándulás — ezek nem díszek, hanem a játékmenet részei. Hiányuk papírízű harcot eredményez.</p>
+
+      <div class="box note">
+        <div class="box-title">▚ Tervezési mantra</div>
+        <p>A harci hurok legyen <strong>30 másodpercig ismételhető anélkül, hogy unalmassá válna</strong>. Ha az alap ciklus (közelítés → támadáslánc → dodge → loot) már unalmas, semennyi tartalom nem menti meg. A core loop csiszolása az első és legfontosabb feladat.</p>
+      </div>
+    </section>
+
+    <!-- 05 -->
+    <section id="loop">
+      <h2><span class="sec-num">05</span>A harci hurok anatómiája</h2>
+      <p>A hack and slash játékmenet egy rövid, sűrűn ismétlődő <strong>ciklusra</strong> épül. Ennek minden lépésének jólesnie kell; ahol elakad, ott veszít az élmény. Tipikus íve egyetlen „encounter”-nek:</p>
+      <ol>
+        <li><strong>Felismerés</strong> — az ellenség megjelenik; a játékos észleli a fenyegetést (telegrafálás).</li>
+        <li><strong>Közelítés / pozicionálás</strong> — a játékos elhelyezkedik: előnyös szöget keres, kikerüli a tömeg peremét.</li>
+        <li><strong>Támadáslánc (combo)</strong> — az input-sorozat kezdete; az első ütésök staggeringgel (megtántorodás) nyitnak.</li>
+        <li><strong>Reakció / dodge</strong> — az ellenség támad (telegrafáltan); a játékos i-frame dash-szel kitér, majd visszatámad.</li>
+        <li><strong>Befejezés / finisher</strong> — az utolsó combo-tag, amely megsemmisíti vagy félholtan hagyja az ellenfelet.</li>
+        <li><strong>Jutalom</strong> — loot/XP/fogadás hullik; a játékos érzi a haladást.</li>
+        <li><strong>Újrakezdés</strong> — következő ellenfél/csoport; a ciklus folytatódik.</li>
+      </ol>
+      <p>A dizájn kulcskérdése: <strong>milyen hosszú ez a ciklus?</strong> Egy gyors, pörgős H&amp;S 2–4 másodperces ciklusokat akar (Diablo-vonal); egy combo-akció 8–15 másodperces, stílusos encounters-eket (DMC). Ez a tempó vezérli a frame-adatokat, az ellenség-telegrafálás sebességét és a combo-hosszt.</p>
+      <div class="box tip">
+        <div class="box-title">◆ Tervezz a „flow”-ra</div>
+        <p>A cél a <em>folyamatos, megszakítás nélküli áramlás</em> (flow state): a játékos ritmusban marad, a halál pedig sosem a rendszer hibája. Ha a játékos gyakran „kiesik” a flow-ból (lassú menü, akadozó animáció, olvashatatlan fenyegetés), a hack and slash élmény szétesik. Minden, ami megszakítja a ciklust, ellenség.</p>
+      </div>
+    </section>
+
+    <!-- 06 -->
+    <section id="combo">
+      <h2><span class="sec-num">06</span>Combo &amp; input-rendszer</h2>
+      <p>A combo a hack and slash <strong>aláírása</strong>: az időzített, sorozatos inputok láncolható, egyre erősebb támadássorozatot alkotnak. Ez különbsé teszi a combo-akció ágat a sima „nyomd a gombot” spam-játékoktól.</p>
+
+      <h4>A combo felépítése</h4>
+      <ul class="dash">
+        <li><strong>Startup</strong> — a támadás előkészülete (sebezhetőségi ablak).</li>
+        <li><strong>Active</strong> — a hitbox aktív fázisa; itt okoz sebzést.</li>
+        <li><strong>Recovery</strong> — a támadás befejezése (committed, nem szakítható meg).</li>
+        <li><strong>Combo window</strong> — az az időablak, amelyen belül a következő input folytatja a láncot (kanlcelálja a recovery-t).</li>
+        <li><strong>Finisher</strong> — a sorozat utolsó, erősebb tagja; gyakran AoE vagy knockback.</li>
+      </ul>
+
+      <h4>Input-buffer &amp; canceling</h4>
+      <p>A jó combo-érzet titka a <strong>bufferelt input</strong>: ha a játékos egy gombot nyom a recovery alatt, a rendszer eltárolja, és a következő lehetséges pillanatban végrehajtja. Ez teszi simává a láncolást. A <em>canceling</em> pedig lehetővé teszi, hogy bizonyos cselekvések megszakítsák másokat (pl. dodge megszakítja a támadás recovery-jét) — ez adja a <em>reaktív</em> játékot.</p>
+      <pre><code><span class="c-cm">// Egyszerűsített combo-állapot (frame-alapú)</span>
+<span class="c-kw">enum</span> <span class="c-ty">AtkState</span> { Idle, Startup(<span class="c-ty">i32</span>), Active(<span class="c-ty">i32</span>), Recovery(<span class="c-ty">i32</span>) }
+
+<span class="c-kw">fn</span> <span class="c-fn">tick_attack</span>(<span class="c-kw">mut</span> st: <span class="c-ty">AtkState</span>, input: <span class="c-ty">Input</span>, buffered: <span class="c-kw">mut</span> <span class="c-ty">Option</span>&lt;<span class="c-ty">Input</span>&gt;) {
+    <span class="c-kw">match</span> st {
+        <span class="c-ty">AtkState</span>::Startup(f)   =&gt; st = <span class="c-kw">if</span> f &gt; <span class="c-nm">0</span> { Startup(f-<span class="c-nm">1</span>) } <span class="c-kw">else</span> { Active(ACTIVE_LEN) },
+        <span class="c-ty">AtkState</span>::Active(f)    =&gt; st = <span class="c-kw">if</span> f &gt; <span class="c-nm">0</span> { Active(f-<span class="c-nm">1</span>) } <span class="c-kw">else</span> { Recovery(REC_LEN) },
+        <span class="c-ty">AtkState</span>::Recovery(f)  =&gt; {
+            <span class="c-cm">// combo window: bufferelt input folytatja a láncot</span>
+            <span class="c-kw">if</span> <span class="c-kw">let</span> <span class="c-ty">Some</span>(next) = buffered.<span class="c-fn">take</span>() {
+                st = <span class="c-ty">AtkState</span>::<span class="c-fn">Startup</span>(STARTUP_LEN);  <span class="c-cm">// cancel recovery</span>
+            } <span class="c-kw">else if</span> f &gt; <span class="c-nm">0</span> { st = Recovery(f-<span class="c-nm">1</span>) }
+            <span class="c-kw">else</span> { st = <span class="c-ty">AtkState</span>::Idle }
+        }
+        <span class="c-ty">AtkState</span>::Idle =&gt; <span class="c-kw">if</span> input.pressed { st = Startup(STARTUP_LEN) }
+    }
+}</code></pre>
+
+      <h4>Stílus / rangsorolás</h4>
+      <p>A combo-akció ág (DMC, Bayonetta) <strong>stílus-pontrendszert</strong> használ: a változatos, hosszú, megszakítás nélküli láncok magasabb rangot (D→C→B→A→S→SS) adnak. Ez a „power fantasy” mellett <em>kreatív játékot</em> jutalmaz: nem csak nyerni kell, hanem <em>jól</em> nyerni. A rangsorolás a hack and slash egyik legerősebb hosszú távú hajtóereje.</p>
+
+      <div class="box warn">
+        <div class="box-title">⚠ A „spam” csapdája</div>
+        <p>Ha a legerősebb támadás egyetlen gombnyomással kiadható, és nincs büntetés az ismétlésre, a játékosok ráfekszenek az optimális spamre, és a combo-rendszer értelmét veszti. <strong>Mindig legyen kompromisszum</strong>: az erős támadás lassabb, a hosszú lánc kockázatosabb, a vegyes combo jutalmazott. A dizájn feladata, hogy a <em>legszórakoztatóbb</em> stratégia egyben a <em>leghatékonyabb</em> is legyen.</p>
+      </div>
+    </section>
+
+    <!-- 07 -->
+    <section id="ellenseg">
+      <h2><span class="sec-num">07</span>Ellenség-design &amp; hullámok</h2>
+      <p>A hack and slash ellenségei nem egyediek — <strong>archetípusok</strong>, amelyek kombinációban hozzák létre az érdekes helyzeteket. A jó ellenség-design célja, hogy minden típus más-más reakciót kérjen, és együtt <em>koreografált</em>, olvasható encountereket adjanak.</p>
+
+      <h4>Tipikus archetípusok</h4>
+      <ul class="dash">
+        <li><strong>Chaff / grunt</strong> — gyenge, tömeges, könnyen ledönti. A combo-építés és a power fantasy „üzemanyaga”.</li>
+        <li><strong>Bruiser / tank</strong> — lassú, sok HP, staggering-álló. Megtöri a spamelést, pozicionálást kér.</li>
+        <li><strong>Ranged / sniper</strong> — távolról szól, kényszeríti a közelítést vagy fedezéket. Megtöri a „maradj egy helyben” játékot.</li>
+        <li><strong>Fast / skirmisher</strong> — gyors, bevárási távolságból üt és elhúz. Dash-re és időzítésre tanít.</li>
+        <li><strong>Shielded / armored</strong> — blokkolja a frontális támadást; meg kell kerülni, vagy speciális támadással törni.</li>
+        <li><strong>Exploder / suicide</strong> — közeledik és felrobban. Kényszeríti a mozgást és a prioritizálást.</li>
+      </ul>
+
+      <h4>Támadási tokenek (intent-rendszer)</h4>
+      <p>A tömeges harcnál a legnagyobb kísértés, hogy minden ellenség egyszerre támadjon — ez kaotikus, igazságtalan és olvashatatlan. A megoldás a <strong>támadási token</strong>: egy korlátozott számú „jegy”, amelyet az ellenségek „kérnek”, mielőtt támadnának. Egyszerre csak annyi ellenfél támad, ahány token van. Így a játékos mindig <em>kezelhető számú</em> fenyegetést lát, és a tömeg a power fantasy-t szolgálja, nem a frusztrációt.</p>
+      <pre><code><span class="c-cm">// Csak N ellenfél támadhat egyszerre a közelben</span>
+<span class="c-kw">const</span> MAX_INTENT: <span class="c-ty">usize</span> = <span class="c-nm">3</span>;
+
+<span class="c-kw">fn</span> <span class="c-fn">assign_intent</span>(<span class="c-kw">mut</span> q: <span class="c-ty">Query</span>&lt;&amp;<span class="c-kw">mut</span> <span class="c-ty">EnemyAI</span>&gt;) {
+    <span class="c-kw">let</span> <span class="c-kw">mut</span> slots = MAX_INTENT;
+    <span class="c-cm">// priorizáljuk a legközelebbi / legveszélyesebb ellenfeleket</span>
+    <span class="c-kw">for</span> <span class="c-kw">mut</span> ai <span class="c-kw">in</span> &amp;<span class="c-kw">mut</span> q.<span class="c-fn">iter</span>().<span class="c-fn">sorted_by_distance_to_player</span>() {
+        ai.<span class="c-fn">can_attack</span> = slots &gt; <span class="c-nm">0</span>;
+        <span class="c-kw">if</span> ai.<span class="c-fn">can_attack</span> { slots -= <span class="c-nm">1</span>; }
+    }
+}</code></pre>
+
+      <h4>Telegrafálás</h4>
+      <p>Minden támadásnak legyen <strong>jelző fázisa</strong>: egy windup animáció (gyakran színes vizuális jel, pl. piros villanás vagy „intent ikon”), amely jelzi, mi fog történni. A játékosnak <em>reagálási időt</em> kell kapnia. Ha a találat a semmiből jön, a halál igazságtalannak érződik — ez a hack and slash egyik leggyakoribb tervezési hibája.</p>
+      <div class="box tip">
+        <div class="box-title">◆ A „jó nehézség” elve</div>
+        <p>A hack and slash nehézsége ne a <em>több sebzésből</em> jöjjön, hanem a <em>komplexebb helyzetekből</em>: több archetípus keveredik, gyorsabban telegrafálnak, kevesebb a token, több a párhuzamos fenyegetés. A játékos <em>tanul</em>, és a haladás készségből fakad — ez tartósan szórakoztató.</p>
+      </div>
+    </section>
+
+    <!-- 08 -->
+    <section id="palya">
+      <h2><span class="sec-num">08</span>Pálya &amp; progresszió</h2>
+      <p>A hack and slash pályái általában <strong>lineárisak vagy fejezetesek</strong>, és a haladás <em>harconkénti</em>: a játékos egy területre ér, leküzd egy hullámot/csoportot, majd a következőre nyílik átjárás. A pálya nem a felfedezésről szól (mint roguelike-ban), hanem a <em>harci encounters színpadjáról</em>.</p>
+
+      <h4>Arena-elv</h4>
+      <p>A legtöbb encounter egy <strong>arena</strong>-ban zajlik: egy elég tágas, de elhatárolt területen, amelyet zárva tart a harc idejére (láthatatlan falak, kapuk becsukása). Ez biztosítja, hogy a játékos ne meneküljön el, és az encounters <em>önálló, mérlegelt</em> kihívások legyenek. Az arena mérete, alakja és tereptárgyai (oszlopok, fedezékek) maguk is dizájn-eszközök.</p>
+
+      <h4>A „zúzás” ütemezése</h4>
+      <p>A hack and slash ritmusának váltakoznia kell: <strong>intenzív encounter → rövid szünet (loot/dialógus) → újabb encounter</strong>. A folyamatos harc elfáraszt; a szünetek adják a feszültség feloldását és az előrehaladás érzetét. A rossz H&amp;S vagy túl sűrű (kimerítő), vagy túl ritkás (unalmassá válik a harc).</p>
+
+      <h4>Hullámok &amp; pacing</h4>
+      <p>Egy arena gyakran több <strong>hullámban</strong> dobja az ellenfeleket, egyre nehezebb összetételben. Ez a pacing eszköze: az első hullám „bemelegítés”, az utolsó a csúcs. A játékos tanulja az arena ritmusát, és a végső hullám a combo/ultimátum képességek bevetésének pillanata.</p>
+
+      <h4>Bossok</h4>
+      <p>A fejezetek/biome-ok végén <strong>boss</strong> zár: egy nagyobb, saját AI-jal, több fázissal és telegrafált, nagy hatótávú támadásokkal rendelkező ellenfél. A boss a megtanult mechanikák <em>szintézise</em>: nem új szabályokat tanít, hanem az eddigi tudást kombinálva kér tőle maximumot. A jó boss <strong>tanulható mintázat</strong>, nem statisztikai fal.</p>
+      <div class="box note">
+        <div class="box-title">▚ Ne zárd be túl sokáig</div>
+        <p>Az arena-zárás erős eszköz, de ha túl gyakran és túl hosszan alkalmazod, a játékos <em>csapdában</em> érzi magát. A legjobb H&amp;S-ok a zártság érzését adják, de látható előrehaladást is (hullám számláló, nyíló kapu előzetese). A kontroll érzete fontos.</p>
+      </div>
+    </section>
+
+    <!-- 09 -->
+    <section id="build">
+      <h2><span class="sec-num">09</span>Karakter &amp; build</h2>
+      <p>A hack and slash hosszú távú hajtóereje a <strong>karakter fejlődése</strong>: új képességek, fegyverek, statok és build-választások. Ez teszi, hogy a játékos ne csak egy encountert nyerjen, hanem <em>hozzájusson</em> ahhoz, ahogy játszik.</p>
+
+      <h4>Fejlődési típusok</h4>
+      <ul class="dash">
+        <li><strong>Új képességek / combo-tagok</strong> — kibontja a combo-rendszert; új input-sorozatokat tanít. A combo-ág fő hajtóereje.</li>
+        <li><strong>Új fegyverek / stílusok</strong> — teljesen más move-set; a játékmód váltása. (DMC „style” rendszere, God of War fegyverváltás.)</li>
+        <li><strong>Passive statok / skill-fa</strong> — számnövekedés és kis módosítók; a Diablo-vonal fókusza.</li>
+        <li><strong>Loot / felszerelés</strong> — tárgyak cseréje, szettek, enchantok; a izometrikus ARPG magja.</li>
+        <li><strong>Ultimátum / különleges képességek</strong> — hosszú töltődésű, erős „panic / nuke” gomb; az arena-climax eszköze.</li>
+      </ul>
+
+      <h4>Build-identitás</h4>
+      <p>A jó fejlődés <strong>identitást</strong> épít: a játékos érezze, hogy az ő karaktere más, mint a másik játékosé. Tűz-crit build, dodge-tanking, crowd-control specialist — ezek a „hogyan játszom” választások tartják vissza a játékost. A szinergiák (tárgy + képesség + stat) a build-archetípusok forrásai, pontosan mint roguelike-ban.</p>
+      <div class="box warn">
+        <div class="box-title">⚠ A szám-infláció csapdája</div>
+        <p>Ha a fejlődés csak <em>számokat növel</em> (több sebzés, több HP), és az ellenfelek is arányosan erősödnek, a haladás <strong>illuzórikus</strong> lesz — ugyanazt a harcot játsszad, csak nagyobb számokkal. A Diablo-vonal gyakori betegsége. A jó fejlődés <em>új opciókat és viselkedéseket</em> adjon, nem csak skálázást.</p>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section id="juice">
+      <h2><span class="sec-num">10</span>Game feel / juice — a „bevágás” súlya</h2>
+      <p>A hack and slash a <strong>harci visszajelzés minőségén</strong> él vagy hal. Egy papírízű, hatástalan találat soha nem fog jólesni, hiába mély a combo-rendszer. A „juice” nem dísz — a játékmenet része.</p>
+
+      <h4>A juice eszköztára</h4>
+      <ul class="dash">
+        <li><strong>Hit-stop</strong> — a találat pillanatában a szimuláció pár frame-re (4–8) megáll. A „bevágás” súlyát adja; anélkül a találat sodródónak érződik.</li>
+        <li><strong>Screen shake</strong> — erős találat / robbanás kamera-rándulása. Adagolva; a túl sok zsibbattnak tesz.</li>
+        <li><strong>Knockback &amp; stagger</strong> — az ellenfél megtántorodik, hátrarepül. Vizuálisan és mechanikusan is jelzi az ütés súlyát.</li>
+        <li><strong>Vér / spark / slash efekt</strong> — a kontaktus pontjában particle-jel. A „hol és mikor” egyértelművé válik.</li>
+        <li><strong>Lassítás (slow-mo)</strong> — finisher vagy combo-climax pillanatában; a power fantasy csúcsa.</li>
+        <li><strong>Kamera-framing</strong> — bossnál vagy finishernél a kamera ráközelít / megnyújtja a momentot.</li>
+        <li><strong>Hangdesign</strong> — a „chunky” ütés-hang, a fegyver suhintása, az ellenfél nyögése. A hang a juice fele; gyakran alulértékelt.</li>
+      </ul>
+      <div class="box tip">
+        <div class="box-title">◆ Adagolás elve</div>
+        <p>A juice hatása <strong>csökkenő haszonnal</strong> jár: ha minden ütés 8 frame hit-stopot és nagy shake-et kap, a játékos hozzászokik, és semmi sem érződik erősnek. A <em>különleges</em> pillanatok (finisher, crit, boss-találat) kapják a nagy juice-t; a sima ütésöknél visszafogottabb visszajelzés. A kontraszt adja a súlyt.</p>
+      </div>
+      <p class="muted">A game feel mélyebb, részletes tervezése külön tutorialt érdemel — a <code>bevy-game-juice-tutorial.html</code> a gyakorlati Bevy-implementációt tárgyalja.</p>
+    </section>
+
+    <!-- 11 -->
+    <section id="kamera">
+      <h2><span class="sec-num">11</span>Kamera &amp; vizualitás</h2>
+      <p>A hack and slash kamera <strong>nem passzív megfigyelő</strong> — aktívan keretezi a harcot, és dönti el, hogy a játékos olvassa-e a helyzetet. A rossz kamera (túl közeli, késleltetett, akadály mögé rekedt) megöli az élményt.</p>
+
+      <h4>Nézőpontok az ágak szerint</h4>
+      <ul class="dash">
+        <li><strong>Izometrikus (Diablo-vonal)</strong> — fix, 45°-os nézőpont; egyszerre sok ellenfél látható. Egér-vezérelt mozgás/kattintós támadás. Jó a loot-orientált játékhoz.</li>
+        <li><strong>Harmadik személy, vezérelt (DMC-vonal)</strong> — a kamera scriptelt, frame-optimalizált szögekből mutatja az encountert; a combo és a stílus érdekében elrejtheti a távoli fenyegetést. Erős rendezői hatás.</li>
+        <li><strong>Harmadik személy, szabad forgás (musou)</strong> — a játékos forgathatja; a tömeg miatt magas, távoli szögek kellenek. Sok ellenség egyszerre látható.</li>
+        <li><strong>Oldalnézet / 2.5D (beat ’em up hibrid)</strong> — görgethető háttér; mélységi sík limitált. Pixel-art H&amp;S gyakori választása.</li>
+      </ul>
+
+      <h4>Kamera-szabályok</h4>
+      <ul class="dash">
+        <li><strong>Mindig lásd a fenyegetést</strong> — a kamera sose rejtse el a támadó ellenfelet, vagy legalább jelezze (perem-ikon, intent-marker).</li>
+        <li><strong>Késleltetés / simítás</strong> — a kamera kövesse lágyan, de ne maradjon le sokat; a hirtelen mozgás forgat.</li>
+        <li><strong>Célzó-eltolás</strong> — a képernyő ne a játékost középre tegye, hanem előre billentse abba az irányba, amerre néz/támad. Több „előtte” látszik.</li>
+        <li><strong>Obstruction handling</strong> — ha fal/objektum közé kerülne, húzza közelebb vagy átlátszóvá tegye.</li>
+      </ul>
+      <div class="box note">
+        <div class="box-title">▚ Olvashatóság &gt; realizmus</div>
+        <p>A hack and slash kamerája nem a valóságot mutatja, hanem a <em>játékállapotot</em>. Ha egy szög „filmszerűbb”, de elrejti a támadó ellenséget, rossz. A funkcionalitás felülírja a rendezői hangulatot — kivéve, ha a hangulat maga a játék (pl. boss-cinematic).</p>
+      </div>
+    </section>
+
+    <!-- 12 -->
+    <section id="egyensuly">
+      <h2><span class="sec-num">12</span>Egyensúly &amp; nehézség</h2>
+      <p>A hack and slash nehézség-beállítása <strong>kettős célt</strong> szolgál: elég könnyű legyen, hogy a játékos erősnek érezze magát (power fantasy), de elég nehéz is, hogy a combo és a pozicionálás számítson. Ez a feszültség a műfaj központi tervezési problémája.</p>
+      <ul class="dash">
+        <li><strong>Tünékeny halál vs. flow</strong> — ha túl könnyen meghal a játékos, a flow megszakad; ha sosem, a tét eltűnik. A halálnak ritka, de <em>lehetséges</em> fenyegetésnek kell lennie.</li>
+        <li><strong>Skill-alapú skálázás</strong> — a nehézség ne (csak) a számokból jöjjön, hanem a <em>készségkérdésekből</em>: gyorsabb telegrafálás, több archetípus, kevesebb token, kevesebb i-frame.</li>
+        <li><strong>RPG-elemek ellentéte</strong> — a stat/loot alapú fejlődés könnyen „grindeld túl” a játékot; vigyázat, mert a készség elveszíti súlyát. A szint különbséget kompenzáld mechanic-nehézséggel.</li>
+        <li><strong>Telegrafálás &amp; olvashatóság</strong> — a nehézség ne a <em>titkolt információból</em> jöjjön. A jó H&amp;S nehéz, de <em>tisztességes</em>: a halál mindig a játékos hibája.</li>
+        <li><strong>Dinamikus nehézség (rubber-band)</strong> — óvatosan; ha a játékos érzi, hogy a játék „megkíméli”, a tét eltűnik. Jobb a fix, tanulható nehézségi görbe, esetleg választható szintek.</li>
+        <li><strong>Combo-risk vs. reward</strong> — a hosszú combo legyen kockázatosabb (committed recovery, sebezhetőségi ablak), így a „bátor” játék jutalmazott, de nem kötelező.</li>
+      </ul>
+      <div class="box tip">
+        <div class="box-title">◆ A „túlértett erő” elve</div>
+        <p>A hack and slash célja, hogy a játékos <strong>erősnek érezze magát</strong>. Jobb, ha a játék túl könnyű (és a játékos istennek érzi magát), mint túl nehéz (és frusztrált lesz). Ha bizonytalan vagy a balanszban, a „power fantasy” oldalt vedd el — különösen az első verziónál. A nehézségi opciók (vagy az új játék +) később kielégítik a hardcore játékost.</p>
+      </div>
+    </section>
+
+    <!-- 13 -->
+    <section id="elvek">
+      <h2><span class="sec-num">13</span>Tervezési alapelvek — mit kövess?</h2>
+      <ol>
+        <li><strong>Először a core loop-ot csiszold.</strong> A 30 másodperces harci ciklus már unalmas nélkül ismételhető legyen, <em>mielőtt</em> tartalmat építesz rá.</li>
+        <li><strong>Rögzítsd az ágat.</strong> Combo-akció, musou vagy izometrikus ARPG? Ez determinálja az inputot, kamerát és a combo-mélységet.</li>
+        <li><strong>A combo legyen kockázatos és jutalmazott.</strong> A legjobb stratégia legyen a legszórakoztatóbb; kerüld a „spamelhető optimális” támadást.</li>
+        <li><strong>Telegrafálj mindent.</strong> Minden ellenséges támadásnak legyen jelző fázisa; a halál mindig a játékos hibája legyen.</li>
+        <li><strong>Támadási tokenek a tömeghez.</strong> Egyszerre csak kevés ellenfél támadjon — a tömeg a power fantasy-t szolgálja, nem a káoszt.</li>
+        <li><strong>Ágasztott archetípusok.</strong> Minden ellenségtípus más reakciót kérjen; a combo csak kevert helyzetben ér.</li>
+        <li><strong>A juice nem dísz.</strong> Hit-stop, shake, particle, hang — ezek a játékmenet részei. Adagold: a kontraszt adja a súlyt.</li>
+        <li><strong>Fejlődés = új opciók, nem csak számok.</strong> A build-identitás és az új viselkedések tartják vissza a játékost.</li>
+        <li><strong>Kamera = olvashatóság.</strong> Mindig lásd a fenyegetést; a funkcionalitás felülírja a rendezői hangulatot.</li>
+        <li><strong>Power fantasy először.</strong> Ha bizonytalan vagy a balanszban, az erős játékos oldalt vedd el. A nehézségi opciók később jönnek.</li>
+        <li><strong>Vágj le egy kiegészítőt.</strong> Az első prototípusban egy combo-lánc, 3 archetípus és egy arena elég. A tartalom később skálázódik.</li>
+      </ol>
+    </section>
+
+    <!-- 14 -->
+    <section id="bevy">
+      <h2><span class="sec-num">14</span>Implementáció — Bevy / ECS jegyzetek</h2>
+      <p>Egy ECS-alapú motorban (mint a Bevy) a hack and slash entitásai természetesen <strong>komponensek kompozíciójaként</strong> állnak elő. A játékos és az ellenségek ugyanazokból az építőkockákból épülnek (Health, Hitbox, CombatState) — csak a vezérlő komponens különbözik (PlayerInput vs. EnemyAI). Ez a „szabály egyszer, mindenkire” elv pont egybevág a hack and slash filozófiájával: a harci rendszer egyetlen, egységes szimuláció.</p>
+
+      <h4>Entitás mint komponens-kompozíció</h4>
+      <pre><code><span class="c-cm">// Közös komponensek — játékos és ellenség is ezekből áll</span>
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">Health</span> { cur: <span class="c-ty">f32</span>, max: <span class="c-ty">f32</span> }
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">Hitbox</span> { radius: <span class="c-ty">f32</span> }       <span class="c-cm">// sebződési zóna</span>
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">CombatState</span> { atk: <span class="c-ty">AtkState</span>, combo_step: <span class="c-ty">u32</span> }
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">ActiveHitbox</span> {                  <span class="c-cm">// aktív támadás sweep-je</span>
+    local_aabb: <span class="c-ty">Vec2</span>, damage: <span class="c-ty">f32</span>, knockback: <span class="c-ty">Vec2</span>,
+}
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">Iframes</span>(<span class="c-ty">Timer</span>);                <span class="c-cm">// dodge sérthetetlenség</span>
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">Stagger</span>(<span class="c-ty">Timer</span>);               <span class="c-cm">// megtántorodás</span>
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">Player</span>;                       <span class="c-cm">// csak a játékoson</span>
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">Enemy</span> { archetype: <span class="c-ty">Archetype</span> }  <span class="c-cm">// csak az ellenségeken</span></code></pre>
+
+      <h4>Hitbox / hurtbox ütközés (a harc magja)</h4>
+      <p>A hack and slash harc <strong>ütközés-alapú</strong>: az aktív támadási hitbox és az ellenfelek hurtbox-ának átfedése okoz sebzést. ECS-ben ez egy rendszer, amely az <code>ActiveHitbox</code>-okat az <code>Hitbox</code>-okkal metszi. Vigyázat: egy támadás egy ellenfélre csak egyszer sebezzen — <em>cooldown</em> vagy <code>HashSet&lt;Entity&gt;</code> „már talált” lista kell.</p>
+      <pre><code><span class="c-kw">fn</span> <span class="c-fn">melee_hits</span>(
+    <span class="c-kw">mut</span> attacks: <span class="c-ty">Query</span>&lt;(&amp;<span class="c-ty">Transform</span>, &amp;<span class="c-ty">ActiveHitbox</span>, &amp;<span class="c-kw">mut</span> <span class="c-ty">HitSet</span>)&gt;,
+    <span class="c-kw">mut</span> targets: <span class="c-ty">Query</span>&lt;(<span class="c-ty">Entity</span>, &amp;<span class="c-ty">Transform</span>, &amp;<span class="c-ty">Hitbox</span>, &amp;<span class="c-kw">mut</span> <span class="c-ty">Health</span>), <span class="c-ty">Without</span>&lt;<span class="c-ty">Iframes</span>&gt;&gt;,
+) {
+    <span class="c-kw">for</span> (atk_pos, atk, <span class="c-kw">mut</span> hitset) <span class="c-kw">in</span> &amp;<span class="c-kw">mut</span> attacks {
+        <span class="c-kw">for</span> (e, t_pos, hb, <span class="c-kw">mut</span> hp) <span class="c-kw">in</span> &amp;<span class="c-kw">mut</span> targets {
+            <span class="c-kw">if</span> hitset.<span class="c-nm">0</span>.<span class="c-fn">contains</span>(&amp;e) { <span class="c-kw">continue</span>; }   <span class="c-cm">// már talált</span>
+            <span class="c-kw">let</span> d = atk_pos.<span class="c-fn">translation</span>().<span class="c-fn">xy</span>().<span class="c-fn">distance</span>(t_pos.<span class="c-fn">translation</span>().<span class="c-fn">xy</span>());
+            <span class="c-kw">if</span> d &lt; atk.local_aabb.<span class="c-fn">length</span>() + hb.radius {
+                hp.cur -= atk.damage;
+                hitset.<span class="c-nm">0</span>.<span class="c-fn">insert</span>(e);                       <span class="c-cm">// egyszer sebzünk</span>
+                <span class="c-cm">// spawn: Stagger, knockback, juice effekt</span>
+            }
+        }
+    }
+}</code></pre>
+
+      <h4>Hit-stop (a juice alapja)</h4>
+      <p>A hit-stop implementációja egyszerű, de hatásos: a találat pillanatában egy globális <code>Resource</code>-ba írd be, hány frame-re álljon le a szimuláció. A fő <code>Update</code>-rendszerek (mozgás, AI, combo) egy <code>HitStop</code> resource jelenlétében korán visszatérnek, csak a vizuális rendszerek (effektek, kamera) futnak.</p>
+      <pre><code><span class="c-kw">#[derive(Resource, Default)]</span> <span class="c-kw">struct</span> <span class="c-ty">HitStop</span>(<span class="c-ty">Timer</span>);
+
+<span class="c-cm">// minden harci rendszer elején:</span>
+<span class="c-kw">fn</span> <span class="c-fn">combat_tick</span>(stop: <span class="c-ty">Res</span>&lt;<span class="c-ty">HitStop</span>>, <span class="c-cm">/* ... */</span>) {
+    <span class="c-kw">if</span> !stop.<span class="c-nm">0</span>.<span class="c-fn">finished</span>() { <span class="c-kw">return</span>; }   <span class="c-cm">// szimuláció megáll, juice fut</span>
+    <span class="c-cm">// ...normál combat logika</span>
+}</code></pre>
+
+      <h4>Támadási token (intent) mint Resource</h4>
+      <p>A „csak N ellenfél támadjon” szabály egy egyszerű <code>Resource</code>-számlálóval valósítható meg: az AI rendszer minden frame kiosztja a tokeneket a legközelebbi/leginkább „készen álló” ellenfeleknek. Ez garantálja az olvasható helyzetet a tömeges harcban is.</p>
+
+      <h4>Combo-state mint komponens + input-buffer</h4>
+      <p>A combo állapotgép <code>CombatState</code> komponensben él, frame-alapú időzítéssel. A <strong>bufferelt input</strong> egy külön <code>Resource</code> (vagy játékos komponens), amely a recovery alatt érkező nyomásokat eltárolja, és a combo window-ban végrehajtja. A canceling (pl. dodge megszakítja recovery-t) egyszerű állapot-átmenet.</p>
+
+      <div class="box note">
+        <div class="box-title">▚ ECS-illeszkedés</div>
+        <p>A hack and slash „egységes szimuláció” elve az ECS-ben <em>egy rendszer, minden érintett entitásra</em> mintávává válik: egy <code>melee_hits</code> minden <code>ActiveHitbox</code>-ra lefut (játékos és ellenség is), egy <code>stagger_system</code> minden <code>Stagger</code>-re. Nincs külön „játékos-kód” és „ellenség-kód” — ez pont a műfaj filozófiája: a szabály mindenkre ugyanaz.</p>
+      </div>
+      <div class="box tip">
+        <div class="box-title">◆ Hasznos crate-ek &amp; tanulás</div>
+        <p><code>bevy_rapier</code> / <code>bevy_xpbd</code> a hitbox-ütközéshez (vagy saját, kör/AABB-alapú, ha elég); <code>leafwing-input-manager</code> az input-buffereléshez és combo-inputokhoz; <code>bevy_tweening</code> a kamera- és juice-effektekhez. A részletes juice- és combat-implementációt a <code>bevy-game-juice-tutorial.html</code> és a <code>bevy-hack-and-slash-tutorial.html</code> tárgyalja.</p>
+      </div>
+    </section>
+
+    <!-- 15 -->
+    <section id="checklist">
+      <h2><span class="sec-num">15</span>Checklista — az „alapszabályok”</h2>
+      <p>Minimálisan ezeknek kell teljesülniük, hogy egy játék felismerhetően hack and slash legyen. Pipáld, ahogy haladsz:</p>
+      <ul class="check">
+        <li><strong>Valós idejű harc</strong> — nincsenek körök; folyamatos szimuláció.</li>
+        <li><strong>Közelharc dominál</strong> — a fő élmény a kontaktusos támadás.</li>
+        <li><strong>Hitbox / hurtbox ütközés</strong> — a sebzés pozíció- és időzés-alapú, nem dice-roll.</li>
+        <li><strong>Combo-rendszer</strong> — láncolt, időzített inputok; finisher és combo window.</li>
+        <li><strong>Input-buffer &amp; canceling</strong> — sima láncolás; reaktív dodge.</li>
+        <li><strong>Mozgás &amp; dodge i-frame-ek</strong> — a pozicionálás és kitérés skill-tengelye.</li>
+        <li><strong>Tömeges ellenség + támadási token</strong> — egyszerre kevés támadó; olvasható helyzet.</li>
+        <li><strong>Archetípus-keverés</strong> — legalább 3 ellenségtípus, eltérő reakciókkal.</li>
+        <li><strong>Telegrafálás</strong> — minden ellenséges támadásnak van jelző fázisa.</li>
+        <li><strong>Game feel / juice</strong> — hit-stop, screen shake, particle, hang; adagolva.</li>
+        <li><strong>Arena + hullám pacing</strong> — elhatárolt encounters; ritmikus váltakozás.</li>
+        <li><strong>Fejlődés = új opciók</strong> — képességek/fegyverek, nem csak számok.</li>
+        <li><strong>Olvasható kamera</strong> — mindig lásd a fenyegetést.</li>
+        <li><strong>Power fantasy</strong> — a játékos erősnek érzi magát; a nehézség másodlagos.</li>
+        <li><strong>Tanulható boss</strong> — mintázat-alapú, nem statisztikai fal.</li>
+      </ul>
+
+      <div class="box tip">
+        <div class="box-title">◆ Hol kezdj?</div>
+        <p>Egy minimális játszható prototípushoz elég: (1) egy játékos mozgás + egy combo-lánc (3 tag), (2) hitbox/hurtbox ütközés sebzéssel, (3) dodge i-frame-ekkel, (4) három archetípus (grunt, bruiser, ranged), (5) egy arena hullámos spawn-nal, (6) hit-stop + shake + particle. Erre a vázra később loot, build, boss és pálya rárakható.</p>
+      </div>
+    </section>
+
+    <footer>
+      HACK_AND_SLASH_DESIGN_REFERENCE · v1.0 · single-file HTML<br>
+      „A combo nem a gombnyomások száma, hanem az ütem és a súly, amellyel a játékos erősnek érzi magát.”
+    </footer>
+  </main>
+</div>
+
+<script>
+  // scrollspy
+  const links = [...document.querySelectorAll('#nav a')];
+  const map = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const a = map.get(e.target.id);
+        if (a) a.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+  document.querySelectorAll('section[id]').forEach(s => obs.observe(s));
+
+  // mobile menu
+  const sb = document.getElementById('sidebar');
+  const btn = document.getElementById('menuBtn');
+  btn.addEventListener('click', () => sb.classList.toggle('open'));
+  document.querySelectorAll('#nav a').forEach(a =>
+    a.addEventListener('click', () => sb.classList.remove('open')));
+</script>
+</body>
+</html>

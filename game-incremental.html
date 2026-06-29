@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Incremental — A műfaj alapszabályai</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:        #0d130f;
+    --bg-2:      #16201a;
+    --panel:     #1a221d;
+    --panel-2:   #202b24;
+    --border:    #2c3a31;
+    --border-2:  #3a4a40;
+    --text:      #d7dfd9;
+    --muted:     #8c978f;
+    --faint:     #5b665e;
+    --emerald:   #4ec9a0;   /* növekedés / erőforrás */
+    --gold:      #f4c95d;   /* arany / prestige */
+    --blood:     #e05561;   /* veszteség / reset */
+    --magic:     #b072d6;   /* szinergia */
+    --sky:       #5aa9e6;   /* info */
+    --shadow:    #06090a;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+
+  body{
+    font-family:'IBM Plex Sans',sans-serif;
+    background-color:var(--bg);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(255,255,255,.045) 1px, transparent 0);
+    background-size:22px 22px;
+    color:var(--text);
+    line-height:1.7;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ====== LAYOUT ====== */
+  .wrap{
+    display:grid;
+    grid-template-columns:288px 1fr;
+    gap:0;
+    max-width:1280px;
+    margin:0 auto;
+    align-items:start;
+  }
+
+  /* ====== SIDEBAR ====== */
+  .sidebar{
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+    padding:34px 22px 60px 28px;
+    border-right:2px solid var(--border);
+    background:linear-gradient(180deg,var(--bg-2),var(--bg));
+  }
+  .sidebar::-webkit-scrollbar{width:8px}
+  .sidebar::-webkit-scrollbar-thumb{background:var(--border-2)}
+
+  .brand{
+    font-family:'Pixelify Sans',sans-serif;
+    font-size:26px;
+    line-height:1.1;
+    color:var(--emerald);
+    letter-spacing:.5px;
+    margin-bottom:4px;
+    text-shadow:2px 2px 0 var(--shadow);
+  }
+  .brand .glyph{color:var(--text)}
+  .brand-sub{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--faint);
+    text-transform:uppercase;
+    letter-spacing:2px;
+    margin-bottom:26px;
+  }
+
+  .nav-label{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:2px;
+    color:var(--faint);
+    margin:22px 0 8px;
+  }
+  nav a{
+    display:block;
+    color:var(--muted);
+    text-decoration:none;
+    font-size:13.5px;
+    padding:6px 10px 6px 14px;
+    border-left:2px solid transparent;
+    transition:all .12s ease;
+  }
+  nav a:hover{color:var(--text);background:var(--panel)}
+  nav a.active{
+    color:var(--emerald);
+    border-left-color:var(--emerald);
+    background:var(--panel);
+  }
+  nav a .num{
+    font-family:'JetBrains Mono',monospace;
+    color:var(--faint);
+    font-size:11px;
+    margin-right:8px;
+  }
+  nav a.active .num{color:var(--emerald)}
+
+  /* ====== MAIN ====== */
+  main{
+    padding:54px 64px 120px;
+    min-width:0;
+  }
+
+  header.hero{
+    border:2px solid var(--border);
+    background:
+      linear-gradient(135deg,var(--panel) 0%,var(--bg-2) 100%);
+    padding:44px 40px;
+    margin-bottom:54px;
+    box-shadow:8px 8px 0 var(--shadow);
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::before{
+    content:"∞";
+    position:absolute;
+    right:10px;top:-50px;
+    font-family:'Pixelify Sans',sans-serif;
+    font-size:260px;
+    color:rgba(78,201,160,.06);
+    line-height:1;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin-bottom:16px;
+  }
+  h1{
+    font-family:'Pixelify Sans',sans-serif;
+    font-size:clamp(38px,6vw,64px);
+    line-height:1.02;
+    color:var(--text);
+    letter-spacing:.5px;
+    text-shadow:3px 3px 0 var(--shadow);
+    margin-bottom:18px;
+  }
+  h1 .hl{color:var(--emerald)}
+  .lede{
+    font-size:18px;
+    color:var(--muted);
+    max-width:62ch;
+  }
+
+  section{margin-bottom:58px;scroll-margin-top:30px}
+
+  h2{
+    font-family:'Pixelify Sans',sans-serif;
+    font-size:32px;
+    color:var(--emerald);
+    margin-bottom:18px;
+    padding-bottom:10px;
+    border-bottom:2px solid var(--border);
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+  }
+  h2 .sec-num{
+    font-family:'JetBrains Mono',monospace;
+    font-size:15px;
+    color:var(--faint);
+    background:var(--panel);
+    border:1px solid var(--border);
+    padding:2px 9px;
+  }
+  h3{
+    font-family:'Pixelify Sans',sans-serif;
+    font-size:22px;
+    color:var(--gold);
+    margin:30px 0 12px;
+  }
+  h4{
+    font-family:'IBM Plex Sans',sans-serif;
+    font-weight:600;
+    font-size:16px;
+    color:var(--text);
+    margin:22px 0 8px;
+  }
+
+  p{margin-bottom:14px;color:var(--text)}
+  p.muted{color:var(--muted)}
+
+  strong{color:var(--text);font-weight:600}
+  em{color:var(--emerald);font-style:normal}
+
+  a.inline{color:var(--sky);text-decoration:none;border-bottom:1px dashed var(--faint)}
+  a.inline:hover{border-bottom-style:solid}
+
+  ul,ol{margin:0 0 16px 0;padding-left:26px}
+  li{margin-bottom:7px}
+  li::marker{color:var(--emerald)}
+  ul.dash{list-style:none;padding-left:0}
+  ul.dash li{position:relative;padding-left:24px}
+  ul.dash li::before{
+    content:"›";
+    position:absolute;left:4px;
+    color:var(--emerald);
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700;
+  }
+
+  code{
+    font-family:'JetBrains Mono',monospace;
+    font-size:.88em;
+    background:var(--panel-2);
+    color:var(--emerald);
+    padding:1px 6px;
+    border:1px solid var(--border);
+  }
+
+  pre{
+    font-family:'JetBrains Mono',monospace;
+    background:var(--bg-2);
+    border:2px solid var(--border);
+    border-left:4px solid var(--emerald);
+    padding:18px 20px;
+    overflow-x:auto;
+    font-size:13.5px;
+    line-height:1.6;
+    margin:18px 0;
+    box-shadow:5px 5px 0 var(--shadow);
+  }
+  pre code{background:none;border:none;color:var(--text);padding:0}
+  .c-kw{color:var(--magic)}
+  .c-fn{color:var(--emerald)}
+  .c-ty{color:var(--gold)}
+  .c-cm{color:var(--faint);font-style:italic}
+  .c-st{color:#c2a86b}
+  .c-nm{color:var(--blood)}
+
+  /* callout boxes */
+  .box{
+    border:2px solid var(--border);
+    background:var(--panel);
+    padding:18px 22px;
+    margin:20px 0;
+    box-shadow:5px 5px 0 var(--shadow);
+  }
+  .box .box-title{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    margin-bottom:8px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .box.tip{border-left:4px solid var(--emerald)}
+  .box.tip .box-title{color:var(--emerald)}
+  .box.warn{border-left:4px solid var(--blood)}
+  .box.warn .box-title{color:var(--blood)}
+  .box.note{border-left:4px solid var(--sky)}
+  .box.note .box-title{color:var(--sky)}
+  .box p:last-child{margin-bottom:0}
+
+  /* definition pills */
+  .pill{
+    display:inline-block;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    background:var(--panel-2);
+    border:1px solid var(--border-2);
+    color:var(--emerald);
+    padding:2px 8px;
+    margin:0 4px 4px 0;
+  }
+
+  /* tables */
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin:18px 0;
+    font-size:14.5px;
+    box-shadow:5px 5px 0 var(--shadow);
+  }
+  th,td{
+    border:1px solid var(--border);
+    padding:10px 14px;
+    text-align:left;
+    vertical-align:top;
+  }
+  th{
+    background:var(--panel-2);
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:var(--emerald);
+  }
+  td{background:var(--panel)}
+  tr:nth-child(even) td{background:var(--bg-2)}
+
+  /* factor grid */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}
+  .card{
+    border:2px solid var(--border);
+    background:var(--panel);
+    padding:16px 18px;
+  }
+  .card h4{margin-top:0;color:var(--emerald)}
+  .card.lo h4{color:var(--muted)}
+
+  /* checklist */
+  .check{list-style:none;padding-left:0}
+  .check li{
+    position:relative;padding-left:34px;margin-bottom:11px;
+    border-bottom:1px dotted var(--border);padding-bottom:11px;
+  }
+  .check li::before{
+    content:"[ ]";
+    position:absolute;left:0;top:0;
+    font-family:'JetBrains Mono',monospace;
+    color:var(--emerald);font-weight:700;
+  }
+
+  hr{border:none;border-top:2px dashed var(--border);margin:40px 0}
+
+  footer{
+    border-top:2px solid var(--border);
+    margin-top:60px;
+    padding-top:24px;
+    color:var(--faint);
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+  }
+
+  /* mobile */
+  .menu-btn{display:none}
+  @media(max-width:920px){
+    .wrap{grid-template-columns:1fr}
+    .sidebar{
+      position:fixed;top:0;left:0;width:280px;z-index:50;
+      transform:translateX(-100%);transition:transform .2s ease;
+    }
+    .sidebar.open{transform:translateX(0)}
+    main{padding:30px 22px 90px}
+    .menu-btn{
+      display:flex;align-items:center;gap:8px;
+      position:fixed;top:14px;right:14px;z-index:60;
+      font-family:'JetBrains Mono',monospace;font-size:12px;
+      background:var(--panel);color:var(--emerald);
+      border:2px solid var(--border);padding:8px 12px;cursor:pointer;
+      box-shadow:3px 3px 0 var(--shadow);
+    }
+    header.hero{padding:30px 22px}
+    .grid2{grid-template-columns:1fr}
+    h2{font-size:26px}
+  }
+  @media(prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    *{transition:none!important}
+  }
+</style>
+</head>
+<body>
+
+<!-- olvasási haladásjelző (progress bar) -->
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,var(--emerald),var(--gold));
+  box-shadow:0 0 10px rgba(78,201,160,.55);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-btn" id="menuBtn">☰ MENÜ</button>
+
+<div class="wrap">
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><span class="glyph">∞</span> Incremental</div>
+    <div class="brand-sub">design&nbsp;·&nbsp;alapszabályok</div>
+    <div class="nav-label">Tartalom</div>
+    <nav id="nav">
+      <a href="#mi-az"><span class="num">00</span>Mi az az incremental?</a>
+      <a href="#eredet"><span class="num">01</span>Eredet &amp; evolúció</a>
+      <a href="#core"><span class="num">02</span>A core loop</a>
+      <a href="#szamok"><span class="num">03</span>A számok nyelve</a>
+      <a href="#kattintas"><span class="num">04</span>Kattintás → automatizáció</a>
+      <a href="#prestige"><span class="num">05</span>Prestige &amp; reset</a>
+      <a href="#upgradek"><span class="num">06</span>Upgrade-ek &amp; buyables</a>
+      <a href="#multiplikatorok"><span class="num">07</span>Multiplikátorok &amp; szinergiák</a>
+      <a href="#noevedes"><span class="num">08</span>Növekedési görbék</a>
+      <a href="#idle"><span class="num">09</span>Offline / idle progress</a>
+      <a href="#fazisok"><span class="num">10</span>Játékfázisok &amp; illúziók</a>
+      <a href="#celok"><span class="num">11</span>Célok &amp; a „tét”</a>
+      <a href="#egyensuly"><span class="num">12</span>Egyensúly &amp; számolás</a>
+      <a href="#elvek"><span class="num">13</span>Tervezési alapelvek</a>
+      <a href="#bevy"><span class="num">14</span>Implementáció (Bevy/ECS)</a>
+      <a href="#checklist"><span class="num">15</span>Checklista</a>
+    </nav>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main>
+    <header class="hero">
+      <div class="eyebrow">Műfaji leírás · fejlesztői referencia</div>
+      <h1>Az <span class="hl">incremental</span> műfaj alapszabályai</h1>
+      <p class="lede">Mi az az incremental/idle játék, miért működik a „számok nőnek” érzés, és hogyan kell felépíteni egyet — a core loop-tól a prestige-rendszereken át a nagyszám-ábrázolásig és az ECS-implementációig. Ez a dokumentum „szerződésnek” készült: olyan szabályhalmaznak, amit egy játék fejlesztése közben követni lehet.</p>
+    </header>
+
+    <!-- 00 -->
+    <section id="mi-az">
+      <h2><span class="sec-num">00</span>Mi az az incremental?</h2>
+      <p>Az <strong>incremental</strong> (más néven <strong>idle</strong> vagy <strong>clicker</strong>) egy olyan játékműfaj, amelyben a fő tevékenység egy <strong> folyamatosan növekvő erőforrás </strong> (általában egy szám) gyűjtése és növelése: kattintasz/kattintasz, vásárolsz upgrade-eket, amelyek automatizálják a gyűjtést, majd a rendszer önállóan is termel, miközben te újabb rétegeket nyitsz meg. A játékmenet lényege a <strong>hatványozódó növekedés</strong> — egyszerre kielégítő (a szám szalad felfelé) és hosszú távon is fenntartja a figyelmet (mindig van következő mérföldkő).</p>
+      <p>A műfaj nem a reflexeken vagy a taktikán múlik, hanem az <strong>optimalizáláson</strong>: hol fektesd be a következő erőforráscsomagot, hogy a növekedés a leggyorsabb legyen? A jó incremental egy lassan kibontakozó „gördülő hullám”, ahol a játékos folyamatosan kap jutalmat, és sosem érzi, hogy „beragadt” volna — legalábbis amíg a következő fázis meg nem nyílik.</p>
+      <div class="box note">
+        <div class="box-title">▚ Egy mondatban</div>
+        <p>Egy játék, ahol egy szám növekszik, a játékos a növekedés ütemét optimalizálja (upgrade-ek, multiplikátorok, automatizáció), és időnként mindent visszaállít egy tartós bónuszért (prestige).</p>
+      </div>
+      <div class="box tip">
+        <div class="box-title">◆ Két elágazás</div>
+        <p>A „clicker” (kattintós, pl. Cookie Clicker) a manuális akciót helyezi előtérbe, amit később automatizálsz. Az „idle” (pl. Melvor Idle, Kittens Game) eleve passzív: a rendszer termel, te csak a stratégiát adod. A legtöbb játék mindkettőt ötvözi, de érdemes tudatosan dönteni, melyik a fő csapolás.</p>
+      </div>
+    </section>
+
+    <!-- 01 -->
+    <section id="eredet">
+      <h2><span class="sec-num">01</span>Eredet &amp; evolúció</h2>
+      <p>A műfaj klasszikus „ősének” az <strong>A Progress Quest</strong> (2002) számít, amely egy fél-tréfás RPG, ahol a játékosnak semmit sem kell tennie — a játék automatikusan halad. Az igazi áttörést azonban a <strong>Candy Box!</strong> (2013, aniwey) és a <strong>Cookie Clicker</strong> (2013, Julien „Orteil” Thiennot) hozta el. Az Orteil játéka vált a műfaj archetípusává: kattintással sütiket gyűjtesz, majd vásárolsz „grandmá”-kat és üzemeket, amelyek automatikusan sütnek — a szám exponenciálisan száll el, a humor és a rejtett tartalom pedig a visszajárás hajtómotorja.</p>
+      <p>Az egyszerű kattintós kezdetek után a műfaz gyorsan „felnőtt”: megjelentek a <strong>több rétegű prestige rendszerek</strong>, a matematikailag mélyebb címek (pl. <em>Antimatter Dimensions</em>, amely szinte egy „működő matematikai katedrális”), és a hibrid formák, amelyek az idle alapot más műfajokkal ötvözik (idle RPG: <em>Melvor Idle</em>; idle management: <em>NGU Industries</em>; narratív idle: <em>Universal Paperclips</em>, <em>Idle Champions</em>).</p>
+      <p>Ezekből nőtt ki a modern iskola: <span class="pill">Cookie Clicker</span><span class="pill">Adventure Capitalist</span><span class="pill">Antimatter Dimensions</span><span class="pill">Universal Paperclips</span><span class="pill">Kittens Game</span><span class="pill">Melvor Idle</span><span class="pill">NGU Industries</span><span class="pill">Realm Grinder</span><span class="pill">Idle Slayer</span>。</p>
+      <div class="box tip">
+        <div class="box-title">◆ Miért fontos ezt ismerni?</div>
+        <p>A műfaj első pillanattól a „mennyiség” (nagy számok) és a „minőség” (mély rendszerek) között ingadozott. Ha érted, hogyan lépett át a Cookie Clicker egyszerűségéből az Antimatter Dimensions mélységébe, eldöntheted, hogy saját játékod hol áll ezen a skálán.</p>
+      </div>
+    </section>
+
+    <!-- 02 -->
+    <section id="core">
+      <h2><span class="sec-num">02</span>A core loop</h2>
+      <p>Az incremental magja egy rendkívül egyszerű <strong>visszacsatolási ciklus</strong>, amelyet érdemes külön-külön látni, mert minden más rendszer erre épül:</p>
+      <ol>
+        <li><strong>Termelés</strong> — valamilyen erőforrás növekszik (kattintásra vagy passzívan/idővel).</li>
+        <li><strong>Vásárlás</strong> — a termelt erőforrást upgrade-ekre költheted.</li>
+        <li><strong>Gyorsítás</strong> — az upgrade-ek növelik a termelést (multiplikátor, automatizáció, új réteg).</li>
+        <li><strong>Újabb termelés</strong> — a gyorsabb termelés hamarabb enged következő vásárlást → a ciklus gyorsul.</li>
+      </ol>
+      <p>Ez a pozitív visszacsatolás önmagában <em>kielégítő</em>, de <em>végtelenül is unalmas</em> lenne. A műfaj összes többi eleme (prestige, fázisok, célok, narratíva) annak a célnak van, hogy ezt a hurkot <strong>megszakítsa vagy újragombolja</strong>, mielőtt a játékos ráunna a szaladó számokra. A jó incremental nem a növekedés puszta létéből él, hanem abból, hogy mindig van <em>következő csomópont</em>, ahol a növekedés <em>értelmet nyer</em>.</p>
+      <div class="box note">
+        <div class="box-title">▚ A loop „háromsága”</div>
+        <p><strong>Kattintás</strong> (aktív) → <strong>Automatizáció</strong> (passzív, de optimalizálandó) → <strong>Prestige</strong> (visszaállítja a ciklust, de tartós nyereséget ad). A három fázis egymásra van hangolva: az egyik kiábrándulását a másik érkezése töri meg.</p>
+      </div>
+    </section>
+
+    <!-- 03 -->
+    <section id="szamok">
+      <h2><span class="sec-num">03</span>A számok nyelve</h2>
+      <p>Az incremental egyetlen legfontosabb „alapanyaga” a <strong>nagy szám</strong>. A műfaj hamar eljut oda, hogy a <code>1e30</code>-as nagyságrendeket kell megjeleníteni és kezelni — ezt nem lehet szimpla <code>i64</code> vagy akár <code>f64</code>-fölé skálázni komolyabb játékoknál (a <code>f64</code> kb. <code>1.8e308</code>-ig tart, de pontossága nagy számoknál drasztikusan csökken, és néhány játék ezt is túllépi).</p>
+
+      <h3>Ábrázolási stratégiák</h3>
+      <div class="grid2">
+        <div class="card">
+          <h4>Külön mantissza + kitevő</h4>
+          <p class="muted">Egy <code>(mantissa, exp)</code> pár, ahol <code>érték = mantissa × 10^exp</code>, <code>mantissa ∈ [1, 10)</code>. Ez a gyakori kompromisszum: nagy tartomány, jó pontosság, az egész számú kitevőre lehet szorozni/gyökölni. (A „break_infinity” könyvtár elve.)</p>
+        </div>
+        <div class="card">
+          <h4>Logaritmikus tárolás</h4>
+          <p class="muted">Csak a szám <code>log10</code>-ét tárolod (<code>f64</code>-ként). Szorzás = összeadás, hatványozás = szorzás — elegáns és szinte korlátlan tartomány. Hátránya: az összeadás/kivonás drágább és „kerekítéses”.</p>
+        </div>
+        <div class="card">
+          <h4>Több rétegű (oszlopok)</h4>
+          <p class="muted">A legextrémebb címek (Antimatter Dimensions) külön erőforrás-rétegeket vezetnek be, ahol egy magasabb réteg „gyűjtése” már önmagában exponenciális a mélyebben lévőhöz képest — így a „nagyságrendi ugrás” maga a tartalom.</p>
+        </div>
+        <div class="card">
+          <h4>Suffix formázás</h4>
+          <p class="muted">Megjelenítéshez: <code>K, M, B, T, Qa, Qi, …</code>, vagy tudományos (<code>1.23e45</code>), vagy „betűs” (<code>aa, ab, …</code>). A kiegészítő lényege: a játékos mindig értse, mit lát.</p>
+        </div>
+      </div>
+
+      <div class="box warn">
+        <div class="box-title">⚠ Soha ne használd az <code>f64</code>-et komoly incrementalhoz</div>
+        <p>A <code>f64</code> nagy számoknál elveszti a pontosságot: <code>1e16 + 1</code> már nem feltétlenül változik. Ha a játékos <code>1e20</code>-on van, és egy +1-es bonusz „elfogy”, az frusztráló és láthatatlan hiba. Használj dedikált nagy-szám típust (<code>mantissa+kitevő</code> vagy <code>log</code>-tárolás), és a megjelenítést mindig a belső reprezentációból származtasd.</p>
+      </div>
+      <div class="box tip">
+        <div class="box-title">◆ „Olvasható” nagy számok</div>
+        <p>A játékos ne lásson <code>1.23456789e19</code>-et, hanem <code>12.34 quintillion</code>-t (vagy szuffix-szel <code>12.34Qi</code>). A fontos jegyek (2–3) maradjanak, a többi kerekítve. Az olvashatóság a műfaj egyik legnagyobb minőségi tényezője.</p>
+      </div>
+    </section>
+
+    <!-- 04 -->
+    <section id="kattintas">
+      <h2><span class="sec-num">04</span>Kattintás → automatizáció</h2>
+      <p>A clicker-ág klasszikus íve: először a játékos <strong>aktívan kattint</strong>, ez a fő termelőakció. Hamarosan vásárol egy <strong>automatizációs upgrade-t</strong> („grandma”, „üzem”), amely másodpercenként önállóan termel. Innentől a kattintás hatékonysága egyre csökken az automatizációhoz képest — a manuális akció „kihal”.</p>
+      <p>Ez a kihalás nem hiba, hanem <strong>tervezési szándék</strong>: a kattintás a bevezető szakasz eszköze, amely megtanítja a ciklust és azonnali jutalmat ad. Amikor az automatizáció átvészi, a játék átkerül a „passzív optimalizálás” fázisba. A jó dizájn ezt a <em>átmenetet</em> tudatosan alakítja.</p>
+      <h4>A kattintás túlélésének trükkjei</h4>
+      <ul class="dash">
+        <li><strong>Kattintás-specifikus bónuszok</strong>: olyan multiplier, ami csak a manuális kattintásra vonatkozik, így a kattintás egy opcionális „aktív boost”, nem kötelező kattintani.</li>
+        <li><strong>Kattintás = korlátos boost</strong>: egy ideig erősíti a termelést, de lejár („coffee”, „rage”), így a játékos időnként visszatér.</li>
+        <li><strong>Idle-bónusz / anti-idle</strong>: a passzív termelés is bónuszt kap, ha a játékos nem kattint (vagy fordítva) — ez tudatos játékmódot kínál.</li>
+      </ul>
+      <div class="box note">
+        <div class="box-title">▚ A kattintás mint ok-okozati híd</div>
+        <p>A kattintás legfőbb értéke nem a termelés mennyisége, hanem hogy <em>kapcsolatot teremt</em> a játékos és a növekedés közt. Amikor a játékos rákattint, és a szám azonnal ugrik, az ok-okozat <em>érzése</em> erősödik. Az automatizáció ezt elveszi — ezért kell helyette <em>viszualizáció</em> és <em>visszajelzés</em>, hogy a passzív növekedés is „érezhető” legyen.</p>
+      </div>
+    </section>
+
+    <!-- 05 -->
+    <section id="prestige">
+      <h2><span class="sec-num">05</span>Prestige &amp; reset</h2>
+      <p>A <strong>prestige</strong> a műfaj központi mechanikája: a játékos <strong>önként visszaállítja</strong> a játékát (elveszti az upgrade-eket, a termelést), cserébe egy <strong>tartós, futásokon átívelő bónuszt</strong> kap (új erőforrás, multiplier, új mechanika). Ez a „reset for reward” két célt szolgál:</p>
+      <ul class="dash">
+        <li><strong>Megszakítja a saturációt</strong>: amikor a növekedés lelassul és a következő upgrade már nem érhető el ésszerű időn belül, a prestige visszaadja a gyorsuló növekedés élményét.</li>
+        <li><strong>Tartós célt ad</strong>: a játékos nemcsak „most gyorsabban termel”, hanem egy <em>állandó metaszintet</em> épít, amely sosem vész el.</li>
+      </ul>
+
+      <h3>A prestige tervezési tengelyei</h3>
+      <table>
+        <thead>
+          <tr><th>Tengely</th><th>Kérdés</th><th>Példa</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>什么时候 mikor?</td><td>Mikor éri meg resetelni? Legyen egy látható „break-even” pont.</td><td>„+10% termelés/reset, ha eléred az 1e10-et”</td></tr>
+          <tr><td>Mit veszít?</td><td>Csak az aktuális réteget, vagy az egész futást? Minél többet veszít, annál nagyobbnak kell a jutalomnak lenni.</td><td>Cookie Clicker: csak az aktuális run; Antimatter: több réteg.</td></tr>
+          <tr><td>Mit kap?</td><td>Multiplier (egyszerű), új mechanika (izgalmasabb), vagy új erőforrás-réteg (legmélyebb).</td><td>Heavenly Chips / Antimatter dimenziók</td></tr>
+          <tr><td>Láncolódik?</td><td>Lehet többszörös prestige (prestige-re currency-t is resetelni egy még magasabb szintért)? Ez a mély incremental alapja.</td><td>Antimatter Dimensions, NGU</td></tr>
+        </tbody>
+      </table>
+
+      <div class="box warn">
+        <div class="box-title">⚠ A prestige dilemma</div>
+        <p>Ha a prestige túl hamar elérhető és a jutalom túl nagy, a játékos „grind-prestige” hurokba kerül, és a játék unalmassá válik (mindent resetelsz, gyorsan újra megcsinálod, resetelsz…). Ha túl későn vagy túl kicsi a jutalom, a játékos sosem resetel, és a növekedés megáll. A cél egy <strong>értelmes döntési pont</strong>: a játékos érezze, hogy „most jött el az ideje”, és lássa, mennyit nyer vele.</p>
+      </div>
+      <div class="box tip">
+        <div class="box-title">◆ Mutass számolót!</div>
+        <p>A játékosnak látnia kell, hogy ha most resetel, hány prestige-pontot kap, és az mennyi multiplier. Rejtett matematika helyett transzparens kalkulátor — ez a „döntéstámasztás” alapja. (A legtöbb sikeres incremental ezt beépítve kínálja.)</p>
+      </div>
+    </section>
+
+    <!-- 06 -->
+    <section id="upgradek">
+      <h2><span class="sec-num">06</span>Upgrade-ek &amp; buyables</h2>
+      <p>Az upgrade a játékos fő beavatkozási felülete: erőforrást költesz valami hatásra. A műfajban több jól bevált minta él, amelyeket gyakran <strong>keverve</strong> használnak:</p>
+
+      <h3>1. Buyable (skálázódó, ismételhető)</h3>
+      <p>Egy upgrade-t többször is megvehetsz, de <strong>az ára exponenciálisan nő</strong> (általában <code>ár(n+1) = ár(n) × 1.15</code> vagy hasonló). Ez a műfaj alap-kavicása: a vásárlás mindig kicsit drágább, így a játékos folyamatosan mérlegel — „megvegyem most, vagy gyűjtsek a következő szintre?”. A növekvő ár egyensúlyozza a növekvő termelést.</p>
+      <pre><code><span class="c-cm">// Klasszikus "buyable" ár-szabály</span>
+<span class="c-kw">fn</span> <span class="c-fn">ar</span>(alapar: <span class="c-ty">f64</span>, novekedes: <span class="c-ty">f64</span>, db: <span class="c-ty">u64</span>) -&gt; <span class="c-ty">f64</span> {
+    alapar * novekedes.<span class="c-fn">powi</span>(db <span class="c-kw">as</span> <span class="c-ty">i32</span>)
+}
+<span class="c-cm">// pl. alapar=10, novekedes=1.15 → 0 db: 10, 1 db: 11.5, 10 db: ~40.5, 50 db: ~1067</span></code></pre>
+
+      <h3>2. Egyedi (unlock) upgrade</h3>
+      <p>Egyszer megvehető, fix árú upgrade, amely <strong>új képességet/mechanikát nyit meg</strong>. Ezek a „mérföldkövek”: a játékos célja, hogy elérje a következő unlockot. Az áruk általában ugrásszerű (nagyságrendekkel magasabb az előzőnél), így a játék természetesen „fázisokra” tagolódik.</p>
+
+      <h3>3. Multiplikátor-buyable</h3>
+      <p>Olyan buyable, amely nem új entitást ad, hanem <strong>szorzóval növeli a meglévő termelést</strong> (pl. „+50% grandma termelés”). Ezek a szinergia-építés fő eszközei: a játékos eldönti, melyik réteget erősítse.</p>
+
+      <h3>4. Tömeges vásárlás (bulk buy)</h3>
+      <p>Mivel a buyable-árgörbe exponenciális, gyakori funkció a „<code>x1 / x10 / x100 / max</code>” gomb, amely egyszerre több darabot vesz. Fontos: a „max” számolása a <strong>geometriai sor</strong> összegzésével történik (nem lépésenként!).</p>
+      <pre><code><span class="c-cm">// Hány darab vehető adott erőforrásból? (geometriai sor)</span>
+<span class="c-cm">// ar(n) = a * r^n; osszeg = a*(r^n - 1)/(r - 1) &lt;= tarollo</span>
+<span class="c-kw">fn</span> <span class="c-fn">max_vasarolhato</span>(alapar, novekedes, tarollo) -&gt; <span class="c-ty">u64</span> {
+    <span class="c-kw">let</span> r = novekedes;
+    <span class="c-kw">let</span> n = ((tarollo * (r - <span class="c-nm">1</span>) / alapar) + <span class="c-nm">1</span>).<span class="c-fn">ln</span>() / r.<span class="c-fn">ln</span>();
+    n.<span class="c-fn">floor</span>() <span class="c-kw">as</span> <span class="c-ty">u64</span>
+}</code></pre>
+
+      <div class="box note">
+        <div class="box-title">▚ Mindig zárt formula</div>
+        <p>A „max”-kalkulációt <strong>soha</strong> ne lépésenkénti ciklussal számold („vehetek még egyet? igen… és még?…”). Egyszerű zárt formula van rá — különben egy kattintás késleltethet, és a UI lefagyhat nagy számoknál.</p>
+      </div>
+    </section>
+
+    <!-- 07 -->
+    <section id="multiplikatorok">
+      <h2><span class="sec-num">07</span>Multiplikátorok &amp; szinergiák</h2>
+      <p>A növekedés ütemét <strong>multiplikátorok</strong> alakítják. A műfajban az egyik legfontosabb tervezési kérdés, hogyan kombinálódnak — ez határozza meg, hogy a játék „mély”-e (érdekes döntések, build-variáció) vagy „lapos” (csak egy szám szalad felfelé).</p>
+
+      <h4>Szorzási modellek</h4>
+      <ul class="dash">
+        <li><strong>Additív bónuszok</strong>: <code>+50% + 30% = +80%</code>. Egyszerű, de könnyen „túlnő”: sok kis bónusz felgyűlik, és egy ponton minden mást kinulláz. Jó kis boostokhoz.</li>
+        <li><strong>Multiplikatív bónuszok</strong>: <code>×1.5 × 1.3 = ×1.95</code>. Minden szorzó számít; a „build” az, hogy mely szorzókat erősíted. A modern incremental javarészt ezt használja.</li>
+        <li><strong>Exponenciális / hatvány</strong>: <code>1.01^fázis</code>. Erőteljes, de veszélyes — hamar „elszáll”, és a játék irányíthatatlanná válik. Általában maga a <em>prestige</em> használja, mert annak a megnyitása egy ritka, jól kalibrált ugrás.</li>
+        <li><strong>Szinergiák</strong>: egy réteg erősíti a másikat (pl. „minden grandma +1% a gyár termeléséhez”). Ez az emergens játék forrása: a játékos egyre több <em>kereszt-réteget</em> fedez fel.</li>
+      </ul>
+
+      <div class="box tip">
+        <div class="box-title">◆ A szinergia elve</div>
+        <p>A legmélyebb incremental címek nem egyetlen „termelési vonalat” kínálnak, hanem <strong>több, egymást erősítő rendszert</strong>. A játékos feladata a <em>kereszt-optimalizálás</em>: nem elég csak egy vonalat nyomni, hanem el kell dönteni, hol éri meg az erőforrást elosztani. Ez a build-variáció forrása, és ez teszi a játékot tartóssá.</p>
+      </div>
+
+      <div class="box warn">
+        <div class="box-title">⚠ A „kiszámíthatatlan robbanás” csapdája</div>
+        <p>Ha több multiplikatív és exponenciális bónusz kombinálódik, könnyen előfordul, hogy a játékos egy „törött” build-et talál, amelynek hatása a tervező által nem látott nagyságrendbe száll. Ezt <em>simításokkal</em> (csökkenő hozam, „soft cap”) lehet szabályozni: ha egy szorzó túlnő, a hatása fokozatosan gyengül.</p>
+      </div>
+    </section>
+
+    <!-- 08 -->
+    <section id="noevedes">
+      <h2><span class="sec-num">08</span>Növekedési görbék</h2>
+      <p>A műfaj egész dizájnja <strong>görbéken</strong> múlik. Nem elég, hogy a szám nő — az a kérdés, <em>milyen ütemben</em> nő, és az a növekedés mikor lassul fel vagy gyorsul. A játékos élménye a görbe alakjából jön.</p>
+
+      <table>
+        <thead>
+          <tr><th>Görbe típus</th><th>Példa</th><th>Érzet</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Lineáris</td><td><code>+1 / tick</code></td><td>Kezdő, gyorsan unalmas; csak rövid bevezetőhöz.</td></tr>
+          <tr><td>Polinomiális</td><td><code>level²</code></td><td>Természetes „erősödés”; a növekedés érezhető, de nem száll el.</td></tr>
+          <tr><td>Exponenciális</td><td><code>1.15^level</code></td><td>A műfaj alapja — a szám „szalad”, kielégítő. De kontrollálandó!</td></tr>
+          <tr><td>Tető-simított</td><td><code>1 - e^(-x)</code></td><td>Célokhoz, ahol van egy maximum (pl. prestige bonus limit).</td></tr>
+          <tr><td>Lépcsős (fázisok)</td><td>hirtelen ugrások</td><td>Unlockok: a játék ritmusa a „beragadás → ugrás” váltakozása.</td></tr>
+        </tbody>
+      </table>
+
+      <p>A legfontosabb tervezési elv: <strong>a termelés görbéje és az árak görbéje egymásra legyen hangolva</strong>. Ha a termelés <code>n²</code>, de az ár <code>1.15^n</code>, akkor egy ponton a játék „beragad”: a termelés nem tart lépést az árral. Ez lehet szándékolt (prestige-re ösztönöz) vagy hiba (a játékos elhagyja a játékot). A különbséget a <strong>következő mérföldkő láthatósága</strong> adja: ha látja, hogy „még 5 perc és megvan a következő upgrade”, kitart; ha homályos, feladja.</p>
+
+      <div class="box note">
+        <div class="box-title">▚ A „beragadás” mint eszköz</div>
+        <p>A lassulás nem ellenség — a megfelelő időben bekövetkező „beragadás” az, ami a prestige döntést <em>érthetővé</em> teszi. A hiba az, ha a játékos <em>érthetetlenül</em> beragad: nem látja, miért lassult, és nem látja, mi a kiút. Mindig legyen látható „következő lépés”.</p>
+      </div>
+    </section>
+
+    <!-- 09 -->
+    <section id="idle">
+      <h2><span class="sec-num">09</span>Offline / idle progress</h2>
+      <p>Az incremental egyik vonzereje, hogy <strong>a játék akkor is halad, amikor nem játszol</strong>. Ez azonban komoly tervezési és mérnöki kérdéseket vet fel — az egyszerű „mindig számolj” nem mindig helyes.</p>
+
+      <h4>Offline-számolás stratégiái</h4>
+      <ul class="dash">
+        <li><strong>Teljes offline-jutalom</strong>: a játék kikapcsolva is termel, visszatéréskor a „potya” gyarapodást látod. Legbőségesebb, de veszélyes: a játékos megtanulja, hogy „nem kell játszani, csak várni” — kiöli az aktív részvételt.</li>
+        <li><strong>Részleges / cap-elt</strong>: csak bizonyos időtartamig (pl. 8 óra) vagy bizonyos százalékig termel. A játékost visszacsábítja („full a raktár, gyere vissza”), de nem bünteti túl a hosszú távollétet.</li>
+        <li><strong>Nincs offline-jutalom</strong>: csak online. Ez erősíti az aktív játékot, de elriasztja a hétköznapi játékost, aki nem tud folyamatosan nyitva tartani.</li>
+        <li><strong>Offline upgrade-ek</strong>: a játékos maga fejlesztheti az offline hatékonyságot — ez a progression egy új tengelye.</li>
+      </ul>
+
+      <h4>Mérnöki: szimulálj, ne léptess</h4>
+      <p>Amikor a játékos visszatér, és mondjuk 12 óra telt el, ne <strong>tick-eket fusson le</strong> a háttérben (lassú, és a precíz időzítéseket ismételgeti). Ehelyett <strong>zárt formulával szimuláld</strong> a termelést a távollét alatt: tudd, hogy a távozáskor milyen volt a termelési ráta, és számold ki az integrált (összegzett) gyarapodást. Ha a termelés a távollét alatt változhatott (pl. egy upgrade időközben „maxolt”), ott kell kompromisszumot kötni.</p>
+      <pre><code><span class="c-cm">// Offline termelés zárt formulával</span>
+<span class="c-kw">fn</span> <span class="c-fn">offline_noveles</span>(ratar: <span class="c-ty">f64</span>, masodperc: <span class="c-ty">f64</span>, cap: <span class="c-ty">f64</span>) -&gt; <span class="c-ty">f64</span> {
+    <span class="c-kw">let</span> nyers = ratar * masodperc;          <span class="c-cm">// véges futás alatt nő</span>
+    nyers.<span class="c-fn">min</span>(cap)                       <span class="c-cm">// ne legyen végtelen</span>
+}
+<span class="c-cm">// Ha a ráta maga is időben változik, akkor "rampa" formula kell</span></code></pre>
+
+      <div class="box tip">
+        <div class="box-title">◆ Az offline = „várj rám” üzenet</div>
+        <p>Az offline-jutalom fő célja nem az, hogy a játékos ingyen kapjon, hanem hogy <strong>visszacsábítsa</strong>. A cap-elt offline gyarapodás pont ezt csinálja: „gyere vissza, van mit begyűjteni” — de nem végtelenül, mert akkor nem kell visszajönni.</p>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section id="fazisok">
+      <h2><span class="sec-num">10</span>Játékfázisok &amp; illúziók</h2>
+      <p>A jó incremental nem egyetlen folyamatos növekedés, hanem <strong>több, jól elkülönülő fázis</strong> sorozata, amelyek mindegyike más „élményt” kínál. Ez tagolja a játékidőt, és megtöri az unalmat.</p>
+
+      <div class="grid2">
+        <div class="card">
+          <h4>Korai fázis</h4>
+          <p class="muted">Gyors növekedés, gyakori upgrade-vásárlások, a „szám szalad” érzése. Cél: beragadtás (onboarding). Itt a kattintás a fő.</p>
+        </div>
+        <div class="card">
+          <h4>Középső fázis</h4>
+          <p class="muted">Az automatizáció átvészi; az optimalizálás lesz a fő. A növekedés lassul, a „következő upgrade” távolabb kerül — itt jön a prestige csábítása.</p>
+        </div>
+        <div class="card">
+          <h4>Prestige-fázis</h4>
+          <p class="muted">Újraindítás egy új réteggel: a játék átalakul, új mechanikák nyílnak. Ez a „második játék” — a tartósság fő forrása.</p>
+        </div>
+        <div class="card">
+          <h4>Végjáték</h4>
+          <p class="muted">Exponenciális bónuszok, ritka célok, esetlegesen „transzcendens” reset. Itt a játékos már a rendszer határait feszegeti. Cél: lezárás vagy végtelen lehetőség.</p>
+        </div>
+      </div>
+
+      <p>A fázisok közt a <strong>átmenet</strong> a kritikus pillanat. Amikor a növekedés lelassul, és a játékos úgy érzi, „beragadt”, a következő fázisnak éppenhogy meg kell nyílnia — ez a „katarzis”. Ha a beragadás túl hosszú, a játékos elhagyja; ha túl rövid, nem értékeli az új fázist.</p>
+      <div class="box note">
+        <div class="box-title">▚ Az „illúzió” fontossága</div>
+        <p>Az incremental sokszor <em>azt az illúziót</em> adja, hogy a játékos irányít. Valójában a növekedés a görbékben van előre megírva; a játékos csak <em>az időzítést</em> és <em>az erőforrás-elosztást</em> optimalizálja. A jó dizájn ezt az illúziót fenntartja: mindig legyen látható <em>döntés</em>, amelynek van <em>érzékelhető következménye</em> — még ha a végkifejlet nagyjából előre elrendelt is.</p>
+      </div>
+    </section>
+
+    <!-- 11 -->
+    <section id="celok">
+      <h2><span class="sec-num">11</span>Célok &amp; a „tét”</h2>
+      <p>Az incremental egy paradoxon: a játékos <em>sosem veszít</em>, csak <em>vár</em>. Mégis, a műfaj legnagyobb kihívása a <strong>tét</strong> megteremtése — különben a játék „miért csinálom ezt?”-élménnyé válik. Néhány bevett megoldás:</p>
+      <ul class="dash">
+        <li><strong>Explicit célok / mérföldkövek</strong>: „Érd el az 1e15-öt”, „szerezz 100 prestige-pontot”. Konkrét, látható, ünnepelhető.</li>
+        <li><strong>Decay / fenntartás</strong>: valami <em>fogy</em> vagy <em>romlik</em>, és a játékosnak fenntartania kell (pl. egy épület amortizálódik). Ez passzív növekedés helyett aktív kihívást ad.</li>
+        <li><strong>Választási dilemmák</strong>: két út közül csak az egyiket választhatod (build-ágak). A „nem választott” elvész — ezáltal a döntésnek súlya van.</li>
+        <li><strong>Időzített események</strong>: ritka időszakok, amikor különleges jutalom érhető el — visszacsábítják a játékost, és valódi „tétet” adnak („most vagy soha”).</li>
+        <li><strong>Narratív keret</strong>: egy történet, amely a növekedés köré épül (Universal Paperclips). A szám nem öncélú — egy cél felé mutat, és a végkifejletnek súlya van.</li>
+      </ul>
+      <div class="box warn">
+        <div class="box-title">⚠ A „miért csinálom?” csapda</div>
+        <p>A legnagyobb veszély: a játékos felébred, és rájön, hogy csak egy számot növelget, ami nincs célnak alárendelve. A prestige önmagában nem elég — csak „több számot” ígér. A műfaj legjobb címei <strong>értelmet</strong> adnak a növekedésnek: egy történetet, egy lezárást, egy felfedezést, vagy egy olyan mechanikai „áttörést”, amely megváltoztatja, mit jelent a játék.</p>
+      </div>
+    </section>
+
+    <!-- 12 -->
+    <section id="egyensuly">
+      <h2><span class="sec-num">12</span>Egyensúly &amp; számolás</h2>
+      <p>Az incrementalban a <strong>balansz</strong> nem „a nehézség beállítása”, hanem <em>a görbék illesztése</em>. A tervező feladata, hogy a termelés, az árak, a multiplikátorok és a prestige-jutalmak úgy legyenek egymásra hangolva, hogy a játékos végig érezze: <strong>halad, de nem túl gyorsan; a következő lépés elérhető, de nem azonnal</strong>.</p>
+      <ul class="dash">
+        <li><strong>Tervezd „időtávokban”</strong>: ne az abszolút számokat egyensúlyozd, hanem hogy „mennyi idő alatt érhető el X”. Például: „az első prestige ~30 perc, a második ~1 óra, a tizedik ~1 nap”. Ez az, amit a játékos érez.</li>
+        <li><strong>Soft cap / csökkenő hozam</strong>: ha egy bónusz túlnő, a hatása fokozatosan gyengüljön (<code>sqrt(x)</code> vagy <code>log(x)</code> egy küszöb felett). Ez megelőzi a „törött build” robbanást, anélkül, hogy megölné a haladást.</li>
+        <li><strong>Kontraszt a fázisok közt</strong>: a lassú szakasz után jöjjön egy <em>gyorsuló</em> (a prestige utáni újraindítás), hogy a lassulás ne érződjön büntetésnek.</li>
+        <li><strong>Szimulálj, mielőtt kiadod</strong>: egy incremental játékot végig kell „játszani” egy gyorsított szimulátorban, hogy lásd a görbéket. Különben a hiba csak a játékosok reakciójából derül ki — későn.</li>
+        <li><strong>Kerüld a „beragadás-vakfoltot”</strong>: ha a játék egy ponton hosszan lassú, és a következő mérföldkő nem látható, a játékos elhagyja. Mindig legyen „következő látható cél”.</li>
+      </ul>
+      <div class="box tip">
+        <div class="box-title">◆ A „tízszorosa” elv</div>
+        <p>Egy gyakori tapasztalati szabály: a következő mérföldkő <strong>körülbelül 10×-re legyen</strong> az előzőtől. Kisebb → túl gyors, „nem érzem”; nagyobb → túl lassú, „sosem érem el”. A 10× egy pszichológiai „könnyen felfogható ugrás”: elég nagy, hogy ünnepelhető, elég kicsi, hogy elérhető.</p>
+      </div>
+    </section>
+
+    <!-- 13 -->
+    <section id="elvek">
+      <h2><span class="sec-num">13</span>Tervezési alapelvek — mit kövess?</h2>
+      <ol>
+        <li><strong>Először a core loopot csiszold.</strong> Termelés → vásárlás → gyorsítás → termelés. Ha ez nem kielégítő, semmi más nem segít.</li>
+        <li><strong>Dedikált nagy-szám típust használj.</strong> Soha ne <code>f64</code>-re építs komoly incremental játékot; a pontossági hibák láthatatlanok és frusztrálóak.</li>
+        <li><strong>Mindig zárt formula a vásárláshoz/szimulációhoz.</strong> Soha ne lépésenként ciklus; a „max” és az offline-számolás legyen analitikus.</li>
+        <li><strong>A növekedés görbéje és az árak görbéje együtt legyen hangolva.</strong> Ne külön-külön egyensúlyozz; az élmény a kettő <em>különbségéből</em> jön.</li>
+        <li><strong>Tervezz időtávokban.</strong> „Mennyi idő alatt érhető el X?” — ez az, amit a játékos érez, nem az abszolút számok.</li>
+        <li><strong>A prestige legyen döntési pont.</strong> A játékos lássa, mit veszít és mit nyer; a kalkulátor legyen transzparens.</li>
+        <li><strong>Fázisokkal tagold a játékot.</strong> Egyetlen folyamatos növekedés unalmas; a váltakozó lassulás/gyorsulás tartja fenn az érdeklődést.</li>
+        <li><strong>Soft cap-pal védd a rendszert.</strong> A multiplikatív bónuszok kombinációja könnyen „elszáll”; a csökkenő hozam megelőzi a törött build-eket.</li>
+        <li><strong>Adj értelmet a növekedésnek.</strong> Cél, narratíva, lezárás — anélkül a játék üres élménnyé válik. A szám ne legyen öncélú.</li>
+        <li><strong>Az offline-jutalom visszacsábítson, ne helyettesítsen.</strong> Cap-elt offline: „gyere vissza”, nem „nem kell játszanod”.</li>
+        <li><strong>Vizuális visszajelzés mindenhol.</strong> Amikor a termelés automatizálttá válik, a játékos elveszti az ok-okozatot; pótolját vizuálisan (számok ugranak, ikonok, animációk).</li>
+        <li><strong>Szimulálj végig.</strong> Egy gyorsított „auto-play” szimulátor elengedhetetlen; nélküle a görbéket nem látod, amíg késő nem lesz.</li>
+      </ol>
+    </section>
+
+    <!-- 14 -->
+    <section id="bevy">
+      <h2><span class="sec-num">14</span>Implementáció — Bevy / ECS jegyzetek</h2>
+      <p>Az incremental meglepően jól illik egy ECS-alapú motorba (mint a Bevy), mert a „minden rendszer minden entitásra lefut” elv egybevág a műfaj <strong>„szabály egyszer, mindenre”</strong> filozófiájával: egy termelési rendszer minden termelő entitásra lefut, egy vásárlási rendszer minden buyable-re. A komponensek kompozíciója adja a build-et.</p>
+
+      <h4>Entitás mint komponens-compozíció</h4>
+      <pre><code><span class="c-cm">// Egy "termelő épület" (pl. grandma, gyár)</span>
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">Producer</span> {
+    rate: <span class="c-ty">BigNum</span>,           <span class="c-cm">// termelés / másodperc (nagy szám!)</span>
+    level: <span class="c-ty">u64</span>,
+}
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">Buyable</span> {
+    base_cost: <span class="c-ty">BigNum</span>,
+    growth: <span class="c-ty">f64</span>,             <span class="c-cm">// pl. 1.15</span>
+}
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">Multiplier</span>(<span class="c-ty">BigNum</span>);  <span class="c-cm">// globális szorzó</span>
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">PrestigeCurrency</span>(<span class="c-ty">BigNum</span>);
+
+<span class="c-cm">// A globális erőforrás egy Resource</span>
+<span class="c-kw">#[derive(Resource)]</span> <span class="c-kw">struct</span> <span class="c-ty">Wallet</span> { balance: <span class="c-ty">BigNum</span> }</code></pre>
+
+      <h4>A termelés mint rendszer</h4>
+      <p>A termelés <strong>nem tickenkénti hozzáadás</strong>, hanem <strong>idő-integrálás</strong>: a rendszer tudja az utolsó frissítés időpontját, és a delta-idővel szorozza a rátát. Ezálta független lesz a frissítés gyakoriságától, és az offline-számolás ugyanazt a kódot használja.</p>
+      <pre><code><span class="c-kw">fn</span> <span class="c-fn">produce</span>(
+    time: <span class="c-ty">Res</span>&lt;<span class="c-ty">Time</span>&gt;,
+    <span class="c-kw">mut</span> wallet: <span class="c-ty">ResMut</span>&lt;<span class="c-ty">Wallet</span>&gt;,
+    q: <span class="c-ty">Query</span>&lt;(&amp;<span class="c-ty">Producer</span>, &amp;<span class="c-ty">Multiplier</span>)&gt;,
+) {
+    <span class="c-kw">let</span> dt = time.<span class="c-fn">delta_seconds</span>();
+    <span class="c-kw">let</span> mut total = <span class="c-ty">BigNum</span>::<span class="c-fn">zero</span>();
+    <span class="c-kw">for</span> (prod, mult) <span class="c-kw">in</span> &amp;q {
+        total += prod.rate * mult.<span class="c-nm">0</span> * dt;
+    }
+    wallet.balance += total;
+}</code></pre>
+
+      <h4>Állapotgép a fő hurokhoz</h4>
+      <p>A Bevy <code>States</code> alkalmas a játék állapotainak szervezésére: <code>MainMenu → InGame → PrestigeConfirm → InGame → GameOver / Endless</code>. A prestige-confirm egy dedikált állapot, amelyben a UI megmutatja a kalkulációt, és a játékos explicit jóváhagyást ad — ez a „döntési pont” rituáléja.</p>
+
+      <h4>A nagy-szám típus mint Resource/Component</h4>
+      <p>A <code>BigNum</code> típus (<code>(mantissa, exp)</code> vagy <code>log10</code>-tárolás) a játék alap-téglatestene. Érdemes saját típust írni (vagy egy jól tesztelt crate-et használni), amely implementálja az <code>Add, Sub, Mul, Div, Pow, PartialOrd</code> tulajdonságokat, és tartalmaz egy <code>format_short()</code> metódust a megjelenítéshez. Ez a típus minden <code>Producer</code>-ben, <code>Wallet</code>-ben és <code>Buyable</code>-ben megjelenik — a műfaj „cellja”.</p>
+
+      <h4>A vásárlás zárt formulával</h4>
+      <pre><code><span class="c-kw">impl</span> <span class="c-ty">Buyable</span> {
+    <span class="c-kw">fn</span> <span class="c-fn">cost_at</span>(&amp;<span class="c-kw">self</span>, level: <span class="c-ty">u64</span>) -&gt; <span class="c-ty">BigNum</span> {
+        <span class="c-kw">self</span>.base_cost * <span class="c-ty">BigNum</span>::<span class="c-fn">pow_f64</span>(<span class="c-kw">self</span>.growth, level <span class="c-kw">as</span> <span class="c-ty">f64</span>)
+    }
+    <span class="c-cm">// "max vásárlás" — zárt formula, nem ciklus!</span>
+    <span class="c-kw">fn</span> <span class="c-fn">max_affordable</span>(&amp;<span class="c-kw">self</span>, balance: <span class="c-ty">BigNum</span>) -&gt; <span class="c-ty">u64</span> {
+        <span class="c-cm">// log-alapú zárt megoldás (geometriai sor)</span>
+        <span class="c-nm">0</span> <span class="c-cm">// ... (lásd 06. fejezet)</span>
+    }
+}</code></pre>
+
+      <div class="box note">
+        <div class="box-title">▚ ECS-illeszkedés</div>
+        <p>A „rendszer minden entitásra” elv természetes az incrementalban: egy <code>produce</code> rendszer minden <code>Producer</code>-re lefut; egy <code>cost_growth</code> rendszer minden <code>Buyable</code>-re. Nincs „hardcodeolt épület-lista” — a build-variációt új komponens-kombinációk adják. A prestige egy dedikált rendszer, amely „lenullázza” a futó komponenseket, de meghagyja a <code>PrestigeCurrency</code>-t.</p>
+      </div>
+      <div class="box tip">
+        <div class="box-title">◆ Hasznos tervezési minták</div>
+        <p>A szimulátor (auto-play) egy külön <code>update</code> rendszer, amely a <code>Time</code>-ot gyorsítja (pl. <code>time.set_relative_speed(1000.0)</code> ha támogatott, vagy saját delta-skálázás) — a balansz ellenőrzésének elengedhetetlen eszköze. A mentés/töltés serializálja az összes komponenst és a <code>last_tick</code> időpontot; visszatéréskor az offline-számolás ugyanazt a <code>produce</code>-logikát hívja meg zárt formával.</p>
+      </div>
+    </section>
+
+    <!-- 15 -->
+    <section id="checklist">
+      <h2><span class="sec-num">15</span>Checklista — az „alapszabályok”</h2>
+      <p>Minimálisan ezeknek kell teljesülniük, hogy egy játék felismerhetően incremental/idle legyen. Pipáld, ahogy haladsz:</p>
+      <ul class="check">
+        <li><strong>Core loop működik</strong> — termelés → vásárlás → gyorsítás → termelés, kielégítően.</li>
+        <li><strong>Dedikált nagy-szám típus</strong> — nem <code>f64</code>; pontosság minden nagyságrenden.</li>
+        <li><strong>Skálázódó buyable-ár</strong> — exponenciális növekedés (pl. <code>1.15^level</code>).</li>
+        <li><strong>Zárt formula a „max”-hoz</strong> — geometriai sor, nem lépésenként.</li>
+        <li><strong>Automatizáció</strong> — a manuális akciót átveszi a passzív termelés.</li>
+        <li><strong>Prestige</strong> — onkényes reset tartós bónuszért; transzparens kalkulátor.</li>
+        <li><strong>Multiplikátor-rendszer</strong> — szorzók kombinálódnak, build-variáció.</li>
+        <li><strong>Soft cap / csökkenő hozam</strong> — a törött build-ek ellen.</li>
+        <li><strong>Fázisok</strong> — tagolt játékidő; lassulás/gyorsulás váltakozása.</li>
+        <li><strong>Látható következő mérföldkő</strong> — sose legyen „homályos beragadás”.</li>
+        <li><strong>Offline-számolás zárt formával</strong> — sima, nem tick-alapú; cap-elt.</li>
+        <li><strong>Vizuális visszajelzés</strong> — a passzív növekedés is „érezhető”.</li>
+        <li><strong>Értelem / cél</strong> — a növekedés ne legyen öncélú; narratíva vagy lezárás.</li>
+        <li><strong>Szimulátor / auto-play</strong> — balansz-ellenőrzéshez.</li>
+      </ul>
+
+      <div class="box tip">
+        <div class="box-title">◆ Hol kezdj?</div>
+        <p>Egy minimális játszható prototípushoz elég: (1) egy <code>BigNum</code> típus, (2) egy kattintható „termel” gomb + egy <code>Wallet</code>, (3) egy buyable <code>Producer</code> exponenciális árgörbével, (4) idő-alapú termelési rendszer (delta × ráta), (5) egy prestige gomb egy egyszerű multiplierrel. Erre a vázra később minden rárakható: multiplikátorok, szinergiák, fázisok, narratíva.</p>
+      </div>
+    </section>
+
+    <footer>
+      INCREMENTAL_DESIGN_REFERENCE · v1.0 · single-file HTML<br>
+      „A jó incremental nem azt mondja, hogy a számod nő — hanem, hogy a számod <em>értelmet</em> nyer.”
+    </footer>
+  </main>
+</div>
+
+<script>
+  // scrollspy
+  const links = [...document.querySelectorAll('#nav a')];
+  const map = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const a = map.get(e.target.id);
+        if (a) a.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+  document.querySelectorAll('section[id]').forEach(s => obs.observe(s));
+
+  // mobile menu
+  const sb = document.getElementById('sidebar');
+  const btn = document.getElementById('menuBtn');
+  btn.addEventListener('click', () => sb.classList.toggle('open'));
+  document.querySelectorAll('#nav a').forEach(a =>
+    a.addEventListener('click', () => sb.classList.remove('open')));
+</script>
+</body>
+</html>

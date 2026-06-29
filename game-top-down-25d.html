@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Top-down 2.5D — A műfaj alapszabályai</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:        #0a0f14;
+    --bg-2:      #111a22;
+    --panel:     #131e27;
+    --panel-2:   #192731;
+    --border:    #283946;
+    --border-2:  #35505f;
+    --text:      #d3dde4;
+    --muted:     #8895a0;
+    --faint:     #56636c;
+    --azure:     #4db8e8;   /* ég / top-down kamera */
+    --copper:    #f0a868;   /* cserép / magasság / strukturák */
+    --moss:      #6dd47e;   /* mozgás / ok */
+    --rose:      #e0556f;   /* veszély / ütközés */
+    --violet:    #b072d6;   /* mélység / különleges */
+    --shadow:    #05080b;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+
+  body{
+    font-family:'IBM Plex Sans',sans-serif;
+    background-color:var(--bg);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(255,255,255,.045) 1px, transparent 0);
+    background-size:22px 22px;
+    color:var(--text);
+    line-height:1.7;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ====== LAYOUT ====== */
+  .wrap{
+    display:grid;
+    grid-template-columns:288px 1fr;
+    gap:0;
+    max-width:1280px;
+    margin:0 auto;
+    align-items:start;
+  }
+
+  /* ====== SIDEBAR ====== */
+  .sidebar{
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+    padding:34px 22px 60px 28px;
+    border-right:2px solid var(--border);
+    background:linear-gradient(180deg,var(--bg-2),var(--bg));
+  }
+  .sidebar::-webkit-scrollbar{width:8px}
+  .sidebar::-webkit-scrollbar-thumb{background:var(--border-2)}
+
+  .brand{
+    font-family:'Pixelify Sans',sans-serif;
+    font-size:26px;
+    line-height:1.1;
+    color:var(--azure);
+    letter-spacing:.5px;
+    margin-bottom:4px;
+    text-shadow:2px 2px 0 var(--shadow);
+  }
+  .brand .glyph{color:var(--text)}
+  .brand-sub{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--faint);
+    text-transform:uppercase;
+    letter-spacing:2px;
+    margin-bottom:26px;
+  }
+
+  .nav-label{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:2px;
+    color:var(--faint);
+    margin:22px 0 8px;
+  }
+  nav a{
+    display:block;
+    color:var(--muted);
+    text-decoration:none;
+    font-size:13.5px;
+    padding:6px 10px 6px 14px;
+    border-left:2px solid transparent;
+    transition:all .12s ease;
+  }
+  nav a:hover{color:var(--text);background:var(--panel)}
+  nav a.active{
+    color:var(--azure);
+    border-left-color:var(--azure);
+    background:var(--panel);
+  }
+  nav a .num{
+    font-family:'JetBrains Mono',monospace;
+    color:var(--faint);
+    font-size:11px;
+    margin-right:8px;
+  }
+  nav a.active .num{color:var(--azure)}
+
+  /* ====== MAIN ====== */
+  main{
+    padding:54px 64px 120px;
+    min-width:0;
+  }
+
+  header.hero{
+    border:2px solid var(--border);
+    background:
+      linear-gradient(135deg,var(--panel) 0%,var(--bg-2) 100%);
+    padding:44px 40px;
+    margin-bottom:54px;
+    box-shadow:8px 8px 0 var(--shadow);
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::before{
+    content:"⊞";
+    position:absolute;
+    right:0px;top:-40px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:240px;
+    color:rgba(77,184,232,.06);
+    line-height:1;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--copper);
+    margin-bottom:16px;
+  }
+  h1{
+    font-family:'Pixelify Sans',sans-serif;
+    font-size:clamp(38px,6vw,64px);
+    line-height:1.02;
+    color:var(--text);
+    letter-spacing:.5px;
+    text-shadow:3px 3px 0 var(--shadow);
+    margin-bottom:18px;
+  }
+  h1 .hl{color:var(--azure)}
+  .lede{
+    font-size:18px;
+    color:var(--muted);
+    max-width:62ch;
+  }
+
+  section{margin-bottom:58px;scroll-margin-top:30px}
+
+  h2{
+    font-family:'Pixelify Sans',sans-serif;
+    font-size:32px;
+    color:var(--azure);
+    margin-bottom:18px;
+    padding-bottom:10px;
+    border-bottom:2px solid var(--border);
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+  }
+  h2 .sec-num{
+    font-family:'JetBrains Mono',monospace;
+    font-size:15px;
+    color:var(--faint);
+    background:var(--panel);
+    border:1px solid var(--border);
+    padding:2px 9px;
+  }
+  h3{
+    font-family:'Pixelify Sans',sans-serif;
+    font-size:22px;
+    color:var(--copper);
+    margin:30px 0 12px;
+  }
+  h4{
+    font-family:'IBM Plex Sans',sans-serif;
+    font-weight:600;
+    font-size:16px;
+    color:var(--text);
+    margin:22px 0 8px;
+  }
+
+  p{margin-bottom:14px;color:var(--text)}
+  p.muted{color:var(--muted)}
+
+  strong{color:var(--text);font-weight:600}
+  em{color:var(--copper);font-style:normal}
+
+  a.inline{color:var(--azure);text-decoration:none;border-bottom:1px dashed var(--faint)}
+  a.inline:hover{border-bottom-style:solid}
+
+  ul,ol{margin:0 0 16px 0;padding-left:26px}
+  li{margin-bottom:7px}
+  li::marker{color:var(--azure)}
+  ul.dash{list-style:none;padding-left:0}
+  ul.dash li{position:relative;padding-left:24px}
+  ul.dash li::before{
+    content:"›";
+    position:absolute;left:4px;
+    color:var(--azure);
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700;
+  }
+
+  code{
+    font-family:'JetBrains Mono',monospace;
+    font-size:.88em;
+    background:var(--panel-2);
+    color:var(--copper);
+    padding:1px 6px;
+    border:1px solid var(--border);
+  }
+
+  pre{
+    font-family:'JetBrains Mono',monospace;
+    background:var(--bg-2);
+    border:2px solid var(--border);
+    border-left:4px solid var(--azure);
+    padding:18px 20px;
+    overflow-x:auto;
+    font-size:13.5px;
+    line-height:1.6;
+    margin:18px 0;
+    box-shadow:5px 5px 0 var(--shadow);
+  }
+  pre code{background:none;border:none;color:var(--text);padding:0}
+  .c-kw{color:var(--violet)}
+  .c-fn{color:var(--azure)}
+  .c-ty{color:var(--copper)}
+  .c-cm{color:var(--faint);font-style:italic}
+  .c-st{color:#c2a86b}
+  .c-nm{color:var(--moss)}
+
+  /* callout boxes */
+  .box{
+    border:2px solid var(--border);
+    background:var(--panel);
+    padding:18px 22px;
+    margin:20px 0;
+    box-shadow:5px 5px 0 var(--shadow);
+  }
+  .box .box-title{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    margin-bottom:8px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .box.tip{border-left:4px solid var(--moss)}
+  .box.tip .box-title{color:var(--moss)}
+  .box.warn{border-left:4px solid var(--rose)}
+  .box.warn .box-title{color:var(--rose)}
+  .box.note{border-left:4px solid var(--azure)}
+  .box.note .box-title{color:var(--azure)}
+  .box p:last-child{margin-bottom:0}
+
+  /* definition pills */
+  .pill{
+    display:inline-block;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    background:var(--panel-2);
+    border:1px solid var(--border-2);
+    color:var(--copper);
+    padding:2px 8px;
+    margin:0 4px 4px 0;
+  }
+
+  /* tables */
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin:18px 0;
+    font-size:14.5px;
+    box-shadow:5px 5px 0 var(--shadow);
+  }
+  th,td{
+    border:1px solid var(--border);
+    padding:10px 14px;
+    text-align:left;
+    vertical-align:top;
+  }
+  th{
+    background:var(--panel-2);
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:var(--azure);
+  }
+  td{background:var(--panel)}
+  tr:nth-child(even) td{background:var(--bg-2)}
+
+  /* factor grid */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}
+  .card{
+    border:2px solid var(--border);
+    background:var(--panel);
+    padding:16px 18px;
+  }
+  .card h4{margin-top:0;color:var(--azure)}
+  .card.lo h4{color:var(--muted)}
+
+  /* checklist */
+  .check{list-style:none;padding-left:0}
+  .check li{
+    position:relative;padding-left:34px;margin-bottom:11px;
+    border-bottom:1px dotted var(--border);padding-bottom:11px;
+  }
+  .check li::before{
+    content:"[ ]";
+    position:absolute;left:0;top:0;
+    font-family:'JetBrains Mono',monospace;
+    color:var(--azure);font-weight:700;
+  }
+
+  hr{border:none;border-top:2px dashed var(--border);margin:40px 0}
+
+  footer{
+    border-top:2px solid var(--border);
+    margin-top:60px;
+    padding-top:24px;
+    color:var(--faint);
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+  }
+
+  /* mobile */
+  .menu-btn{display:none}
+  @media(max-width:920px){
+    .wrap{grid-template-columns:1fr}
+    .sidebar{
+      position:fixed;top:0;left:0;width:280px;z-index:50;
+      transform:translateX(-100%);transition:transform .2s ease;
+    }
+    .sidebar.open{transform:translateX(0)}
+    main{padding:30px 22px 90px}
+    .menu-btn{
+      display:flex;align-items:center;gap:8px;
+      position:fixed;top:14px;right:14px;z-index:60;
+      font-family:'JetBrains Mono',monospace;font-size:12px;
+      background:var(--panel);color:var(--azure);
+      border:2px solid var(--border);padding:8px 12px;cursor:pointer;
+      box-shadow:3px 3px 0 var(--shadow);
+    }
+    header.hero{padding:30px 22px}
+    .grid2{grid-template-columns:1fr}
+    h2{font-size:26px}
+  }
+  @media(prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    *{transition:none!important}
+  }
+</style>
+</head>
+<body>
+
+<!-- olvasási haladásjelző (progress bar) -->
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,var(--azure),var(--copper));
+  box-shadow:0 0 10px rgba(77,184,232,.55);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-btn" id="menuBtn">☰ MENÜ</button>
+
+<div class="wrap">
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><span class="glyph">⊞</span> Top-down 2.5D</div>
+    <div class="brand-sub">design&nbsp;·&nbsp;technikai alapok</div>
+    <div class="nav-label">Tartalom</div>
+    <nav id="nav">
+      <a href="#mi-az"><span class="num">00</span>Mi az a top-down 2.5D?</a>
+      <a href="#eredet"><span class="num">01</span>Eredet &amp; fejlődés</a>
+      <a href="#hatarok"><span class="num">02</span>A nézőpontok határai</a>
+      <a href="#illuzio"><span class="num">03</span>A 2.5D illúzió</a>
+      <a href="#koordinatak"><span class="num">04</span>Koordináták &amp; vetítés</a>
+      <a href="#kamera"><span class="num">05</span>A kamera</a>
+      <a href="#mozgas"><span class="num">06</span>Mozgás &amp; irányítás</a>
+      <a href="#utkozes"><span class="num">07</span>Ütközés &amp; fizika</a>
+      <a href="#rendezes"><span class="num">08</span>Mélységi rendezés (Y-sort)</a>
+      <a href="#tilemap"><span class="num">09</span>Tilemap &amp; magasság</a>
+      <a href="#animacio"><span class="num">10</span>Animáció &amp; orientáció</a>
+      <a href="#vilagitas"><span class="num">11</span>Világítás &amp; árnyékok</a>
+      <a href="#ai"><span class="num">12</span>Útkeresés &amp; AI magassággal</a>
+      <a href="#teljesitmeny"><span class="num">13</span>Teljesítmény &amp; optimalizáció</a>
+      <a href="#elvek"><span class="num">14</span>Tervezési alapelvek</a>
+      <a href="#bevy"><span class="num">15</span>Implementáció (Bevy/ECS)</a>
+      <a href="#checklist"><span class="num">16</span>Checklista</a>
+    </nav>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main>
+    <header class="hero">
+      <div class="eyebrow">Műfaji leírás · technikai referencia</div>
+      <h1>A <span class="hl">top-down 2.5D</span> játékok alapszabályai</h1>
+      <p class="lede">Mi a különbség a top-down, a top-down 2.5D és az izometrikus nézőpont közt, hogyan hazudik a 2D a magasságról, és hogyan kell felépíteni egyet — a vetítési mátriextól a Y-sort-on át a magassági útkeresésig és az ECS-implementációig. Ez a dokumentum „szerződésnek” készült: olyan technikai szabályhalmaznak, amit egy játék fejlesztése közben követni lehet.</p>
+    </header>
+
+    <!-- 00 -->
+    <section id="mi-az">
+      <h2><span class="sec-num">00</span>Mi az a top-down 2.5D?</h2>
+      <p>A <strong>top-down</strong> (felülnézeti) játékokban a kamera a jelenet felett, nagyjából merőlegesen lefelé néz — a játékos a világ „madártávlatból” látja a karaktert és környezetét. A <strong>2.5D</strong> jelző azt jelöli, hogy bár a megjelenítés és a művészet <em>kétdimenziós</em> (sprite-ok, csempék), a világ és a mozgás <strong>három dimenzióban gondolkodik</strong>: van egy <em>magasság</em> (Z vagy „elevation”) tengely, amelyet a 2D megjelenítésnek valahogy illuzionálnia kell.</p>
+      <p>Ez a műfaj nem egyetlen szűk játék-típus, hanem egy <strong>vetületi mód</strong>: a top-down 2.5D alatt elképzelhető egy Zelda-stílusú akció-kaland, egy twin-stick shooter, egy tactics-játék, vagy egy CRPG. A közös pont a <em>kamera és a vetítés</em>: mindent felülről látunk, a mélységet pedig a 2D megjelenítés trükkjeivel (Y-sort, magassági eltolás, árnyék, perspektivikus skálázás) érzékeltetjük. A „2.5D” tehát nem a tartalomról szól, hanem a <em>hogyan ábrázoljuk</em>-ról.</p>
+      <div class="box note">
+        <div class="box-title">▚ Egy mondatban</div>
+        <p>Felülnézeti 2D-s megjelenítés, amely 3D logikát szimulál: a világ rendelkezik magassággal, a sprite-ok és csempék pedig a mélységet vetületi trükkökkel (Y-sort, eltolás, árnyék) illuzionálják.</p>
+      </div>
+      <div class="box tip">
+        <div class="box-title">◆ Két külön fogalom</div>
+        <p>A <em>top-down</em> a kamera szöge; a <em>2.5D</em> a dimenzionalitás. Egy top-down játék lehet tisztán 2D (nincs magasság, csak egy sík — pl. <em>Pac-Man</em>, <em>Bomberman</em>), és egy 2.5D játék lehet oldalnézetes is (<em>Hollow Knight</em> háttereinek parallax-a is 2.5D-s). A <strong>top-down 2.5D</strong> a kettő metszete: felülről látjuk a világot, és a világnak van magassága, amit a képernyőn meg kell jeleníteni.</p>
+      </div>
+    </section>
+
+    <!-- 01 -->
+    <section id="eredet">
+      <h2><span class="sec-num">01</span>Eredet &amp; fejlődés</h2>
+      <p>A top-down nézőpont az arcade- és konzol-korszak elején jelent meg, mert a hardver korlátai (kevés memória, raszteres sprite-rendezés) a felülnézetet tették a legkönnyebben megvalósíthatóvá: nincs perspektivikus torzítás, a mozgás egyetlen síkon történik, a sprite-ok mérete nem változik a pozícióval. A korai <strong>The Legend of Zelda</strong> (1986) és <em>Gauntlet</em> (1985) tették a top-down akciót a műfaj archetípusává.</p>
+      <p>A „2.5D” szükségessége akkor lépett be, amikor a tervezők <strong>magasságot</strong> akartak ábrázolni: lépcsők, szirtek, magaslatok, felettem/alattam lévő platformok. Az igazi 3D (poligonos) megjelenítés még drága volt; a megoldás az lett, hogy <em>3D logikát</em> futtattak (magassági érték minden entitásnak), de a <em>megjelenítés 2D</em> maradt. A klasszikus példák: <em>Ultima</em> sorozat (Ultima VI–VII már magasság-illúzióval), később a SNES-era JRPG-k (<em>Chrono Trigger</em>, <em>Final Fantasy VI</em>) a magassági szintek és a „fake elevation” mesterei.</p>
+      <p>A modern korszak a top-down 2.5D-t reneszánszát élte az indie jelenben: <span class="pill">Stardew Valley</span><span class="pill">Celeste ( Prelude)</span><span class="pill">Hades</span><span class="pill">Dead Cells (mock-2.5D)</span><span class="pill">Enter the Gungeon</span><span class="pill">Nuclear Throne</span><span class="pill">Titan Souls</span><span class="pill">Hyper Light Drifter</span>。 Ezek mindegyike a top-down (vagy annak közeli) vetületet használja, és a magasságot/mélységet a 2D eszköztárral illuzionálja.</p>
+      <div class="box tip">
+        <div class="box-title">◆ Miért fontos ezt ismerni?</div>
+        <p>A top-down 2.5D „receptje” évtizedek alatt kristályosodott: a Y-sort, a magassági eltolás, az árnyék-blob, a 4/8-irányú sprite-ok mind bevált minták. Ha érted, honnan jönnek, nem kell újra kitalálni őket — és elkerülöd azokat a hibákat, amiket mások már elkövettek (pl. „úszó” karakterek, illesztési hibák a szirteknél, renderelési sorrendbeli villódzás).</p>
+      </div>
+    </section>
+
+    <!-- 02 -->
+    <section id="hatarok">
+      <h2><span class="sec-num">02</span>A nézőpontok határai</h2>
+      <p>A „top-down” nem egyetlen fix szög — egy spektrum. Attól függően, hogy a kamera milyen szögben hajlik a sík felé, és mennyire „hazudik” a magasságról, több változat él. Ezek a változatok eltérő műszaki és művészeti döntéseket kívánnak.</p>
+
+      <table>
+        <thead>
+          <tr><th>Nézőpont</th><th>Kamera-szög</th><th>Magasság?</th><th>Jellemzők &amp; példák</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Pure top-down</strong></td><td>90° (merőleges)</td><td>Nincs</td><td>Tisztán 2D sík; sprite-ok felülről. Pac-Man, Bomberman, Tetris. Nincs Y-sort szükség.</td></tr>
+          <tr><td><strong>Top-down (enyhe dőlés)</strong></td><td>~75–85°</td><td>Illuzionált</td><td>A karakter felülről, de oldalról is látszik egy kicsit. Zelda (NES/SNES), Hyper Light Drifter. Itt jelenik meg a Y-sort.</td></tr>
+          <tr><td><strong>Top-down 2.5D</strong></td><td>~60–75°</td><td>Van (mock)</td><td>A világnak van magassága; szirtek, lépcsők. Sprite-ok Y-eltolással, árnyékkal. Stardew Valley, Hades.</td></tr>
+          <tr><td><strong>Izometrikus</strong></td><td>~30° (két tengelyen)</td><td>Van</td><td>Rombusz-csempék, 2:1 arány. Minden sprite-ot előre kell rajzolni 4/8 irányban. RollerCoaster Tycoon, Final Fantasy Tactics.</td></tr>
+          <tr><td><strong>3/4 perspective</strong></td><td>~45–60°</td><td>Van</td><td>Mélyebb dőlés; a távolabbi dolgok kisebbek. Erős művészeti illúzió, de nehezebb konzisztensen tartani. Chrono Trigger, klasszikus JRPG-k.</td></tr>
+          <tr><td><strong>3D top-down (billboard)</strong></td><td>Változó</td><td>Valódi 3D</td><td>Poligonos világ, sprite-billboard karakterek. Larian Divinity: Original Sin, Tactics Ogre Reborn.</td></tr>
+        </tbody>
+      </table>
+
+      <p>A gyakorlatban a határok folytonosak: a legtöbb modern „top-down” játék valahol a 2.5D és az enyhe izometrikus közt helyezkedik el. A választás <strong>nem kozmetikai</strong>: befolyásolja a csempe-alakot (négyzet vs. rombusz), a sprite-orientáció szükségességét, az ütközési geometriát és a magassági útkeresést.</p>
+
+      <div class="box warn">
+        <div class="box-title">⚠ Döntsd el korán</div>
+        <p>A leggyakoribb hiba, hogy a fejlesztő elkezdi „top-down”-ként, majd rájön, hogy magasságra van szüksége, és félig átalakítja izometrikussá — az eredmény általában következetlen csempe-illesztés és ábrázolási hibák. A nézőpont rögzítése az első műszaki döntés, és az egész művészeti és kód-vázat meghatározza. Később váltani drága.</p>
+      </div>
+    </section>
+
+    <!-- 03 -->
+    <section id="illuzio">
+      <h2><span class="sec-num">03</span>A 2.5D illúzió — hogyan hazudunk magasságot?</h2>
+      <p>A 2.5D lényege: a világban minden entitásnak <strong>van egy magassági (Z) koordinátája</strong>, de a képernyő csak 2D — a magasságot valamilyen <em>vetületi trükkel</em> kell ábrázolni. Több egymást kiegészítő eszköz létezik; a legtöbb játék ezek <strong>kombinációját</strong> használja.</p>
+
+      <h3>Az illúzió eszköztára</h3>
+      <div class="grid2">
+        <div class="card">
+          <h4>Y-eltolás (magassági offset)</h4>
+          <p class="muted">A magasság (<code>z</code>) közvetlenül hozzáadódik a képernyő Y koordinátájához: <code>screen_y = world_y - z</code>. Minél magasabban van az entitás, annál feljebb rajzolódik. Ez a 2.5D alaptrükkje.</p>
+        </div>
+        <div class="card">
+          <h4>Y-sort (mélységi rendezés)</h4>
+          <p class="muted">Az entitásokat a <code>(world_y + z)</code> szerint rendezve rajzoljuk — ami „mélyebben” van a világban, az előbb. Így egy felettem lévő platform eltakarhatja a karakterem.</p>
+        </div>
+        <div class="card">
+          <h4>Skálázás (perspektivikus)</h4>
+          <p class="muted">A távolabbi (kisebb <code>world_y</code>) sprite-ok kicsit kisebbek. Finom effekt, de a pixel-art-nál vigyázni kell a méretezési artefaktokra.</p>
+        </div>
+        <div class="card">
+          <h4>Árnyék-blob</h4>
+          <p class="muted">Egy egyszerű ellipszis/sprite a talajon, a karakter <em>valódi</em> pozíciójában (<code>world_y</code>), míg a karakter a felette lévő <code>screen_y</code>-on rajzolódik. Azt mutatja, hol ér talajt.</p>
+        </div>
+        <div class="card">
+          <h4>Magassági csempék (cliffs)</h4>
+          <p class="muted">A szirtek és lépcsők dedikált csempe-grafikával jelennek meg: az „él” oldalnézet, a teteje felülnézet. A magasság-átmenet vizuálisan kódolt, mechanikusan egyetlen értékkel.</p>
+        </div>
+        <div class="card">
+          <h4>Parallax háttér</h4>
+          <p class="muted">A háttérrétegek lassabban mozognak, mint az előtér — mélységérzetet ad anélkül, hogy valódi 3D lenne. Főleg „3/4 perspective” játékoknál fontos.</p>
+        </div>
+        <div class="card">
+          <h4>Normál-térképezett sprite</h4>
+          <p class="muted">A sprite mellé egy „normál-térkép” társul, amellyel valós idejű dinamikus világítás érhető el 2D-n. Drága előállítani, de erős hatás (Dead Cells, Sonic Origins).</p>
+        </div>
+        <div class="card">
+          <h4>Fake 3D-lapító (billboard)</h4>
+          <p class="muted">Ha a motor támogatja, a sprite-okat egy 3D quad-on, kamerára merőlegesen tartva renderelik — akkor is, ha a logika 2D. Így a motor Y-sort-ja „ingyenes”.</p>
+        </div>
+      </div>
+
+      <div class="box note">
+        <div class="box-title">▚ A trükk lényege</div>
+        <p>A 2.5D nem egyetlen technika, hanem a <strong>logika és a megjelenítés szétválasztása</strong>: a logika 3D-ben gondolkodik (van <code>z</code>), a megjelenítés 2D-ben (csak <code>screen_x, screen_y</code>). A kettő közti <em>vetületi lépés</em> az, ami a magasságot láthatóvá teszi. Ha ez a lépés konzisztens és jól kalibrált, a játékos nem is veszi észre, hogy nincs igazi 3D.</p>
+      </div>
+      <div class="box warn">
+        <div class="box-title">⚠ Az „úszó karakter” szindróma</div>
+        <p>A leggyakoribb 2.5D hiba: a karakter <code>z</code>-je nő (ugrik, magasan van), de nincs árnyék-blob, vagy az eltolás nem egyezik a magassággal. A játékos úgy érzi, a karakter „lebeg”. Mindig párosítsd a Y-eltolást <strong>árnyékkal</strong> és/vagy <strong>magasság-jelző effekttel</strong> — az árnyék köti a karaktert a talajhoz.</p>
+      </div>
+    </section>
+
+    <!-- 04 -->
+    <section id="koordinatak">
+      <h2><span class="sec-num">04</span>Koordinátarendszerek &amp; vetítés</h2>
+      <p>A top-down 2.5D technikai alapja a <strong>két koordinátarendszer szétválasztása</strong>: egy világ-koordináta (<code>world</code>), amely 3D-ben gondolkodik (X, Y, Z), és egy képernyő-koordináta (<code>screen</code>), amely 2D-ben jelenít meg. A kettő közti átmenet a <strong>vetület</strong>.</p>
+
+      <h4>Konvenciók</h4>
+      <ul class="dash">
+        <li><strong>World X</strong> — vízszintes pozíció a síkon (kelet–nyugat).</li>
+        <li><strong>World Y</strong> — függőleges pozíció a síkon (észak–dél); ez a <em>mélység</em> tengely a képernyőn.</li>
+        <li><strong>World Z</strong> — magasság a sík felett (fel–le).</li>
+      </ul>
+      <p>A Bevy alapértelmezett <code>Transform</code>-jában a 2D-s <code>translation.z</code> a renderelési réteget adja meg, nem a magasságot — ezt fontos tudatosítani. A 2.5D-hez érdemes a <strong>magasságot külön komponensben</strong> tartani (<code>Elevation</code>), és csak a rendereléskor vetíteni a <code>screen_y</code>-ba.</p>
+
+      <h4>A vetületi formula</h4>
+      <pre><code><span class="c-cm">// A 2.5D vetítés alapja: a magasság feljebb tolja a sprite-ot</span>
+<span class="c-cm">// world: (x, y, z)  →  screen: (x, y - z * scale)</span>
+<span class="c-kw">fn</span> <span class="c-fn">project</span>(world: <span class="c-ty">Vec3</span>, height_scale: <span class="c-ty">f32</span>) -&gt; <span class="c-ty">Vec2</span> {
+    <span class="c-ty">Vec2</span>::<span class="c-fn">new</span>(
+        world.x,                       <span class="c-cm">// vízszintes: 1:1</span>
+        world.y - world.z * height_scale,  <span class="c-cm">// magasság → feljebb</span>
+    )
+}</code></pre>
+      <p>A <code>height_scale</code> azt adja meg, mennyire „erős” a magasság vetülete. Ha <code>1.0</code>, a magasság 1:1-ben jelenik meg (egy karakter 1 egység magasan ugrik, 1 pixelt feljebb rajzolódik — általában túl gyenge). Ha túl nagy (pl. <code>2.0</code>), a magasság „művészien” kiemelkedik, de az árnyékok és a Y-sort összetettebbek lesznek. A tipikus érték pixel-art-nál <code>1.0</code> és <code>1.5</code> közé esik, a művészeti stílustól függően.</p>
+
+      <h4>Izometrikus vetítés (ha mégis)</h4>
+      <p>Ha izometrikus nézőpontot választasz, a vetület bonyolultabb: a világ-koordinátákat egy forgatás után vetítjük a képernyőre. A klasszikus „2:1 izometrikus” esetén:</p>
+      <pre><code><span class="c-cm">// 2:1 izometrikus vetítés (tile szélesség:magasság = 2:1)</span>
+<span class="c-kw">fn</span> <span class="c-fn">iso_project</span>(world: <span class="c-ty">Vec3</span>, tile_w: <span class="c-ty">f32</span>, tile_h: <span class="c-ty">f32</span>) -&gt; <span class="c-ty">Vec2</span> {
+    <span class="c-ty">Vec2</span>::<span class="c-fn">new</span>(
+        (world.x - world.y) * (tile_w / <span class="c-nm">2</span>.),     <span class="c-cm">// vízszintes</span>
+        (world.x + world.y) * (tile_h / <span class="c-nm">2</span>.) - world.z * tile_h,  <span class="c-cm">// függőleges + magasság</span>
+    )
+}</code></pre>
+      <div class="box tip">
+        <div class="box-title">◆ A mélység egyetlen száma</div>
+        <p>A 2.5D egyik legszebb tulajdonsága, hogy a <strong>renderelési sorrend</strong> (ki kit takar) egyetlen számból kiszámítható: <code>depth = world.y + world.z</code>. Ezt nevezik „Y-sort key”-nek. Ha ezt a rendezési kulcsot használod, a sprite-ok automatikusan helyes sorrendben rajzolódnak — a karakter egy felette lévő hídon átmegy, a híd eltakarja a fejét; egy szikla előtt a karakter eltakarja a sziklát. Erről a 08. fejezet részletesen.</p>
+      </div>
+    </section>
+
+    <!-- 05 -->
+    <section id="kamera">
+      <h2><span class="sec-num">05</span>A kamera</h2>
+      <p>A top-down 2.5D kamera <strong>nem passzív megfigyelő</strong>: aktívan keretezi a játékot, és dönti el, hogy a játékos olvassa-e a helyzetet. A rossz kamera (túl közeli, késleltetett, akadály mögé rekedt) megöli az élményt — különösen 2.5D-ben, ahol a magasság miatt gyakran takarás van.</p>
+
+      <h4>A top-down kamera alapvető szabályai</h4>
+      <ul class="dash">
+        <li><strong>Kövesse lágyan, de ne maradjon le</strong> — a kamera kövesse a játékost simított lerp-pel; a túl éles ugrás forgat. De ne maradjon túl sokat le, mert a játékos „kiesik” a képből.</li>
+        <li><strong>Célzó-eltolás (look-ahead)</strong> — a kamera ne a játékost középre tegye, hanem billentse abba az irányba, amerre a játékos mozog/néz. Így több „előtte” látszik, a fenyegetések előre jelezhetők.</li>
+        <li><strong>Zoom = információ-sűrűség</strong> — túl közel: kevés ellenség látszik; túl távol: a karakter elveszik. A zoom a nehézség-olvashatóság eszköze. Sok játék dinamikusan zoom-ol (bossnál kilép, harcnál közelebb jön).</li>
+        <li><strong>Screen shake (adagolva)</strong> — erős ütés / robbanás kamera-rándulása. A 2.5D-ben a shake-nek csak a <code>translation</code>-t, ne a <code>scale</code>-t érintse (a zoom-shake a pixel-art-nál ronda).</li>
+        <li><strong>Obstruction handling</strong> — ha fal/objektum a kamera és a játékos közé kerülne, az objektumot átlátszóvá tedd, vagy a kamerát közelebb húzd. 2.5D-ben a magassági csempék miatt is előjön.</li>
+      </ul>
+
+      <h4>A 2.5D specifikus: magassági fókusz</h4>
+      <p>Ha a játékos felmegy egy magaslatra, vagy leugrik egy mélyedésbe, a kamera nem feltétlenül követi a <code>z</code>-t — a magasság illúziója éppen az, hogy a kamera <em>fix magasságú</em>. Viszont ha a játékos egy „mélyebben” lévő területre ér (alacsonyabb <code>world_y</code> a tilemap-on), a kamera Y-ja természetesen követi. A trükk: a kamera csak a <code>(x, y)</code> sík pozíciót követi; a <code>z</code>-t nem — az illúzió megtartása érdekében.</p>
+
+      <h4>Kamera-vezérelt vs. szabad forgatás</h4>
+      <p>A legtöbb top-down 2.5D játék <strong>fix szögű, forgathatatlan kamerát</strong> használ — a művészeti előre megrajzolt sprite-ok csak egy szögből néznek ki jól. Ha szabad forgatást engedélyezel, vagy az összes sprite-ot 360°-ban újra kell rajzolni, vagy 3D-modellt kell használni. Ez a döntés már az elején lezárja a top-down választást.</p>
+      <div class="box note">
+        <div class="box-title">▚ Olvashatóság &gt; realizmus</div>
+        <p>A top-down kamera nem a valóságot mutatja, hanem a <em>játékállapotot</em>. Ha egy szög „filmszerűbb”, de elrejti a támadó ellenséget vagy a magassági különbséget, rossz. A funkcionalitás felülírja a rendezői hangulatot.</p>
+      </div>
+    </section>
+
+    <!-- 06 -->
+    <section id="mozgas">
+      <h2><span class="sec-num">06</span>Mozgás &amp; irányítás</h2>
+      <p>A top-down 2.5D mozgás <strong>kétféle lehet</strong>: a karakter vagy a világ tengelyeihez igazodik (4/8-irányú), vagy a karakter saját „előre” irányához (tank controls). Ez a választás drasztikusan megváltoztatja a játékérzetet.</p>
+
+      <h4>Mozgás-modellek</h4>
+      <ul class="dash">
+        <li><strong>8-irányú (arcade)</strong> — a játékos a világtengelyek mentén mozog; a karakter orientációja a mozgás irányába áll. Egyszerű, kényelmes; a legtöbb modern top-down akció ezt használja (Hades, Hyper Light Drifter).</li>
+        <li><strong>4-irányú (klasszikus)</strong> — csak négy irány; a grafika egyszerűbb (4 sprite-set), de a mozgás korlátozott. Zelda (NES), régebbi CRPG-k.</li>
+        <li><strong>Tank controls (relatív)</strong> — a karakternek saját „előre” iránya van; a bal/jobb elfordítja, a fel/le előre/hátra mozgatja. A Resident Evil-stílus; 2.5D-ben ritka, de néhány taktikai játék használja.</li>
+        <li><strong>Twin-stick</strong> — a mozgás és a célzás független (egy stick mozog, másik célz). Twin-stick shooterek (Enter the Gungeon, Nuclear Throne).</li>
+      </ul>
+
+      <h4>Orientáció &amp; sprite-választás</h4>
+      <p>A mozgás-irányhoz <strong>sprite-orientációt</strong> kell rendelni. A bevált megoldás 4 vagy 8 irányú sprite-set: a karakternek van egy „lefelé néző”, „felfelé néző”, „oldalra néző” (esetleg tükrözhető bal/jobb) animációja. A rendszer a mozgás iránya alapján választja a megfelelőt. 8-irányú esetén az átlós irányokhoz vagy külön sprite kell, vagy interpoláció a legközelebbi 4 irány közt.</p>
+      <pre><code><span class="c-cm">// 8-irányú sprite-választás</span>
+<span class="c-kw">enum</span> <span class="c-ty">Facing</span> { Down, DownLeft, Left, UpLeft, Up, UpRight, Right, DownRight }
+
+<span class="c-kw">fn</span> <span class="c-fn">facing_from_velocity</span>(v: <span class="c-ty">Vec2</span>) -&gt; <span class="c-ty">Facing</span> {
+    <span class="c-kw">if</span> v.<span class="c-fn">length_squared</span>() &lt; <span class="c-nm">0.01</span> { <span class="c-kw">return</span> <span class="c-ty">Facing</span>::Down; }  <span class="c-cm">// alapértelmezett</span>
+    <span class="c-kw">let</span> angle = v.<span class="c-fn">y</span>().<span class="c-fn">atan2</span>(v.<span class="c-fn">x</span>());          <span class="c-cm">// [-pi, pi]</span>
+    <span class="c-cm">// 45°-os szeletekre kvantáljuk 8 irányba</span>
+    <span class="c-fn">quantize_to_8</span>(angle)
+}</code></pre>
+
+      <h4>A 2.5D mozgás: magassági komponens</h4>
+      <p>A <code>z</code> (magasság) mozgása eltér a síkbelitől. Tipikus esetek: <strong>ugrás</strong> (parabola: <code>z</code> felmegy, majd visszaesik), <strong>leesés</strong> (gravitáció: <code>z</code> csökken, amíg a talajszintet el nem éri), <strong>lépcső</strong> (<code>z</code> folyamatosan követi a talaj magasságát). A mozgásrendszer ezeket külön kezeli: a vízszintes mozgás (<code>x, y</code>) független a magasság-tól, a magasság pedig egy külön <code>Elevation</code> komponensben él.</p>
+      <div class="box warn">
+        <div class="box-title">⚠ A „süllyedő karakter” csapdája</div>
+        <p>Ha a magasság-kezelés és a talaj-követés nincs szinkronban, a karakter „besüllyed” a talajba, vagy „lebeg” felette. Minden frame-ben frissítsd a talaj-magasságot a karakter <code>(x, y)</code> pozíciójából (egy heightmap-ből vagy tile lookup-ból), és addig ne alkalmazz gravitációt, amíg <code>z &gt; ground_z</code>.</p>
+      </div>
+    </section>
+
+    <!-- 07 -->
+    <section id="utkozes">
+      <h2><span class="sec-num">07</span>Ütközés &amp; fizika</h2>
+      <p>A top-down 2.5D ütközés <strong>két síkon</strong> zajlik: a vízszintes síkon (<code>x, y</code> — a mozgás és a falak) és a magassági tengelyen (<code>z</code> — a talaj és a felettem/alattam lévő dolgok). A kettő szétválasztása a 2.5D fizika alapja.</p>
+
+      <h4>Rács vs. folytonos</h4>
+      <ul class="dash">
+        <li><strong>Rács-alapú (grid)</strong> — a világ diszkrét cellákból áll; minden cella blokkol vagy enged. Egyszerű, kiszámítható; klasszikus roguelike-ok és taktikai játékok (Into the Breach). Az ütközés cella-ellenőrzés.</li>
+        <li><strong>Folytonos (free movement)</strong> — az entitások tetszőleges pozícióban vannak; az ütközés AABB/kör-alapú. Simább mozgás, de bonyolultabb fizika. A legtöbb modern top-down akció ezt használja.</li>
+        <li><strong>Hibrid</strong> — a logika rács-alapú (tilemap, FOV, AI), a mozgás folytonos. Gyakori kompromisszum: a falak rács-cellák, a karakter szabadon mozog köztük.</li>
+      </ul>
+
+      <h4>Hitbox / hurtbox</h4>
+      <p>A harci ütközés (a hack and slash-hez hasonlóan) <strong>hitbox/hurtbox</strong> alapú: az aktív támadás geometriája és az ellenfelek sebződési zónáinak átfedése okoz sebzést. A 2.5D-ben a hitbox <strong>3D-s</strong> lehet: egy támadás csak akkor talál, ha a <code>z</code>-tartománya is átfedi az ellenfél magasságát. Ez fontos: egy felettem lévő ellenséget nem talál egy földi ütés, és fordítva.</p>
+      <pre><code><span class="c-kw">#[derive(Component)]</span>
+<span class="c-kw">struct</span> <span class="c-ty">Hitbox</span> {
+    radius: <span class="c-ty">f32</span>,         <span class="c-cm">// xy síkon</span>
+    z_range: (<span class="c-ty">f32</span>, <span class="c-ty">f32</span>),  <span class="c-cm">// magassági tartomány [also, felso]</span>
+}
+
+<span class="c-kw">fn</span> <span class="c-fn">hits_3d</span>(a: &amp;<span class="c-ty">Hitbox</span>, az: <span class="c-ty">f32</span>, b: &amp;<span class="c-ty">Hitbox</span>, bz: <span class="c-ty">f32</span>) -&gt; <span class="c-ty">bool</span> {
+    <span class="c-cm">// xy átfedés (kör-kör)</span>
+    <span class="c-kw">let</span> xy = a.<span class="c-fn">pos</span>().<span class="c-fn">distance</span>(b.<span class="c-fn">pos</span>()) &lt; a.radius + b.radius;
+    <span class="c-cm">// z átfedés (intervallumok)</span>
+    <span class="c-kw">let</span> za = (az + a.z_range.<span class="c-nm">0</span>, az + a.z_range.<span class="c-nm">1</span>);
+    <span class="c-kw">let</span> zb = (bz + b.z_range.<span class="c-nm">0</span>, bz + b.z_range.<span class="c-nm">1</span>);
+    <span class="c-kw">let</span> z_overlap = za.<span class="c-nm">0</span> &lt; zb.<span class="c-nm">1</span> &amp;&amp; zb.<span class="c-nm">0</span> &lt; za.<span class="c-nm">1</span>;
+    xy &amp;&amp; z_overlap
+}</code></pre>
+
+      <h4>Gravitáció &amp; talaj</h4>
+      <p>A 2.5D-ben a <code>z</code>-re gyakran <strong>egyszerűsített gravitáció</strong> fut: <code>z_vel -= g * dt; z += z_vel * dt</code>, és amikor <code>z &lt;= ground_z(x, y)</code>, akkor <code>z = ground_z; z_vel = 0</code>. A <code>ground_z</code> egy heightmap-ből vagy tile-tulajdonságból jön. Ha a magasság bonyolultabb (platform-játék-szerű), akkor komolyabb fizika-motor kell (<code>bevy_rapier</code> 3D módban).</p>
+      <div class="box tip">
+        <div class="box-title">◆ A magasság mint „réteg”</div>
+        <p>Sok top-down 2.5D játék nem igazi magasságot használ, hanem <strong>magassági rétegeket</strong>: <code>z = 0, 1, 2, …</code> diszkrét szinteket. Az entitások csak azonos rétegben ütköznek (egy felettem lévő híd nem blokkolja a mozgásom). Ez sokkal egyszerűbb, mint folytonos <code>z</code>, és a legtöbb esetben elég — a Stardew Valley és sok CRPG így működik.</p>
+      </div>
+    </section>
+
+    <!-- 08 -->
+    <section id="rendezes">
+      <h2><span class="sec-num">08</span>Mélységi rendezés — a Y-sort</h2>
+      <p>A top-down 2.5D legfontosabb technikai trükkje a <strong>Y-sort</strong>: a sprite-okat a <code>(world_y + world_z)</code> szerint rendezve rajzoljuk. Így ami „mélyebben” van a világban (nagyobb <code>y</code>), vagy magasabban (nagyobb <code>z</code>), az <em>később</em> rajzolódik — tehát <em>elől</em> van, és eltakarja a mögötte lévőket. Ez adja a mélység-illúziót.</p>
+
+      <h4>A rendezési kulcs</h4>
+      <pre><code><span class="c-cm">// Egyetlen szám, amely meghatározza a renderelési sorrendet</span>
+<span class="c-kw">fn</span> <span class="c-fn">sort_key</span>(world_pos: <span class="c-ty">Vec3</span>) -&gt; <span class="c-ty">f32</span> {
+    world_pos.y + world_pos.z
+}
+<span class="c-cm">// Rendezzük a látható sprite-okat növekvő sorrendbe,</span>
+<span class="c-cm">// és ebben a sorrendben rajzoljuk — a nagyobb kulcs előrébb van.</span></code></pre>
+      <p>Bevy-ben ezt a legkönnyebben úgy lehet elérni, hogy a sprite <code>Transform</code>-jének <code>translation.z</code>-jét (a renderelési réteget) a <code>sort_key</code>-ből származtatod. Vigyázat: a Bevy 2D-s <code>z</code>-je nagyban (pl. <code>0..1000</code>) változik, és lebegőpontos pontosság miatt „vibrálhat” az érték, ha a mélység finom — érdemes kvantálni (pl. <code>(key * 100.0).round() / 100.0</code>).</p>
+
+      <h4>Az „anchor” probléma</h4>
+      <p>A sprite-ok <strong>anchor pontja</strong> (a „láb” pozíció) kulcskérdés. Ha a sprite középpontjával pozícionálod, a Y-sort hibás lesz — egy nagyobb sprite „közepe” magasabban van, mint egy kisebbé, de a lábuk azonos magasságban lehet. A megoldás: <strong>az anchor a sprite lába (vagy „földérintési pontja”)</strong> legyen, és a Y-sort ezt a pontot használja.</p>
+      <div class="grid2">
+        <div class="card">
+          <h4>Helyes: anchor a láb</h4>
+          <p class="muted">A sprite <code>(x, y)</code>-ja a láb pozíciója; a grafika a felette lévő pixelekből épül fel. A Y-sort a láb <code>y</code>-ját használja. Konzisztens mélység.</p>
+        </div>
+        <div class="card lo">
+          <h4>Hibás: anchor a közép</h4>
+          <p class="muted">A sprite középpontja a pozíció; a nagyobb sprite-ok „közepe” magasabban van, így előrébb rajzolódnak, hiába vannak mélyebben. Vibrálás, illesztési hibák.</p>
+        </div>
+      </div>
+
+      <h4>Több csempe-réteg (ground / overlay / object)</h4>
+      <p>A világ elemei <strong>rétegekbe</strong> szervezhetők: <code>Ground</code> (talajcsempék, mindig legalsó), <code>Overlay</code> (föld feletti tereptárgyak: fák, szirtek, falak), <code>Object</code> (interaktív entitások, karakterek). A Y-sort csak az <code>Overlay</code> és <code>Object</code> rétegen belül fut; a <code>Ground</code> mindig először rajzolódik. A Bevy <code>RenderLayers</code> vagy a sprite <code>z</code>-értékei adhatják a rétegeket.</p>
+
+      <div class="box warn">
+        <div class="box-title">⚠ A „túlnyúló sprite” problémája</div>
+        <p>Ha egy nagy sprite (pl. egy fa) túlnyúlik a saját celláján, a Y-sort miatt „átnyúlhat” egy szomszédos cellába, és helytelenül takarhatja a mögötte lévőket. A megoldás: a nagy tereptárgyakat <strong>két részre</strong> bonthatod („törzs” az overlay-ben, „lomb” egy külön, mindig felettük lévő rétegben), vagy az anchor-tól való eltolással finomhangolhatod a sort-kulcsot. Ez a művészeti és kód-összehangolás egyik legkényesebb pontja.</p>
+      </div>
+      <div class="box tip">
+        <div class="box-title">◆ Bevy <code>bevy_sprite</code> Y-sort trükk</div>
+        <p>Ha a Bevy beépített sprite-renderelését használod, a legegyszerűbb Y-sort: a sprite <code>Transform.translation.z</code>-jét a <code>(world.y + world.z) * SKÁLA</code>-ra állítod, ahol <code>SKÁLA</code> elég nagy, hogy a rendezés stabil legyen. Ha sok entitásod van, a <code>bevy_sprite</code> automatikus rendezése <code>z</code> szerint elég; de vigyázat a „túl nagy <code>z</code>-tartomány → lebegőpontos vibráció” problémára — kvantálj.</p>
+      </div>
+    </section>
+
+    <!-- 09 -->
+    <section id="tilemap">
+      <h2><span class="sec-num">09</span>Tilemap &amp; magasság-ábrázolás</h2>
+      <p>A top-down 2.5D világ <strong>csempékből</strong> épül — ez a memória- és renderelési hatékonyság alapja. A magasság a tile-ok tulajdonsága: minden cellának van egy <code>elevation</code> értéke, amely meghatározza, hogy az entitások milyen magasan vannak rajta.</p>
+
+      <h4>Csempetípusok</h4>
+      <ul class="dash">
+        <li><strong>Talaj (ground)</strong> — sík csempe, <code>elevation = 0</code> (vagy a terület alap-magassága).</li>
+        <li><strong>Magaslat (cliff edge)</strong> — a csempe „éle” vizuálisan oldalnézetes; mechanikusan egy magassági ugrás. Az entitások nem léphetnek át, csak ha van „lépés” képességük.</li>
+        <li><strong>Lépcső (ramp)</strong> — fokozatos magasság-átmenet; az entitások <code>z</code>-je követi a lépcső meredekségét.</li>
+        <li><strong>Lyuk/akadály (pit / wall)</strong> — blokkolja a mozgást, vagy „mélyedés” (az entitás leeshet bele).</li>
+        <li><strong>Híd / felső szint</strong> — egy külön magassági réteg (<code>z = 1</code>); az alatta lévő mozgás zavartalan, a felette lévő a hídon van.</li>
+      </ul>
+
+      <h4>Magassági térkép (heightmap)</h4>
+      <p>A magasság tárolására bevált megoldás egy <strong>heightmap</strong>: a tilemap-mal azonos felbontású, egész vagy valós számokat tartalmazó rács, ahol minden cella a magasságot kódolja. Az entitások magasságát a heightmap-ből interpolálják: <code>ground_z(x, y) = sample_heightmap(x, y)</code>. Ha rács-cellák közt interpolálsz (bilinearisan), a mozgás sima; ha nem, a magasság lépcsőzetes.</p>
+      <pre><code><span class="c-cm">// Heightmap mint Resource — a tilemap-mal azonos felbontás</span>
+<span class="c-kw">#[derive(Resource)]</span>
+<span class="c-kw">struct</span> <span class="c-ty">Heightmap</span> {
+    width: <span class="c-ty">usize</span>,
+    height: <span class="c-ty">usize</span>,
+    cells: <span class="c-ty">Vec</span>&lt;<span class="c-ty">i32</span>&gt;,   <span class="c-cm">// elevation tile-onként</span>
+}
+
+<span class="c-kw">impl</span> <span class="c-ty">Heightmap</span> {
+    <span class="c-kw">fn</span> <span class="c-fn">ground_z</span>(&amp;<span class="c-kw">self</span>, x: <span class="c-ty">f32</span>, y: <span class="c-ty">f32</span>) -&gt; <span class="c-ty">f32</span> {
+        <span class="c-cm">// bilineáris interpoláció a 4 legközelebbi cella közt</span>
+        <span class="c-kw">let</span> (ix, iy, fx, fy) = <span class="c-fn">floor_and_frac</span>(x, y);
+        <span class="c-kw">let</span> h00 = <span class="c-kw">self</span>.<span class="c-fn">at</span>(ix, iy)     <span class="c-kw">as</span> <span class="c-ty">f32</span>;
+        <span class="c-kw">let</span> h10 = <span class="c-kw">self</span>.<span class="c-fn">at</span>(ix+<span class="c-nm">1</span>, iy)   <span class="c-kw">as</span> <span class="c-ty">f32</span>;
+        <span class="c-kw">let</span> h01 = <span class="c-kw">self</span>.<span class="c-fn">at</span>(ix, iy+<span class="c-nm">1</span>) <span class="c-kw">as</span> <span class="c-ty">f32</span>;
+        <span class="c-kw">let</span> h11 = <span class="c-kw">self</span>.<span class="c-fn">at</span>(ix+<span class="c-nm">1</span>, iy+<span class="c-nm">1</span>) <span class="c-kw">as</span> <span class="c-ty">f32</span>;
+        <span class="c-fn">bilerp</span>(h00, h10, h01, h11, fx, fy)
+    }
+}</code></pre>
+
+      <h4>Csempe-átmenetek (auto-tiling)</h4>
+      <p>A magassági átmenetek vizuális megjelenítése (a szirt „él”) gyakran <strong>auto-tiling</strong>-gel történik: a rendszer a szomszédos cellák magasságából meghatározza, melyik „él”-csempét rajzolja. A 47- vagy 256-állapotú bitmasking elterjedt — erről a <code>csempe-bitmaszkolas.html</code> és a <code>bevy-dual-grid-tutorial.html</code> részletesen. A magasság-átmenetnél a „Wang tile” vagy „corner-based” megközelítés is működik.</p>
+      <div class="box note">
+        <div class="box-title">▚ A magasság = adat, nem grafika</div>
+        <p>A legfontosabb elv: a magasság <strong>adat</strong>, és a grafika csak <em>megjeleníti</em>. A tilemap-ban legyen egyértelmű magassági érték; a vizuális csempe-választás ebből származék. Soha ne a grafikából próbáld visszafejteni a magasságot — az adat az igazságforrás, a megjelenítés csak tükör.</p>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section id="animacio">
+      <h2><span class="sec-num">10</span>Animáció &amp; orientáció</h2>
+      <p>A top-down 2.5D karakteranimáció <strong>két tengelyen</strong> bonyolult: irány (4 vagy 8) és állapot (idle, walk, attack, hit). Ez exponenciálisan növeli a sprite-számot, ha nem vagy óvatos.</p>
+
+      <h4>Sprite-szám minimalizálása</h4>
+      <ul class="dash">
+        <li><strong>Vízszintes tükrözés</strong> — a „balra” és „jobbra” animáció megegyezik, csak tükrözve. Egyből fele sprite-mennyiség.</li>
+        <li><strong>4 irány + tükrözés</strong> — le/fel/bal + tükör → 3 sprite-set (le, fel, bal-jobbra). A legtöbb top-down játék ezt használja; az átlós mozgás a legközelebbi 4 irányba kvantálódik.</li>
+        <li><strong>8 irány külön</strong> — ha az átlós mozgás fontos (twin-stick), külön 8 sprite kell. Drágább művészileg, de szebb.</li>
+        <li><strong>Egyetlen „felülről” sprite</strong> — ha a kamera nagyon merőleges (pure top-down), elég egy sprite-set, mert a karakter körül lehet forgatni. Ritka, mert kevésbé érthető az orientáció.</li>
+      </ul>
+
+      <h4>Animáció-állapotgép</h4>
+      <p>A karakter animációja egy <strong>állapotgép</strong>: <code>Idle → Walk → Attack → Hit → Idle</code>. Az átmeneteket az input és a fizika vezérli. A 2.5D-specifikus: a <strong>magassági állapot</strong> (grounded / jumping / falling) is állapot, és lehet, hogy saját animációt kíván (ugrás: „airborne”, esés: „falling”).</p>
+      <pre><code><span class="c-kw">enum</span> <span class="c-ty">AnimState</span> { Idle, Walk, Attack(<span class="c-ty">u32</span>), Hit, Airborne, Falling }
+
+<span class="c-kw">fn</span> <span class="c-fn">pick_animation</span>(
+    facing: <span class="c-ty">Facing</span>,
+    state: &amp;<span class="c-ty">AnimState</span>,
+    grounded: <span class="c-ty">bool</span>,
+    vel: <span class="c-ty">Vec2</span>,
+) -&gt; <span class="c-ty">SpriteClip</span> {
+    <span class="c-kw">if</span> !grounded { <span class="c-kw">return</span> <span class="c-ty">SpriteClip</span>::<span class="c-fn">falling_or_airborne</span>(); }
+    <span class="c-kw">match</span> state {
+        <span class="c-ty">AnimState</span>::Attack(f) =&gt; <span class="c-ty">SpriteClip</span>::<span class="c-fn">attack</span>(facing, *f),
+        <span class="c-ty">AnimState</span>::Hit        =&gt; <span class="c-ty">SpriteClip</span>::<span class="c-fn">hit</span>(facing),
+        <span class="c-ty">AnimState</span>::Idle <span class="c-kw">if</span> vel.<span class="c-fn">length_squared</span>() &gt; <span class="c-nm">0.1</span> =&gt; <span class="c-ty">SpriteClip</span>::<span class="c-fn">walk</span>(facing),
+        _ =&gt; <span class="c-ty">SpriteClip</span>::<span class="c-fn">idle</span>(facing),
+    }
+}</code></pre>
+
+      <h4>Frame-alapú vs.骨骼os animáció</h4>
+      <p>A <strong>frame-alapú</strong> (Aseprite-szerű) animáció a hagyományos pixel-art megközelítés: minden frame külön sprite. Egyszerű, de sok adat. A <strong>csontos (skeletal)</strong> animáció (Spine, DragonBones, PixelOver) a karaktert „csontokból” építi fel, és a mozgást transzformációkkal írja le — kevesebb adat, könnyebb átirányítani, de más az esztétikája. A 2.5D-ben a csontos animáció előnye, hogy az irányokat és a magasságot könnyebb interpolálni. Erről a <code>bevy-animaciok-tutorial.html</code> és <code>pixelover-bones-animation-tutorial.html</code> részletesen.</p>
+      <div class="box tip">
+        <div class="box-title">◆ Az „orientációs frame-szám” elve</div>
+        <p>Ha 4 irány × 6 állapot × 8 frame = 192 frame kell a karakternek, az már komoly művészeti terhek. Mielőtt elköteleznéd magad 8 irány mellett, mérlegeld: a játékos észreveszi-e a különbséget? A legtöbb esetben 4 irány + tükrözés épp elég, és felezi a munkát. Az orientáció-szám egy korai, de nagyon drága döntés.</p>
+      </div>
+    </section>
+
+    <!-- 11 -->
+    <section id="vilagitas">
+      <h2><span class="sec-num">11</span>Világítás &amp; árnyékok 2.5D-ben</h2>
+      <p>A 2.5D világítás kihívás, mert nincs igazi 3D geometria, amire a fény eshet — csak sprite-ok. Mégis, a játékos vár valamilyen térbeli visszajelzést: hol van a fényforrás, merre van „lefelé”.</p>
+
+      <h4>Árnyék-megoldások</h4>
+      <ul class="dash">
+        <li><strong>Blob árnyék (fake shadow)</strong> — egy egyszerű, átlátszó fekete ellipszis/sprite a karakter talaj-pozíciójában. Olcsó, konzisztens; jelzi, hol „ér talajt”. A 2.5D alapja. A magasság mértékét az árnyék és a karakter közti távolság adja: minél magasabban van a karakter, annál kisebb és áttűnőbb az árnyék.</li>
+        <li><strong>Magasság-érzékeny árnyék</strong> — a blob árnyék <code>size</code> és <code>opacity</code> értéke <code>1 / (1 + z)</code> alapján skálázódik. Így az ugró karakter árnyéka kisebb és halványabb lesz — erős mélység-jelzés.</li>
+        <li><strong>Projektált árnyék</strong> — a karakter sziluettjét levetítjük a talajra. Drága, de reális. Ritka 2.5D-ben.</li>
+        <li><strong>Valós idejű árnyékok (3D)</strong> — ha a motor 3D-t használ billboard sprite-okkal, a beépített árnyék-renderelő működik. Ekkor a sprite-ok egy síkban vannak, és a fény vetít.</li>
+      </ul>
+
+      <h4>Világítás-megoldások</h4>
+      <ul class="dash">
+        <li><strong>Állandó környezeti fény</strong> — minden sprite egyformán világos; a „világítás” a művészetben van. Egyszerű, de unalmas; a retro top-down játékok gyakori választása.</li>
+        <li><strong>Sprite-multiplikátor (tinting)</strong> — a sprite-okat színszorzóval sötétítjük/világosítjuk a pozíció alapján. Egyszerű „éjszaka” érzés.</li>
+        <li><strong>Normál-térképezett sprite + dinamikus fény</strong> — minden sprite mellé egy normál-térkép tartozik; a fényforrásokat a rendszer valós idejű phong-szerű világítással számolja. Erős hatás (Dead Cells), de drága előállítani és futtatni.</li>
+        <li><strong>2D fény- és árnyék-rendszer</strong> — a fényforrások sugarakat vetnek, a falak (a tilemap-ból kinyert geometria) árnyékot dobnak (shadowcasting). Ez a roguelike FOV-algoritmus rokona — erről a <code>bevy-vilagitas-tutorial.html</code> és <code>bevy-entitas-vilagitas-tutorial.html</code> részletesen.</li>
+      </ul>
+      <div class="box warn">
+        <div class="box-title">⚠ A „két árnyék” ellentmondás</div>
+        <p>Ha a karakternek van blob-árnyéka (fake), és a világban dinamikus árnyékok is vannak (a fényforrásokból), a kettő könnyen ellentmondásba kerül: a blob egy irányba mutat, a dinamikus árnyék másikba. Válassz egy megközelítést, és legyél konzisztens. A blob árnyék mindig „pontosan alatta” van; a dinamikus árnyék a fényforráshoz képest. Ha mindkettő fut, a játékos zavarodott lesz.</p>
+      </div>
+      <div class="box tip">
+        <div class="box-title">◆ Az árnyék a legolcsóbb mélység-jelzés</div>
+        <p>Ha csak egy dolgot csinálsz a 2.5D magasság-illúziójáért, az a <strong>magasság-érzékeny blob árnyék</strong>. Egy egyszerű ellipszis, amely mérete és átlátszósága a <code>z</code>-vel fordítottan arányos — ez már önmagában elhiteti a játékossal, hogy a karakter ugrik/magasan van. A komplex normál-térképes világítás sokkal drágább, de a hatás nem feltétlenül arányosan nagyobb.</p>
+      </div>
+    </section>
+
+    <!-- 12 -->
+    <section id="ai">
+      <h2><span class="sec-num">12</span>Útkeresés &amp; AI magassággal</h2>
+      <p>A top-down 2.5D AI-nak tudnia kell navigálni a magassági terepen: nem elég csak a vízszintes útvonalat megtalálni, hanem azt is, hol lehet felmenni, hol kell leugrani, hol van akadály a <code>z</code>-tengelyen.</p>
+
+      <h4>A klasszikus A* kiegészítése</h4>
+      <p>A síkbeli A* a tilemap szomszédsági gráfon fut. A 2.5D-ben a gráf <strong>bonyolultabb</strong>: egy celláról a szomszédjába való lépésnek vannak feltételei:</p>
+      <ul class="dash">
+        <li><strong>Magasság-különbség kicsi</strong> (pl. <code>|Δz| &lt; step_height</code>): léphet, a <code>z</code> követi az új cella magasságát.</li>
+        <li><strong>Magasság-különbség nagy, de lefelé</strong>: leugorhat (esetleg sérüléssel).</li>
+        <li><strong>Magasság-különbség nagy, felfelé</strong>: nem léphet, hacsak nincs „lépcső” vagy „ramp”.</li>
+        <li><strong>Fal/akadály</strong>: blokkol, nem léphet.</li>
+        <li><strong>Híd/felső szint</strong>: külön gráf-réteg; az AI dönthet úgy, hogy a híd alatt vagy felett megy.</li>
+      </ul>
+      <pre><code><span class="c-kw">fn</span> <span class="c-fn">can_step</span>(from: <span class="c-ty">Cell</span>, to: <span class="c-ty">Cell</span>, step_height: <span class="c-ty">i32</span>, can_jump_down: <span class="c-ty">bool</span>) -&gt; <span class="c-ty">bool</span> {
+    <span class="c-kw">if</span> to.blocked { <span class="c-kw">return</span> <span class="c-nm">false</span>; }
+    <span class="c-kw">let</span> dz = to.elevation - from.elevation;
+    <span class="c-kw">if</span> dz.<span class="c-fn">abs</span>() &lt;= step_height { <span class="c-nm">true</span> }            <span class="c-cm">// léphet</span>
+    <span class="c-kw">else if</span> dz &lt; <span class="c-nm">0</span> &amp;&amp; can_jump_down { <span class="c-nm">true</span> } <span class="c-cm">// leugorhat</span>
+    <span class="c-kw">else if</span> to.is_ramp { <span class="c-nm">true</span> }                <span class="c-cm">// rámpán fel/le</span>
+    <span class="c-kw">else</span> { <span class="c-nm">false</span> }
+}</code></pre>
+
+      <h4>Dijkstra-térkép (scent map)</h4>
+      <p>A roguelike-okhoz hasonlóan sok top-down 2.5D játék <strong>Dijkstra-térképet</strong> használ: egy célból kiinduló távolságmező az egész pályán. Az AI egyszerűen „lefelé gurul” a gradiensen. A 2.5D-ben a Dijkstra-térkép <strong>több rétegen</strong> is futhat: külön térkép a „földszintre”, külön a „hidakra”. Az AI a megfelelő réteget használja, attól függően, hol van.</p>
+
+      <h4>AI-állapotok</h4>
+      <ul class="dash">
+        <li><strong>Idle / patrol</strong> — helyben vár vagy járőrözik a síkon.</li>
+        <li><strong>Chase</strong> — észlelt téged, közelít; az útkeresés figyelembe veszi a magasságot.</li>
+        <li><strong>Attack</strong> — hatótávon belül (és megfelelő <code>z</code>-tartományban) cselekszik.</li>
+        <li><strong>Flee</strong> — alacsony HP-n menekül; magaslatot keres, vagy mélyedést.</li>
+        <li><strong>Magassági viselkedés</strong> — pl. „repülő” ellenség, aki <code>z &gt; 0</code>-n tartózkodik, és csak akkor támad, ha leereszkedik. Speciális fajta.</li>
+      </ul>
+      <div class="box note">
+        <div class="box-title">▚ A magasság mint AI-erőforrás</div>
+        <p>A magasság nem csak mozgási kihívás, hanem <strong>taktikai erőforrás</strong> is. Egy „magaslati előny” rendszere (a magasabban lévő támadó bónuszt kap) a 2.5D játék mélységét növeli. A Stardew Valley és sok tactics-játék él ezzel: a pozicionálás a <code>z</code>-tengelyen is számít, nem csak a síkon.</p>
+      </div>
+    </section>
+
+    <!-- 13 -->
+    <section id="teljesitmeny">
+      <h2><span class="sec-num">13</span>Teljesítmény &amp; optimalizáció</h2>
+      <p>A top-down 2.5D játékok gyakran nagy tilemap-okkal és sok entitással dolgoznak. A rosszul optimalizált 2.5D könnyen „bedobja a törölközőt” — különösen a Y-sort és a tilemap-renderelés miatt.</p>
+
+      <h4>A fő szűk keresztmetszetek</h4>
+      <ul class="dash">
+        <li><strong>Tilemap-méret</strong> — egy 1000×1000 cellás térkép 1M csempét jelent; ha mindent sprite-ként renderelsz, azonnal bedől. A Bevy <code>bevy_ecs_tilemap</code> (vagy hasonló) batch-renderelést végez: egy draw call-ba fog több ezer csempét.</li>
+        <li><strong>Y-sort költsége</strong> — ha minden frame-ben rendezed az összes entitást, az <code>O(n log n)</code> fut. Ha 1000 entitásod van, ez elfogadható; ha 10 000, már gond. A megoldás: csak a látható entitásokat rendezd (culling), és a rendezést csak pozíció-változáskor frissítsd (dirty flag).</li>
+        <li><strong>Overdraw</strong> — sok átlátszó sprite egymásra rakódik; a GPU minden pixelt többször feldolgoz. Csökkentsd a felesleges átlátszóságot (pl. a blob árnyék kisebb legyen).</li>
+        <li><strong>Sprite-atlasz</strong> — minden sprite egy atlaszban legyen; a „texture binding” drága. A Bevy <code>TextureAtlas</code> / <code>bevy_sprite</code> automatikusan batch-el, ha egy atlaszból jön.</li>
+        <li><strong>Culling</strong> — csak a kamera látómezőjébe eső entitásokat frissítsd és rendereld. A kamera + tilemap-méret határozza meg a látható cellákat.</li>
+      </ul>
+
+      <h4>Frékvencia-szabályozás</h4>
+      <p>Nem minden rendszernek kell minden frame-ben futnia. A Bevy <code>FixedUpdate</code> schedule vagy a rendszerenkénti <code>Timer</code> alkalmas a ritkább futtatásra:</p>
+      <ul class="dash">
+        <li><strong>Pathfinding</strong> — az AI ne minden frame-ben számoljon új utat; elég 5–10 frame-enként, vagy amikor a cél érdemben változik.</li>
+        <li><strong>FOV / látómező</strong> — csak a játékos lépésénél frissül (körökre osztott) vagy néhány frame-enként (valós idejű).</li>
+        <li><strong>Dijkstra-térkép</strong> — előre kiszámítható, csak a pályaváltozáskor újra.</li>
+        <li><strong>Tile-renderelés</strong> — a statikus tilemap egyszer generálódik; csak a dinamikus réteg frissül.</li>
+      </ul>
+      <div class="box tip">
+        <div class="box-title">◆ A Y-sort „chunk” trükkje</div>
+        <p>Nagyon sok entitásnál a teljes rendezés drága. Egy trükk: a világot <strong>chunkokra</strong> osztod (pl. 32×32 cellás négyzetek), és csak az aktív chunkokban lévő entitásokat rendezed. A chunkok közt a rendezés fix (egy chunk „mélyebb” mint a mögötte lévő). Ez <code>O(n log n)</code> helyett <code>O(k log k)</code>-t ad, ahol <code>k</code> az aktív chunkok entitásszáma.</p>
+      </div>
+      <div class="box warn">
+        <div class="box-title">⚠ A „számolj, ne renderelj” elv</div>
+        <p>A GPU renderelés drága; a CPU számolás olcsó. Ha valami láthatóan lassítja a játékot, először mérni kell (Bevy <code>FrameTimeDiagnosticsPlugin</code>), hogy CPU- vagy GPU- limitált-e. A legtöbb 2.5D játék CPU-limitált (Y-sort, AI, physics), nem GPU — tehát a renderelés optimalizálása nem feltétlenül segít. A mérés az első lépés.</p>
+      </div>
+    </section>
+
+    <!-- 14 -->
+    <section id="elvek">
+      <h2><span class="sec-num">14</span>Tervezési alapelvek — mit kövess?</h2>
+      <ol>
+        <li><strong>Rögzítsd a nézőpontot korán.</strong> Pure top-down, 2.5D, izometrikus? Ez meghatározza a csempe-alakot, sprite-számot, ütközést. Később váltani drága.</li>
+        <li><strong>Válaszd szét a logikát és a megjelenítést.</strong> A világ 3D-ben gondolkodik (<code>x, y, z</code>), a képernyő 2D-ben. A kettő közti vetítés egy konzisztens lépés.</li>
+        <li><strong>A magasság adat, nem grafika.</strong> A heightmap / tile-elevation az igazságforrás; a grafika csak megjeleníti. Soha ne fordítva.</li>
+        <li><strong>Y-sort az anchor (láb) pontjára.</strong> Ne a sprite közepére; az illesztési hibák és a vibráció forrása.</li>
+        <li><strong>Árnyék köti a karaktert a talajhoz.</strong> Magasság-érzékeny blob árnyék — a legolcsóbb és leghatásosabb mélység-jelzés.</li>
+        <li><strong>A magasság-átmenet legyen konzisztens.</strong> Egyértelmű szabály: mikor lehet felmenni, mikor leugrani, mikor blokkolt. Az AI és a játékos ugyanazokat a szabályokat használja.</li>
+        <li><strong>Orientáció-szám korai döntés.</strong> 4 vagy 8 irány? Ez meghatározza a sprite-mennyiséget és a művészeti terhet. Kezdj 4-gyel + tükrözéssel.</li>
+        <li><strong>A kamera olvashatóságot szolgáljon.</strong> Fix szög, look-ahead, megfelelő zoom; a magasságot ne kövesse (az illúzió megtartása érdekében).</li>
+        <li><strong>Mérj, mielőtt optimalizálsz.</strong> CPU- vagy GPU-limitált? A legtöbb 2.5D játék CPU-limitált; a renderelés optimalizálása nem feltétlenül segít.</li>
+        <li><strong>Culling és frékvencia-szabályozás.</strong> Csak a láthatót rendereld; a drága rendszereket (AI, FOV) ritkábban futtasd.</li>
+        <li><strong>Vágj le egy kiegészítőt.</strong> Az első prototípusban egy sík tilemap + Y-sort + blob árnyék + 4-irányú karakter elég. A magasság és a magassági AI később rárakható.</li>
+      </ol>
+    </section>
+
+    <!-- 15 -->
+    <section id="bevy">
+      <h2><span class="sec-num">15</span>Implementáció — Bevy / ECS jegyzetek</h2>
+      <p>A Bevy ECS-természete kiválóan illik a 2.5D-hez: a „szabály egyszer, minden entitásra” elv egybevág a műfaj <strong>„logika és megjelenítés szétválasztva”</strong> filozófiájával. A magasság egy komponens; a vetítés egy rendszer; a Y-sort egy rendszer. Nincs „játékos-kód” és „ellenség-kód” — a szabály mindenkre ugyanaz.</p>
+
+      <h4>Entitás mint komponens-kompozíció</h4>
+      <pre><code><span class="c-cm">// Közös komponensek — játékos és ellenség is ezekből áll</span>
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">WorldPos</span> { x: <span class="c-ty">f32</span>, y: <span class="c-ty">f32</span>, z: <span class="c-ty">f32</span> }
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">Velocity</span> { xy: <span class="c-ty">Vec2</span>, z: <span class="c-ty">f32</span> }   <span class="c-cm">// vízszintes + magassági</span>
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">Facing</span>(<span class="c-ty">Direction8</span>);
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">Grounded</span>(<span class="c-ty">bool</span>);
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">Hitbox</span> { radius: <span class="c-ty">f32</span>, z_range: (<span class="c-ty">f32</span>, <span class="c-ty">f32</span>) }
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">SpriteAnchor</span> { foot_offset: <span class="c-ty">Vec2</span> }  <span class="c-cm">// a sprite láb-pontja</span>
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">Player</span>;                          <span class="c-cm">// csak a játékoson</span>
+<span class="c-kw">#[derive(Component)]</span> <span class="c-kw">struct</span> <span class="c-ty">Enemy</span> { archetype: <span class="c-ty">Archetype</span> }       <span class="c-cm">// csak az ellenségeken</span></code></pre>
+
+      <h4>A vetítés mint rendszer</h4>
+      <p>A 2.5D vetítés egy <strong>rendszer</strong>, amely minden <code>WorldPos</code>-szal és <code>SpriteAnchor</code>-ral rendelkező entitásra lefut, és a Bevy <code>Transform</code>-et frissíti. A <code>translation.z</code> (renderelési réteg) a Y-sort-ból jön; a <code>translation.xy</code> a vetített pozícióból.</p>
+      <pre><code><span class="c-kw">const</span> HEIGHT_SCALE: <span class="c-ty">f32</span> = <span class="c-nm">1.2</span>;     <span class="c-cm">// magasság → képernyő-Y arány</span>
+<span class="c-kw">const</span> SORT_SCALE:   <span class="c-ty">f32</span> = <span class="c-nm">100.0</span>;   <span class="c-cm">// Y-sort kulcs → z-réteg</span>
+
+<span class="c-kw">fn</span> <span class="c-fn">project_to_screen</span>(
+    <span class="c-kw">mut</span> q: <span class="c-ty">Query</span>&lt;(&amp;<span class="c-ty">WorldPos</span>, &amp;<span class="c-ty">SpriteAnchor</span>, &amp;<span class="c-kw">mut</span> <span class="c-ty">Transform</span>)&gt;,
+    camera: <span class="c-ty">Res</span>&lt;<span class="c-ty">CameraTransform</span>&gt;,
+) {
+    <span class="c-kw">for</span> (pos, anchor, <span class="c-kw">mut</span> tf) <span class="c-kw">in</span> &amp;<span class="c-kw">mut</span> q {
+        <span class="c-cm">// képernyő-pozíció: world.x, world.y - z * scale</span>
+        <span class="c-kw">let</span> screen_x = pos.x + anchor.foot_offset.x;
+        <span class="c-kw">let</span> screen_y = pos.y - pos.z * HEIGHT_SCALE + anchor.foot_offset.y;
+
+        tf.translation.x = screen_x - camera.x;
+        tf.translation.y = screen_y - camera.y;
+
+        <span class="c-cm">// Y-sort kulcs: (y + z), kvantálva a stabilitásért</span>
+        <span class="c-kw">let</span> key = ((pos.y + pos.z) * SORT_SCALE).<span class="c-fn">round</span>() / SORT_SCALE;
+        tf.translation.z = key;
+    }
+}</code></pre>
+
+      <h4>A magasság-kezelés mint rendszer</h4>
+      <p>A magasság (gravitáció, talaj-követés) egy külön rendszer, amely az <code>Elevation</code> komponenst és a <code>Heightmap</code> erőforrást használja. A vízszintes mozgástól függetlenül fut.</p>
+      <pre><code><span class="c-kw">const</span> GRAVITY: <span class="c-ty">f32</span> = <span class="c-nm">-30.0</span>;
+
+<span class="c-kw">fn</span> <span class="c-fn">elevation_tick</span>(
+    time: <span class="c-ty">Res</span>&lt;<span class="c-ty">Time</span>&gt;,
+    heightmap: <span class="c-ty">Res</span>&lt;<span class="c-ty">Heightmap</span>&gt;,
+    <span class="c-kw">mut</span> q: <span class="c-ty">Query</span>&lt;(&amp;<span class="c-kw">mut</span> <span class="c-ty">WorldPos</span>, &amp;<span class="c-kw">mut</span> <span class="c-ty">Velocity</span>, &amp;<span class="c-kw">mut</span> <span class="c-ty">Grounded</span>)&gt;,
+) {
+    <span class="c-kw">let</span> dt = time.<span class="c-fn">delta_seconds</span>();
+    <span class="c-kw">for</span> (<span class="c-kw">mut</span> pos, <span class="c-kw">mut</span> vel, <span class="c-kw">mut</span> grounded) <span class="c-kw">in</span> &amp;<span class="c-kw">mut</span> q {
+        <span class="c-kw">let</span> ground_z = heightmap.<span class="c-fn">ground_z</span>(pos.x, pos.y);
+
+        <span class="c-kw">if</span> pos.z &gt; ground_z + <span class="c-nm">0.001</span> {
+            <span class="c-cm">// levegőben: gravitáció</span>
+            vel.z += GRAVITY * dt;
+            pos.z += vel.z * dt;
+            <span class="c-kw">if</span> pos.z &lt;= ground_z { pos.z = ground_z; vel.z = <span class="c-nm">0</span>.; *grounded = <span class="c-nm">true</span>; }
+            <span class="c-kw">else</span> { *grounded = <span class="c-nm">false</span>; }
+        } <span class="c-kw">else</span> {
+            <span class="c-cm">// a talajon: követi a heightmap-et (rámpa, lejtő)</span>
+            pos.z = ground_z;
+            vel.z = <span class="c-nm">0</span>.;
+            *grounded = <span class="c-nm">true</span>;
+        }
+    }
+}</code></pre>
+
+      <h4>A blob árnyék mint „child” entitás</h4>
+      <p>A magasság-érzékeny árnyékot a legegyszerűbb egy <strong>külön entitásként</strong> megvalósítani, amely a karakter <code>(x, y)</code> pozícióját követi (a <code>z</code>-t nem), és a mérete/átlátszósága a <code>z</code>-ből származik. A Bevy szülő-gyermek hierarchiája (<code>Parent</code> / <code>Children</code>) alkalmas erre: a árnyék a karakter „gyermeke”, de a <code>translation.z</code>-jét (renderelési réteg) alacsonyan tartod, hogy mindig a talajon rajzolódjon.</p>
+      <pre><code><span class="c-kw">fn</span> <span class="c-fn">shadow_follow</span>(
+    <span class="c-kw">mut</span> shadows: <span class="c-ty">Query</span>&lt;(&amp;<span class="c-ty">Parent</span>, &amp;<span class="c-kw">mut</span> <span class="c-ty">Transform</span>, &amp;<span class="c-kw">mut</span> <span class="c-ty">Sprite</span>), <span class="c-ty">With</span>&lt;<span class="c-ty">BlobShadow</span>&gt;&gt;,
+    parents: <span class="c-ty">Query</span>&lt;(&amp;<span class="c-ty">WorldPos</span>,)&gt;,
+) {
+    <span class="c-kw">for</span> (parent, <span class="c-kw">mut</span> tf, <span class="c-kw">mut</span> sprite) <span class="c-kw">in</span> &amp;<span class="c-kw">mut</span> shadows {
+        <span class="c-kw">let</span> <span class="c-ty">Ok</span>((pos,)) = parents.<span class="c-fn">get</span>(parent.<span class="c-nm">0</span>) <span class="c-kw">else</span> { <span class="c-kw">continue</span>; };
+        <span class="c-cm">// árnyék a talaj-pozícióban (z nélkül), alacsony render-rétegen</span>
+        tf.translation.x = pos.x;
+        tf.translation.y = pos.y;
+        tf.translation.z = <span class="c-nm">0.1</span>;      <span class="c-cm">// mindig a talaj felett, minden entitás alatt</span>
+        <span class="c-cm">// minél magasabban a karakter, annál kisebb/halványabb az árnyék</span>
+        <span class="c-kw">let</span> h = pos.z.<span class="c-fn">max</span>(<span class="c-nm">0</span>.);
+        <span class="c-kw">let</span> scale = <span class="c-nm">1.0</span> / (<span class="c-nm">1.0</span> + h * <span class="c-nm">0.5</span>);
+        tf.scale = <span class="c-ty">Vec3</span>::<span class="c-fn">splat</span>(scale);
+        sprite.color.set_alpha(<span class="c-nm">0.5</span> * scale);
+    }
+}</code></pre>
+
+      <h4>A Y-sort mint „ingyenes” rendszer</h4>
+      <p>Ha a <code>project_to_screen</code> rendszer helyesen állítja be a <code>Transform.translation.z</code>-t (a Y-sort kulcsot), a Bevy <code>bevy_sprite</code> automatikusan rendezi a sprite-okat a <code>z</code> szerint — <strong>külön rendező rendszer nem kell</strong>. Csak ügyelj a kvantálásra és a tartományra: ha túl nagy a <code>z</code>-tartomány, a lebegőpontos pontosság miatt „vibrálhat” a sorrend.</p>
+
+      <h4>Állapotgép a fő hurokhoz</h4>
+      <p>A Bevy <code>States</code> alkalmas a játék állapotainak szervezésére: <code>MainMenu → Generating → InGame → Paused → GameOver</code>. A pályagenerálás egy <code>OnEnter(Generating)</code> rendszerbe tehető; a Y-sort és a vetítés csak <code>InGame</code> alatt futnak (a <code>Run Conditions</code>-t használva).</p>
+
+      <div class="box note">
+        <div class="box-title">▚ ECS-illeszkedés</div>
+        <p>A top-down 2.5D „egységes szimuláció” elve az ECS-ben rendszerként jelenik meg: egy <code>project_to_screen</code> minden entitásra lefut (játékos és ellenség is); egy <code>elevation_tick</code> minden <code>WorldPos</code>-szal rendelkezőre; egy <code>melee_hits</code> minden <code>Hitbox</code>-ra. Nincs külön „játékos-kód” és „ellenség-kód” — ez pont a műfaj filozófiája: a szabály mindenkre ugyanaz, a különbséget a komponens-kompozíció adja.</p>
+      </div>
+      <div class="box tip">
+        <div class="box-title">◆ Hasznos crate-ek &amp; tanulás</div>
+        <p><code>bevy_ecs_tilemap</code> a tilemap-rendereléshez és batch-eléshez; <code>bevy_rapier</code> / <code>bevy_xpbd</code> a fizikához (ha komolyabb magassági fizika kell); <code>bevy_asset_loader</code> a sprite-atlaszokhoz; <code>leafwing-input-manager</code> az 8-irányú inputhoz. A részletes implementációt a <code>bevy-sprite-tutorial.html</code>, <code>bevy-tile-entitas-tutorial.html</code>, <code>bevy-dual-grid-tutorial.html</code>, <code>bevy-parallax-into.html</code>, <code>bevy-2d-utkozesek-tutorial.html</code> és <code>bevy-vilagitas-tutorial.html</code> tárgyalja.</p>
+      </div>
+    </section>
+
+    <!-- 16 -->
+    <section id="checklist">
+      <h2><span class="sec-num">16</span>Checklista — az „alapszabályok”</h2>
+      <p>Minimálisan ezeknek kell teljesülniük, hogy egy játék felismerhetően top-down 2.5D legyen. Pipáld, ahogy haladsz:</p>
+      <ul class="check">
+        <li><strong>Nézőpont rögzítve</strong> — pure top-down, 2.5D vagy izometrikus; tudatos választás.</li>
+        <li><strong>Logika/megjelenítés szétválasztva</strong> — a világ 3D-ben gondolkodik, a képernyő 2D-ben.</li>
+        <li><strong>Magasság adatként</strong> — <code>Elevation</code> komponens vagy <code>Heightmap</code> resource; nem a grafikából visszafejtve.</li>
+        <li><strong>Vetítési rendszer</strong> — <code>world (x,y,z) → screen (x, y - z*scale)</code>; konzisztens.</li>
+        <li><strong>Y-sort az anchor (láb) pontra</strong> — ne a sprite közepére; kvantálva a stabilitásért.</li>
+        <li><strong>Magasság-érzékeny árnyék</strong> — blob, amely mérete/átlátszósága a <code>z</code>-vel skálázódik.</li>
+        <li><strong>Talaj-követés</strong> — gravitáció + heightmap; a karakter nem „süllyed” vagy „lebeg”.</li>
+        <li><strong>3D-s hitbox</strong> — <code>z_range</code> a magassági tartományhoz; a felettem lévő nem található földi ütéssel.</li>
+        <li><strong>Orientáció-szám rögzítve</strong> — 4 vagy 8 irány, tudatos döntés (4 + tükrözés ajánlott kezdésnek).</li>
+        <li><strong>Magassági útkeresés</strong> — az AI tudja, mikor léphet/leugorhat/rámpázhat.</li>
+        <li><strong>Kamera olvasható</strong> — fix szög, look-ahead, a <code>z</code>-t nem követi.</li>
+        <li><strong>Tilemap batch-renderelés</strong> — <code>bevy_ecs_tilemap</code> vagy saját; ne egy-sprite-egy-csempé.</li>
+        <li><strong>Culling + frékvencia-szabályozás</strong> — csak a láthatót; a drága rendszereket ritkábban.</li>
+        <li><strong>Csempe-átmenetek (auto-tiling)</strong> — a szirtek „éle” konzisztens, a magasság-átmenet olvasható.</li>
+        <li><strong>Mérés optimalizáció előtt</strong> — CPU- vagy GPU-limitált? Ne vakon tuningolj.</li>
+      </ul>
+
+      <div class="box tip">
+        <div class="box-title">◆ Hol kezdj?</div>
+        <p>Egy minimális játszható prototípushoz elég: (1) egy sík tilemap, (2) <code>WorldPos</code> + <code>Elevation</code> komponensek, (3) egy <code>project_to_screen</code> rendszer (Y-sort-tal), (4) egy karakter 4-irányú mozgással + sprite-választással, (5) egy magasság-érzékeny blob árnyék, (6) egy magassági csempe (szirt/lépcső), amelyen a karakter fel tud menni. Erre a vázra később harc, AI, világítás és teljesítmény-optimalizáció rárakható.</p>
+      </div>
+    </section>
+
+    <footer>
+      TOP_DOWN_25D_DESIGN_REFERENCE · v1.0 · single-file HTML<br>
+      „A 2.5D nem a magasság hazugsága, hanem a logika és a megjelenítés tudatos szétválasztása.”
+    </footer>
+  </main>
+</div>
+
+<script>
+  // scrollspy
+  const links = [...document.querySelectorAll('#nav a')];
+  const map = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const a = map.get(e.target.id);
+        if (a) a.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+  document.querySelectorAll('section[id]').forEach(s => obs.observe(s));
+
+  // mobile menu
+  const sb = document.getElementById('sidebar');
+  const btn = document.getElementById('menuBtn');
+  btn.addEventListener('click', () => sb.classList.toggle('open'));
+  document.querySelectorAll('#nav a').forEach(a =>
+    a.addEventListener('click', () => sb.classList.remove('open')));
+</script>
+</body>
+</html>
