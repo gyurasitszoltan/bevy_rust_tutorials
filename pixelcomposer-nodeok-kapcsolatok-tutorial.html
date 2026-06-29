@@ -168,7 +168,7 @@ footer a{color:var(--flow)}
     <a href="#ch11">11 · Összefoglaló &amp; tovább</a>
   </nav>
   <div class="dl-box">
-    <p>A tutorial a Pixel Composer <strong>ingyenes</strong> verziójával csinálható végig. Ha lemaradtad az 1. részt, ott kezdj:</p>
+    <p>A tutorial a Pixel Composer <strong>ingyenes</strong> verziójával csinálható végig. Ha kihagytad az 1. részt, ott kezdj:</p>
     <a class="btn flow" href="pixelcomposer-alapok-tutorial.html">◂ 1. rész: Alapok</a>
   </div>
 </aside>
@@ -355,7 +355,7 @@ footer a{color:var(--flow)}
 
   <div class="note">
     <div class="n-tag">▸ back vs. front sorrend</div>
-    A sorrend számít! A <code>Normal</code> módban a <code>front</code> ráborul a <code>back</code>-re (mint egy réteg). A <code>Mask</code> módban a <code>front</code> maszkolja a <code>back</code>-et. Ha az eredmény „fordottnak" tűnik, cseréld meg a két bemenetet — csak húzd az egyik junction-ról a másikra.
+    A sorrend számít! A <code>Normal</code> módban a <code>front</code> ráborul a <code>back</code>-re (mint egy réteg). A <code>Mask</code> módban a <code>front</code> maszkolja a <code>back</code>-et. Ha az eredmény „fordítottnak" tűnik, cseréld meg a két bemenetet — csak húzd az egyik junction-ról a másikra.
   </div>
 </section>
 
@@ -418,7 +418,7 @@ footer a{color:var(--flow)}
   <div class="ch-eyebrow">7. fejezet</div>
   <h2>Opacity és sorrend</h2>
 
-  <p>A Blend node-on az <code>Opacity</code> paraméter (<code>0.0</code>–<code>1.0</code>) a <code>front</code> bemenet <strong>áttetsőségét</strong> állítja. <code>1.0</code>-nál a front teljesen látszik, <code>0.0</code>-nál eltűnik — csak a <code>back</code> marad. Ez a legegyszerűbb módja az „áttűnés" effektnek, és az első paraméter, amit animálni érdemes (a 3. részben megtanuljuk).</p>
+  <p>A Blend node-on az <code>Opacity</code> paraméter (<code>0.0</code>–<code>1.0</code>) a <code>front</code> bemenet <strong>áttetszőségét</strong> állítja. <code>1.0</code>-nál a front teljesen látszik, <code>0.0</code>-nál eltűnik — csak a <code>back</code> marad. Ez a legegyszerűbb módja az „áttűnés" effektnek, és az első paraméter, amit animálni érdemes (a 3. részben megtanuljuk).</p>
 
   <h3>Láncolt Blend — több kép egyesítése</h3>
   <p>Egy Blend node pontosan <strong>két</strong> bemenetet egyesít. Három vagy több képhez <strong>láncolnod</strong> kell — az első Blend kimenete lesz a második <code>back</code> bemenete:</p>
@@ -441,7 +441,7 @@ footer a{color:var(--flow)}
 
   <div class="note ok">
     <div class="n-tag">✓ Tipp: nevezd el a node-okat</div>
-    Amikor a gráfod növekszik, három <code>Blend</code> és két <code>Image</code> gyorsan kibogarhatatlan lesz. <strong>Dupla-klikk a node nevére</strong> (a fejlécen), és nevezd át: <code>glow-blend</code>, <code>shadow-mult</code>, <code>hero-img</code>. Egy kis fegyelem sokat számít a 4–5. rész bonyolultabb gráfjainál.
+    Amikor a gráfod növekszik, három <code>Blend</code> és két <code>Image</code> gyorsan kibogozhatatlan lesz. <strong>Dupla-klikk a node nevére</strong> (a fejlécen), és nevezd át: <code>glow-blend</code>, <code>shadow-mult</code>, <code>hero-img</code>. Egy kis fegyelem sokat számít a 4–5. rész bonyolultabb gráfjainál.
   </div>
 </section>
 
@@ -453,7 +453,7 @@ footer a{color:var(--flow)}
   <div class="ch-eyebrow">8. fejezet</div>
   <h2>Frame — csoportosítás</h2>
 
-  <p>Ha a gráfod 10+ node-os lesz (és az lesz), a vászon hamar átláthatatlanná válik. A <strong>Frame</strong> node (a Generate vagy a collection kategóriában) egy <strong>vizuális keret</strong>, amibe több node-ot beletennhetsz — átlátható csoportokat alkotva.</p>
+  <p>Ha a gráfod 10+ node-os lesz (és az lesz), a vászon hamar átláthatatlanná válik. A <strong>Frame</strong> node (a Generate vagy a collection kategóriában) egy <strong>vizuális keret</strong>, amibe több node-ot beletehetsz — átlátható csoportokat alkotva.</p>
 
   <div class="shot">
     <img src="assets/pixelcomposer/graph-organization.svg" alt="Két Frame (csoportkeret) és egy Comment node a gráfban, linkekkel">
@@ -501,12 +501,12 @@ footer a{color:var(--flow)}
   <div class="ch-eyebrow">10. fejezet</div>
   <h2>Gyakori gráf-minták</h2>
 
-  <p>Some pár visszatérő minta, amit érdemes felismerni — saját projektjeidben is újra meg újra találkozni fogsz velük:</p>
+  <p>Íme pár visszatérő minta, amit érdemes felismerni — saját projektjeidben is újra meg újra találkozni fogsz velük:</p>
 
   <table>
     <tr><th>Minta</th><th>Struktúra</th><th>Mire jó</th></tr>
     <tr><td><strong>előtte / utána</strong></td><td><code>Image</code> → Preview, <em>és</em> Image → Transform → Preview</td><td>Eredeti és átalakított párhuzamos összehasonlítása.</td></tr>
-    <tr><td><strong>blend-lánc</strong></td><td>Több Image láncolt Blend-del</td><td>Több réteg/kép kompozitálása (házttér + karakter + glow).</td></tr>
+    <tr><td><strong>blend-lánc</strong></td><td>Több Image láncolt Blend-del</td><td>Több réteg/kép kompozitálása (háttér + karakter + glow).</td></tr>
     <tr><td><strong>maszkolt átalakítás</strong></td><td>Image → Transform, és egy maszk Blend <code>front</code>-ja</td><td>„Ebből az alakból látszódjon csak" — kivágás.</td></tr>
     <tr><td><strong>függő Preview-ök</strong></td><td>Egy ágon több Preview node</td><td>A lánc különböző pontjainak vizsgálata debugoláshoz.</td></tr>
   </table>

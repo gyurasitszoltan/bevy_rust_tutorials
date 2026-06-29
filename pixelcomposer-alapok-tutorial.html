@@ -427,7 +427,7 @@ footer a{color:var(--flow)}
     <tr><td><strong>fájl</strong></td><td><code>.aseprite</code></td><td><code>.aseprite</code>-ot <em>beolvas</em>, PNG/spritesheet-et ír ki</td></tr>
   </table>
 
-  <p>Egy valós pipeline így néz ki: <strong>Aseprite-ben</strong> megrajzolod a karaktert → <strong>PXC-ben</strong> ráteszed a tüzet/glow-t/reszecske-effekteket → kimentesz spritesheet-et → betöltöd a játékmotorba.</p>
+  <p>Egy valós pipeline így néz ki: <strong>Aseprite-ben</strong> megrajzolod a karaktert → <strong>PXC-ben</strong> ráteszed a tüzet/glow-t/részecske-effekteket → kimentesz spritesheet-et → betöltöd a játékmotorba.</p>
 
   <div class="note warn">
     <div class="n-tag">▲ Ingyenes, nyílt forrású</div>
@@ -502,7 +502,7 @@ footer a{color:var(--flow)}
 
   <div class="note">
     <div class="n-tag">▸ Gyors iránytű</div>
-    Ha elakadsz, gondolj így: <strong>„balról választok → középre teszem → jobban állítom → jobban-fent látom”</strong>. Ez a négy mozdulat a PXC teljes munkaciclikusa.
+    Ha elakadsz, gondolj így: <strong>„balról választok → középre teszem → jobban állítom → jobban-fent látom”</strong>. Ez a négy mozdulat a PXC teljes munkaciklusa.
   </div>
 </section>
 
@@ -533,7 +533,7 @@ footer a{color:var(--flow)}
     <div class="tag">▸ Adattípusok — a junction színek</div>
     <p>A PXC-ben a junction-ok színe nem dekoráció, hanem <strong>adattípust</strong> jelöl:</p>
     <ul>
-      <li><span style="color:var(--flow)">Cián</span> — <strong>Surface</strong> (kép/πixel-tömb): a leggyakoribb, ez az „áramló kép”.</li>
+      <li><span style="color:var(--flow)">Cián</span> — <strong>Surface</strong> (kép/pixel-tömb): a leggyakoribb, ez az „áramló kép”.</li>
       <li><span style="color:var(--node-hi)">Lila</span> — <strong>Struct / adat</strong> (pl. részecskék adata).</li>
       <li><span style="color:var(--ok)">Zöld</span> — <strong>Buffer / numerikus</strong>.</li>
       <li><span style="color:var(--warn)">Narancs</span> — <strong>Path / szöveg</strong>.</li>
@@ -640,7 +640,7 @@ footer a{color:var(--flow)}
   </div>
 
   <div class="note">
-    <div class="n-tag">▸ Dupla-klikk gyornpít</div>
+    <div class="n-tag">▸ Dupla-klikk gyorsít</div>
     Bármelyik node-on <strong>dupla-klikk</strong> → annak a node-nak a kimenete megjelenik a nagy <strong>Preview panelben</strong> (jobb-fent). Így nem kell mindig Preview node-ot tenni — a dupla-klikk egy gyors „ideiglenes Preview”. De a végleges gráfba érdemes Preview node-okat tenni, hogy mentés után is megmaradjanak.
   </div>
 </section>
@@ -683,7 +683,7 @@ footer a{color:var(--flow)}
   </div>
 
   <div class="note warn">
-    <div class="n-tag">▲ Ha nem engdi csatlakozni</div>
+    <div class="n-tag">▲ Ha nem engedi csatlakozni</div>
     Két oka lehet: (1) <strong>rossz irány</strong> — a linket a <em>kimenetről</em> kell a <em>bemenetre</em> húzni, nem fordítva; (2) <strong>típuseltérés</strong> — a junction-ok színe nem egyezik. A Surface (cián) csak Surface-be megy. Ellenőrizd a színeket!
   </div>
 
@@ -719,7 +719,7 @@ footer a{color:var(--flow)}
 
   <div class="info-box">
     <div class="tag">▸ A „kötelező házi”</div>
-    <p>Mielőtt a 2. részbe kezdenél, csináld végig ezt: tölts be <strong>egy saját képet</strong> az Image node-dal, kösd össze egy Preview-rel, és <strong>mentsd el</strong> <code>.pxc</code>-ként. Ez a projekt lesz a kiindulópontja a következő tutorialnak — ott ugyanezen a képren fogunk <em>transformációt és animációt</em> beállítani.</p>
+    <p>Mielőtt a 2. részbe kezdenél, csináld végig ezt: tölts be <strong>egy saját képet</strong> az Image node-dal, kösd össze egy Preview-rel, és <strong>mentsd el</strong> <code>.pxc</code>-ként. Ez a projekt lesz a kiindulópontja a következő tutorialnak — ott ugyanezen a képen fogunk <em>transformációt és animációt</em> beállítani.</p>
   </div>
 
   <h3>A sorozat következő részei</h3>

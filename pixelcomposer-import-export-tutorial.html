@@ -170,7 +170,7 @@ footer a{color:var(--flow)}
     <a href="#ch11">11 · Összefoglaló &amp; tovább</a>
   </nav>
   <div class="dl-box">
-    <p>A tutorial a Pixel Composer <strong>ingyenes</strong> verziójával csinálható végig. Ha lemaradtad az előző részeket:</p>
+    <p>A tutorial a Pixel Composer <strong>ingyenes</strong> verziójával csinálható végig. Ha kihagytad az előző részeket:</p>
     <a class="btn flow" href="pixelcomposer-animacio-alapok-tutorial.html">◂ 3. rész: Animáció</a>
   </div>
 </aside>
@@ -452,7 +452,7 @@ footer a{color:var(--flow)}
   <h3>② Bevy (Rust)</h3>
   <p>A Bevy-ben a <strong>TextureAtlas</strong> a megfelelő eszköz. A spritesheet PNG-t betöltöd, és egy <code>TextureAtlasLayout</code>-tal megadod a frame-ek rácsát:</p>
 
-  <pre class="code"><span class="kw">use</span> bevy::sprite::{TextureAtlasLayout, Sprite};
+  <pre class="code"><span class="kw">use</span> bevy::prelude::*;
 
 <span class="kw">fn</span> <span class="fn">setup</span>(
     <span class="kw">mut</span> commands: Commands,
@@ -468,11 +468,8 @@ footer a{color:var(--flow)}
         None, None,
     ));
     commands.spawn((
-        Sprite {
-            texture: Some(texture.clone()),
-            texture_atlas: Some(layout.into()),
-            ..default()
-        },
+        <span class="cm">// a textúra + a layout összekötése atlasz-sprite-tá (Bevy 0.18)</span>
+        Sprite::<span class="fn">from_atlas_image</span>(texture, TextureAtlas { layout, index: <span class="st">0</span> }),
         <span class="cm">// Animation léptető komponens</span>
         AnimationTimer::default(),
     ));
@@ -482,7 +479,7 @@ footer a{color:var(--flow)}
 
   <div class="info-box">
     <div class="tag">▸ Bevy + pixel art — fontos beállítás</div>
-    <p>A Bevy alapból <strong>lineáris</strong> mintavételezést használ, ami elmosja a pixel art-ot. Állítsd a <code>ImagePlugin::default_nearest()</code>-re a <code>default_plugins</code>-ben — ez a teljes app-ra érvényesíti a „nearest" filtert. Ezzel a sprite-ok élesen, pixesen maradnak, ahogy a PXC-ben is láttad.</p>
+    <p>A Bevy alapból <strong>lineáris</strong> mintavételezést használ, ami elmosja a pixel art-ot. Állítsd a <code>ImagePlugin::default_nearest()</code>-re a <code>default_plugins</code>-ben — ez a teljes app-ra érvényesíti a „nearest" filtert. Ezzel a sprite-ok élesen, pixelesen maradnak, ahogy a PXC-ben is láttad.</p>
   </div>
 
   <h3>③ GameMaker</h3>
@@ -589,7 +586,7 @@ footer a{color:var(--flow)}
 <footer>
   <p class="pix">Pixel Composer · 4. rész — Import/Export workflow</p>
   <p style="margin-top:6px">Készült a hivatalos <a href="https://docs.pixel-composer.com/nodes/" target="_blank" rel="noopener">Pixel Composer dokumentáció</a> alapján, magyar nyelven, interaktív demókkal. A Pixel Composer ingyenes, nyílt forrású szoftver — <a href="https://github.com/Ttanasart-pt/Pixel-Composer" target="_blank" rel="noopener">GitHub</a> · <a href="https://makham.itch.io/pixel-composer" target="_blank" rel="noopener">itch.io</a> · <a href="https://store.steampowered.com/app/2299510/Pixel_Composer/" target="_blank" rel="noopener">Steam</a>.</p>
-  <p style="margin-top:6px;font-size:12px;color:#565066">MakhamDev munkájának köszönjük. Ez a tutorial független, nem hivatalos. A Bevy kódpélda a Bevy 0.13+ API-ját követi.</p>
+  <p style="margin-top:6px;font-size:12px;color:#565066">MakhamDev munkájának köszönjük. Ez a tutorial független, nem hivatalos. A Bevy kódpélda a Bevy 0.18 API-ját követi.</p>
 </footer>
 
 </div><!-- /wrap -->
@@ -627,7 +624,7 @@ footer a{color:var(--flow)}
     ["01110","10101","11111","01010","10001"]
   ];
   var pal={0:null,1:'#7ed957'};
-  var frame=0,running=true,lastTime=0,interval=1000/12;
+  var cur=0,running=true,last=0,interval=1000/12;
   function drawSprite(data,x,y,scale,highlight){
     for(var r=0;r<data.length;r++)for(var c=0;c<data[r].length;c++){
       var ch=data[r][c];if(ch==='0')continue;
@@ -638,13 +635,8 @@ footer a{color:var(--flow)}
       ctx.strokeStyle='#7ed957';ctx.lineWidth=1.5;ctx.strokeRect(x-1,y-1,data[0].length*scale+2,data.length*scale+2);
     }
   }
-  function frame(t){
-    if(!lastTime)lastTime=t;
-    var dt=t-lastTime;lastTime=t;
-    if(running&&dt>0){
-      interval=1000/12;
-      if(t%interval<dt)frame=(frame+1)%6;
-    }
+  function render(t){
+    if(running&&t-last>=interval){last=t;cur=(cur+1)%6}
     ctx.clearRect(0,0,W,H);
     ctx.fillStyle='#0c0a13';ctx.fillRect(0,0,W,H);
     // rács
@@ -656,34 +648,29 @@ footer a{color:var(--flow)}
     ctx.fillStyle='#0c0a13';ctx.fillRect(sheetX,sheetY,frameW*6+2,32);
     ctx.strokeStyle='#7ed957';ctx.lineWidth=1.5;ctx.strokeRect(sheetX,sheetY,frameW*6+2,32);
     for(var i=0;i<6;i++){
-      drawSprite(frames[i],sheetX+1+i*frameW,sheetY+3,5,i===frame);
+      drawSprite(frames[i],sheetX+1+i*frameW,sheetY+3,5,i===cur);
       // frame elválasztó
       if(i>0){ctx.strokeStyle='#2a2440';ctx.lineWidth=1;ctx.setLineDash([2,2]);
         ctx.beginPath();ctx.moveTo(sheetX+1+i*frameW,sheetY);ctx.lineTo(sheetX+1+i*frameW,sheetY+32);ctx.stroke();ctx.setLineDash([])}
     }
     // nyíl lefelé
     ctx.strokeStyle='#ffb454';ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.moveTo(sheetX+frame*frameW+frameW/2,sheetY+34);ctx.lineTo(sheetX+frame*frameW+frameW/2,90);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(sheetX+frame*frameW+frameW/2-3,86);ctx.lineTo(sheetX+frame*frameW+frameW/2,92);ctx.lineTo(sheetX+frame*frameW+frameW/2+3,86);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(sheetX+cur*frameW+frameW/2,sheetY+34);ctx.lineTo(sheetX+cur*frameW+frameW/2,90);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(sheetX+cur*frameW+frameW/2-3,86);ctx.lineTo(sheetX+cur*frameW+frameW/2,92);ctx.lineTo(sheetX+cur*frameW+frameW/2+3,86);ctx.stroke();
     // „motor" preview (lent, egy frame)
     var mvX=W/2-15,mvY=100;
     ctx.fillStyle='#0c0a13';ctx.fillRect(mvX-2,mvY-2,34,34);
     ctx.strokeStyle='#5ad7ff';ctx.lineWidth=2;ctx.strokeRect(mvX-2,mvY-2,34,34);
-    drawSprite(frames[frame],mvX,mvY,5,false);
+    drawSprite(frames[cur],mvX,mvY,5,false);
     ctx.font="9px 'IBM Plex Mono',monospace";ctx.fillStyle='#9a8fb0';
     ctx.fillText('motor preview',mvX-12,H-6);
     ctx.fillStyle='#ffb454';ctx.font="9px 'IBM Plex Mono',monospace";
-    ctx.fillText('frame: '+frame+'/5',sheetX,sheetY-3);
-    requestAnimationFrame(frame);
+    ctx.fillText('frame: '+cur+'/5',sheetX,sheetY-3);
+    requestAnimationFrame(render);
   }
-  var last=0;
-  function tick(t){
-    if(running&&t-last>=interval){last=t;frame=(frame+1)%6}
-    requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(frame);requestAnimationFrame(tick);
+  requestAnimationFrame(render);
   cv.addEventListener('mouseenter',function(){running=false});
-  cv.addEventListener('mouseleave',function(){running=true});
+  cv.addEventListener('mouseleave',function(){running=true;last=0});
 })();
 
 /* ========== PLAYGROUND — spritesheet frame léptetés ========== */
