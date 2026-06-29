@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Composer — Node-ok és kapcsolatok mélyebben · 2. rész (magyar)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#13111d;--bg-deep:#0c0a13;--panel:#1c1828;--panel-2:#17142260;
+  --ink:#e8e3f0;--muted:#9a8fb0;--node:#b07cff;--node-hi:#d4a8ff;
+  --flow:#5ad7ff;--flow-dk:#2a7d99;--ok:#7ed957;--warn:#ffb454;
+  --lava:#ff7a3c;--line:#2a2440;--line-hi:#3d3458;--shadow:rgba(0,0,0,.5);
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.06) 3px 4px)}
+::selection{background:var(--node);color:#fff}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--bg-deep);border-right:3px solid var(--line);overflow-y:auto;z-index:30;padding:22px 0 40px}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px}
+.logo .title{font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;color:var(--node-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15}
+.logo .sub{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em}
+.logo .badge{display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;color:var(--bg-deep);background:var(--node);padding:2px 9px 3px;box-shadow:2px 2px 0 var(--shadow)}
+.logo .badge.alt{background:var(--flow);color:#06181c;margin-left:6px}
+.nav-part{font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--node);padding:16px 20px 6px;text-transform:uppercase}
+.nav a{display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;font-size:14px;position:relative;border-left:4px solid transparent;transition:color .12s,background .12s}
+.nav a::before{content:"▸";position:absolute;left:16px;opacity:0;color:var(--flow);transition:opacity .12s,left .12s}
+.nav a:hover{color:var(--ink);background:rgba(176,124,255,.06)}
+.nav a.active{color:var(--node-hi);background:rgba(176,124,255,.10);border-left-color:var(--node);font-weight:600}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;background:var(--node);color:#10180f;border:none;padding:8px 14px;box-shadow:3px 3px 0 var(--shadow);text-decoration:none;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--warn)}
+.btn.flow{background:var(--flow);color:#06181c}
+.menu-toggle{display:none;position:fixed;top:14px;left:14px;z-index:40;font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;background:var(--panel);color:var(--ink);border:3px solid var(--line);box-shadow:3px 3px 0 var(--shadow)}
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{font-family:"IBM Plex Mono";font-size:13px;color:var(--flow);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-family:"Pixelify Sans";font-weight:700;font-size:clamp(32px,5vw,52px);line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px}
+.hero h1 .n{color:var(--node-hi)}
+.hero h1 .f{color:var(--flow)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{border:3px solid var(--line);background:var(--bg-deep);padding:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow)}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0;border:2px solid var(--line);background:#0c0a13}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6;flex:1;min-width:220px}
+.hero-strip .cap b{color:var(--node-hi)}
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--node);text-transform:uppercase}
+.ch-eyebrow{font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--flow);text-transform:uppercase;margin-bottom:8px}
+h2{font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;color:var(--node-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--warn);margin:34px 0 12px}
+p{margin-bottom:14px}p+p{margin-top:2px}
+strong{color:#fff}em{color:var(--node-hi)}
+a{color:var(--flow)}
+ul,ol{margin:0 0 16px 24px}li{margin-bottom:7px}
+code:not(pre code){font-family:"IBM Plex Mono";font-size:.86em;background:#0c0a13;color:var(--node-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+.ui{font-family:"IBM Plex Mono";font-size:.86em;background:#0d1018;color:var(--flow);padding:2px 7px;border:1px solid #2a4a52;white-space:nowrap;font-weight:500}
+ol.steps{list-style:none;margin:20px 0;counter-reset:st}
+ol.steps>li{counter-increment:st;position:relative;padding:4px 0 14px 52px;margin-bottom:6px;border-left:3px solid var(--line);margin-left:16px}
+ol.steps>li::before{content:counter(st);position:absolute;left:-19px;top:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-family:"Pixelify Sans";font-size:17px;color:#10180f;background:var(--node);box-shadow:2px 2px 0 var(--shadow)}
+ol.steps>li:last-child{border-left-color:transparent}
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{font-family:"Pixelify Sans";font-size:13px;color:var(--flow);letter-spacing:.1em;padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--ok)}.diagram pre .di{color:var(--warn)}.diagram pre .wa{color:var(--flow)}.diagram pre .no{color:var(--node-hi)}.diagram pre .st{color:#9aa0aa}.diagram pre .lv{color:var(--lava)}.diagram pre .mu{color:var(--muted)}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+.info-box{margin:24px 0;border:3px solid #2a4a52;background:#0d1018;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.info-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--flow);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.info-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.info-box p:last-child{margin-bottom:0}
+.info-box code:not(pre code){border-color:#2a4a52;color:var(--flow)}
+.info-box ul{font-size:15px;color:#cfdbd5}
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--node);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--warn)}
+.note.ok{border-left-color:var(--ok)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--node-hi);margin-bottom:4px}
+.note.warn .n-tag{color:var(--warn)}
+.note.ok .n-tag{color:var(--ok)}
+.shot{margin:24px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.shot img{display:block;width:100%;height:auto;image-rendering:auto}
+.shot .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.55;padding:9px 13px;border-top:2px dashed var(--line-hi)}
+.shot .cap b{color:var(--node-hi)}
+.shot.small{max-width:420px}
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--warn);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+.on{color:var(--ok);font-weight:600}
+.off{color:var(--warn)}
+.playground{margin:26px 0;border:3px solid var(--node);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:linear-gradient(90deg,rgba(176,124,255,.14),transparent);border-bottom:3px solid var(--node);padding:10px 14px}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--node-hi);letter-spacing:.08em}
+.playground .pg-tag{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted)}
+.playground .pg-body{padding:16px;display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#0c0a13;touch-action:none;max-width:100%}
+.playground .pg-side{flex:1;min-width:240px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:1.9}
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--warn);letter-spacing:.06em;margin:14px 0 4px;text-transform:uppercase}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0}
+.tbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:5px 12px;transition:all .1s}
+.tbtn:hover{color:var(--ink)}
+.tbtn.active{background:var(--node);color:#10180f;border-color:var(--node);font-weight:600}
+.tbtn.flow.active{background:var(--flow);color:#06181c;border-color:var(--flow)}
+input[type=range]{width:100%;accent-color:var(--node);margin:6px 0 2px;cursor:pointer}
+.rng-val{font-family:"IBM Plex Mono";font-size:13px;color:var(--node-hi)}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+.next-card{margin-top:70px;border:3px solid var(--line);background:var(--panel);box-shadow:5px 5px 0 var(--shadow);padding:20px 22px;display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+.next-card .nx-label{font-family:"IBM Plex Mono";font-size:12px;color:var(--flow);letter-spacing:.14em;text-transform:uppercase}
+.next-card .nx-title{font-family:"Pixelify Sans";font-size:22px;color:var(--node-hi);margin-top:4px}
+.next-card .nx-desc{font-size:14.5px;color:var(--muted);margin-top:8px;flex:1;min-width:240px}
+.prev-card{margin-bottom:50px;border:3px solid var(--line);background:var(--panel-2);box-shadow:3px 3px 0 var(--shadow);padding:12px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.prev-card .px-label{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+.prev-card .px-title{font-family:"Pixelify Sans";font-size:15px;color:var(--muted);margin-top:2px}
+.prev-card a{font-family:"Pixelify Sans";font-size:14px;color:var(--node-hi);text-decoration:none}
+footer{margin-top:60px;border-top:3px solid var(--line);padding-top:24px;font-size:13.5px;color:var(--muted)}
+footer .pix{font-family:"Pixelify Sans";color:var(--node);font-size:15px}
+footer a{color:var(--flow)}
+@media (max-width:980px){.sidebar{transform:translateX(-100%);transition:transform .2s}.sidebar.open{transform:translateX(0)}.menu-toggle{display:block}.main{margin-left:0}.wrap{padding:0 20px 100px}.hero{padding-top:84px}}
+</style>
+</head>
+<body>
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;background:linear-gradient(90deg,#b07cff,#d4a8ff);box-shadow:0 0 10px rgba(176,124,255,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">PIXEL COMPOSER<br>NODE-OK</div>
+    <div class="sub">transformáció · blend · gráf · 2. rész · magyarul</div>
+    <span class="badge">Pixel Composer</span><span class="badge alt">2 / N</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I · Bevezető</div>
+    <a href="#ch1">1 · Ismétlés és hova tartunk</a>
+    <div class="nav-part">II · Transformáció</div>
+    <a href="#ch2">2 · A Transform node</a>
+    <a href="#ch3">3 · Pivot — a forgatás közepe</a>
+    <a href="#ch4">4 · Non-destructive emlékeztető</a>
+    <div class="nav-part">III · Több bemenet</div>
+    <a href="#ch5">5 · A Blend node — két input</a>
+    <a href="#ch6">6 · Blend módok</a>
+    <a href="#ch7">7 · Opacity és sorrend</a>
+    <div class="nav-part">IV · Gráf szervezés</div>
+    <a href="#ch8">8 · Frame — csoportosítás</a>
+    <a href="#ch9">9 · Comment — jegyzetek</a>
+    <a href="#ch10">10 · Gyakori minták</a>
+    <div class="nav-part">V · Lezárás</div>
+    <a href="#ch11">11 · Összefoglaló &amp; tovább</a>
+  </nav>
+  <div class="dl-box">
+    <p>A tutorial a Pixel Composer <strong>ingyenes</strong> verziójával csinálható végig. Ha lemaradtad az 1. részt, ott kezdj:</p>
+    <a class="btn flow" href="pixelcomposer-alapok-tutorial.html">◂ 1. rész: Alapok</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// 2. rész · középhaladó · magyar nyelven · ~35 perc · a hivatalos docs alapján</div>
+  <h1>Node-ok és <span class="n">kapcsolatok</span><br>— <span class="f">mélyebben</span>: Transform &amp; Blend</h1>
+  <p class="lead">Az 1. részben megismerkedtél a Graph-fel, létrehoztad az első node-odat, és össze is kötötted egy Preview-vel. Most mélyebbre megyünk: megtanuljuk a <strong>Transform</strong> node-ot (pozíció, forgatás, skálázás, tükrözés), a <strong>Blend</strong> node-ot (két kép egyesítése különféle módokon), és hogy hogyan <strong>rendszerezd</strong> a egyre növekvő gráfodat Frame-ekkel és Comment-ekkel.</p>
+  <div class="hero-strip">
+    <canvas id="heroCanvas" width="220" height="140" style="width:220px;height:140px"></canvas>
+    <div class="cap" id="heroCap">↑ Élő minta: ugyanaz a sprite egy <b>Transform node</b>-on keresztül — forgatás, skálázás, tükrözés, roncsolásmentesen. Az eredeti <b>Image</b> bal oldalon mindvégig érintetlen marad.</div>
+  </div>
+</header>
+
+<!-- előző rész link -->
+<div class="prev-card">
+  <div>
+    <div class="px-label">előző · 1. rész</div>
+    <div class="px-title">Alapok — UI, első node, első link</div>
+  </div>
+  <a href="pixelcomposer-alapok-tutorial.html">◂ vissza az alapokhoz</a>
+</div>
+
+<!-- ================= I. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Bevezető</span></div>
+
+<!-- ================= 1. FEJEZET ================= -->
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>Ismétlés és hova tartunk</h2>
+
+  <p>Az 1. rész végére volt egy működő gráfod: <code>Image ▸ Preview</code>. Láttad, hogyan folyik át a Surface-adat egyik node-ból a másikba, és hogy a Preview megmutatja az eredményt. Ezen a ponton a gráf még <em>passzív</em>: a képet változatlanul jeleníti meg.</p>
+
+  <p>Ebben a részben a gráf <strong>aktívvá</strong> válik — node-okat teszünk az Image és a Preview közé, amelyek <strong>átalakítják</strong> vagy <strong>egyesítik</strong> a képet. Két fő csapásirányunk van:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Két irány: egy bemenet módosítása vs. több bemenet egyesítése</div>
+<pre>
+  <span class="no">(A) Transform — EGY bemenet módosítása</span>
+    <span class="wa">Image</span> ─▸ <span class="di">Transform</span> ─▸ <span class="gr">Preview</span>
+                  ▸ pozíció / forgatás / skála / tükör
+                  ▸ kimenet = ugyanaz a kép, átalakítva
+
+  <span class="no">(B) Blend — TÖBB bemenet egyesítése</span>
+    <span class="wa">Image A</span> ─┐
+                ├─▸ <span class="di">Blend</span> ─▸ <span class="gr">Preview</span>
+    <span class="wa">Image B</span> ─┘    ▸ Type: Normal/Add/Multiply/Mask…
+                    ▸ kimenet = egyetlen összekevert Surface
+</pre>
+    <div class="d-cap">A Transform <b>egy</b> bemenetet alakít át; a Blend <b>több</b> bemenetet egyesít. Mindkettő egyetlen Surface kimenetet ad, amit továbbláncolhatsz. A valós gráfok ezek kombinációja.</div>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▸ Nyiss egy projektet</div>
+    Ha még megvan az 1. rész végén elmentett <code>.pxc</code> projekted (Image ▸ Preview), nyisd meg: <span class="ui">File ▸ Open</span>. Ha nem, gyorsan csinálj egyet — 2 perc, a lépések az 1. rész 6–9. fejezetében. Ezt fogjuk bővíteni.
+  </div>
+</section>
+
+<!-- ================= II. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ II. rész — Transformáció</span></div>
+
+<!-- ================= 2. FEJEZET ================= -->
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>A Transform node</h2>
+
+  <p>A <strong>Transform</strong> node (narancs fejléc, a Transform kategóriában) a leggyakoribb „alakító" node. Egy bemenete van (Surface) és egy kimenete (Surface) — a kimenet a bemenet <strong>átalakított</strong> változata. Négy fő paramétere van:</p>
+
+  <table>
+    <tr><th>Paraméter</th><th>Mit csinál</th><th>Tipikus érték</th></tr>
+    <tr><td><strong>Position</strong></td><td>X/Y eltolás pixelben — hova kerüljön a kép origójához képest.</td><td><code>0, 0</code></td></tr>
+    <tr><td><strong>Rotation</strong></td><td>Forgatás <strong>fokban</strong>, a Pivot körül.</td><td><code>0°</code> → <code>45°</code></td></tr>
+    <tr><td><strong>Scale</strong></td><td>Nagyítás/kicsinyítés. Lehet egyenletes vagy X/Y külön.</td><td><code>1.00</code></td></tr>
+    <tr><td><strong>Mirror</strong></td><td>Tükrözés: <code>None</code> / <code>Horizontal</code> / <code>Vertical</code>.</td><td><code>None</code></td></tr>
+  </table>
+
+  <div class="shot">
+    <img src="assets/pixelcomposer/transform-chain.svg" alt="Image → Transform → Preview gráf, a Transform paramétereivel">
+    <div class="cap">Az <b>Image</b> kimenete a <b>Transform</b> bemenetére csatlakozik, a Transform kimenete pedig a <b>Preview</b>-re. A Rotation itt <code>45°</code>-ra van állítva — a Preview-ben forgatva látod a sprite-ot. Az eredeti Image (bal) közben érintetlen.</div>
+  </div>
+
+  <h3>Lépésről lépésre</h3>
+  <ol class="steps">
+    <li>A meglévő Image → Preview gráfodban <strong>törd el a linket</strong>: klikk a vonalra, <span class="kbd">Del</span>.</li>
+    <li>Jobb-klikk a Graph-on → <span class="ui">Add Node ▸ Transform ▸ Transform</span>.</li>
+    <li>Húzd az Image kimenetét a Transform <strong>bemeneti</strong> junction-ára.</li>
+    <li>Húzd a Transform <strong>kimeneti</strong> junction-át a Preview bemenetére.</li>
+    <li>Jelöld ki a Transform node-ot, és az <strong>Inspector</strong>-ban állítsd <code>Rotation</code> = <code>45</code>. A Preview azonnal frissül.</li>
+  </ol>
+
+  <p>Próbáld megváltoztatni a többi paramétert is: <code>Scale</code> = <code>2</code> (kétszeres nagyítás), <code>Mirror</code> = <code>Horizontal</code> (vízszintes tükör). Figyeld, ahogy minden mozdulat azonnal megjelenik a Preview-ben — ez a non-destructive workflow lényege.</p>
+
+  <div class="info-box">
+    <div class="tag">▸ Méret és a vászon</div>
+    <p>Ha a Scale > 1, a kép kinőheti a vászon (Canvas) méretét — ilyenkor a szélek „levágódnak". Ezt úgy orvosolhatod, hogy a Transform node elé teszel egy <strong>Canvas</strong> vagy a kép elé egy megfelelő méretű <strong>Surface</strong>-et (erről részletesebben az 5. rész Export-tutorialjában). Egyelőre elég annyi: a Transform nem automatikusan növeli a vásznat.</p>
+  </div>
+</section>
+
+<!-- ================= 3. FEJEZET ================= -->
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>Pivot — hol a forgatás közepe?</h2>
+
+  <p>A <code>Rotation</code> és <code>Mirror</code> paraméterek viselkedése egy rejtett dolgon múlik: a <strong>Pivot</strong>-on. Ez az a pont, ami körül a kép forog / amire tükröződik. Alapból a Pivot a kép <strong>középpontja</strong> — de ezt megváltoztathatod.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Pivot hatása a forgatásra</div>
+<pre>
+  <span class="mu">Pivot = középpont (alapértelmezett):</span>
+            <span class="di">▢▢▢</span>
+            <span class="di">▢▢▢</span>   ▸ 45° forgatás → a kép a saját
+            <span class="di">▢▢▢</span>      <span class="wa">közepe</span> körül pörög, helyben marad
+
+  <span class="mu">Pivot = bal-felső sarok:</span>
+            <span class="di">▢▢▢</span>
+            <span class="di">▢▢▢</span>   ▸ 45° forgatás → a kép a
+            <span class="di">▢▢▢</span>      <span class="wa">bal-felső sarok</span> körül pörög, „kirepül"
+
+  <span class="mu">Pivot = (X, Y) tetszőleges:</span>
+                      ▸ bármelyik pixel lehet a forgástengely
+                        — pl. egy karakter <span class="wa">lábánál</span> (lépés animációnál)
+</pre>
+    <div class="d-cap">A Pivot beállítása az Inspector-ban történik (a Transform node alatt). Koordinátaként adható meg, vagy választhatsz előre beállított értéket (Center, Top-Left, stb.). A megfelelő Pivot kritikus a későbbi <b>animált</b> forgatásoknál — ott nagyon látványos a különbség.</div>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">▲ „Forgatásnál elvándorol a kép"</div>
+    Ha a forgatás után a sprite „elfut" a vászonról, az szinte biztosan <strong>Pivot-probléma</strong>. Ellenőrizd, hogy a Pivot a kép közepén van (alapértelmezett <code>Center</code>). Ha másra van állítva, ott pörög — azonnal látni fogod a Preview-ben.
+  </div>
+</section>
+
+<!-- ================= 4. FEJEZET ================= -->
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>Non-destructive — az eredeti érintetlen</h2>
+
+  <p>Mielőtt továbbmegyünk, érdemes tudatosítani egy fontos dolgot. A Transform node <strong>nem módosítja az Image-t</strong>. Csak egy <em>új Surface-t</em> állít elő, amin már rajta van az átalakítás. Az eredeti képet a memóriában, változatlanul, többször is felhasználhatod — például egy másik ágon.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Ugyanaz az Image, két ágon, kétféle átalakítással</div>
+<pre>
+                          ┌─▸ <span class="di">Transform</span> (Rotation 45°)  ─▸ <span class="gr">Preview A</span>
+  <span class="wa">Image</span> ───┤
+                          └─▸ <span class="di">Transform</span> (Scale 2.0)      ─▸ <span class="gr">Preview B</span>
+
+  <span class="mu">az Image-t egyszer töltöttük be — két különböző ágon két különböző</span>
+  <span class="mu">átalakítást kapunk, és egyik sem írja felül a másikat.</span>
+</pre>
+    <div class="d-cap">Ez a minta — „egy forrás, több ág" — a PXC egyik legerősebb fegyvere. Később a <b>Clone node</b>-ról szóló 5. részben ezt bontjuk ki részletesen, mert egy gyakori csapda is kapcsolódik hozzá.</div>
+  </div>
+
+  <div class="info-box">
+    <div class="tag">▸ „Miért látom az eredetit is?"</div>
+    <p>Ha a Preview-ben az eredeti (nem forgatott) és a forgatott kép <strong>egyszerre</strong> jelenik meg, az azért van, mert a Preview node <strong>az Image-re</strong> van kötve, nem a Transform-ra. Ellenőrizd a linket: a Preview bemenete a Transform kimenetéről jöjjön, ne közvetlenül az Image-ről.</p>
+  </div>
+</section>
+
+<!-- ================= III. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Több bemenet</span></div>
+
+<!-- ================= 5. FEJEZET ================= -->
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>A Blend node — két bemenet</h2>
+
+  <p>Eddig minden node-nak <strong>egy bemenete</strong> volt. A <strong>Blend</strong> node (narancs, Generate kategória) az első, aminek <strong>két bemenete</strong> van: <code>back</code> (háttér, „A") és <code>front</code> (előtér, „B"). A kimenet a kettő <strong>egyesített</strong> Surface-e, a választott mód szerint.</p>
+
+  <div class="shot">
+    <img src="assets/pixelcomposer/blend-node.svg" alt="Két Image (A és B) bekötve egy Blend node-ba, kimenet Preview, mellette négy blend-mód eredménye">
+    <div class="cap">Az <b>Image A</b> (zöld sprite) a Blend <code>back</code> bemenetére, az <b>Image B</b> (narancs sprite) a <code>front</code> bemenetére csatlakozik. A <code>Type</code> paraméter (itt <code>Add</code>) dönti el, hogyan keverednek — jobb oldalon négy mód eredménye látható.</div>
+  </div>
+
+  <h3>Lépésről lépésre</h3>
+  <ol class="steps">
+    <li>Csinálj <strong>két Image node-ot</strong>: az egyik a meglévő sprite-od, a másiknak tölts be egy másik képet (vagy használj ugyanazt más paraméterekkel).</li>
+    <li>Jobb-klikk → <span class="ui">Add Node ▸ Generate ▸ Blend</span>.</li>
+    <li>A Blend node-on <strong>két baloldali junction</strong> van — az egyik <code>back</code>, a másik <code>front</code>. Húzd az Image A kimenetét a <code>back</code>-re, az Image B-t a <code>front</code>-ra.</li>
+    <li>A Blend kimenetét kösd egy Preview-re.</li>
+    <li>Az Inspector-ban próbálgasd a <code>Type</code> paramétert — lásd a következő fejezetet.</li>
+  </ol>
+
+  <div class="note">
+    <div class="n-tag">▸ back vs. front sorrend</div>
+    A sorrend számít! A <code>Normal</code> módban a <code>front</code> ráborul a <code>back</code>-re (mint egy réteg). A <code>Mask</code> módban a <code>front</code> maszkolja a <code>back</code>-et. Ha az eredmény „fordottnak" tűnik, cseréld meg a két bemenetet — csak húzd az egyik junction-ról a másikra.
+  </div>
+</section>
+
+<!-- ================= 6. FEJEZET ================= -->
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Blend módok — Type paraméter</h2>
+
+  <p>A <code>Type</code> paraméter dönti el, hogyan számolódik ki a két bemenetből a kimenet. A PXC több tucat módot kínál; a legfontosabbakat érdemes megjegyezni:</p>
+
+  <table>
+    <tr><th>Mód</th><th>Hogyan működik</th><th>Tipikus használat</th></tr>
+    <tr><td><strong>Normal</strong></td><td>A <code>front</code> ráborul a <code>back</code>-re (rétegezés, opacity-szel).</td><td>Karakter egy háttér elé, réteg kompozitálás.</td></tr>
+    <tr><td><strong>Add</strong></td><td>Pixelértékek összeadódnak → <strong>világosabb</strong> eredmény.</td><td>Glow, tűz, fényeffektek „ráégő" része.</td></tr>
+    <tr><td><strong>Subtract</strong></td><td>A <code>front</code> kivonódik a <code>back</code>-ből → <strong>sötétebb</strong>.</td><td>„Kivágás", árnyék, maszkolt sötétítés.</td></tr>
+    <tr><td><strong>Multiply</strong></td><td>Pixelértékek szorzata → sötétebb, de árnyaltabb.</td><td>Árnyékolás, szín-„szorzás" (színes fény).</td></tr>
+    <tr><td><strong>Screen</strong></td><td>„Inverz multiply" — világosít, de lágyabban mint az Add.</td><td>Lágy glow, köd, fényáteresztés.</td></tr>
+    <tr><td><strong>Mask</strong></td><td>A <code>front</code> alpha-ja maszkolja a <code>back</code>-et.</td><td>Egy alak alapú kivágás másik képből.</td></tr>
+    <tr><td><strong>Max / Min</strong></td><td>Pixelenkénti maximum / minimum.</td><td>Kombinált maszkok, határ-összevonás.</td></tr>
+  </table>
+
+  <!-- INTERAKTÍV DEMÓ -->
+  <div class="playground" id="pgBlend">
+    <div class="pg-head">
+      <div class="pg-title">▸ Élő demó: blend módok</div>
+      <div class="pg-tag">interaktív · próbáld ki</div>
+    </div>
+    <div class="pg-body">
+      <canvas id="blendCanvas" width="280" height="180" style="width:280px;height:180px"></canvas>
+      <div class="pg-side">
+        <div class="legend">
+          Bal-fent: <b style="color:var(--ok)">back (A)</b> — zöld kereszt.<br>
+          Bal-lent: <b style="color:var(--lava)">front (B)</b> — narancs pötty.<br>
+          Jobb: a választott móddal <b>egyesített</b> eredmény.
+        </div>
+        <div class="ctl-label">Blend Type</div>
+        <div class="btn-row" id="blendBtns">
+          <button class="tbtn active" data-mode="normal">Normal</button>
+          <button class="tbtn" data-mode="add">Add</button>
+          <button class="tbtn" data-mode="subtract">Subtract</button>
+          <button class="tbtn" data-mode="multiply">Multiply</button>
+          <button class="tbtn" data-mode="screen">Screen</button>
+          <button class="tbtn" data-mode="mask">Mask</button>
+        </div>
+        <div class="ctl-label">Opacity (front)</div>
+        <input type="range" id="blendOpacity" min="0" max="100" value="100">
+        <div class="rng-val" id="blendOpacityVal">1.00</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">▲ Melyik mód „jó"?</div>
+    Nincs univerzálisan jó mód — a tartalomtól függ. A gyakori hiba az, hogy valaki <code>Add</code>-ot használ egy <em>árnyék</em> effekthez, csakhogy az <code>Add</code> <strong>világosít</strong> (árnyékhoz <code>Multiply</code> vagy <code>Subtract</code> való). Először gondold végig: <em>világosítani</em> vagy <em>sötétíteni</em> akarok? — abból jön a mód.
+  </div>
+</section>
+
+<!-- ================= 7. FEJEZET ================= -->
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>Opacity és sorrend</h2>
+
+  <p>A Blend node-on az <code>Opacity</code> paraméter (<code>0.0</code>–<code>1.0</code>) a <code>front</code> bemenet <strong>áttetsőségét</strong> állítja. <code>1.0</code>-nál a front teljesen látszik, <code>0.0</code>-nál eltűnik — csak a <code>back</code> marad. Ez a legegyszerűbb módja az „áttűnés" effektnek, és az első paraméter, amit animálni érdemes (a 3. részben megtanuljuk).</p>
+
+  <h3>Láncolt Blend — több kép egyesítése</h3>
+  <p>Egy Blend node pontosan <strong>két</strong> bemenetet egyesít. Három vagy több képhez <strong>láncolnod</strong> kell — az első Blend kimenete lesz a második <code>back</code> bemenete:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Három kép egyesítése láncolt Blend-del</div>
+<pre>
+  <span class="wa">Image A</span> ─┐
+             ├─▸ <span class="di">Blend 1</span> ─┐
+  <span class="wa">Image B</span> ─┘             │
+                          ├─▸ <span class="di">Blend 2</span> ─▸ <span class="gr">Preview</span>
+  <span class="wa">Image C</span> ────────────────┘
+  <span class="mu">                                 (front = C)</span>
+
+  <span class="mu">Eredmény = ((A op B) op C) — balról jobbra halad a kompozitálás.</span>
+  <span class="mu">Minden Blend saját Type/Opacity-t vihet — így rétegenként állíthatod a módot.</span>
+</pre>
+    <div class="d-cap">Láncolásnál a sorrend számít: a <b>baloldali</b> (korábbi) Blend kimenete a következő <code>back</code>-je. Ha megfordítod a sorrendet, az <code>Add</code> és <code>Normal</code> ugyanazt adja (kommutatívak), de a <code>Subtract</code>, <code>Multiply</code>, <code>Mask</code> nem!</div>
+  </div>
+
+  <div class="note ok">
+    <div class="n-tag">✓ Tipp: nevezd el a node-okat</div>
+    Amikor a gráfod növekszik, három <code>Blend</code> és két <code>Image</code> gyorsan kibogarhatatlan lesz. <strong>Dupla-klikk a node nevére</strong> (a fejlécen), és nevezd át: <code>glow-blend</code>, <code>shadow-mult</code>, <code>hero-img</code>. Egy kis fegyelem sokat számít a 4–5. rész bonyolultabb gráfjainál.
+  </div>
+</section>
+
+<!-- ================= IV. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ IV. rész — Gráf szervezés</span></div>
+
+<!-- ================= 8. FEJEZET ================= -->
+<section id="ch8">
+  <div class="ch-eyebrow">8. fejezet</div>
+  <h2>Frame — csoportosítás</h2>
+
+  <p>Ha a gráfod 10+ node-os lesz (és az lesz), a vászon hamar átláthatatlanná válik. A <strong>Frame</strong> node (a Generate vagy a collection kategóriában) egy <strong>vizuális keret</strong>, amibe több node-ot beletennhetsz — átlátható csoportokat alkotva.</p>
+
+  <div class="shot">
+    <img src="assets/pixelcomposer/graph-organization.svg" alt="Két Frame (csoportkeret) és egy Comment node a gráfban, linkekkel">
+    <div class="cap">Két <b>Frame</b>: „forrás sprite-ok" (lila keret, benne Image A és B) és „kimenet" (zöld keret, benne Preview). A <b>Comment</b> (sárga) jegyzetet tartalmaz. A Frame <strong>vizuális</strong> — a linkek akár ki is futhatnak belőle.</div>
+  </div>
+
+  <ol class="steps">
+    <li>Jobb-klikk → <span class="ui">Add Node ▸ (Frame kategória) ▸ Frame</span>.</li>
+    <li>Létrejön egy nagy, halvány keret a vásznon — méretezheted a fogantyúival.</li>
+    <li>Húzd bele a kívánt node-okat (vagy fordítva: rajzold meg a keretet a meglévő node-ok köré).</li>
+    <li>A Frame fejlécén dupla-klikkelve <strong>elnevezheted</strong> a csoportot (pl. „effekt lánc", „export ág").</li>
+  </ol>
+
+  <div class="info-box">
+    <div class="tag">▸ A Frame nem „zár be" semmit</div>
+    <p>Fontos: a Frame <strong>nem módosítja az adatfolyamot</strong>. Csak vizuális rendező — a benne lévő node-ok továbbra is külön node-ok, a linkek akár ki is futhatnak a Frame-ből (lásd az ábrán: a Blend a lila Frame-en kívül van, de a linkek bemennek). A Frame nem „csomópont" a gráf értelmében, csak egy háttér-keret.</p>
+  </div>
+</section>
+
+<!-- ================= 9. FEJEZET ================= -->
+<section id="ch9">
+  <div class="ch-eyebrow">9. fejezet</div>
+  <h2>Comment — jegyzetek</h2>
+
+  <p>A <strong>Comment</strong> node (sárga, „sticky" megjelenésű) egy szöveges jegyzet a gráfban. Nem csatlakozik semmihez — csak <em>emlékeztetőt</em> tartalmaz. Kezdőként fölöslegesnek tűnhet, de amint egy projektedet két hét múlva visszanyitod, hálás leszel érte.</p>
+
+  <ul>
+    <li>Jobb-klikk → <span class="ui">Add Node ▸ (…) ▸ Comment</span>.</li>
+    <li>A sárga dobozban gépelsz — több soros szöveget is írhatsz.</li>
+    <li>Mozgasd oda, ahová tartozik (egy bonyolult Blend mellé: „itt trial-and-error volt a Type, próbáld Multiply-al is").</li>
+  </ul>
+
+  <div class="note">
+    <div class="n-tag">▸ Mire érdemes commentelni?</div>
+    <ul style="margin-top:6px">
+      <li><strong>Miért</strong> egy adott értéken van egy paraméter („Rotation 15°, mert a 20°-nál túl nyúlt").</li>
+      <li><strong>Mit csinál</strong> egy ág („ez az ág a glow-t készíti, a másik az árnyékot").</li>
+      <li><strong>Todo</strong> — „még animálni kell a Scale-t".</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= 10. FEJEZET ================= -->
+<section id="ch10">
+  <div class="ch-eyebrow">10. fejezet</div>
+  <h2>Gyakori gráf-minták</h2>
+
+  <p>Some pár visszatérő minta, amit érdemes felismerni — saját projektjeidben is újra meg újra találkozni fogsz velük:</p>
+
+  <table>
+    <tr><th>Minta</th><th>Struktúra</th><th>Mire jó</th></tr>
+    <tr><td><strong>előtte / utána</strong></td><td><code>Image</code> → Preview, <em>és</em> Image → Transform → Preview</td><td>Eredeti és átalakított párhuzamos összehasonlítása.</td></tr>
+    <tr><td><strong>blend-lánc</strong></td><td>Több Image láncolt Blend-del</td><td>Több réteg/kép kompozitálása (házttér + karakter + glow).</td></tr>
+    <tr><td><strong>maszkolt átalakítás</strong></td><td>Image → Transform, és egy maszk Blend <code>front</code>-ja</td><td>„Ebből az alakból látszódjon csak" — kivágás.</td></tr>
+    <tr><td><strong>függő Preview-ök</strong></td><td>Egy ágon több Preview node</td><td>A lánc különböző pontjainak vizsgálata debugoláshoz.</td></tr>
+  </table>
+
+  <div class="diagram">
+    <div class="d-head">⊞ „Előtte / utána" minta</div>
+<pre>
+                 ┌──────────────────────────▸ <span class="gr">Preview (eredeti)</span>
+  <span class="wa">Image</span> ────────┤
+                 └─▸ <span class="di">Transform</span> ─▸ <span class="di">Blend</span> &lt;─ <span class="wa">Image (glow)</span> ─▸ <span class="gr">Preview (eredmény)</span>
+
+  <span class="mu">Bal-ág: az eredeti kép változatlanul. Jobb-ág: transformálva + blendelve egy glow-jal.</span>
+  <span class="mu">Két Preview = két ablak — egyszerre látod a „előtte" és „utána" állapotot.</span>
+</pre>
+    <div class="d-cap">Ez a tutorial-sorozat végén a kedvenc mintád lesz — minden effekt-nál ezt fogjuk használni, hogy lássuk, mit csináltunk. Mentés után a Preview-ök tartalmát is megőrzi a projekt.</div>
+  </div>
+</section>
+
+<!-- ================= V. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ V. rész — Lezárás</span></div>
+
+<!-- ================= 11. FEJEZET ================= -->
+<section id="ch11">
+  <div class="ch-eyebrow">11. fejezet</div>
+  <h2>Összefoglaló &amp; merre tovább?</h2>
+
+  <p>Ezzel már elég eszközt összeszedtél ahhoz, hogy önállóan kísérletezz. Végigtekintve:</p>
+
+  <table>
+    <tr><th>Fogalom</th><th>Tanultad</th></tr>
+    <tr><td><strong>Transform node</strong></td><td>Egy bemenet átalakítása: Position, Rotation, Scale, Mirror.</td></tr>
+    <tr><td><strong>Pivot</strong></td><td>A forgatás/tükrözés támpontja; alapból Center, de állítható.</td></tr>
+    <tr><td><strong>non-destructive</strong></td><td>Az eredeti Image érintetlen; több ágon többször felhasználható.</td></tr>
+    <tr><td><strong>Blend node</strong></td><td>Két bemenet (back/front) egyesítése — Type paraméterrel.</td></tr>
+    <tr><td><strong>blend módok</strong></td><td>Normal/Add/Subtract/Multiply/Screen/Mask — világosít vs. sötétít.</td></tr>
+    <tr><td><strong>láncolt Blend</strong></td><td>Több kép egyesítése: az első Blend kimenete a következő back-je.</td></tr>
+    <tr><td><strong>Frame / Comment</strong></td><td>Vizuális csoportosítás és jegyzetelés a gráfban.</td></tr>
+  </table>
+
+  <div class="info-box">
+    <div class="tag">▸ A „kötelező házi"</div>
+    <p>Csináld végig: tölts be <strong>két képet</strong> (akár ugyanaz a sprite kétszer), kösd őket egy <strong>Blend</strong>-be, és próbálgasd végig az összes Type-ot. Aztán tegyél közéjük egy <strong>Transform</strong>-et (az egyik Image után forgass 45°-ot), és figyeld, hogyan változik az eredmény. Végül <strong>nevezd el</strong> a node-okat és tegyél egy <strong>Comment</strong>-et. Mentsd el a projektet — a 3. részben ezt fogjuk animálni.</p>
+  </div>
+
+  <h3>A sorozat következő részei</h3>
+  <ul>
+    <li><strong>3. rész — Animáció alapok</strong>: keyframe-ek, interpoláció (linear/smooth/hold), loop, és a <code>Opacity</code> animálása Blend-en (az első igazi „mozgó" effekt).</li>
+    <li><strong>4. rész</strong> — Import/Export workflow + spritesheet packelés.</li>
+    <li><strong>5. rész</strong> — A Clone node: a legnagyobb kezdő csapda.</li>
+    <li><strong>Később</strong> — MK Blast tűz/robbanás, részecskék, effectors, feedback loop, texture mapping, Bevy-integráció.</li>
+  </ul>
+
+  <div class="next-card">
+    <div>
+      <div class="nx-label">következik · 3. rész</div>
+      <div class="nx-title">Animáció alapok — keyframe-ek &amp; interpoláció</div>
+      <div class="nx-desc">A ◷ (óra) ikon mögötti világ: hogyan animálj egy Transform Rotation-t vagy Blend Opacity-t keyframe-ekkel. Interpolációs módok (linear/smooth/hold), loop és ping-pong, és az első igazi mozgó effekt projekted.</div>
+    </div>
+    <a class="btn" href="#">Hamarosan ▸</a>
+  </div>
+</section>
+
+<footer>
+  <p class="pix">Pixel Composer · 2. rész — Node-ok és kapcsolatok mélyebben</p>
+  <p style="margin-top:6px">Készült a hivatalos <a href="https://docs.pixel-composer.com/nodes/" target="_blank" rel="noopener">Pixel Composer dokumentáció</a> alapján, magyar nyelven, interaktív demókkal. A Pixel Composer ingyenes, nyílt forrású szoftver — <a href="https://github.com/Ttanasart-pt/Pixel-Composer" target="_blank" rel="noopener">GitHub</a> · <a href="https://makham.itch.io/pixel-composer" target="_blank" rel="noopener">itch.io</a> · <a href="https://store.steampowered.com/app/2299510/Pixel_Composer/" target="_blank" rel="noopener">Steam</a>.</p>
+  <p style="margin-top:6px;font-size:12px;color:#565066">MakhamDev munkájának köszönjük. Ez a tutorial független, nem hivatalos.</p>
+</footer>
+
+</div><!-- /wrap -->
+</div><!-- /main -->
+
+<script>
+/* ========== MENÜ + scroll-spy ========== */
+(function(){
+  var t=document.getElementById('menuToggle'),s=document.getElementById('sidebar');
+  t.addEventListener('click',function(){s.classList.toggle('open')});
+  var links=document.querySelectorAll('.nav a');
+  var map={};links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a});
+  var secs=Object.keys(map).map(function(id){return document.getElementById(id)}).filter(Boolean);
+  function onScroll(){var y=window.scrollY+120;var cur=null;secs.forEach(function(x){if(x.offsetTop<=y)cur=x.id});links.forEach(function(a){a.classList.toggle('active',a.getAttribute('href').slice(1)===cur)})}
+  window.addEventListener('scroll',onScroll,{passive:true});onScroll();
+})();
+
+/* ========== HERO CANVAS — Transform animáció ========== */
+(function(){
+  var cv=document.getElementById('heroCanvas'),ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  var hero=[
+    "0011100","0122210","0113110","1222221","0122210","0011100","0100010","1000001"
+  ];
+  var pal={0:null,1:'#7ed957',2:'#ffb454',3:'#5ad7ff'};
+  var phase=0,running=true,mode=0; // 0:rotate 1:scale 2:mirror
+  var modes=['rotate','scale','mirror'];
+  function drawSprite(x,y,scale,alpha,rot,mirror){
+    ctx.save();ctx.translate(x,y);if(rot)ctx.rotate(rot);
+    if(mirror)ctx.scale(-1,1);
+    for(var r=0;r<hero.length;r++)for(var c=0;c<hero[r].length;c++){
+      var ch=hero[r][c];var col=pal[ch];if(!col)continue;
+      ctx.globalAlpha=alpha;ctx.fillStyle=col;
+      var sx=c*scale-hero.length*scale/2, sy=r*scale-hero.length*scale/2;
+      ctx.fillRect(sx,sy,scale,scale);
+    }
+    ctx.restore();ctx.globalAlpha=1;
+  }
+  function frame(){
+    if(!running){requestAnimationFrame(frame);return}
+    phase+=0.02;
+    ctx.clearRect(0,0,W,H);
+    ctx.strokeStyle='#1a1626';ctx.lineWidth=1;
+    for(var x=0;x<=W;x+=20){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+    for(var y=0;y<=H;y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+    // Image node (bal)
+    drawNode(24,48,72,44,'#b07cff','Image');
+    var outX=24+72,outY=48+30;
+    ctx.fillStyle='#5ad7ff';ctx.beginPath();ctx.arc(outX,outY,4,0,7);ctx.fill();
+    // Transform node (közép)
+    drawNode(120,40,80,60,'#ffb454','Transform');
+    ctx.fillStyle='#5ad7ff';ctx.beginPath();ctx.arc(120,outY,4,0,7);ctx.fill();
+    // links
+    ctx.strokeStyle='#5ad7ff';ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.moveTo(outX,outY);ctx.bezierCurveTo(outX+12,outY,108,outY,120,outY);ctx.stroke();
+    // Preview node (jobb)
+    var px=224,py=42;
+    drawNode(px,py,76,56,'#7ed957','Preview');
+    ctx.fillStyle='#5ad7ff';ctx.beginPath();ctx.arc(px,py+28,4,0,7);ctx.fill();
+    ctx.beginPath();ctx.moveTo(200,70);ctx.bezierCurveTo(212,70,212,70,224,70);ctx.stroke();
+    // sprite a preview-ban, animált
+    var cx=px+38,cy=py+34;
+    var m=modes[mode];
+    var rot=0,scl=3,mir=false;
+    if(m==='rotate')rot=phase*1.2;
+    if(m==='scale')scl=2+1.5*Math.abs(Math.sin(phase));
+    if(m==='mirror')mir=Math.sin(phase)>0;
+    drawSprite(cx,cy,scl,0.95,rot,mir);
+    // small original sprite in Image node
+    drawSprite(60,70,2.2,0.4,0,false);
+    // label
+    ctx.font="9px 'IBM Plex Mono',monospace";ctx.fillStyle='#9a8fb0';
+    ctx.fillText(modes[mode].toUpperCase(),px+8,H-8);
+    // ciklus a módok közt
+    if(phase>Math.PI*2){phase=0;mode=(mode+1)%modes.length}
+    requestAnimationFrame(frame);
+  }
+  function drawNode(x,y,w,h,color,name){
+    ctx.fillStyle='#1c1828';ctx.fillRect(x,y,w,h);
+    ctx.strokeStyle=color;ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle=color;ctx.fillRect(x,y,w,14);
+    ctx.font="9px 'IBM Plex Mono',monospace";ctx.fillStyle='#0c0a13';
+    ctx.fillText(name,x+5,y+10);
+  }
+  frame();
+  cv.addEventListener('mouseenter',function(){running=false});
+  cv.addEventListener('mouseleave',function(){running=true});
+})();
+
+/* ========== PLAYGROUND — Blend módok ========== */
+(function(){
+  var cv=document.getElementById('blendCanvas'),ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  var opacityEl=document.getElementById('blendOpacity'),opacityVal=document.getElementById('blendOpacityVal');
+  var btns=document.getElementById('blendBtns');
+  var mode='normal',opacity=1.0;
+  var SCALE=6;
+  // back: zöld kereszt (A)
+  var A=[
+    "0011100","0111110","1111111","1111111","0111110","0011100","0000000"
+  ];
+  // front: narancs pötty/gyűrű (B)
+  var B=[
+    "0000000","0000000","0011100","0011100","0011100","0000000","0000000"
+  ];
+  var colA={1:'#7ed957'};
+  var colB={1:'#ff7a3c'};
+  function hexToRgb(h){var n=parseInt(h.slice(1),16);return[(n>>16)&255,(n>>8)&255,n&255]}
+  function toCss(a){return'rgb('+a[0]+','+a[1]+','+a[2]+')'}
+  var aRGB=hexToRgb('#7ed957'),bRGB=hexToRgb('#ff7a3c');
+  function blendPixel(a,b,hasA,hasB){
+    // a,b: [r,g,b]; hasA/hasB: van-e pixel
+    if(!hasA&&!hasB)return null;
+    if(!hasB)return a.slice();
+    if(!hasA){
+      // csak B, opacity-vel
+      return[bRGB[0]*opacity,bRGB[1]*opacity,bRGB[2]*opacity];
+    }
+    var r0=a[0],g0=a[1],bl0=a[2];
+    var r1=b[0],g1=b[1],bl1=b[2];
+    var ro,go,bo;
+    switch(mode){
+      case'normal':
+        ro=r1*opacity+r0*(1-opacity);
+        go=g1*opacity+g0*(1-opacity);
+        bo=bl1*opacity+bl0*(1-opacity);
+        break;
+      case'add':
+        ro=r0+r1;go=g0+g1;bo=bl0+bl1;
+        break;
+      case'subtract':
+        ro=r0-r1;go=g0-g1;bo=bl0-bl1;
+        break;
+      case'multiply':
+        ro=r0*r1/255;go=g0*g1/255;bo=bl0*bl1/255;
+        break;
+      case'screen':
+        ro=255-(255-r0)*(255-r1)/255;
+        go=255-(255-g0)*(255-g1)/255;
+        bo=255-(255-bl0)*(255-bl1)/255;
+        break;
+      case'mask':
+        // B maszkolja A-t: csak ahol B is van, ott A; opacity-vel
+        if(opacity>=1)return a.slice();
+        ro=r0*(1-opacity);go=g0*(1-opacity);bo=bl0*(1-opacity);
+        break;
+    }
+    return[Math.max(0,Math.min(255,ro)),Math.max(0,Math.min(255,go)),Math.max(0,Math.min(255,bo))];
+  }
+  function drawSprite(x,y,data,pal,scale){
+    for(var r=0;r<data.length;r++)for(var c=0;c<data[r].length;c++){
+      var ch=data[r][c];if(ch==='0')continue;
+      ctx.fillStyle=pal[ch]||'#fff';
+      ctx.fillRect(x+c*scale,y+r*scale,scale,scale);
+    }
+  }
+  function redraw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#0c0a13';ctx.fillRect(0,0,W,H);
+    // háttér rács
+    ctx.strokeStyle='#1a1626';ctx.lineWidth=1;
+    for(var x=0;x<=W;x+=20){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+    for(var y=0;y<=H;y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+    // A (back) — bal-fent
+    ctx.fillStyle='#9a8fb0';ctx.font="9px 'IBM Plex Mono',monospace";
+    ctx.fillText('back (A)',10,16);
+    drawSprite(20,22,A,colA,SCALE);
+    // B (front) — bal-lent
+    ctx.fillText('front (B)',10,96);
+    drawSprite(20,102,B,colB,SCALE);
+    // eredmény — jobb
+    ctx.fillStyle='#d4a8ff';ctx.font="9px 'IBM Plex Mono',monospace";
+    ctx.fillText('result ('+mode+')',180,16);
+    // eredmény keret
+    ctx.strokeStyle='#3d3458';ctx.lineWidth=2;ctx.strokeRect(180,22,SCALE*7,SCALE*7);
+    ctx.fillStyle='#0c0a13';ctx.fillRect(180,22,SCALE*7,SCALE*7);
+    for(var r=0;r<7;r++)for(var c=0;c<7;c++){
+      var hasA=A[r][c]!=='0',hasB=B[r][c]!=='0';
+      var out=blendPixel(aRGB,bRGB,hasA,hasB);
+      if(!out)continue;
+      // a 'normal' opacity-t a back is „finomítja", de az A/B kirajzolásánál használt szín aRGB/bRGB
+      ctx.fillStyle=toCss(out.map(Math.round));
+      ctx.fillRect(180+c*SCALE,22+r*SCALE,SCALE,SCALE);
+    }
+  }
+  btns.addEventListener('click',function(e){
+    var b=e.target.closest('button[data-mode]');if(!b)return;
+    mode=b.dataset.mode;
+    btns.querySelectorAll('button').forEach(function(x){x.classList.toggle('active',x===b)});
+    redraw();
+  });
+  opacityEl.addEventListener('input',function(){
+    opacity=this.value/100;opacityVal.textContent=opacity.toFixed(2);redraw();
+  });
+  redraw();
+})();
+</script>
+</body>
+</html>

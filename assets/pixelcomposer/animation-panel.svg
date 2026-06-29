@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 300" font-family="'IBM Plex Mono', monospace">
+  <rect width="780" height="300" fill="#0c0a13"/>
+
+  <!-- bal: Inspector paraméter + ◷ gomb -->
+  <rect x="20" y="30" width="240" height="240" fill="#14121c" stroke="#2a2440"/>
+  <rect x="20" y="30" width="240" height="22" fill="#1c1828"/>
+  <rect x="20" y="51" width="240" height="2" fill="#2a2440"/>
+  <text x="32" y="46" font-size="12" fill="#9a8fb0" letter-spacing="1">INSPECTOR — Blend</text>
+  <!-- paraméter sorok -->
+  <text x="32" y="78" font-size="12.5" fill="#9a8fb0">Type</text>
+  <rect x="140" y="68" width="108" height="16" fill="#0c0a13" stroke="#2a2440"/>
+  <text x="146" y="80" font-size="11.5" fill="#ffb454">Normal</text>
+
+  <text x="32" y="108" font-size="12.5" fill="#9a8fb0">Opacity</text>
+  <rect x="140" y="98" width="100" height="16" fill="#0c0a13" stroke="#2a2440"/>
+  <text x="146" y="110" font-size="11.5" fill="#cfcae0">1.00</text>
+  <!-- ◷ óra gomb — kiemelve -->
+  <rect x="244" y="98" width="16" height="16" rx="2" fill="#5ad7ff"/>
+  <circle cx="252" cy="106" r="4.5" fill="none" stroke="#0c0a13" stroke-width="1.5"/>
+  <line x1="252" y1="106" x2="252" y2="103" stroke="#0c0a13" stroke-width="1.2"/>
+  <line x1="252" y1="106" x2="254.5" y2="107.5" stroke="#0c0a13" stroke-width="1.2"/>
+  <!-- nyíl a ◷-ből a timeline-ra -->
+  <path d="M252 114 L252 138 L300 165" fill="none" stroke="#5ad7ff" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <polygon points="296,160 304,165 296,170" fill="#5ad7ff"/>
+  <text x="200" y="138" font-size="11" fill="#5ad7ff">katt!</text>
+
+  <text x="32" y="138" font-size="12.5" fill="#9a8fb0">Back</text>
+  <rect x="140" y="128" width="108" height="16" fill="#0c0a13" stroke="#2a2440"/>
+  <text x="146" y="140" font-size="11.5" fill="#5ad7ff">hero.png</text>
+
+  <text x="32" y="168" font-size="12.5" fill="#9a8fb0">Front</text>
+  <rect x="140" y="158" width="108" height="16" fill="#0c0a13" stroke="#2a2440"/>
+  <text x="146" y="170" font-size="11.5" fill="#5ad7ff">glow.png</text>
+
+  <!-- jelzés -->
+  <text x="32" y="208" font-size="11.5" fill="#ffb454">▸ az ◷ gomb hozzáadja a</text>
+  <text x="32" y="224" font-size="11.5" fill="#ffb454">  paramétert az animációhoz</text>
+  <text x="32" y="252" font-size="11" fill="#565066">jobb-klikk ▸ Add animation is</text>
+
+  <!-- jobb: ANIMATION panel — timeline -->
+  <rect x="290" y="30" width="470" height="240" fill="#14121c" stroke="#2a2440"/>
+  <rect x="290" y="30" width="470" height="22" fill="#1c1828"/>
+  <rect x="290" y="51" width="470" height="2" fill="#2a2440"/>
+  <text x="302" y="46" font-size="12" fill="#9a8fb0" letter-spacing="1">ANIMATION</text>
+  <!-- timeline főnév + frame számláló -->
+  <text x="690" y="46" font-size="12" fill="#d4a8ff" text-anchor="end">frame: 0 ─ 24</text>
+
+  <!-- sáv neve: Opacity -->
+  <text x="302" y="80" font-size="12" fill="#ffb454">Opacity</text>
+  <text x="356" y="80" font-size="11" fill="#565066">0.0 ─ 1.0</text>
+
+  <!-- timeline rácsvonalak (frame markers) -->
+  <g stroke="#2a2440" stroke-width="1">
+    <line x1="395" y1="86" x2="395" y2="248"/>
+    <line x1="435" y1="86" x2="435" y2="118"/>
+    <line x1="475" y1="86" x2="475" y2="248"/>
+    <line x1="515" y1="86" x2="515" y2="118"/>
+    <line x1="555" y1="86" x2="555" y2="248"/>
+    <line x1="595" y1="86" x2="595" y2="118"/>
+    <line x1="635" y1="86" x2="635" y2="248"/>
+    <line x1="675" y1="86" x2="675" y2="118"/>
+    <line x1="715" y1="86" x2="715" y2="248"/>
+    <line x1="745" y1="86" x2="745" y2="118"/>
+  </g>
+  <!-- frame számok -->
+  <g font-size="10" fill="#565066" text-anchor="middle">
+    <text x="395" y="76">0</text>
+    <text x="435" y="76">3</text>
+    <text x="475" y="76">6</text>
+    <text x="555" y="76">12</text>
+    <text x="635" y="76">18</text>
+    <text x="715" y="76">24</text>
+  </g>
+
+  <!-- keyframe sáv (Opacity) -->
+  <rect x="395" y="92" width="350" height="20" fill="#0c0a13" stroke="#2a2440" stroke-width="0.5"/>
+  <!-- keyframe 1 (frame 0, érték 0.0) -->
+  <polygon points="395,102 402,94 409,102 402,110" fill="#b07cff" stroke="#d4a8ff" stroke-width="1"/>
+  <!-- keyframe 2 (frame 12, érték 1.0) -->
+  <polygon points="555,102 562,94 569,102 562,110" fill="#b07cff" stroke="#d4a8ff" stroke-width="1"/>
+  <!-- keyframe 3 (frame 24, érték 0.0) -->
+  <polygon points="715,102 722,94 729,102 722,110" fill="#b07cff" stroke="#d4a8ff" stroke-width="1"/>
+
+  <!-- görbe a keyframe-ek közt (smooth-hoz hasonló) -->
+  <path d="M395 102 Q 475 102, 555 102 Q 635 102, 715 102" fill="none" stroke="#5ad7ff" stroke-width="2"/>
+
+  <!-- playhead (függőleges piros/sárga vonal) -->
+  <line x1="555" y1="60" x2="555" y2="248" stroke="#ffb454" stroke-width="1.5"/>
+  <polygon points="551,58 559,58 555,64" fill="#ffb454"/>
+
+  <!-- érték tengely (y) -->
+  <text x="378" y="98" font-size="9" fill="#565066" text-anchor="end">1.0</text>
+  <text x="378" y="112" font-size="9" fill="#565066" text-anchor="end">0.0</text>
+
+  <!-- alsó vezérlők -->
+  <rect x="302" y="125" width="120" height="20" rx="3" fill="#1c1828" stroke="#2a2440"/>
+  <text x="308" y="139" font-size="11" fill="#9a8fb0">⏮  ▶  ⏭</text>
+  <text x="350" y="139" font-size="11" fill="#cfcae0">24 fps</text>
+
+  <!-- loop mód selector -->
+  <text x="302" y="170" font-size="11.5" fill="#9a8fb0">Loop:</text>
+  <rect x="340" y="160" width="80" height="16" fill="#0c0a13" stroke="#2a2440"/>
+  <text x="346" y="172" font-size="11" fill="#5ad7ff">Loop</text>
+  <text x="302" y="194" font-size="11.5" fill="#9a8fb0">Interpolate:</text>
+  <rect x="380" y="184" width="80" height="16" fill="#0c0a13" stroke="#2a2440"/>
+  <text x="386" y="196" font-size="11" fill="#5ad7ff">Smooth</text>
+
+  <!-- alsó magyarázat -->
+  <text x="302" y="226" font-size="11" fill="#565066">▸ 3 keyframe: frame 0 (0.0) → 12 (1.0) → 24 (0.0) — „be- és kikapcsoló" glow</text>
+  <text x="302" y="242" font-size="11" fill="#565066">▸ playhead (sárga) a 12. frame-nél — ott az Opacity = 1.0</text>
+</svg>

@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 360" font-family="'IBM Plex Mono', monospace">
+  <rect width="820" height="360" fill="#0c0a13"/>
+  <!-- graph rács -->
+  <g stroke="#1a1626" stroke-width="1">
+    <line x1="0" y1="72" x2="820" y2="72"/>
+    <line x1="0" y1="144" x2="820" y2="144"/>
+    <line x1="0" y1="216" x2="820" y2="216"/>
+    <line x1="0" y1="288" x2="820" y2="288"/>
+    <line x1="102" y1="0" x2="102" y2="360"/>
+    <line x1="204" y1="0" x2="204" y2="360"/>
+    <line x1="306" y1="0" x2="306" y2="360"/>
+    <line x1="408" y1="0" x2="408" y2="360"/>
+    <line x1="510" y1="0" x2="510" y2="360"/>
+    <line x1="612" y1="0" x2="612" y2="360"/>
+    <line x1="714" y1="0" x2="714" y2="360"/>
+  </g>
+
+  <!-- node: Image -->
+  <g>
+    <rect x="36" y="130" width="140" height="80" rx="5" fill="#1c1828" stroke="#b07cff" stroke-width="2"/>
+    <rect x="36" y="130" width="140" height="22" rx="5" fill="#b07cff"/>
+    <rect x="36" y="146" width="140" height="6" fill="#b07cff"/>
+    <text x="46" y="146" font-size="12.5" fill="#0c0a13" font-weight="700">Image</text>
+    <rect x="46" y="164" width="40" height="38" fill="#0c0a13"/>
+    <g fill="#7ed957">
+      <rect x="56" y="170" width="5" height="5"/>
+      <rect x="61" y="176" width="5" height="5"/>
+      <rect x="51" y="182" width="5" height="5"/>
+      <rect x="71" y="188" width="5" height="5"/>
+      <rect x="66" y="182" width="5" height="5"/>
+      <rect x="61" y="194" width="5" height="5"/>
+    </g>
+    <circle cx="176" cy="180" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+  </g>
+  <!-- link 1 -->
+  <path d="M176 180 C 210 180, 220 180, 250 180" fill="none" stroke="#5ad7ff" stroke-width="2.5"/>
+
+  <!-- node: Transform (narancs) -->
+  <g>
+    <rect x="250" y="120" width="180" height="120" rx="5" fill="#1c1828" stroke="#ffb454" stroke-width="2"/>
+    <rect x="250" y="120" width="180" height="22" rx="5" fill="#ffb454"/>
+    <rect x="250" y="136" width="180" height="6" fill="#ffb454"/>
+    <text x="260" y="136" font-size="12.5" fill="#0c0a13" font-weight="700">Transform</text>
+    <!-- params -->
+    <text x="260" y="166" font-size="11.5" fill="#9a8fb0">Position</text>
+    <text x="415" y="166" font-size="11.5" fill="#cfcae0" text-anchor="end">0, 0</text>
+    <text x="260" y="184" font-size="11.5" fill="#9a8fb0">Rotation</text>
+    <text x="415" y="184" font-size="11.5" fill="#ffb454" text-anchor="end">0° → 45°</text>
+    <text x="260" y="202" font-size="11.5" fill="#9a8fb0">Scale</text>
+    <text x="415" y="202" font-size="11.5" fill="#cfcae0" text-anchor="end">1.00</text>
+    <text x="260" y="220" font-size="11.5" fill="#9a8fb0">Mirror</text>
+    <text x="415" y="220" font-size="11.5" fill="#cfcae0" text-anchor="end">None</text>
+    <!-- input junction -->
+    <circle cx="250" cy="180" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+    <!-- output junction -->
+    <circle cx="430" cy="180" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+  </g>
+  <!-- link 2 -->
+  <path d="M430 180 C 470 180, 480 180, 510 180" fill="none" stroke="#5ad7ff" stroke-width="2.5"/>
+
+  <!-- node: Preview (zöld) -->
+  <g>
+    <rect x="510" y="120" width="160" height="120" rx="5" fill="#1c1828" stroke="#7ed957" stroke-width="2"/>
+    <rect x="510" y="120" width="160" height="22" rx="5" fill="#7ed957"/>
+    <rect x="510" y="136" width="160" height="6" fill="#7ed957"/>
+    <text x="520" y="136" font-size="12.5" fill="#0c0a13" font-weight="700">Preview</text>
+    <circle cx="510" cy="180" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+    <!-- preview: elforgatott sprite (forgatás jele) -->
+    <g transform="translate(590 185) rotate(45)">
+      <g fill="#7ed957">
+        <rect x="-15" y="-15" width="5" height="5"/>
+        <rect x="-10" y="-9" width="5" height="5"/>
+        <rect x="-20" y="-3" width="5" height="5"/>
+        <rect x="0" y="3" width="5" height="5"/>
+        <rect x="-5" y="-3" width="5" height="5"/>
+        <rect x="-10" y="9" width="5" height="5"/>
+      </g>
+      <g fill="#ffb454">
+        <rect x="0" y="-15" width="5" height="5"/>
+        <rect x="-5" y="-9" width="5" height="5"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- alsó: paraméter-magyarázat -->
+  <g font-size="12" fill="#9a8fb0">
+    <text x="36" y="282">▸ Position</text>
+    <text x="120" y="282" fill="#cfcae0">X/Y eltolás pixelben — hova kerüljön a center</text>
+    <text x="36" y="302">▸ Rotation</text>
+    <text x="120" y="302" fill="#ffb454">fokban — a Transform „központja" körül forog</text>
+    <text x="36" y="322">▸ Scale</text>
+    <text x="120" y="322" fill="#cfcae0">egyenletes vagy X/Y külön — nagyítás/kicsinyítés</text>
+    <text x="440" y="282">▸ Mirror</text>
+    <text x="524" y="282" fill="#cfcae0">None / Horizontal / Vertical — tükrözés</text>
+    <text x="440" y="302">▸ (Pivot)</text>
+    <text x="524" y="302" fill="#cfcae0">a forgatás/tükrözés támpontja</text>
+  </g>
+
+  <!-- fejléc-felirat -->
+  <text x="36" y="40" font-size="12.5" fill="#ffb454">Image ▸ Transform ▸ Preview — a Transform módosítja a képet, de az eredeti Image érintetlen</text>
+</svg>

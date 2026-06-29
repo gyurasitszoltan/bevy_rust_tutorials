@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Top-down „Hack and slash" — harci flow, találat, ellenség-AI · Bevy 0.18</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#10101a; --panel:#1a1a28; --panel2:#21212f; --code-bg:#14141f;
+    --ink:#e3e3ec; --muted:#8b8b9e; --border:#2c2c40;
+    --cyan:#56d4c4; --amber:#f2c14e; --pink:#ec6a9c; --green:#8ce99a; --red:#ff6b6b; --violet:#a78bfa;
+    --kw:#ec6a9c; --ty:#56d4c4; --str:#8ce99a; --com:#6b6b80; --mac:#f2c14e; --num:#f4a259;
+    --sidebar-w:260px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    background-image:radial-gradient(var(--border) 1px, transparent 1px);
+    background-size:22px 22px;
+    color:var(--ink);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--cyan);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ---- layout ---- */
+  .shell{display:flex;max-width:1400px;margin:0 auto}
+  .sidebar{
+    width:var(--sidebar-w);flex:0 0 var(--sidebar-w);
+    position:sticky;top:0;height:100vh;overflow-y:auto;
+    padding:28px 18px;border-right:2px solid var(--border);
+    background:linear-gradient(180deg,var(--panel) 0%,var(--bg) 100%);
+  }
+  .sidebar h2{
+    font-family:"Pixelify Sans",sans-serif;font-size:18px;font-weight:700;
+    color:var(--amber);letter-spacing:.5px;margin-bottom:4px;
+  }
+  .sidebar .sub{font-size:11px;color:var(--muted);font-family:"JetBrains Mono",monospace;margin-bottom:20px}
+  .nav a{
+    display:block;color:var(--muted);font-size:13.5px;padding:7px 10px;
+    border-left:3px solid transparent;border-radius:0 4px 4px 0;transition:all .12s;
+    text-decoration:none;
+  }
+  .nav a .num{font-family:"JetBrains Mono",monospace;color:var(--border);font-size:11px;margin-right:8px}
+  .nav a:hover{color:var(--ink);background:var(--panel2);text-decoration:none}
+  .nav a.active{color:var(--ink);border-left-color:var(--pink);background:var(--panel2)}
+  .nav a.active .num{color:var(--pink)}
+
+  .main{flex:1 1 auto;min-width:0;padding:48px 56px 120px}
+
+  /* ---- hero ---- */
+  .hero{margin-bottom:56px;border:2px solid var(--border);background:var(--panel);
+    padding:38px 36px;position:relative;box-shadow:6px 6px 0 rgba(0,0,0,.35)}
+  .hero .eyebrow{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--pink);
+    letter-spacing:2px;text-transform:uppercase;margin-bottom:14px}
+  .hero h1{font-family:"Pixelify Sans",sans-serif;font-size:42px;font-weight:700;
+    line-height:1.1;color:var(--ink);margin-bottom:16px}
+  .hero h1 .hl{color:var(--amber)}
+  .hero p{color:var(--muted);font-size:16px;max-width:660px}
+  .hero .chips{margin-top:22px;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font-family:"JetBrains Mono",monospace;font-size:11.5px;padding:4px 10px;
+    border:1px solid var(--border);background:var(--code-bg);color:var(--cyan);border-radius:3px}
+
+  /* ---- sections ---- */
+  section{margin-bottom:54px;scroll-margin-top:24px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;
+    padding-bottom:12px;border-bottom:2px solid var(--border)}
+  .sec-head .idx{font-family:"Pixelify Sans",sans-serif;font-size:26px;color:var(--pink);
+    flex:0 0 auto}
+  .sec-head h2{font-family:"Pixelify Sans",sans-serif;font-size:27px;font-weight:700;color:var(--ink)}
+  h3{font-family:"Pixelify Sans",sans-serif;font-size:19px;color:var(--amber);
+    margin:26px 0 12px}
+  p{margin:0 0 14px}
+  .main p{font-size:15.5px}
+  ul,ol{margin:0 0 16px 22px}
+  li{margin-bottom:7px;font-size:15.5px}
+  strong{color:var(--ink);font-weight:600}
+  code.inl{font-family:"JetBrains Mono",monospace;font-size:13px;background:var(--code-bg);
+    border:1px solid var(--border);padding:1.5px 6px;border-radius:3px;color:var(--cyan)}
+
+  /* ---- code blocks ---- */
+  pre{background:var(--code-bg);border:1px solid var(--border);border-left:3px solid var(--cyan);
+    padding:16px 18px;overflow-x:auto;margin:0 0 18px;border-radius:0 4px 4px 0;
+    box-shadow:3px 3px 0 rgba(0,0,0,.25)}
+  pre code{font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1.6;color:var(--ink);white-space:pre}
+  .k{color:var(--kw)} .t{color:var(--ty)} .s{color:var(--str)}
+  .c{color:var(--com);font-style:italic} .m{color:var(--mac)} .n{color:var(--num)}
+
+  /* ---- callouts ---- */
+  .box{border:1px solid var(--border);border-left:4px solid var(--cyan);background:var(--panel);
+    padding:14px 18px;margin:0 0 18px;border-radius:0 4px 4px 0}
+  .box.tip{border-left-color:var(--green)} .box.tip .lbl{color:var(--green)}
+  .box.warn{border-left-color:var(--red)} .box.warn .lbl{color:var(--red)}
+  .box.note{border-left-color:var(--violet)} .box.note .lbl{color:var(--violet)}
+  .box .lbl{font-family:"JetBrains Mono",monospace;font-size:11px;text-transform:uppercase;
+    letter-spacing:1.5px;color:var(--cyan);display:block;margin-bottom:6px}
+  .box p:last-child{margin-bottom:0}
+
+  /* ---- table ---- */
+  .tbl-wrap{overflow-x:auto;margin:0 0 18px}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+  th,td{border:1px solid var(--border);padding:10px 13px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);font-family:"Pixelify Sans",sans-serif;color:var(--amber);font-weight:700}
+  td:first-child{font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--cyan);white-space:nowrap}
+  tr:nth-child(even) td{background:rgba(255,255,255,.012)}
+
+  /* ---- demos ---- */
+  .demo{border:2px solid var(--border);background:var(--panel);padding:18px;margin:0 0 20px;
+    border-radius:4px;box-shadow:4px 4px 0 rgba(0,0,0,.3)}
+  .demo .dh{font-family:"Pixelify Sans",sans-serif;color:var(--amber);font-size:15px;margin-bottom:4px}
+  .demo .dd{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .demo canvas{display:block;width:100%;background:var(--code-bg);border:1px solid var(--border);
+    border-radius:3px;image-rendering:pixelated;cursor:crosshair}
+  .ctrls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:14px;
+    font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--muted)}
+  .ctrls label{display:flex;align-items:center;gap:8px}
+  .ctrls input[type=range]{accent-color:var(--pink);width:140px}
+  .ctrls .val{color:var(--cyan);min-width:60px;display:inline-block}
+  .ctrls button{font-family:"JetBrains Mono",monospace;font-size:12px;background:var(--panel2);
+    color:var(--ink);border:1px solid var(--border);padding:6px 12px;border-radius:3px;cursor:pointer}
+  .ctrls button:hover{border-color:var(--pink);color:var(--pink)}
+  .ctrls button.on{border-color:var(--cyan);color:var(--cyan);background:var(--code-bg)}
+  .ctrls .sep{opacity:.45}
+  .readout{display:flex;gap:22px;flex-wrap:wrap;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:12.5px}
+  .readout b{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:400}
+  .readout span{color:var(--cyan);font-size:17px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--muted)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .legend i{width:13px;height:13px;border-radius:2px;display:inline-block;border:1px solid rgba(255,255,255,.15)}
+
+  /* ---- tldr ---- */
+  .tldr{border:2px dashed var(--pink);background:var(--panel);padding:24px 28px;border-radius:4px}
+  .tldr h3{margin-top:0;color:var(--pink)}
+  .tldr ul{list-style:none;margin-left:0}
+  .tldr li{padding-left:26px;position:relative}
+  .tldr li::before{content:"\25B8";position:absolute;left:0;color:var(--amber)}
+
+  footer{margin-top:60px;padding-top:24px;border-top:2px solid var(--border);
+    color:var(--muted);font-size:12.5px;font-family:"JetBrains Mono",monospace;text-align:center}
+
+  /* ---- responsive ---- */
+  .menu-btn{display:none}
+  @media(max-width:920px){
+    .sidebar{position:fixed;left:0;top:0;z-index:40;transform:translateX(-100%);transition:transform .2s;
+      box-shadow:8px 0 24px rgba(0,0,0,.5)}
+    .sidebar.open{transform:translateX(0)}
+    .main{padding:64px 22px 100px}
+    .hero{padding:26px 22px} .hero h1{font-size:30px}
+    .sec-head h2{font-size:21px} .sec-head .idx{font-size:20px}
+    .menu-btn{display:flex;position:fixed;top:14px;left:14px;z-index:50;
+      font-family:"Pixelify Sans",sans-serif;background:var(--pink);color:#10101a;border:none;
+      padding:8px 14px;border-radius:4px;cursor:pointer;font-size:15px;box-shadow:3px 3px 0 rgba(0,0,0,.4)}
+  }
+</style>
+</head>
+<body>
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,#56d4c4,#ec6a9c);
+  box-shadow:0 0 10px rgba(86,212,196,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-btn" id="menuBtn">&#9776; menü</button>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <h2>BEVY · HACK &amp; SLASH</h2>
+    <div class="sub">// top-down közelharc</div>
+    <nav class="nav" id="nav">
+      <a href="#intro"><span class="num">00</span>Mi az a hack &amp; slash?</a>
+      <a href="#flow"><span class="num">01</span>A harci flow anatómiája</a>
+      <a href="#map"><span class="num">02</span>A feladat-térkép</a>
+      <a href="#move"><span class="num">03</span>Mozgás &amp; irányítás</a>
+      <a href="#attack"><span class="num">04</span>A támadás állapotgép</a>
+      <a href="#hit"><span class="num">05</span>Hitbox &amp; sebzés</a>
+      <a href="#combo"><span class="num">06</span>Combo &amp; input buffer</a>
+      <a href="#ai"><span class="num">07</span>Ellenség-AI</a>
+      <a href="#swarm"><span class="num">08</span>Több ellenség &amp; szerepek</a>
+      <a href="#juice"><span class="num">09</span>Találati visszajelzés</a>
+      <a href="#camera"><span class="num">10</span>Kamera &amp; aréna</a>
+      <a href="#health"><span class="num">11</span>Egészség, halál, egyensúly</a>
+      <a href="#weapons"><span class="num">12</span>Fegyverek &amp; meta</a>
+      <a href="#arch"><span class="num">13</span>Bevy-architektúra</a>
+      <a href="#tips"><span class="num">14</span>Tippek &amp; buktatók</a>
+      <a href="#tldr"><span class="num">15</span>TL;DR</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="hero">
+      <div class="eyebrow">Bevy 0.18 · Rust · top-down akcióharc</div>
+      <h1>Top-down <span class="hl">Hack &amp; slash</span><br>— a harci <span class="hl">flow</span> építése</h1>
+      <p>A <em>hack and slash</em> nem arról szól, hogy <strong>van egy kardod</strong> — hanem arról, hogy a támadás, a találat és az újratámadás egy <strong>folyamatos, ritmusos offenzív cikluská</strong> áll össze, amit a játékos irányít. Ez a lecke azt a gépezetet építi fel Bevy-ben lépésről lépésre: a mozgástól és a támadás állapotgépén át az <em>one-hit-per-swing</em> hitboxig, az ellenség-AI-ig és a juice-ig. Hat interaktív demóval — mindegyik egyetlen, a gyakorlatban is előbukkanó problémát mutat meg, és azt, hogyan oldja meg az ECS. A <a href="bevy-game-juice-tutorial.html">game-juice lecke</a> már megmutatta, <em>milyen</em> legyen egy ütés; ez a lecke azt, hogyan <strong>kódolod</strong> magát a harcot.</p>
+      <div class="chips">
+        <span class="chip">támadás-állapotgép</span>
+        <span class="chip">hitbox / hurtbox</span>
+        <span class="chip">one-hit-per-swing</span>
+        <span class="chip">input buffer + cancel</span>
+        <span class="chip">combo lánc</span>
+        <span class="chip">ellenség state machine</span>
+        <span class="chip">attack roles / turn-taking</span>
+        <span class="chip">EntityEvent sebzés</span>
+      </div>
+    </header>
+
+    <!-- 00 -->
+    <section id="intro">
+      <div class="sec-head"><span class="idx">00</span><h2>Mi az a „hack and slash"?</h2></div>
+      <p>A <strong>hack and slash</strong> (H&amp;S) egy gyors tempójú, <strong>agresszív közelharc</strong>-centrikus akcióműfaj. A játékos fegyveres <em>támadásláncokkal</em> (combo-kkal) és lendülettel söpri le az ellenséghullámokat. A műfaj magja nem a túlélés vagy a fejlődés — hanem az <strong>offenzív flow</strong>: a folyamatos, ritmusos támadás, amit a játékos vezérel, és amit a játék <em>válaszol</em> (találat → visszacsapás → újratámadás). Ha ez a hurok kényelmes, a játék „kattan"; ha nem, darabos és frusztráló lesz.</p>
+      <p>A <strong>top-down</strong> variáns — ami e lecke témája — felülnézetes (vagy enyhén 3/4-es) kamerát jelent, 360°-os mozgást és irányított suhintást. Nincs gravitáció, nincs ugrás, de van irány, lendület és <em>face-elt támadás</em>. Bevy 2D-ben ez a legkompaktabb H&S-forma.</p>
+      <h3>Határok a szomszéd műfajokkal</h3>
+      <p>A „hack and slash" név kétértelmű — mindenki mást ért alatta. Három szomszédhoz viszonyítva tisztul a kép:</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Műfaj</th><th>Kamera / mozgás</th><th>A harc fókusza</th><th>Hová képzeld</th></tr></thead>
+        <tbody>
+          <tr><td>Beat ’em up</td><td>side-scroll, lineáris</td><td>ököl/rúgás, egyszerű brawler-reflex</td><td>Streets of Rage</td></tr>
+          <tr><td>Hack &amp; slash</td><td>top-down / 3D szabad</td><td><strong>fegyveres string + flow</strong></td><td>Diablo (top-down), Hades</td></tr>
+          <tr><td>Musou (Warriors)</td><td>3D nagy csatatér</td><td>1 vs. több száz power-fantasy</td><td>Dynasty Warriors</td></tr>
+          <tr><td>Soulslike</td><td>3D szabad</td><td>defenzív, büntető, blokk/dodge</td><td>Dark Souls</td></tr>
+        </tbody>
+      </table></div>
+      <ul>
+        <li><strong>Beat ’em up vs. H&amp;S:</strong> a beat ’em up bokszolós/rúgós és lineárisan görget; a H&amp;S fókuszál a <em>fegyveres támadásláncra</em> és szabadabb mozgástérre. A top-down H&amp;S a beat ’em up <em>felülnézeti unokája</em>.</li>
+        <li><strong>Musou:</strong> a H&amp;S egy ága, ahol a power-fantasy a <em>mérték</em> (több száz ellenség) — nem a harci finomság. Mechanikailag ugyanaz a találati gépezet, csak skálázva.</li>
+        <li><strong>Soulslike:</strong> a spektrum másik, <em>defenzív</em> végén. Szándékos, büntetés-orientált: a támadás <em>kockázat</em>, a dodge/block a fő eszköz. Kontrasztban tartva érződik, mitől „offenzív" a H&amp;S: ott a támadás a <em>default</em>, a védekezés rituális.</li>
+        <li><strong>Action-RPG / roguelite:</strong> gyakran hordozza a H&amp;S harcot, de <em>progression</em>-re épül — ld. a sorozat <a href="roguelike.html">roguelike</a> és <a href="bevy-roguelite-rendszerek-tutorial.html">roguelite-rendszerek</a> leckéit.</li>
+      </ul>
+      <p>Ez a lecke a H&amp;S <em>harci gépezetére</em> fókuszál (mozgás, támadás, találat, ellenség-AI, juice), nem a progression-re. A fegyver/meta oldalról a <a href="#weapons">12. szakasz</a> ad egy ízt, a teljes rendszert a roguelite-lecke tartja.</p>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: a harci loop — robotos vs. juiceolt</div>
+        <div class="dd">Egy mini-aréna: a kék játékos automatikusan suhint, a piros ellenfelek besétálnak. <strong>Juice KI:</strong> a találat azonnal és némán érkezik — az egész „kattog", ütéseknek nincs súlya. <strong>Juice BE:</strong> ugyanaz a kód, csak rákapcsoljuk a hit-stopot, a screen shake-et, a particle-t és a hitflash-et. A különbség pont a lecke tartalma — a gépezet ugyanaz, a <em>válaszréteg</em> teszi élővé.</div>
+        <canvas id="heroCanvas" width="760" height="380"></canvas>
+        <div class="ctrls">
+          <button id="heroJuice" class="on">juice BE</button>
+          <button id="heroWave">&#8635; új hullám</button>
+        </div>
+      </div>
+      <div class="box note"><span class="lbl">Hol vagyunk a sorozatban?</span><p>Ez a lecke a <a href="bevy-game-juice-tutorial.html">game-juice lecke</a> <strong>technikai párja</strong>. Ott a kérdés az volt, <em>milyen</em> legyen egy top-down ütés (gyorsulás, squish, hit-stop, buffer) — a <em>hangulata</em>. Itt a kérdés az, hogyan <strong>építsd fel magát a harcot</strong>: az állapotgépet, a hitboxot, az ellenség-AI-t, a combo-láncot. A két lecke egymást érleli: a juice egy <em>réteg</em>, ami egy már működő harcrendszerre van rakva. Az ütközésekhez a <a href="bevy-2d-utkozesek-tutorial.html">2D ütközések</a>, az üldözéshez a <a href="bevy-pathfinding-tutorial.html">pathfinding</a>, az animációkhoz a <a href="bevy-animaciok-tutorial.html">animációk</a> lecke.</p></div>
+    </section>
+
+    <!-- 01 -->
+    <section id="flow">
+      <div class="sec-head"><span class="idx">01</span><h2>A harci flow anatómiája</h2></div>
+      <p>Mielőtt kódolunk, nevezzük meg a <em>ciklust</em>, amit építünk. Egy H&amp;S ütés nem egyetlen esemény — ez a négy lépés ismétlődik, és a játék akkor érzi jónak, ha ezek <strong>zökkenőmentesen fűződnek</strong>:</p>
+      <ol>
+        <li><strong>Megközelítés / pozicionálás.</strong> A játékos mozgással a hatótávolságba kerül. A mozgásnak <em>lendületes</em> kell legyen (gyorsulás, súrlódás), és a <em>facing</em> irány megadja, merre suhint.</li>
+        <li><strong>Commit (elkötelezés).</strong> A játékos megnyomja a támadógombot → a karakter <em>windup</em>-ba lép. Ettől a pillanattól a mozgás <em>lelassul vagy megáll</em> — a támadásnak ára van. Ez a „commitment" adja a súlyt.</li>
+        <li><strong>Active frame + találat.</strong> Rövid időre a fegyver <em>aktív</em>: a hitbox ilyenkor él, és a játék <em>válaszol</em> — sebzés, knockback, juice (hit-stop, shake). A ritmus itt jön össze.</li>
+        <li><strong>Recovery + újratámadás.</strong> A karakter <em>recovey</em>-be kerül (készenlét nélkül). Itt dől el a flow: ha az input <strong>pufferelve</strong> van, és a recovery <strong>cancel-ablakában</strong> vagyunk, a következő ütés <em>azonnal</em> láncolódik → combo. Ha nem, a karakter visszakerül <code class="inl">Idle</code>-ba.</li>
+      </ol>
+      <p>A flow <strong>érzete</strong> nem egy trükkön múlik, hanem azon, hogy ez a négy lépés <em>szoros</em> és <em>kiszámítható</em>. A játékosnak éreznie kell: „ha most megnyomom, belevág" — vagyis az <strong>input késleltetése minimális</strong> (buffer + leniency), és a <strong>commit elég rövid</strong>, hogy ne érezze büntetésnek. A soulslike ezt direkt hosszúra és büntetőre veszi; a H&amp;S rövidre és megbocsátóra.</p>
+      <div class="box note"><span class="lbl">A flow = juice + gépezet</span><p>A flow nem a juice. A hit-stop, a screen shake és a squish a <em>válaszréteg</em> — nélkülük a gépezet is működik, csak „nem kattan". A flow a <strong>kettő együtt</strong>: egy megengedő, jól időzített gépezet (commit + buffer + combo) <em>plusz</em> egy súlyos válaszréteg. Ezért van az, hogy a lecke fele a gépezetről (03–08), fele a válaszról (09) szól — és a <a href="bevy-game-juice-tutorial.html">juice-leckét</a> végig párhuzamosan olvasod.</p></div>
+    </section>
+
+    <!-- 02 -->
+    <section id="map">
+      <div class="sec-head"><span class="idx">02</span><h2>A feladat-térkép</h2></div>
+      <p>Egy H&amp;S sok alrendszerből áll. A táblázat összefoglalja, <em>mi</em> a feladat, és Bevy-ben <em>milyen eszköz</em> oldja meg — a későbbi szakaszok ezeket bontják ki. A sorrend is szándékos: az alábbi sorrendben érdemes építeni, mert minden lépés az előzőre épül.</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Rendszer</th><th>A feladat</th><th>Bevy eszköz</th><th>Szakasz</th></tr></thead>
+        <tbody>
+          <tr><td>Mozgás</td><td>irányított mozgás, lendület, dash, facing</td><td><code class="inl">Component</code> + <code class="inl">Update</code> rendszer</td><td><a href="#move">03</a></td></tr>
+          <tr><td>Támadás</td><td>windup/active/recovery állapotgép, időzítés</td><td>enum state + <code class="inl">Timer</code></td><td><a href="#attack">04</a></td></tr>
+          <tr><td>Találat</td><td>hitbox↔hurtbox átfedés, one-hit-per-swing</td><td>átmeneti entitás + <code class="inl">Aabb2d</code></td><td><a href="#hit">05</a></td></tr>
+          <tr><td>Sebzés</td><td>HP-csökkentés, knockback, hitstun</td><td><code class="inl">EntityEvent</code> + <code class="inl">Observer</code></td><td><a href="#hit">05</a></td></tr>
+          <tr><td>Combo</td><td>támadáslánc, input puffer, cancel</td><td><code class="inl">VecDeque</code> buffer + fázis-ablak</td><td><a href="#combo">06</a></td></tr>
+          <tr><td>Ellenség-AI</td><td>idle/chase/attack, üldözés, aggro</td><td>state machine rendszer</td><td><a href="#ai">07</a></td></tr>
+          <tr><td>Több ellenség</td><td>attack roles, spawn, hullám, performancia</td><td>role komponens + spatial szűrés</td><td><a href="#swarm">08</a></td></tr>
+          <tr><td>Juice</td><td>hit-stop, shake, particle, hitflash</td><td><code class="inl">Time&lt;Virtual&gt;</code> + <code class="inl">Resource</code></td><td><a href="#juice">09</a></td></tr>
+          <tr><td>Kamera</td><td>follow, framing, shake offset</td><td><code class="inl">Camera2d</code> rendszer</td><td><a href="#camera">10</a></td></tr>
+          <tr><td>Egészség</td><td>HP, i-frames, halál, egyensúly</td><td><code class="inl">Component</code> + <code class="inl">States</code></td><td><a href="#health">11</a></td></tr>
+          <tr><td>Fegyver/meta</td><td>data-driven statok, modifier, unlock</td><td><code class="inl">Resource</code>/<code class="inl">Asset</code></td><td><a href="#weapons">12</a></td></tr>
+          <tr><td>Architektúra</td><td>plugin-felosztás, state, mentés</td><td><code class="inl">Plugin</code> + <code class="inl">States</code></td><td><a href="#arch">13</a></td></tr>
+        </tbody>
+      </table></div>
+      <div class="box tip"><span class="lbl">Az ECS-szabály, ami mindvégig él</span><p>A harci logika <strong>sose</strong> egyetlen „karakter" actor-ban legyen — hanem apró, fókuszált komponensekre bontva: <code class="inl">MoveController</code>, <code class="inl">AttackController</code>, <code class="inl">Health</code>, <code class="inl">Hurtbox</code>, <code class="inl">InputBuffer</code>. Így egy rendszercsoport cserélhető (pl. a juice kikapcsolható) a többi érintése nélkül, és az ellenség <em>ugyanezeket</em> a komponenseket használja, mint a játékos — csak más <code class="inl">InputBuffer</code>-rel (AI helyetti). Ezt az elvet végigkövetjük.</p></div>
+    </section>
+
+    <!-- 03 -->
+    <section id="move">
+      <div class="sec-head"><span class="idx">03</span><h2>Top-down mozgás &amp; irányítás</h2></div>
+      <p>A mozgás a flow <em>első</em> láncszeme — és a legjobb hír az, hogy a sorozat már kétszer is felépítette. A <a href="bevy-game-juice-tutorial.html#move">game-juice lecke 01. szakasza</a> a gyorsulás/súrlódás top-down adaptációját, a <a href="bevy-2d-utkozesek-tutorial.html">2D ütközések lecke</a> pedig az integrálás-ütközés elválasztását mutatta. Itt csak a H&amp;S-specifikus kiegészítéseket tesszük hozzá: a <strong>facing</strong> (mert a suhintás irányított) és a <strong>dash</strong> (mert az eváziónak is kötelező eleme a műfajnak).</p>
+      <pre><code class="rust">use bevy::prelude::*;
+
+#[derive(Component)] struct Player;
+
+#[derive(Component)]
+struct MoveController {
+    max_speed: f32,
+    accel: f32,       // gyorsulás (px/s^2) — nem azonnali max
+    friction: f32,    // 0..1: ennyi marad a sebességből 1 s alatt
+    facing: Vec2,     // utolsó irány — a támadás e felé indul (04)
+}
+
+#[derive(Component, Default)]
+struct Velocity(Vec2);
+
+fn player_move(
+    keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    time: Res&lt;Time&gt;,
+    mut q: Query&lt;(&amp;mut Transform, &amp;mut Velocity, &amp;mut MoveController), With&lt;Player&gt;&gt;,
+) {
+    let dt = time.delta_secs();
+    let Ok((mut tf, mut vel, mut mc)) = q.single_mut() else { return; };
+
+    // 1 · irányvektor az inputból (analóg-szerű, 8 irány, normalizálva)
+    let mut dir = Vec2::ZERO;
+    if keys.pressed(KeyCode::KeyW) { dir.y += 1.0; }
+    if keys.pressed(KeyCode::KeyS) { dir.y -= 1.0; }
+    if keys.pressed(KeyCode::KeyA) { dir.x -= 1.0; }
+    if keys.pressed(KeyCode::KeyD) { dir.x += 1.0; }
+    if dir != Vec2::ZERO {
+        dir = dir.normalize();
+        mc.facing = dir;                       // ← a támadás e felé megy
+        vel.0 += dir * mc.accel * dt;          // gyorsulás, nem azonnali
+        if vel.0.length() &gt; mc.max_speed {
+            vel.0 = vel.0.normalize() * mc.max_speed;
+        }
+    } else {
+        // 2 · súrlódás: exponenciális, frame-rate független
+        let decay = mc.friction.powf(dt);
+        vel.0 *= decay;
+        if vel.0.length() &lt; 1.0 { vel.0 = Vec2::ZERO; }
+    }
+
+    // 3 · csak az integrálás itt — az ütközést KÜLÖN rendszer (ld. 2d-utkozesek)
+    tf.translation.x += vel.0.x * dt;
+    tf.translation.y += vel.0.y * dt;
+}</code></pre>
+      <p>A <strong>dash</strong> a mozgás fölé rakott rövid, nagy sebességű „kitörés", sebezhetetlenségi (<em>i-frame</em>) ablakkal — ez a H&amp;S egyetlen defenzív mozdulata, ami nem büntető (ellentétben a soulslike dodge-cal). A gombnyomást <strong>pufferezzük</strong>: ha cooldown alatt nyomod, a rendszer megjegyzi, és amint lejár, azonnal elsüti — ez a <em>leniency</em>.</p>
+      <pre><code class="rust">#[derive(Component)]
+struct DashController {
+    cooldown: Timer,
+    duration: Timer,
+    i_frames: Timer,
+    buffer: Option&lt;Timer&gt;,     // pufferelt gombnyomás élettartama
+    buffer_window: f32,         // pl. 0.15 = 150 ms
+    speed_mult: f32,            // dash alatti sebességszorzó
+}
+
+fn dash_input(
+    keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    time: Res&lt;Time&gt;,
+    mut q: Query&lt;(&amp;MoveController, &amp;mut DashController, &amp;mut Velocity), With&lt;Player&gt;&gt;,
+) {
+    let dt = time.delta_secs();
+    let Ok((mc, mut d, mut vel)) = q.single_mut() else { return; };
+    d.cooldown.tick(dt); d.duration.tick(dt); d.i_frames.tick(dt);
+
+    // puffer: megnyomás -> eltároljuk (akár cooldown alatt is)
+    if keys.just_pressed(KeyCode::Space) {
+        d.buffer = Some(Timer::from_seconds(d.buffer_window, TimerMode::Once));
+    }
+    if let Some(b) = &amp;mut d.buffer { b.tick(dt); if b.finished() { d.buffer = None; } }
+
+    // pufferelt gomb érvényesítése, amint LEJÁRT a cooldown ÉS nem dashelünk
+    if d.buffer.is_some() &amp;&amp; d.cooldown.finished() &amp;&amp; d.duration.finished() {
+        d.duration  = Timer::from_seconds(0.18, TimerMode::Once);
+        d.cooldown  = Timer::from_seconds(0.60, TimerMode::Once);
+        d.i_frames  = Timer::from_seconds(0.12, TimerMode::Once);
+        d.buffer    = None;
+    }
+
+    // a dash felülírja a normál sebességet a facing irányba
+    if !d.duration.finished() {
+        vel.0 = mc.facing * mc.max_speed * d.speed_mult;
+    }
+}</code></pre>
+      <div class="box tip"><span class="lbl">Az input buffer nem csak dash-hez</span><p>A puffer itt a dash-nél jelenik meg először, de ez a minta a <strong>combo</strong> (06) gerince is. Ugyanaz az elv: a gombnyomást megőrzöd egy rövid ablakig, és a megfelelő pillanatban érvényesíted — hogy a játékos sose érezze, hogy „elfelejtette" a játék a gombot. Részletesebb kifejtés: <a href="bevy-game-juice-tutorial.html#buffer">game-juice 06</a>.</p></div>
+    </section>
+
+    <!-- 04 -->
+    <section id="attack">
+      <div class="sec-head"><span class="idx">04</span><h2>A támadás mint állapotgép</h2></div>
+      <p>Egy suhintás <strong>négy állapot</strong> közötti átalakulás, nem egyetlen <code class="inl">if attack</code>. Az állapotok és a köztük lévő időzítés adja a <em>commit</em>-ot és a ritmust:</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Állapot</th><th>Történik</th><th>Hitbox él?</th><th>Mozgás?</th></tr></thead>
+        <tbody>
+          <tr><td>Idle</td><td>készenlét, input fogadása</td><td>—</td><td>szabad</td></tr>
+          <tr><td>Windup</td><td>telegrafálás (kard feljön)</td><td>nem</td><td>lelassul</td></tr>
+          <tr><td>Active</td><td>a fegyver suhint — itt üt</td><td><strong>igen</strong></td><td>lassú / megáll</td></tr>
+          <tr><td>Recovery</td><td>visszahúzás — <em>cancel-ablak</em> itt van</td><td>nem</td><td>visszatér</td></tr>
+        </tbody>
+      </table></div>
+      <p>Az időzítést érdemes <strong>adatból</strong> venni, nem hardcode-olni — így fegyverenként (12) más ritmust kapsz: egy tőr rövid active-ot, egy csatabárd hosszú windupot és nagy sebzést. A state-et egy <code class="inl">Timer</code> lépteti; a fázisváltás a lejártakor történik.</p>
+      <pre><code class="rust">#[derive(Clone, Copy, PartialEq, Default)]
+enum AttackState {
+    #[default] Idle,
+    Windup,
+    Active,    // ekkor él a hitbox (05)
+    Recovery,  // a cancel-ablak vége felé nyílik (06)
+}
+
+#[derive(Component)]
+struct AttackController {
+    state: AttackState,
+    phase: Timer,                 // az aktuális fázis hátraléte
+    timings: (f32, f32, f32),     // windup / active / recovery (s)
+    combo_step: usize,
+    combo_len: usize,
+    hitbox: Option&lt;Entity&gt;,       // az aktív-frame hitbox entitása
+    hit_set: Vec&lt;Entity&gt;,         // ezen swing alatt már találtak (05)
+}
+
+fn attack_tick(
+    time: Res&lt;Time&gt;,
+    mut q: Query&lt;&amp;mut AttackController&gt;,
+) {
+    let dt = time.delta_secs();
+    for mut a in &amp;mut q {
+        if matches!(a.state, AttackState::Idle) { continue; }
+        a.phase.tick(dt);
+        if !a.phase.finished() { continue; }
+
+        // fázisváltás a lejárt pillanatában
+        let (w, act, rec) = a.timings;
+        a.state = match a.state {
+            AttackState::Windup   =&gt; { a.phase = Timer::from_seconds(act, TimerMode::Once); AttackState::Active }
+            AttackState::Active   =&gt; { a.phase = Timer::from_seconds(rec, TimerMode::Once); AttackState::Recovery }
+            AttackState::Recovery =&gt; { a.combo_step = 0; a.hit_set.clear(); AttackState::Idle }
+            AttackState::Idle     =&gt; AttackState::Idle,
+        };
+    }
+}</code></pre>
+      <div class="box warn"><span class="lbl">A „spawn on enter" csapda</span><p>A hitboxot <strong>pontosan az Active-ba lépéskor</strong> spawnold (és a Recovery-be lépéskor tüntesd el) — ne minden frame-ben, amíg Active vagy! Ez utóbbi az „örökké élő hitbox", ami minden frame-ben újra üt. Az <code class="inl">hit_set</code> (05) ezt <em>plusz</em> védi, de az elején legyen helyes a logika: egy suhintás = egy hitbox-entitás, meghatározott élettartammal.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: a támadás fázisai + input buffer</div>
+        <div class="dd">A vízszintes sáv az aktuális suhintás négy fázisát mutatja (sárga=windup, piros=active, kék=recovery). A sáv végén a <strong>zöld</strong> sáv a <em>cancel-ablak</em>: ha itt nyomod újra az ütést (vagy előtte pufferelted), a következő suhintás <strong>azonnal láncolódik</strong> — combo +1. A playhead valós időben halad. Nyomják a <em>ÜSS</em> gombot többször, akár a recovery előtt is (puffer teszt).</div>
+        <canvas id="phaseCanvas" width="760" height="200"></canvas>
+        <div class="ctrls">
+          <button id="phaseSwing">ÜSS (J)</button>
+          <span class="sep">|</span>
+          <span style="color:var(--amber)">windup</span>
+          <span style="color:var(--red)">active</span>
+          <span style="color:#56a0d4">recovery</span>
+          <span style="color:var(--green)">cancel / buffer</span>
+        </div>
+        <div class="readout">
+          <div><b>fázis</b><span id="phaseState">IDLE</span></div>
+          <div><b>combo</b><span id="phaseCombo">0</span></div>
+          <div><b>puffer</b><span id="phaseBuf">—</span></div>
+        </div>
+      </div>
+      <div class="box note"><span class="lbl">Animáció-driven timing</span><p>Élesben az active-frame-eket <em>az animációból</em> veszed, nem egy <code class="inl">(f32,f32,f32)</code> tuple-ből: az <a href="bevy-animaciok-tutorial.html">animációk lecke</a> állapotgépe egy-egy animációs állapothoz köti a fázisokat, és az animációs események (marker frame-ek) váltják a hitboxot. Itt a letisztult <code class="inl">Timer</code>-s verziót látod, mert a <em>gepezet</em> a lényeg — az animáció csak az időzítés forrása.</p></div>
+    </section>
+
+    <!-- 05 -->
+    <section id="hit">
+      <div class="sec-head"><span class="idx">05</span><h2>Hitbox, találat &amp; sebzés</h2></div>
+      <p>Ez a lecke technikai szíve. Két térrészt különítünk el — a különbség kritikus, mert a buktatók nagy része innen jön:</p>
+      <ul>
+        <li><strong>Hitbox</strong> — a <em>sebző</em> térrész. Ez a fegyver aktív frame-jében él, és <em>átmeneti entitás</em>: az Active-ba lépéskor spawnolódik, a Recovery-be lépéskor megszűnik.</li>
+        <li><strong>Hurtbox</strong> — a <em>sebzhető</em> térrész. Ez állandó, minden sérülhető entitáson (játékos, ellenség) rajta van: egy <code class="inl">Collider</code> + egy <code class="inl">Health</code>.</li>
+      </ul>
+      <p>A találat tehát egy <strong>átmeneti hitbox-entitás</strong> és a <strong>hurtboxok</strong> közti átfedés-teszt. Az ütközésdetektálás a <a href="bevy-2d-utkozesek-tutorial.html">2D ütközések lecke</a> <code class="inl">Aabb2d</code>/<code class="inl">BoundingCircle</code> eszköztárával megy — csak most <em>szenzorként</em> (nem toljuk szét, hanem jelezünk).</p>
+      <h3>Az „one-hit-per-swing" szabály</h3>
+      <p>A leggyakoribb bug: egyetlen suhintás <em>többször</em> sebzi ugyanazt az ellenséget (mert az átfedés minden frame-ben igaz, amíg a hitbox él). A megoldás egyetlen <code class="inl">Vec</code>: a hitbox <em>emlékszik</em>, kit ütött már ezen a swing alatt, és azt kihagyja. A <code class="inl">hit_set</code> a swing végén ürül.</p>
+      <pre><code class="rust">use bevy::math::bounding::{Aabb2d, BoundingCircle, IntersectsVolume};
+
+/// A sebző hitbox: rövid életű, az active frame-ben él.
+#[derive(Component)]
+struct AttackHitbox {
+    source: Entity,       // ki üt (aggro, statisztika)
+    damage: u32,
+    knockback: f32,
+    facing: Vec2,
+    half: Vec2,           // AABB fél-méret, a facing irányba offsetelve
+    hit: Vec&lt;Entity&gt;,     // ← one-hit-per-swing: kit talált már
+}
+
+/// A sebzhető térrész — állandó, a sérülhető entitásokon.
+#[derive(Component)] struct Hurtbox { radius: f32 }
+#[derive(Component)] struct Health { current: u32, max: u32 }
+
+fn hitbox_overlap(
+    mut hitboxes: Query&lt;(&amp;mut AttackHitbox, &amp;Transform), Without&lt;Enemy&gt;&gt;,
+    mut hurt: Query&lt;(Entity, &amp;Transform, &amp;mut Health, &amp;Hurtbox), With&lt;Enemy&gt;&gt;,
+    mut commands: Commands,
+) {
+    for (mut hb, hb_tf) in &amp;mut hitboxes {
+        let a = Aabb2d::new(hb_tf.translation.truncate(), hb.half);
+        for (e, tf, _hp, h) in &amp;mut hurt {
+            if hb.hit.contains(&amp;e) { continue; }            // ← a szabály!
+            let b = BoundingCircle::new(tf.translation.truncate(), h.radius);
+            if a.intersects(&amp;b) {
+                hb.hit.push(e);                              // megjegyezzük
+                // találat: EntityEvent a célnak — az observer azonnal dolgozza fel
+                commands.trigger(TakeDamage {
+                    entity: e,
+                    amount: hb.damage,
+                    knockback: hb.facing * hb.knockback,
+                    source: hb.source,
+                });
+            }
+        }
+    }
+}</code></pre>
+      <h3>A sebzés mint EntityEvent + observer</h3>
+      <p>A sebzést <strong>eseményként</strong> küldjük a célpontnak, nem közvetlenül módosítjuk a <code class="inl">Health</code>-et. Miért? Mert a találat <em>válasza</em> sok mindent érint: HP, knockback (sebesség), hitstun, hitflash, juice — és ezeket külön, <em>reaktívan</em> akarjuk kezelni. Az <code class="inl">EntityEvent</code> + <code class="inl">Observer</code> pont ezt adja: a <code class="inl">TakeDamage</code> egy célpontnak szól, és az observer azonnal lefut. (Az API a <a href="bevy-observerek-tutorial.html">observerek lecke</a> részletezte <code class="inl">On&lt;E&gt;</code> / <code class="inl">EntityEvent</code> mintája.)</p>
+      <pre><code class="rust">/// Entitás-esemény: pontosan egy célpontnak szól.
+/// A `entity` mezőt a derive automatikusan a célpontnak tekinti.
+#[derive(EntityEvent)]
+struct TakeDamage {
+    entity: Entity,
+    amount: u32,
+    knockback: Vec2,
+    source: Entity,
+}
+
+/// Az observer: bármilyen TakeDamage azonnal ide fut.
+fn on_take_damage(
+    ev: On&lt;TakeDamage&gt;,
+    mut q: Query&lt;(&amp;mut Health, &amp;mut Velocity, &amp;mut Hitstun, &amp;mut Hitflash)&gt;,
+    mut commands: Commands,
+) {
+    let Ok((mut hp, mut vel, mut stun, mut flash)) = q.get_mut(ev.entity) else { return; };
+    hp.current = hp.current.saturating_sub(ev.amount);
+    vel.0 += ev.knockback;                                  // knockback a sebességhez
+    stun.0 = Timer::from_seconds(0.25, TimerMode::Once);     // hitstun
+    flash.0 = 0.12;                                          // hitflash időtartam
+    // juice — ld. 09. szakasz (a juice is eseményből indul)
+    commands.trigger(HitStopEvent { duration: 0.06, speed: 0.0 });
+    if hp.current == 0 {
+        commands.entity(ev.entity).trigger(Died { entity: ev.entity });
+    }
+}
+
+// regisztrálás (a pluginban, ld. 13):
+// app.add_observer(on_take_damage);</code></pre>
+      <div class="box tip"><span class="lbl">Event vs. közvetlen mutáció</span><p>Mielőtt kérdeznéd: a <code class="inl">hitbox_overlap</code> rendszer <em>is</em> láthatná a <code class="inl">Health</code>-et és módosíthatná. Az <code class="inl">EntityEvent</code> mégis jobb, mert (1) a <em>több</em> sebzésforrás (játékos kard, csapda, környezeti sebzés) ugyanazt az utat jári; (2) a válasz (knockback, stun, juice, halál) egy helyen van, nem szétszórva; (3) az observer <em>később</em> bővíthető (pl. pajzs-szűrés, sebzés-immunitás) a küldő átírása nélkül. Ezt az <a href="bevy-uzenetek-tutorial.html">üzenetek</a> és <a href="bevy-observerek-tutorial.html">observerek</a> leckék is így tanítják.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: hitbox vs. hurtbox — az „one-hit" szabály</div>
+        <div class="dd">A játékos (kék) körbeforgatja a kardját (a pirosív = a hitbox). Körülötte ellenfelek (piros). <strong>Szabály BE:</strong> minden ellenfél suhintásonként <em>egyszer</em> villan fel (a <code class="inl">hit</code> lista megakadályozza az újraütést). <strong>Szabály KI:</strong> a hitbox minden frame-ben újra üt, amin átfed — az ellenfelek <em>villámnyom</em> > effektet kapnak, és a swing-számláló elszáll (a klasszikus bug).</div>
+        <canvas id="hitCanvas" width="760" height="340"></canvas>
+        <div class="ctrls">
+          <button id="hitRule" class="on">one-hit-per-swing BE</button>
+          <button id="hitSwingBtn">&#8635; forgatás</button>
+          <span class="sep">|</span>
+          <label>sebesség: <input type="range" id="hitSpeed" min="20" max="160" value="70"><span class="val" id="hitSpeedVal">70</span></label>
+        </div>
+        <div class="readout">
+          <div><b>találat / swing</b><span id="hitCount">0</span></div>
+          <div><b>flash-ek összesen</b><span id="hitFlashes">0</span></div>
+        </div>
+      </div>
+      <div class="box note"><span class="lbl">Swept hitbox gyors fegyvereknél</span><p>Ha a fegyver nagyon gyors (vagy az FPS nagyon alacsony), az <code class="inl">Aabb2d</code> pillanatnyi átfedése <em>átugorhat</em> egy kis ellenfelet (tunneling). Erre a <a href="bevy-2d-utkozesek-tutorial.html#ccd">2D ütközések lecke CCD szakasza</a> a <code class="inl">RayCast2d</code>-ot mutatja: a hitboxot a <em>frame közi útja</em> mentén tesszük fel (swept), nem csak a végső pozícióban. Tanuló-játéknál a sima átfedés elég; gyors/projectile-szerű fegyvereknél kapcsolj CCD-t.</p></div>
+    </section>
+
+    <!-- 06 -->
+    <section id="combo">
+      <div class="sec-head"><span class="idx">06</span><h2>Combo &amp; input buffer</h2></div>
+      <p>A combo nem varázslat — csak a 04-es állapotgép + egy <strong>input puffer</strong> + egy <strong>cancel-ablak</strong>. A játékos „üsd meg j, j, j"-re háromszor suhintson, akkor is, ha a második gombnyomás a windup közepén érkezik. Ehhez két dolog kell:</p>
+      <ul>
+        <li><strong>Input buffer:</strong> a gombnyomást megőrzöd rövid ideig (pl. 150 ms), és a megfelelő pillanatban érvényesíted — hogy a játékos sose érezze, hogy „eltűnt" a gomb.</li>
+        <li><strong>Cancel-ablak:</strong> a recovery vége felé egy rövid szakaszban a következő ütés <em>megszakítja</em> a recovery-t és új windup-ba lép. Ezen kívül a gombnyomás csak pufferelődik (vagy eldobódik).</li>
+      </ul>
+      <pre><code class="rust">use bevy::utils::VecDeque;
+
+#[derive(Clone, Copy, PartialEq)]
+enum Action { Attack, Dash }
+
+#[derive(Clone)]
+struct BufferedAction { action: Action, remaining: f32 }
+
+/// A puffer: egy rövid életű, FIFO sor a gombnyomásoknak.
+#[derive(Component)]
+struct InputBuffer {
+    queue: VecDeque&lt;BufferedAction&gt;,
+    window: f32,            // mennyi ideig él egy pufferelt akció (s)
+}
+
+fn buffer_input(
+    keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+    time: Res&lt;Time&gt;,
+    mut q: Query&lt;&amp;mut InputBuffer, With&lt;Player&gt;&gt;,
+) {
+    let dt = time.delta_secs();
+    let Ok(mut buf) = q.single_mut() else { return; };
+
+    // 1 · lejárt pufferelt akciók kidobása
+    for a in &amp;mut buf.queue { a.remaining -= dt; }
+    buf.queue.retain(|a| a.remaining &gt; 0.0);
+
+    // 2 · új gombnyomás -> sor végére (a window a TTL)
+    if keys.just_pressed(KeyCode::KeyJ) {
+        buf.queue.push_back(BufferedAction { action: Action::Attack, remaining: buf.window });
+    }
+}
+
+/// A combo: ha van pufferelt ütés, ÉS a recovery cancel-ablakában vagyunk,
+/// új windup-ba lépünk, a combo léptetődik. Ez az egyetlen hely, ahol
+/// az AttackState-et 'kívülről' megelőlegezzük.
+fn combo_consume(
+    mut q: Query&lt;&amp;mut AttackController, With&lt;InputBuffer&gt;&gt;,
+    mut buf_q: Query&lt;&amp;mut InputBuffer&gt;,
+) {
+    let Ok(mut buf) = buf_q.single_mut() else { return; };
+    let Ok(mut a) = q.single_mut() else { return; };
+
+    let in_cancel_window = matches!(a.state, AttackState::Recovery)
+        &amp;&amp; a.phase.fraction() &gt; 0.6;        // recovery utolsó 40%-a
+
+    let can_start = matches!(a.state, AttackState::Idle) || in_cancel_window;
+
+    // a legidősebb pufferelt ütést vesszük elő
+    if can_start {
+        if let Some(ba) = buf.queue.iter().find(|a| a.action == Action::Attack) {
+            let _ = ba;
+            let (w, act, rec) = a.timings;
+            a.state = AttackState::Windup;
+            a.phase = Timer::from_seconds(w, TimerMode::Once);
+            a.combo_step = (a.combo_step + 1).min(a.combo_len);   // lánc léptet
+            a.hit_set.clear();
+            buf.queue.retain(|x| x.action != Action::Attack);      // elfogyott
+        }
+    }
+}</code></pre>
+      <div class="box warn"><span class="lbl">A „lenyomva tartott gomb" bug</span><p>A puffer <code class="inl">just_pressed</code>-re töltődik — nem <code class="inl">pressed</code>-re! Ha <code class="inl">pressed</code>-et használsz, a gomb lenyomva tartása minden frame-ben új akciót tölt a pufferbe, és a combo <em>végtelen</em> lesz (a játékos csak tartja a gombot). A <code class="inl">just_pressed</code> pontosan egy akciót ad egy gombnyomásra. Ugyanez okból a dash-nél is.</p></div>
+      <div class="box note"><span class="lbl">A puffer mérete és a „leniency"</span><p>A <code class="inl">window</code> a <em>türelem</em> mértéke. Túl rövid (50 ms) → „elfelejtette a gombot", darabos. Túl hosszú (400 ms) → a játékos akaratlanul is láncol, „egy ütésből három lesz". A H&amp;S aranyközepe ~120–180 ms. Ezt a beállítást a <a href="bevy-game-juice-tutorial.html#buffer">game-juice 06</a> részletesen körbejárja; itt csak az implementációt adjuk meg.</p></div>
+    </section>
+
+    <!-- 07 -->
+    <section id="ai">
+      <div class="sec-head"><span class="idx">07</span><h2>Ellenség-AI: állapotgép &amp; üldözés</h2></div>
+      <p>Az ellenség pontosan ugyanazt az <em>állapotgépet</em> használja, mint a játékos támadása (04) — csak az <code class="inl">InputBuffer</code>-t nem a gomb, hanem egy <strong>AI-rendszer</strong> tölti. Ez az ECS-szabály (02) legfontosabb hozadéka: a játékos és az ellenség <em>azonos</em> harci komponensekből épül, csak az input forrása más. Ezt a gondolatot a <a href="roguelike.html#ai">roguelike lecke AI-szakasza</a> is hangsúlyozza („ugyanazok a szabályok").</p>
+      <pre><code class="rust">#[derive(Clone, Copy, PartialEq, Default)]
+enum EnemyState {
+    #[default] Idle,        // vár / kóborol
+    Chase,                  // játékos felé megy (detect_range-on belül)
+    AttackWindup,           // telegrafál (ugyanaz a windup, mint a játékosé!)
+    AttackActive,           // a hitbox él
+    Recover,
+    Hurt,                   // hitstun alatt — nem cselekszik
+    Dead,
+}
+
+#[derive(Component)]
+struct EnemyAi {
+    state: EnemyState,
+    attack_cd: Timer,       // támadások közt minimum idő
+    detect_range: f32,      // e távnál közelebb → Chase
+    attack_range: f32,      // e távnál közelebb → támad
+    forget_range: f32,      // e távnál távolabb → Idle (ne kövessen a végtelenségig)
+    speed: f32,
+    phase: Timer,
+    facing: Vec2,
+}
+
+fn enemy_ai(
+    time: Res&lt;Time&gt;,
+    player: Query&lt;&amp;Transform, With&lt;Player&gt;&gt;,
+    mut enemies: Query&lt;(&amp;mut Transform, &amp;mut Velocity, &amp;mut EnemyAi), Without&lt;Player&gt;&gt;,
+) {
+    let dt = time.delta_secs();
+    let Ok(ptf) = player.single() else { return; };
+    let target = ptf.translation.truncate();
+
+    for (mut tf, mut vel, mut ai) in &amp;mut enemies {
+        if matches!(ai.state, EnemyState::Dead | EnemyState::Hurt) {
+            vel.0 *= 0.8; continue;            // stun alatt fékezzünk csak
+        }
+        ai.attack_cd.tick(dt);
+        ai.phase.tick(dt);
+
+        let to = target - tf.translation.truncate();
+        let dist = to.length();
+        if dist &gt; 0.01 { ai.facing = to.normalize(); }
+
+        // a döntés: csak az Idle/Chase átmeneteket írjuk, a támadó fázisokat
+        // a phase timer lépteti (mint a 04-es AttackController).
+        ai.state = match ai.state {
+            EnemyState::Idle =&gt; if dist &lt; ai.detect_range { EnemyState::Chase } else { EnemyState::Idle },
+            EnemyState::Chase =&gt; {
+                if dist &gt; ai.forget_range           { EnemyState::Idle }
+                else if dist &lt;= ai.attack_range &amp;&amp; ai.attack_cd.finished() {
+                    ai.phase = Timer::from_seconds(0.35, TimerMode::Once);
+                    EnemyState::AttackWindup
+                } else { EnemyState::Chase }
+            }
+            EnemyState::AttackWindup =&gt; if ai.phase.finished() {
+                ai.phase = Timer::from_seconds(0.15, TimerMode::Once); EnemyState::AttackActive
+            } else { EnemyState::AttackWindup },
+            EnemyState::AttackActive =&gt; if ai.phase.finished() {
+                ai.attack_cd = Timer::from_seconds(0.9, TimerMode::Once); // turn-taking (08)
+                ai.phase = Timer::from_seconds(0.3, TimerMode::Once); EnemyState::Recover
+            } else { EnemyState::AttackActive },
+            EnemyState::Recover =&gt; if ai.phase.finished() { EnemyState::Chase } else { EnemyState::Recover },
+            _ =&gt; ai.state,
+        };
+
+        // mozgás: csak Chase-ben közelít, különben fékez
+        if matches!(ai.state, EnemyState::Chase) {
+            vel.0 = ai.facing * ai.speed;
+        } else {
+            vel.0 *= 0.85;
+        }
+        tf.translation.x += vel.0.x * dt;
+        tf.translation.y += vel.0.y * dt;
+    }
+}</code></pre>
+      <div class="box tip"><span class="lbl">A „forget_range" — ne legyen ragacsos</span><p>A <code class="inl">forget_range</code> fontosabb, mint elsőre tűnik. Ha az ellenség egyszer meglát, és a végtelenségig követ, a játékos sosem tud „lerázni" egy harcot — az egész aréna végig nyomott marad. A <code class="inl">forget_range &gt; detect_range</code> hysteresis: közelebb lát, távolabb elfelejt. Ez egyszerű, de a játék <em>ritmusát</em> adja (be-harcolok, kimegyek, rendbe jövök).</p></div>
+      <div class="box note"><span class="lbl">Üldözés: seek vagy A*?</span><p>A fenti kód egy egyszerű <strong>seek</strong> (egyenesen a játékos felé). Akadályos pályán ez megakad a falnál. Ott a <a href="bevy-pathfinding-tutorial.html#ch11">pathfinding lecke üldözés-szakasza</a> az A*-os megközelítést mutatja: az ellenség a játékos celláját keresi, és a célját lépésről lépésre frissíti. Tanuló-arénában (kevés akadály) a seek elég; labirintusos pályán A* kell. A döntés-<em>réteg</em> (state machine) ugyanaz marad.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: ellenség-AI állapotok</div>
+        <div class="dd">Mozgasd a kék játékost az <strong>egérrel</strong> (vagy WASD). Az ellenfelek színe az állapotuk: szürke=Idle, sárga=Chase, piros=Attack. A halvány kör a <code class="inl">detect_range</code>, a szűkebb a <code class="inl">attack_range</code>. Figyeld: ha elhúzod, az ellenfél „elfelejt" (forget_range) és visszavált Idle-ra — ez a ritmus.</div>
+        <canvas id="aiCanvas" width="760" height="380"></canvas>
+        <div class="ctrls">
+          <button id="aiSpawn">&#43; 3 ellenfél</button>
+          <button id="aiReset">&#8635; reset</button>
+          <span class="sep">|</span>
+          <label style="color:var(--muted)">mozgatás: egér / WASD</label>
+        </div>
+        <div class="readout">
+          <div><b>Idle</b><span id="aiIdle">0</span></div>
+          <div><b>Chase</b><span id="aiChase">0</span></div>
+          <div><b>Attack</b><span id="aiAtk">0</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 08 -->
+    <section id="swarm">
+      <div class="sec-head"><span class="idx">08</span><h2>Több ellenség: szerepek, hullámok, performancia</h2></div>
+      <p>Tíz ellenség, akik mind egyszerre támadnak, nem nehezebb — <em>igazságtalan</em>. A játékos nem tud 360°-ban védekezni, a HP másodpercek alatt elfogy. Ezért a H&amp;S (és a musou) bevált trükkje az <strong>attack roles / turn-taking</strong>: a játék <em>kioszt</em> az ellenségek közt szerepeket, és csak <em>kevesen</em> (pl. legfeljebb 3) az <code class="inl">Attacker</code>, aki egyidejűleg támadhat. A többiek pozicionálnak, kerülnek, várnak — <em>mintha</em> támadnának, anélkül, hogy elsöprőek lennének.</p>
+      <pre><code class="rust">#[derive(Clone, Copy, PartialEq, Default)]
+enum Role { #[default] Waiter, Attacker, Flanker }
+
+#[derive(Component, Default)]
+struct AttackRole(Role);
+
+/// Turn-taking: a játékoshoz legközelebbi N ellenség kapja az Attacker szerepet.
+/// Csak ők léphetnek AttackWindup-ba; a többiek csak közeledhetnek / kerülhetnek.
+fn assign_roles(
+    player: Query&lt;&amp;Transform, With&lt;Player&gt;&gt;,
+    mut enemies: Query&lt;(&amp;Transform, &amp;mut AttackRole, &amp;EnemyAi), With&lt;Enemy&gt;&gt;,
+) {
+    let Ok(ptf) = player.single() else { return; };
+    let p = ptf.translation.truncate();
+
+    // csak a Chase állapotúak versenyeznek a támadó szerepért
+    let mut candidates: Vec&lt;_&gt; = enemies.iter_mut()
+        .filter(|(_, _, ai)| matches!(ai.state, EnemyState::Chase))
+        .map(|(tf, r, _)| (tf.translation.truncate().distance(p), r))
+        .collect();
+    candidates.sort_by(|a, b| a.0.total_cmp(&amp;b.0));
+
+    const MAX_ATTACKERS: usize = 3;
+    for (i, (_, mut r)) in candidates.iter_mut().enumerate() {
+        r.0 = if i &lt; MAX_ATTACKERS { Role::Attacker } else { Role::Waiter };
+    }
+}
+
+/// Az AI-ba illesztett kapu: csak Attacker indulhat támadásba.
+/// (Az enemy_ai 'Chase -&gt; AttackWindup' átmenete elé kell egy role-teszt.)
+fn can_attack(role: &amp;AttackRole) -&gt; bool {
+    matches!(role.0, Role::Attacker)
+}</code></pre>
+      <p>A szerepkiosztás a <code class="inl">AttackActive -&gt; Recover</code> átmenetnél kapott <code class="inl">attack_cd</code>-vel együtt adja a ritmust: ha valaki támad, utána <em>vár</em>, amíg cooldown lejár — időt adva a többieknek, hogy lépjenek. Ez a „koreográfia", amit a játékos <em>érzékel</em>, de nem tudatosít.</p>
+      <h3>Hullámok &amp; performancia</h3>
+      <p>Az ellenségek spawnolása <strong>hullámokban</strong> történik: egy <code class="inl">Wave</code> erőforrás mondja meg, hányból álljon, és milyen típusú ellenfelekből. A spawn-pontok a pálya szélén vannak, úgy, hogy a játékos <em>ne lássa</em> a „születést". Nagy számnál (50+) két dologra figyelj:</p>
+      <ul>
+        <li><strong>Spatial szűrés:</strong> a hitbox-ellenfél átfedés-tesztet ne <code class="inl">O(n*m)</code>-ben csináld, hanem előbb egy <strong>broad phase</strong>-sel (rács vagy távolság-szűrés) szűkd le a közelieket. A <a href="bevy-2d-utkozesek-tutorial.html#broad">2D ütközések lecke broad phase szakasza</a> ezt részletezi.</li>
+        <li><strong>Pooling:</strong> az elhullott ellenségeket ne <code class="inl">despawn</code>-old azonnal, hanem rejtsd el és <em>újrahasznosítsd</em> a következő hullámnál — a komponenseket csak felülírod. Kevesebb allokáció, simább FPS.</li>
+      </ul>
+      <div class="demo">
+        <div class="dh">&#9654; Demó: turn-taking vs. rajtútás</div>
+        <div class="dd">A játékos (kék, áll) körül nyolc ellenfél. <strong>Rajtútás (swarm):</strong> mindenki Attacker, mindenki egyszerre támad — a HP sáv másodpercek alatt elfogy. <strong>Turn-taking:</strong> legfeljebb 3 Attacker (piros), a többiek Waiter (szürke) és csak pozicionálnak — a HP lassan csökken, és a játékos <em>köztük</em> tud manőverezni. Ugyanazok az ellenségek, csak a <code class="inl">assign_roles</code> máshogy oszt.</div>
+        <canvas id="swarmCanvas" width="760" height="360"></canvas>
+        <div class="ctrls">
+          <button id="swSwarm">rajtútás (swarm)</button>
+          <button id="swTurn" class="on">turn-taking</button>
+        </div>
+        <div class="readout">
+          <div><b>játékos HP</b><span id="swHp">100</span></div>
+          <div><b>támadók egyszerre</b><span id="swAtk">0</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 09 -->
+    <section id="juice">
+      <div class="sec-head"><span class="idx">09</span><h2>Találati visszajelzés &amp; juice</h2></div>
+      <p>Ez a szakasz rövid, mert a <em>válaszréteget</em> a <a href="bevy-game-juice-tutorial.html">game-juice lecke</a> már felépítette — itt csak azt mutatjuk meg, hogyan <strong>csatlakozik a harci gépezethez</strong>. A kulcs-felismerés: a juice az <code class="inl">on_take_damage</code> observerből (05) <em>indul</em> — vagyis a találat <em>egy</em> ponton jön létre, és onnan szétárad a vizuális + auditív + időbeli válasz.</p>
+      <p>Négy réteg, mindegyik külön kapcsolható (és a demóban külön is):</p>
+      <ul>
+        <li><strong>Hit-stop</strong> — pár frame-re a virtuális időt <code class="inl">0</code>-ra (vagy <code class="inl">0.1</code>-re) lassítja; az ütésnek „súlya" lesz. A <code class="inl">Time&lt;Virtual&gt;</code> relatív sebességét állítja, a valós idő tovább megy. (Részlet: <a href="bevy-game-juice-tutorial.html#hitstop">game-juice 05</a>, <a href="bevy-idozites.html">időzítés lecke</a>.)</li>
+        <li><strong>Screen shake</strong> — a kamera pozícióját kis, halkuló amplitúdóval rázzuk; a <code class="inl">trauma²</code> miatt a kis találat alig látszik, a nagy ütős. Soha ne mozgasd a <em>játékost</em>, csak a kamerát.</li>
+        <li><strong>Particle / spark</strong> — a találtponton egy rövid életű (lifetime-os) spark/porfelhő; <code class="inl">Timer</code> mögé téve, nem spam-szerűen.</li>
+        <li><strong>Hitflash</strong> — a talált entitás sprite-jának színe egy pillanatra megvilágosodik (<code class="inl">Sprite.color</code> tint, fehér felé húzva), hogy a sebzés azonnal olvasható legyen.</li>
+      </ul>
+      <pre><code class="rust">// a juice mind az 05-ös TakeDamage observerből indul:
+fn on_take_damage(ev: On&lt;TakeDamage&gt;, ..., mut commands: Commands) {
+    // ... HP / knockback / stun / flash (05) ...
+    commands.trigger(HitStopEvent { duration: 0.06, speed: 0.0 });   // hit-stop
+    // shake: MessageWriter-rel, mert több küldője van (találat, robbanás, landelés)
+    // (a HitStopEvent-et viszont observer-oldalról triggereljük, mert azonnal kell)
+}
+
+#[derive(Resource, Default)]
+struct ScreenShake { trauma: f32, max_offset: f32 }
+
+#[derive(Message)]
+struct ShakeEvent { amount: f32 }
+
+fn add_shake(mut ev: MessageReader&lt;ShakeEvent&gt;, mut shake: ResMut&lt;ScreenShake&gt;) {
+    for e in ev.read() { shake.trauma = (shake.trauma + e.amount).min(1.0); }
+}
+
+fn apply_shake(
+    time: Res&lt;Time&gt;,
+    mut shake: ResMut&lt;ScreenShake&gt;,
+    mut q: Query&lt;&amp;mut Transform, With&lt;Camera2d&gt;&gt;,
+) {
+    let dt = time.delta_secs();
+    shake.trauma = (shake.trauma - dt).max(0.0);        // ~1s alatt lecseng
+    let Ok(mut tf) = q.single_mut() else { return; };
+    let amp = (shake.trauma * shake.trauma) * shake.max_offset;  // trauma²
+    let a = hash_noise(time.elapsed_secs()) * std::f32::consts::TAU;
+    tf.translation.x += a.cos() * amp;
+    tf.translation.y += a.sin() * amp;
+}</code></pre>
+      <div class="box warn"><span class="lbl">A hit-stop timer a VALÓS idővel menjen</span><p>A game-juice lecke klasszikus csapdája: ha a hit-stop timert <em>a virtuális idővel</em> tickeled (mert a többi rendszer azt használja), de a time scale <code class="inl">0</code> — a timer sosem lép, és a játék <strong>örökre megfagy</strong>. A timer mindig <code class="inl">time.delta()</code>-t használjon (valós idő), a lassítás pedig a <code class="inl">Time&lt;Virtual&gt;</code>-et állítsa. Pontos kód: <a href="bevy-game-juice-tutorial.html#hitstop">game-juice 05</a>.</p></div>
+
+      <div class="demo">
+        <div class="dh">&#9654; Demó: a juice rétegek külön-külön</div>
+        <div class="dd">Egyetlen ütés újrajátszása. Kapcsold fel a rétegeket egyenként — érezd, melyik mit ad hozzá a „súlyhoz". <strong>Mind ki</strong> = a robotos (00-ás KI-állapot). <strong>Mind be</strong> = a „kattanó" találat. A gépezet (támadás + találat) végig ugyanaz; csak a <em>válaszréteg</em> változik.</div>
+        <canvas id="juiceCanvas" width="760" height="320"></canvas>
+        <div class="ctrls">
+          <button id="jStop">hit-stop</button>
+          <button id="jShake">screen shake</button>
+          <button id="jPart">particle</button>
+          <button id="jFlash">hitflash</button>
+          <button id="jAll" class="on">mind BE</button>
+        </div>
+      </div>
+      <div class="box note"><span class="lbl">Hang is ide tartozik</span><p>A suhintás és a találat hangja ugyanebbe a válaszrétegbe kerül — a <code class="inl">on_take_damage</code> observer indíthat egy <code class="inl">AudioPlayer</code>-t, pitch-randomizációval, hogy egymás utáni ütések ne „halandzsázzanak". A <a href="bevy-sound-and-music-tutorial.html">hang lecke</a> és a <a href="bevy-game-juice-tutorial.html#audio">game-juice 07</a> adja a konkrét mintát.</p></div>
+    </section>
+
+    <!-- 10 -->
+    <section id="camera">
+      <div class="sec-head"><span class="idx">10</span><h2>Kamera &amp; aréna</h2></div>
+      <p>A top-down H&S kamerája <em>követi</em> a játékost, de nem 1:1-ben — különben a screen shake (09) és a mozgás együtt „úszik". Két egyszerű szabály: (1) <strong>exponenciális simítás</strong> a célpozíció felé, frame-rate-függetlenül; (2) a shake <em>offset</em>-ként hozzáadódik a simított pozícióhoz, nem helyettesíti azt.</p>
+      <pre><code class="rust">fn camera_follow(
+    player: Query&lt;&amp;Transform, With&lt;Player&gt;&gt;,
+    mut cam: Query&lt;&amp;mut Transform, (With&lt;Camera2d&gt;, Without&lt;Player&gt;)&gt;,
+    shake: Res&lt;ScreenShake&gt;,
+    time: Res&lt;Time&gt;,
+) {
+    let Ok(ptf) = player.single() else { return; };
+    let Ok(mut ctf) = cam.single_mut() else { return; };
+
+    // 1 · exponenciális simítás a játékoshoz — frame-rate független
+    let k = 1.0 - (-8.0 * time.delta_secs()).exp();    // magasabb k = "ragacsosabb"
+    let target = ptf.translation;
+    ctf.translation.x += (target.x - ctf.translation.x) * k;
+    ctf.translation.y += (target.y - ctf.translation.y) * k;
+
+    // 2 · a shake offset hozzáadódik (az apply_shake is ugyanígy adhat hozzá)
+    let amp = (shake.trauma * shake.trauma) * shake.max_offset;
+    let a = hash_noise(time.elapsed_secs()) * std::f32::consts::TAU;
+    ctf.translation.x += a.cos() * amp;
+    ctf.translation.y += a.sin() * amp;
+}</code></pre>
+      <div class="box tip"><span class="lbl">Ne kövesd 1:1-ben</span><p>A <code class="inl">k = 1.0</code> (azaz azonnal a játékos pozíciójára ugor) „robotos" érzést ad, és a mozgás irányába sosem dől a kamera. A fenti <code class="inl">k ≈ 0.2/frame</code>-es simítás „lemarad", ami (1) mutatja a mozgás irányát, (2) lágyítja az akadálkozást. Ugyanez az elv a platformeres „ lookahead" / „dead-zone" — csak most nincs gravitáció.</p></div>
+      <p>Az <strong>aréna</strong> maga a harctér: egy zárt, csempés top-down pálya, akadályokkal (oszlop, fedezék). A kamera határainál <em>ne engedd kilépni</em> a nézőteret a pálya szélén túl — egy egyszerű <code class="inl">clamp</code> a célpozíción. A csempe/akadály-oldal a <a href="bevy-tile-entitas-tutorial.html">tile-entity</a>, <a href="bevy-dual-grid-tutorial.html">dual-grid</a> és <a href="bevy-2d-utkozesek-tutorial.html#tile">2D ütközések csempe-szakasza</a> leckékben van felépítve; a H&S szempontjából csak annyi: az akadályok legyenek <code class="inl">Solid</code> collide-erek, és az <em>üldözés</em> (07) körülöttük A*-os legyen.</p>
+    </section>
+
+    <!-- 11 -->
+    <section id="health">
+      <div class="sec-head"><span class="idx">11</span><h2>Egészség, halál &amp; egyensúly</h2></div>
+      <p>A <code class="inl">Health</code> már az 05-ös szakaszban szerepelt — itt csak a <em>válasz</em>-oldalt és az egyensúlyt tesszük hozzá. A sebzés egy <code class="inl">TakeDamage</code> observerbe fut (05), és ha a HP eléri a 0-t, egy <code class="inl">Died</code> EntityEvent indul — ami szintén observerrel van lekezelve, külön a játékos és az ellenség esetén.</p>
+      <pre><code class="rust">#[derive(Component)]
+struct Health { current: u32, max: u32 }
+
+#[derive(Component)] struct Hitstun(Timer);
+#[derive(Component)] struct Hitflash(f32);       // hátralévő flash idő
+#[derive(Component)] struct Invuln(Timer);       // i-frame ablak (dash, találat után)
+
+#[derive(EntityEvent)]
+struct Died { entity: Entity }
+
+/// Ellenség halála: drop, pontszám, particle, despawn.
+fn on_enemy_died(
+    ev: On&lt;Died&gt;,
+    mut commands: Commands,
+    q: Query&lt;Entity, With&lt;Enemy&gt;&gt;,
+) {
+    if q.get(ev.entity).is_err() { return; }
+    commands.entity(ev.entity).despawn();          // pooling: csak rejtsd (08)
+    // spawn death particles, drop loot, score += ...
+}
+
+/// Játékos halála: state váltás Dead-be — a run vége.
+fn on_player_died(
+    ev: On&lt;Died&gt;,
+    q: Query&lt;(), With&lt;Player&gt;&gt;,
+    mut next: ResMut&lt;Next&lt;GameState&gt;&gt;,
+) {
+    if q.get(ev.entity).is_err() { return; }
+    next.set(GameState::Dead);                     // ld. 13 — a state leállítja a rendszereket
+}
+
+// a TakeDamage observerbe érdemes i-frame szűrést tenni:
+fn on_take_damage(ev: On&lt;TakeDamage&gt;, mut q: Query&lt;(&amp;mut Health, &amp;mut Invuln, ...)&gt;) {
+    let Ok((mut hp, mut inv, ..)) = q.get_mut(ev.entity) else { return; };
+    if !inv.0.finished() { return; }               // i-frame alatt nem sebződik
+    // ... sebzés, knockback, juice (05) ...
+    // találat után rövid invuln, hogy az „egymásra eső" ütések ne 60-at sebezzenek/s
+    inv.0 = Timer::from_seconds(0.4, TimerMode::Once);
+}</code></pre>
+      <div class="box tip"><span class="lbl">Az i-frame dupla szerepe</span><p>Az <code class="inl">Invuln</code> kétfelé szolgál: (1) a dash <code class="inl">i_frames</code>-e (03) ugyanezt a komponenst állíthatja; (2) találat után <em>rövid</em> invuln akadályozza meg, hogy az „egy frame-ben átfedő” több hitbox (vagy egy nagy, lassú ellenfél több támadása) 60-szor sebezze a játékost egy másodperc alatt. Ez a játékos-oldali <em>one-hit-per-swing</em> megfelelője.</p></div>
+      <h3>Egyensúly</h3>
+      <p>A H&amp;S egyensúlya nem számolás, hanem <em>ritmus</em>: a játékos HP-jának lassan kell fogynia, hogy „helyrehozható" legyen (healing, kitérés), az ellenség HP-jának viszont gyorsan (1–3 ütés), hogy a suhintás <em>elégedettséget</em> adjon. A hullám-szálítás (08) és az attack roles biztosítják, hogy a HP-fogyás <em>kiszámítható</em> maradjon — nem a szerencsén múlik, hanem a pozicionáláson. A konkrét számokat <em>adatból</em> vedd (12), és hangolhatóan tartsd; a roguelike lecke <a href="roguelike.html#balance">egyensúly-szakasza</a> ad rá módszertant.</p>
+    </section>
+
+    <!-- 12 -->
+    <section id="weapons">
+      <div class="sec-head"><span class="idx">12</span><h2>Data-driven fegyverek &amp; meta</h2></div>
+      <p>Egy tőr és egy csatabárd ugyanazt a gépezetet használja (04–06), csak más <em>számokkal</em>. Ezért a fegyvert <strong>adatnak</strong> tedd: egy struct, amit egy <code class="inl">Resource</code> tart (élesben <code class="inl">Asset</code>-ként, fájlból töltve), és a <code class="inl">AttackController</code> ezekből töltődik fel. Így a fegyverváltás a <em>kód átírása</em> nélkül változtatja a ritmust, a sebzést, a reach-et.</p>
+      <pre><code class="rust">/// Egy fegyver definíciója — sima adat. Élesben #[derive(Asset)] + fájl.
+#[derive(Clone)]
+struct WeaponDef {
+    name: &amp;'static str,
+    damage: u32,
+    knockback: f32,
+    reach: f32,                 // hitbox mérete / offset
+    half: Vec2,                 // hitbox AABB fél-méret
+    timings: (f32, f32, f32),   // windup / active / recovery (s)
+    combo_len: usize,
+    buffer_window: f32,
+}
+
+#[derive(Resource)]
+struct WeaponLibrary { items: Vec&lt;WeaponDef&gt; }
+
+/// Felszerelés: a kiválasztott fegyverből feltölti az AttackControllert.
+fn equip_weapon(
+    lib: Res&lt;WeaponLibrary&gt;,
+    mut q: Query&lt;&amp;mut AttackController, With&lt;Player&gt;&gt;,
+    keys: Res&lt;ButtonInput&lt;KeyCode&gt;&gt;,
+) {
+    let idx = if keys.just_pressed(KeyCode::Digit1) { 0 }     // 1 = tőr
+              else if keys.just_pressed(KeyCode::Digit2) { 1 } // 2 = kard
+              else if keys.just_pressed(KeyCode::Digit3) { 2 } // 3 = bárd
+              else { return; };
+    let w = &amp;lib.items[idx];
+    let Ok(mut a) = q.single_mut() else { return; };
+    a.timings = w.timings;
+    a.combo_len = w.combo_len;
+    // a damage/half/reach a hitbox-spawn-nál (05) kerül az AttackHitbox-ba
+}</code></pre>
+      <p>A <strong>meta</strong>-oldal (unlock-olt fegyverek, futások közt fejlődés) a <a href="bevy-roguelite-rendszerek-tutorial.html">roguelite-rendszerek lecke</a> feladata: ott a <em>boon mint adat</em> + <em>modifier-aggregáció</em> minta pontosan ezt a gondolkodást folytatja. Egy fegyver-modifier (pl. „+10% sebzés", „active frame +1") ugyanúgy aggregálódik a run-state-ben, mint egy boon. A H&S itt találkozik a roguelite-tal — a fegyverkönyvtár az unlock-pool, a modifier-ek a boon-ok.</p>
+      <div class="box note"><span class="lbl">Mikor Resource, mikor Asset?</span><p>Házi/learn: <code class="inl">Resource</code> a <code class="inl">Vec&lt;WeaponDef&gt;</code>-fel — egyszerű, fordítási időben létezik. Ha a designerek egy <em>.ron</em>-fájlból akarnak szerkeszteni, vagy a fegyverek sprite-atlasz-képet is hordoznak, akkor <code class="inl">#[derive(Asset)]</code> + <code class="inl">AssetServer</code>. A fenti kód mindkettővel megy: a <code class="inl">WeaponLibrary</code> csak a tároló; a <code class="inl">WeaponDef</code> formája nem változik.</p></div>
+    </section>
+
+    <!-- 13 -->
+    <section id="arch">
+      <div class="sec-head"><span class="idx">13</span><h2>Bevy-architektúra</h2></div>
+      <p>Minden eddigi rendszer egy-egy <code class="inl">Plugin</code>-be tartozik. A felosztás nem kozmetikai: a <a href="bevy-plugin-rendszer-tutorial.html">plugin-rendszer lecke</a> mutatja, miért — egy plugin egy <em>rendszercsoport + a hozzá tartozó erőforrások + observer-regisztráció</em>, ami önállóan be-/kikapcsolható és tesztelhető. A H&S legalább öt pluginra bontható:</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Plugin</th><th>Rendszerek</th><th>Erőforrások / observer</th></tr></thead>
+        <tbody>
+          <tr><td>MovementPlugin</td><td>player_move, dash_input, enemy_move</td><td>—</td></tr>
+          <tr><td>CombatPlugin</td><td>attack_tick, spawn_hitbox, hitbox_overlap, combo_consume</td><td>InputBuffer, on_take_damage, on_died</td></tr>
+          <tr><td>EnemyPlugin</td><td>enemy_ai, assign_roles, spawn_waves</td><td>Wave, EnemyLibrary</td></tr>
+          <tr><td>JuicePlugin</td><td>apply_hitstop, apply_shake, tick_particles</td><td>HitStop, ScreenShake, on HitStopEvent</td></tr>
+          <tr><td>CameraPlugin</td><td>camera_follow</td><td>—</td></tr>
+        </tbody>
+      </table></div>
+      <pre><code class="rust">#[derive(States, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+enum GameState {
+    #[default] Menu,
+    Playing,
+    Paused,
+    Dead,        // a run vége — on_player_died állítja be (11)
+}
+
+pub struct CombatPlugin;
+impl Plugin for CombatPlugin {
+    fn build(&amp;self, app: &amp;mut App) {
+        app.init_resource::&lt;InputBuffer&gt;()
+            .add_observer(on_take_damage)      // EntityEvent: TakeDamage -&gt; observer
+            .add_observer(on_enemy_died)
+            .add_observer(on_player_died)
+            .add_systems(Update, (
+                buffer_input,
+                attack_tick,
+                spawn_hitbox_on_active,
+                hitbox_overlap,
+                combo_consume,
+            ).chain().run_if(in_state(GameState::Playing)));   // csak Playing-ben
+    }
+}
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest())) // pixel-art
+        .init_state::&lt;GameState&gt;()
+        .add_plugins((MovementPlugin, CombatPlugin, EnemyPlugin, JuicePlugin, CameraPlugin))
+        .add_systems(OnEnter(GameState::Playing), spawn_arena)
+        .run();
+}</code></pre>
+      <div class="box tip"><span class="lbl">A <code class="inl">.chain()</code> és a <code class="inl">run_if</code></span><p>A harci rendszereket <code class="inl">.chain()</code>-be teszed, mert a sorrend <em>interpretálható</em> akar lenni: előbb az input pufferelődik, aztán a támadás fázist lép, aztán a hitbox spawnol/átfed, végül a combo fogyaszt. Ez determinisztikus, és könnyebb debugolni. A <code class="inl">run_if(in_state(GameState::Playing))</code> pedig leállítja az egészet Dead/Paused-ban — a <a href="bevy-scene-valtas-tutorial.html">scene-váltás lecke</a> részletezi a state-életciklust.</p></div>
+      <div class="box note"><span class="lbl">Mentés &amp; meta = külön state-ben</span><p>A futás alatti (run-state) és a futások közti (persistent) adatokat <em>külön</em> tartsd — a <a href="bevy-roguelite-rendszerek-tutorial.html">roguelite lecke</a> teljes architektúrája erről szól. A H&S-ben a <code class="inl">Health</code>, <code class="inl">Wave</code>, <code class="inl">WeaponLibrary</code> run-state; az unlock-olt fegyverek listája persistent. A halál pillanatában (GameState::Dead) a run-state exportálódik a persistent-be (unlock-ok, statisztika).</p></div>
+    </section>
+
+    <!-- 14 -->
+    <section id="tips">
+      <div class="sec-head"><span class="idx">14</span><h2>Gyakorlati tippek &amp; buktatók</h2></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>Bontsd a harci logikát <strong>apró, fókuszált komponensekre</strong> (<code class="inl">MoveController</code>, <code class="inl">AttackController</code>, <code class="inl">Health</code>, <code class="inl">Hurtbox</code>, <code class="inl">InputBuffer</code>). Így a játékos és az ellenség <em>azonos</em> komponensekből épül, csak az input forrása más — és a juice kikapcsolható a többi érintése nélkül.</p></div>
+      <div class="box warn"><span class="lbl">Ne</span><p>Ne spawold a hitboxot <em>mindem frame-ben</em>, amíg <code class="inl">Active</code> vagy! Egy suhintás = egy hitbox-entitás, az Active-ba lépéskor spawnolva, a Recovery-be lépéskor megszűntetve. Az <code class="inl">hit_set</code> még <em>védi</em> a multi-ütést, de az örökké élő hitbox külön bug.</p></div>
+      <div class="box warn"><span class="lbl">Ne</span><p>Ne <code class="inl">pressed</code>-re pufferelj combo-t — <code class="inl">just_pressed</code>-re! A lenyomva tartott gomb egyébként végtelen combo-t ad (a játékos csak tartja a gombot).</p></div>
+      <div class="box warn"><span class="lbl">Ne</span><p>Ne hagyd, hogy <strong>minden ellenség egyszerre támadjon</strong>. Az attack roles / turn-taking (08) nem nehézség-csökkentés, hanem <em>igazságosság</em>: a játékos nem tud 360°-ban védekezni.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>A sebzést <strong>EntityEvent</strong>-ként küldd (<code class="inl">TakeDamage</code>), és observerrel dolgozd fel. Így a több sebzésforrás (játékos, csapda, környezet) egy utat jár, és a válasz (knockback, stun, juice, halál) egy helyen van, később bővíthető.</p></div>
+      <div class="box warn"><span class="lbl">Vigyázz</span><p>A hit-stop timerét a <strong>valós</strong> <code class="inl">Time</code> tickeledje, ne a virtuálist — különben a time scale 0 megállítja a timert, és a játék örökre megfagy. Pontos kód: <a href="bevy-game-juice-tutorial.html#hitstop">game-juice 05</a>.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>Az <code class="inl">Invuln</code> komponens <strong>duplán</strong> használható: dash i-frame (03) <em>és</em> találat utáni rövid invuln (hogy az „egymásra eső” ütések ne sebezzenek 60-at/s). Ez a játékos-oldali one-hit-per-swing.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>A fegyvert <strong>adat</strong>ból vedd (<code class="inl">WeaponDef</code>), ne hardcode-olj. A gépezet (állapotgép + combo) minden fegyvernél ugyanaz, csak a számok (timings, damage, reach, combo_len) változnak — és a fegyverváltás így kód-átírás nélkül megy.</p></div>
+      <div class="box note"><span class="lbl">A flow nem a juice</span><p>A flow = <em>megengedő gépezet</em> (rövid commit + input buffer + cancel) <strong>plusz</strong> <em>súlyos válaszréteg</em> (hit-stop + shake + particle + flash). Az egyik nélkül a másik üres: juice üres gépezeten „csillogó robot", gépezet juice nélkül „kattogó robot". A kettő együtt kattan.</p></div>
+      <div class="box tip"><span class="lbl">Tedd</span><p>A rendszereket <code class="inl">.chain()</code>-be tedd és <code class="inl">run_if(in_state(...))</code>-szel kapcsold — a sorrend legyen interpretálható (buffer → tick → spawn → overlap → combo), és az egész leálljon Dead/Paused-ban.</p></div>
+    </section>
+
+    <!-- 15 -->
+    <section id="tldr">
+      <div class="sec-head"><span class="idx">15</span><h2>TL;DR</h2></div>
+      <div class="tldr">
+        <h3>A lényeg egy kártyán</h3>
+        <ul>
+          <li><strong>Műfaj:</strong> a H&amp;S a gyors, agresszív <em>fegyveres közelharc</em>, aminek magja az <em>offenzív flow</em> (megközelítés → commit → találat → recovery + újratámadás). Top-down: felülnézet, 360°, face-elt suhintás.</li>
+          <li><strong>Flow = gépezet + juice:</strong> megengedő gépezet (rövid commit + input buffer + cancel-ablak + combo) <em>plusz</em> súlyos válaszréteg (hit-stop + shake + particle + flash). Az egyik sem elég egyedül.</li>
+          <li><strong>A támadás állapotgép:</strong> <code class="inl">Idle → Windup → Active → Recovery</code>, <code class="inl">Timer</code>-léptetve. A hitbox csak az <code class="inl">Active</code>-ban él (04).</li>
+          <li><strong>Hitbox vs. hurtbox:</strong> a hitbox <em>átmeneti entitás</em> (Active-ban spawn, Recovery-ben despawn), a hurtbox állandó a sérülhetőken. Átfedés-teszt: <code class="inl">Aabb2d</code>/<code class="inl">BoundingCircle</code> (05).</li>
+          <li><strong>One-hit-per-swing:</strong> a hitbox <code class="inl">hit: Vec&lt;Entity&gt;</code>-je megakadályozza, hogy egy suhintás többször üssön. A leggyakoribb bug forrása.</li>
+          <li><strong>Sebzés = EntityEvent:</strong> <code class="inl">TakeDamage</code> <code class="inl">commands.trigger</code>-rel a célnak; <code class="inl">add_observer(on_take_damage)</code> végzi a HP/knockback/stun/juice/halál választ (05).</li>
+          <li><strong>Combo:</strong> <code class="inl">VecDeque</code> input puffer (TTL ~150 ms) + a recovery utolsó ~40%-ának cancel-ablaka. <code class="inl">just_pressed</code>, sose <code class="inl">pressed</code> (06).</li>
+          <li><strong>Ellenség-AI:</strong> ugyanaz az állapotgép, mint a játékosé; <code class="inl">Idle/Chase/AttackWindup/AttackActive/Recover/Hurt/Dead</code>, távolság-kapukkal + <code class="inl">forget_range</code> hysteresis. Üldözés seek vagy A* (07).</li>
+          <li><strong>Attack roles / turn-taking:</strong> legfeljebb N (<code class="inl">Attacker</code>) támadhat egyszerre — nem nehézség, hanem <em>igazságosság</em>. A többiek pozicionálnak (08).</li>
+          <li><strong>Juice az observerből indul:</strong> <code class="inl">on_take_damage</code> triggerel <code class="inl">HitStopEvent</code>-et + shake/particle/flash. Hit-stop timer a <em>valós</em> <code class="inl">Time</code>-pal (09).</li>
+          <li><strong>Kamera:</strong> exponenciális simítás a játékoshoz (<code class="inl">k = 1 - exp(-k·dt)</code>), shake offset hozzáadva; ne 1:1 (10).</li>
+          <li><strong>Egészség:</strong> <code class="inl">Health</code> + <code class="inl">Invuln</code> (dash i-frame <em>és</em> találat utáni invuln = játékos-oldali one-hit). HP 0 → <code class="inl">Died</code> EntityEvent → state váltás (11).</li>
+          <li><strong>Fegyver = adat:</strong> <code class="inl">WeaponDef</code> (timings, damage, reach, combo_len) <code class="inl">Resource</code>/Asset; a gépezet minden fegyvernél ugyanaz (12).</li>
+          <li><strong>Architektúra:</strong> plugin-felosztás (Movement/Combat/Enemy/Juice/Camera), <code class="inl">GameState</code> (<code class="inl">run_if(in_state(Playing))</code>), rendszerek <code class="inl">.chain()</code>-ben (13).</li>
+          <li><strong>Sorozat-összeg:</strong> a gépezetet a <a href="bevy-2d-utkozesek-tutorial.html">2D ütközések</a> + <a href="bevy-animaciok-tutorial.html">animációk</a> + <a href="bevy-pathfinding-tutorial.html">pathfinding</a> + <a href="bevy-observerek-tutorial.html">observerek</a> leckék adják; a válaszréteget a <a href="bevy-game-juice-tutorial.html">game-juice</a> + <a href="bevy-sound-and-music-tutorial.html">hang</a>; a progression-t a <a href="bevy-roguelite-rendszerek-tutorial.html">roguelite</a>.</li>
+        </ul>
+      </div>
+    </section>
+
+    <footer>
+      Bevy 0.18 · Top-down Hack &amp; Slash — a harci flow építése · egyetlen fíjlos HTML · a game-juice lecke technikai párja
+    </footer>
+  </main>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- Rust szintaxiskiemelő ---------- */
+function highlightRust(src){
+  function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  var token = /(\/\/[^\n]*)|("(?:[^"\\]|\\.)*")|(\b(?:fn|let|mut|for|in|if|else|match|struct|enum|impl|trait|pub|use|mod|return|self|Self|as|where|move|loop|while|break|continue|const|static|ref|dyn|crate|true|false)\b)|(\b[A-Z][A-Za-z0-9_]*\b)|(\b[a-z_][A-Za-z0-9_]*!)|(\b\d[\d_]*\.?\d*(?:f32|f64|u32|i32|u8|usize)?\b)/g;
+  var out="", last=0, m;
+  while((m=token.exec(src))!==null){
+    out += esc(src.slice(last, m.index));
+    var text = esc(m[0]);
+    if(m[1]) out += '<span class="c">'+text+'</span>';
+    else if(m[2]) out += '<span class="s">'+text+'</span>';
+    else if(m[3]) out += '<span class="k">'+text+'</span>';
+    else if(m[4]) out += '<span class="t">'+text+'</span>';
+    else if(m[5]) out += '<span class="m">'+text+'</span>';
+    else if(m[6]) out += '<span class="n">'+text+'</span>';
+    last = token.lastIndex;
+  }
+  out += esc(src.slice(last));
+  return out;
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+  document.querySelectorAll("pre code.rust").forEach(function(el){
+    el.innerHTML = highlightRust(el.textContent);
+  });
+
+  /* scrollspy */
+  var links = Array.prototype.slice.call(document.querySelectorAll("#nav a"));
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute("href").slice(1)] = a; });
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){
+        links.forEach(function(a){ a.classList.remove("active"); });
+        var act = map[e.target.id];
+        if(act) act.classList.add("active");
+      }
+    });
+  }, { rootMargin: "-20% 0px -70% 0px" });
+  document.querySelectorAll("section").forEach(function(s){ obs.observe(s); });
+
+  var btn = document.getElementById("menuBtn");
+  var sb = document.getElementById("sidebar");
+  if(btn){
+    btn.addEventListener("click", function(){ sb.classList.toggle("open"); });
+    document.querySelectorAll("#nav a").forEach(function(a){
+      a.addEventListener("click", function(){ sb.classList.remove("open"); });
+    });
+  }
+
+  initDemos();
+});
+
+/* ===================== közös segédek ===================== */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function hash01(x,y,s){ // determinisztikus zaj (0..1) — a screen shake-hez
+  var h = (x*374761393) ^ (y*668265263) ^ ((s|0)*2147483647);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+function lerp(a,b,t){ return a+(b-a)*t; }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function len(x,y){ return Math.hypot(x,y); }
+// fontos: requestAnimationFrame-alapú demó-loop, frame-time korrekcióval
+function makeLoop(fn){
+  var last=performance.now();
+  function frame(now){
+    var dt=Math.min(0.05,(now-last)/1000); last=now;
+    fn(dt,now/1000);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ===================== DEMÓ 0: hero — robotos vs. juice ===================== */
+function initHero(){
+  var cv=document.getElementById("heroCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var juice=true;
+  var player={x:cv.width/2,y:cv.height/2,r:14,facing:0,swing:0}; // swing 0..1 (fázis)
+  var enemies=[], particles=[];
+  var shake={trauma:0};
+  var hitstop=0;
+  var rng=mulberry32(7);
+  function spawnWave(){
+    enemies=[];
+    for(var i=0;i<6;i++){
+      var a=(i/6)*Math.PI*2;
+      var d=150+rng()*60;
+      enemies.push({x:player.x+Math.cos(a)*d,y:player.y+Math.sin(a)*d,r:11,
+        vx:0,vy:0,hp:3,flash:0,dead:false, ang:a});
+    }
+  }
+  spawnWave();
+  function swingHit(){
+    // az active frame-ben: üssük a hatótávolságon belüli ellenségeket
+    var reach=46, arcHalf=1.1;
+    for(var e of enemies){
+      if(e.dead) continue;
+      var dx=e.x-player.x, dy=e.y-player.y;
+      var d=len(dx,dy);
+      if(d>reach+e.r) continue;
+      var ang=Math.atan2(dy,dx);
+      var da=Math.abs(((ang-player.facing+Math.PI*3)%(Math.PI*2))-Math.PI);
+      if(da<arcHalf){
+        e.hp--; e.flash=0.18;
+        var kb=Math.cos(player.facing)*220, kb2=Math.sin(player.facing)*220;
+        e.vx+=kb; e.vy+=kb2;
+        if(juice){
+          hitstop=0.07;
+          shake.trauma=Math.min(1,shake.trauma+0.6);
+          for(var k=0;k<8;k++){
+            var sa=player.facing+(rng()-0.5)*1.6, sp=60+rng()*120;
+            particles.push({x:e.x,y:e.y,vx:Math.cos(sa)*sp,vy:Math.sin(sa)*sp,life:0.35,tot:0.35,c:rng()<0.5?'#f2c14e':'#ff6b6b'});
+          }
+        }
+        if(e.hp<=0){ e.dead=true; }
+      }
+    }
+  }
+  var swingTimer=0, swingPhase=0; // 0=idle,1=windup,2=active,3=recovery
+  makeLoop(function(dt,t){
+    if(hitstop>0){ hitstop-=dt; dt*=0.05; } // hit-stop: virtuális idő lassít
+    // auto-target: forgás a legközelebbi élő ellenség felé
+    var best=null,bd=1e9;
+    for(var e of enemies){ if(e.dead) continue; var d=len(e.x-player.x,e.y-player.y); if(d<bd){bd=d;best=e;} }
+    if(best){
+      var want=Math.atan2(best.y-player.y,best.x-player.x);
+      var diff=((want-player.facing+Math.PI*3)%(Math.PI*2))-Math.PI;
+      player.facing+=clamp(diff,-3*dt,3*dt);
+    }
+    // attack cycle: windup .18 / active .10 / recovery .30
+    swingTimer+=dt;
+    if(swingPhase===0 && best && bd<60){ swingPhase=1; swingTimer=0; }
+    else if(swingPhase===1 && swingTimer>0.18){ swingPhase=2; swingTimer=0; swingHit(); }
+    else if(swingPhase===2 && swingTimer>0.10){ swingPhase=3; swingTimer=0; }
+    else if(swingPhase===3 && swingTimer>0.30){ swingPhase=0; swingTimer=0; }
+    player.swing = swingPhase===1?swingTimer/0.18 : swingPhase===2?1 : swingPhase===3?1-(swingTimer/0.30) : 0;
+    // ellenségek mozgása
+    for(var e of enemies){
+      if(e.dead) continue;
+      e.flash=Math.max(0,e.flash-dt);
+      var to={x:player.x-e.x,y:player.y-e.y}; var d=len(to.x,to.y)||1;
+      if(d>26){ e.vx+=to.x/d*40*dt; e.vy+=to.y/d*40*dt; }
+      e.vx*=Math.pow(0.02,dt); e.vy*=Math.pow(0.02,dt);
+      e.x+=e.vx*dt; e.y+=e.vy*dt;
+    }
+    // particles
+    for(var p of particles){ p.life-=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=0.92; p.vy*=0.92; }
+    particles=particles.filter(function(p){return p.life>0;});
+    shake.trauma=Math.max(0,shake.trauma-dt);
+    draw(t);
+  });
+  function draw(t){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.save();
+    var amp=shake.trauma*shake.trauma*10;
+    var a=hash01(t*60|0,1,3)*Math.PI*2;
+    ctx.translate(Math.cos(a)*amp,Math.sin(a)*amp);
+    // grid
+    ctx.strokeStyle="rgba(44,44,64,.5)"; ctx.lineWidth=1;
+    for(var x=0;x<cv.width;x+=32){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,cv.height);ctx.stroke();}
+    for(var y=0;y<cv.height;y+=32){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(cv.width,y);ctx.stroke();}
+    // hitbox ív
+    if(swingPhase>=1 && swingPhase<=2){
+      var reach=46, spread=1.3*Math.max(0.2,player.swing);
+      ctx.fillStyle="rgba(255,107,107,"+(swingPhase===2?0.55:0.25)+")";
+      ctx.beginPath();ctx.moveTo(player.x,player.y);
+      ctx.arc(player.x,player.y,reach,player.facing-spread,player.facing+spread);
+      ctx.closePath();ctx.fill();
+    }
+    // enemies
+    for(var e of enemies){
+      if(e.dead) continue;
+      ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,Math.PI*2);
+      ctx.fillStyle=e.flash>0?(juice?"#ffffff":"#ffd0d0"):"#ec6a9c";ctx.fill();
+      ctx.strokeStyle="#ff6b6b";ctx.lineWidth=2;ctx.stroke();
+    }
+    // particles
+    for(var p of particles){
+      ctx.globalAlpha=clamp(p.life/p.tot,0,1);
+      ctx.fillStyle=p.c;ctx.fillRect(p.x-2,p.y-2,4,4);
+    }
+    ctx.globalAlpha=1;
+    // player
+    ctx.save();ctx.translate(player.x,player.y);ctx.rotate(player.facing);
+    ctx.fillStyle="#56d4c4";ctx.fillRect(-12,-12,24,24);
+    ctx.fillStyle="#10101a";ctx.fillRect(8,-3,18,6); // kard
+    ctx.restore();
+    ctx.restore();
+    // felirat
+    ctx.fillStyle="rgba(139,139,158,.9)";ctx.font="700 12px 'JetBrains Mono',monospace";
+    ctx.fillText(juice?"juice BE":"juice KI",10,16);
+    var alive=enemies.filter(function(e){return !e.dead;}).length;
+    ctx.fillText(alive+" ellenfél",10,32);
+  }
+  document.getElementById("heroJuice").addEventListener("click",function(){
+    juice=!juice; this.classList.toggle("on",juice);
+  });
+  document.getElementById("heroWave").addEventListener("click",function(){ spawnWave(); });
+}
+
+/* ===================== DEMÓ 4: támadás fázisok + buffer ===================== */
+function initPhase(){
+  var cv=document.getElementById("phaseCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var stateEl=document.getElementById("phaseState"), comboEl=document.getElementById("phaseCombo"), bufEl=document.getElementById("phaseBuf");
+  var W=0.20, A=0.12, R=0.30; // timings (s)
+  var phase=0, timer=0, combo=0, buffered=false, bufferTtl=0;
+  var total=W+A+R;
+  function press(){ // J gomb
+    if(phase===0){ start(); }
+    else { buffered=true; bufferTtl=0.16; } // puffer
+  }
+  function start(){
+    phase=1; timer=0; combo++;
+    if(combo>3) combo=1;
+  }
+  makeLoop(function(dt){
+    if(phase!==0){
+      timer+=dt;
+      if(phase===1 && timer>=W){ phase=2; timer=0; }
+      else if(phase===2 && timer>=A){ phase=3; timer=0; }
+      else if(phase===3 && timer>=R){
+        // cancel-ablak végén: ha pufferelt, láncolunk
+        if(buffered){ start(); buffered=false; bufferTtl=0; }
+        else { phase=0; timer=0; combo=0; }
+      }
+      // cancel ablak a recovery utolsó 40%-ában: pufferelt -> lánc
+      if(phase===3 && timer>=R*0.6 && buffered){ start(); buffered=false; bufferTtl=0; }
+    }
+    if(buffered){ bufferTtl-=dt; if(bufferTtl<=0){ buffered=false; } }
+    draw();
+    stateEl.textContent=phase===0?"IDLE":(phase===1?"WINDUP":(phase===2?"ACTIVE":"RECOVERY"));
+    comboEl.textContent=combo;
+    bufEl.textContent=buffered?(bufferTtl*1000|0)+"ms":"—";
+  });
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    var pad=30, bw=cv.width-2*pad, bh=46, by=cv.height/2-bh/2;
+    // háttér fázis-sávok
+    function seg(x0,x1,col,lbl){
+      ctx.fillStyle=col;ctx.fillRect(pad+x0*bw,by,(x1-x0)*bw,bh);
+      ctx.fillStyle="rgba(16,16,26,.7)";ctx.font="700 11px 'JetBrains Mono',monospace";
+      ctx.fillText(lbl,pad+x0*bw+8,by+18);
+    }
+    seg(0,W/total,"#f2c14e","WINDUP");
+    seg(W/total,(W+A)/total,"#ff6b6b","ACTIVE");
+    seg((W+A)/total,1,"#56a0d4","RECOVERY");
+    // cancel-ablak zöld
+    var cs=(W+A)/total+0.6*R/total, ce=1;
+    ctx.fillStyle="rgba(140,233,154,.25)";ctx.fillRect(pad+cs*bw,by,(ce-cs)*bw,bh);
+    // playhead
+    var prog = phase===0?0:(phase===1?timer:(phase===2?W+timer:W+A+timer))/total;
+    if(phase!==0){
+      ctx.strokeStyle="#e3e3ec";ctx.lineWidth=3;
+      ctx.beginPath();ctx.moveTo(pad+prog*bw,by-6);ctx.lineTo(pad+prog*bw,by+bh+6);ctx.stroke();
+    }
+    // keret
+    ctx.strokeStyle="#2c2c40";ctx.lineWidth=2;ctx.strokeRect(pad,by,bw,bh);
+    // puffer jelzés
+    if(buffered){
+      ctx.fillStyle="#8ce99a";ctx.beginPath();ctx.arc(pad+bw+14,by+bh/2,5+Math.sin(performance.now()/80)*2,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle="#8ce99a";ctx.font="700 11px 'JetBrains Mono',monospace";
+      ctx.fillText("BUFFER",pad+bw+24,by+bh/2+4);
+    }
+  }
+  document.getElementById("phaseSwing").addEventListener("click",press);
+  // billentyű is
+  window.addEventListener("keydown",function(e){ if(e.code==="KeyJ"){ press(); } });
+}
+
+/* ===================== DEMÓ 5: hitbox / one-hit ===================== */
+function initHit(){
+  var cv=document.getElementById("hitCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var rule=true, angle=0, swingSpeed=70, flashes=0, lastHits=0;
+  var player={x:cv.width/2,y:cv.height/2,r:14};
+  var N=8, enemies=[];
+  for(var i=0;i<N;i++){ var a=(i/N)*Math.PI*2; enemies.push({x:player.x+Math.cos(a)*70,y:player.y+Math.sin(a)*70,r:12,flash:0,hitThisSwing:false}); }
+  makeLoop(function(dt){
+    angle+=swingSpeed*dt*Math.PI/180;
+    // egy "swing" = a kard körbefordul 2pi-t; újrakezdés = új swing
+    var swingPhase=(angle%(Math.PI*2));
+    if(swingPhase<0.05){ // új swing
+      for(var e of enemies){ e.hitThisSwing=false; }
+      lastHits=0;
+    }
+    // hitbox: a kard hegyénél egy kis kör, a facing irányba
+    var hx=player.x+Math.cos(angle)*40, hy=player.y+Math.sin(angle)*40;
+    for(var e of enemies){
+      var d=len(hx-e.x,hy-e.y);
+      if(d<14+e.r){
+        if(!rule || !e.hitThisSwing){
+          e.flash=0.12; flashes++;
+          if(rule) e.hitThisSwing=true;
+          lastHits++;
+        }
+      }
+    }
+    for(var e of enemies){ e.flash=Math.max(0,e.flash-dt); }
+    document.getElementById("hitCount").textContent=lastHits;
+    document.getElementById("hitFlashes").textContent=flashes;
+    draw(hx,hy);
+  });
+  function draw(hx,hy){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    // hitbox ív (a kard nyoma)
+    ctx.strokeStyle="rgba(255,107,107,.4)";ctx.lineWidth=4;
+    ctx.beginPath();ctx.arc(player.x,player.y,40,angle-0.5,angle+0.5);ctx.stroke();
+    // kard
+    ctx.strokeStyle="#e3e3ec";ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(player.x,player.y);ctx.lineTo(hx,hy);ctx.stroke();
+    // hitbox vég
+    ctx.fillStyle="#ff6b6b";ctx.beginPath();ctx.arc(hx,hy,5,0,Math.PI*2);ctx.fill();
+    // enemies
+    for(var e of enemies){
+      ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,Math.PI*2);
+      ctx.fillStyle=e.flash>0?"#ffffff":"#ec6a9c";ctx.fill();
+      ctx.strokeStyle="#ff6b6b";ctx.lineWidth=2;ctx.stroke();
+    }
+    // player
+    ctx.fillStyle="#56d4c4";ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#10101a";ctx.beginPath();ctx.arc(player.x,player.y,player.r*0.4,0,Math.PI*2);ctx.fill();
+  }
+  document.getElementById("hitRule").addEventListener("click",function(){ rule=!rule; this.classList.toggle("on",rule); });
+  var s=document.getElementById("hitSpeed"),sv=document.getElementById("hitSpeedVal");
+  s.addEventListener("input",function(){ swingSpeed=parseInt(s.value,10); sv.textContent=swingSpeed; });
+  sv.textContent=swingSpeed;
+  document.getElementById("hitSwingBtn").addEventListener("click",function(){ angle=0; });
+}
+
+/* ===================== DEMÓ 7: ellenség-AI ===================== */
+function initAI(){
+  var cv=document.getElementById("aiCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var player={x:cv.width/2,y:cv.height/2,r:12,vx:0,vy:0};
+  var enemies=[];
+  var keys={};
+  var mouse={x:player.x,y:player.y,active:false};
+  cv.addEventListener("mousemove",function(e){ var r=cv.getBoundingClientRect(); mouse.x=(e.clientX-r.left)*(cv.width/r.width); mouse.y=(e.clientY-r.top)*(cv.height/r.height); mouse.active=true; });
+  cv.addEventListener("mouseleave",function(){ mouse.active=false; });
+  window.addEventListener("keydown",function(e){ keys[e.code]=true; });
+  window.addEventListener("keyup",function(e){ keys[e.code]=false; });
+  function spawn(n){ for(var i=0;i<n;i++){ var a=Math.random()*Math.PI*2; var d=140+Math.random()*60; enemies.push({x:player.x+Math.cos(a)*d,y:player.y+Math.sin(a)*d,r:11,vx:0,vy:0,state:0,cw:0,attackCd:Math.random()}); } }
+  spawn(4);
+  // state: 0 Idle,1 Chase,2 Windup,3 Active,4 Recover
+  var DETECT=120, ATTACK=26, FORGET=200;
+  makeLoop(function(dt){
+    // player input: WASD vagy egér
+    var dx=0,dy=0;
+    if(keys.KeyW||keys.ArrowUp) dy-=1; if(keys.KeyS||keys.ArrowDown) dy+=1;
+    if(keys.KeyA||keys.ArrowLeft) dx-=1; if(keys.KeyD||keys.ArrowRight) dx+=1;
+    if(dx||dy){ var l=len(dx,dy); dx/=l; dy/=l; mouse.active=false; player.vx+=dx*600*dt; player.vy+=dy*600*dt; }
+    else if(mouse.active){ var tx=mouse.x-player.x,ty=mouse.y-player.y; var l=len(tx,ty); if(l>4){ player.vx+=tx/l*900*dt; player.vy+=ty/l*900*dt; } }
+    player.vx*=Math.pow(0.001,dt); player.vy*=Math.pow(0.001,dt);
+    player.x=clamp(player.x+player.vx*dt,16,cv.width-16); player.y=clamp(player.y+player.vy*dt,16,cv.height-16);
+    // AI
+    var counts=[0,0,0];
+    for(var e of enemies){
+      var to={x:player.x-e.x,y:player.y-e.y}; var d=len(to.x,to.y)||0.01;
+      e.attackCd-=dt;
+      if(e.state===0){ if(d<DETECT) e.state=1; }
+      else if(e.state===1){
+        if(d>FORGET) e.state=0;
+        else if(d<ATTACK && e.attackCd<=0){ e.state=2; e.cw=0; }
+        else { e.vx+=to.x/d*80*dt; e.vy+=to.y/d*80*dt; }
+      }
+      else if(e.state===2){ e.cw+=dt; e.vx*=0.6; e.vy*=0.6; if(e.cw>0.35){ e.state=3; e.cw=0; } }
+      else if(e.state===3){ e.cw+=dt; if(e.cw>0.15){ e.state=4; e.cw=0; e.attackCd=1.2; } }
+      else if(e.state===4){ e.cw+=dt; if(e.cw>0.3){ e.state=1; } }
+      e.vx*=Math.pow(0.02,dt); e.vy*=Math.pow(0.02,dt);
+      e.x+=e.vx*dt; e.y+=e.vy*dt;
+      counts[Math.min(2,Math.max(0,e.state===0?0:(e.state===1?1:2)))]++;
+    }
+    document.getElementById("aiIdle").textContent=counts[0];
+    document.getElementById("aiChase").textContent=counts[1];
+    document.getElementById("aiAtk").textContent=counts[2];
+    draw();
+  });
+  function colorFor(s){ return s===0?"#6b6b80":(s===1?"#f2c14e":"#ff6b6b"); }
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    // range körök (halvány)
+    ctx.strokeStyle="rgba(139,139,158,.15)";ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.arc(player.x,player.y,DETECT,0,Math.PI*2);ctx.stroke();
+    ctx.setLineDash([]);
+    // enemies
+    for(var e of enemies){
+      ctx.strokeStyle="rgba(139,139,158,.1)";ctx.lineWidth=1;ctx.setLineDash([3,3]);
+      ctx.beginPath();ctx.arc(e.x,e.y,ATTACK,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+      // attack windup telegrafálás
+      if(e.state===2){ ctx.strokeStyle="#ff6b6b";ctx.lineWidth=2;ctx.beginPath();ctx.arc(e.x,e.y,e.r+4+e.cw*10,0,Math.PI*2);ctx.stroke(); }
+      ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,Math.PI*2);
+      ctx.fillStyle=colorFor(e.state);ctx.fill();
+      ctx.strokeStyle="rgba(0,0,0,.4)";ctx.lineWidth=1.5;ctx.stroke();
+    }
+    // player
+    ctx.fillStyle="#56d4c4";ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,Math.PI*2);ctx.fill();
+  }
+  document.getElementById("aiSpawn").addEventListener("click",function(){ spawn(3); });
+  document.getElementById("aiReset").addEventListener("click",function(){ enemies=[]; spawn(4); });
+}
+
+/* ===================== DEMÓ 8: turn-taking vs swarm ===================== */
+function initSwarm(){
+  var cv=document.getElementById("swarmCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var turn=true; // turn-taking BE
+  var player={x:cv.width/2,y:cv.height/2,r:13,hp:100,maxhp:100};
+  var enemies=[];
+  function spawn(){ enemies=[]; for(var i=0;i<8;i++){ var a=(i/8)*Math.PI*2; enemies.push({x:player.x+Math.cos(a)*120,y:player.y+Math.sin(a)*120,r:11,vx:0,vy:0,role:0,state:1,cw:0,attackCd:Math.random()*1.5}); } }
+  spawn();
+  var MAX_ATK=3;
+  makeLoop(function(dt){
+    // role kiosztás
+    var cand=enemies.filter(function(e){return e.state===1;}).map(function(e){return {e:e,d:len(e.x-player.x,e.y-player.y)};});
+    cand.sort(function(a,b){return a.d-b.d;});
+    for(var i=0;i<enemies.length;i++) enemies[i].role=0;
+    for(i=0;i<cand.length;i++) cand[i].e.role = (turn && i>=MAX_ATK)?0:(i<MAX_ATK?1:0);
+    var atkCount=0;
+    for(var e of enemies){
+      var to={x:player.x-e.x,y:player.y-e.y}; var d=len(to.x,to.y)||0.01;
+      e.attackCd-=dt;
+      if(e.state===1){
+        if(d<ATTACK && e.attackCd<=0 && (e.role===1 || !turn)){
+          e.state=2; e.cw=0; // windup
+        } else if(d>16){ e.vx+=to.x/d*45*dt; e.vy+=to.y/d*45*dt; }
+      }
+      else if(e.state===2){ e.cw+=dt; if(e.cw>0.4){ e.state=3; e.cw=0; } }
+      else if(e.state===3){ e.cw+=dt; if(e.cw<0.15 && d<ATTACK+8){ player.hp-=18*dt*6; } if(e.cw>0.15){ e.state=4; e.cw=0; e.attackCd=1.4; } }
+      else if(e.state===4){ e.cw+=dt; if(e.cw>0.3){ e.state=1; } }
+      if(e.state>=2 && e.state<=3) atkCount++;
+      e.vx*=Math.pow(0.02,dt); e.vy*=Math.pow(0.02,dt);
+      e.x+=e.vx*dt; e.y+=e.vy*dt;
+    }
+    player.hp=clamp(player.hp,0,player.maxhp);
+    if(player.hp<=0){ player.hp=player.maxhp; spawn(); } // respawn a demó kedvéért
+    document.getElementById("swHp").textContent=Math.round(player.hp);
+    document.getElementById("swAtk").textContent=atkCount;
+    draw();
+  });
+  var ATTACK=30;
+  function draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    // HP bar
+    ctx.fillStyle="#1a1a28";ctx.fillRect(10,10,cv.width-20,12);
+    ctx.fillStyle=player.hp>40?"#8ce99a":"#ff6b6b";ctx.fillRect(10,10,(cv.width-20)*(player.hp/player.maxhp),12);
+    ctx.strokeStyle="#2c2c40";ctx.lineWidth=1;ctx.strokeRect(10,10,cv.width-20,12);
+    for(var e of enemies){
+      var col = e.role===1?"#ff6b6b":"#6b6b80";
+      if(e.state===2){ ctx.strokeStyle="#f2c14e";ctx.lineWidth=2;ctx.beginPath();ctx.arc(e.x,e.y,e.r+3+e.cw*8,0,Math.PI*2);ctx.stroke(); }
+      if(e.state===3){ ctx.strokeStyle="#ff6b6b";ctx.lineWidth=3;ctx.beginPath();ctx.arc(e.x,e.y,e.r+2,0,Math.PI*2);ctx.stroke(); }
+      ctx.beginPath();ctx.arc(e.x,e.y,e.r,0,Math.PI*2);ctx.fillStyle=col;ctx.fill();
+    }
+    ctx.fillStyle="#56d4c4";ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,Math.PI*2);ctx.fill();
+  }
+  var sB=document.getElementById("swSwarm"),tB=document.getElementById("swTurn");
+  function setTurn(v){ turn=v; tB.classList.toggle("on",turn); sB.classList.toggle("on",!turn); }
+  sB.addEventListener("click",function(){ setTurn(false); });
+  tB.addEventListener("click",function(){ setTurn(true); });
+  setTurn(true);
+}
+
+/* ===================== DEMÓ 9: juice rétegek ===================== */
+function initJuice(){
+  var cv=document.getElementById("juiceCanvas"); if(!cv) return;
+  var ctx=cv.getContext("2d");
+  var layers={stop:false,shake:false,part:false,flash:false,all:true};
+  function syncAll(){ var on=layers.all; layers.stop=on;layers.shake=on;layers.part=on;layers.flash=on; }
+  syncAll();
+  function active(k){ return layers.all||layers[k]; }
+  var replayT=0; // 0..1 a ütés ciklusa
+  var hitStop=0, shake={trauma:0}, flash=0, parts=[];
+  var rng=mulberry32(3);
+  var player={x:120,y:cv.height/2,r:14}, enemy={x:cv.width-160,y:cv.height/2,r:18,hp:3};
+  var facing=0; // jobbra
+  function triggerHit(){
+    if(active("stop")) hitStop=0.07;
+    if(active("shake")) shake.trauma=0.8;
+    if(active("flash")) flash=0.14;
+    if(active("part")){ for(var k=0;k<10;k++){ var sa=facing+(rng()-0.5)*1.8,sp=70+rng()*140; parts.push({x:enemy.x,y:enemy.y,vx:Math.cos(sa)*sp,vy:Math.sin(sa)*sp,life:0.4,tot:0.4,c:rng()<0.5?"#f2c14e":"#ff6b6b"}); } }
+    enemy.hp--;
+  }
+  makeLoop(function(dt,t){
+    var rdt=dt;
+    if(hitStop>0){ hitStop-=dt; rdt=dt*0.05; }
+    replayT+=rdt/1.2;
+    if(replayT>=1){ replayT=0; enemy.hp=3; triggerHit(); }
+    flash=Math.max(0,flash-dt);
+    shake.trauma=Math.max(0,shake.trauma-dt);
+    for(var p of parts){ p.life-=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=0.92; p.vy*=0.92; }
+    parts=parts.filter(function(p){return p.life>0;});
+    draw(t);
+  });
+  function draw(t){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    ctx.save();
+    var amp=active("shake")?shake.trauma*shake.trauma*12:0;
+    var a=hash01(t*60|0,2,5)*Math.PI*2;
+    ctx.translate(Math.cos(a)*amp,Math.sin(a)*amp);
+    // talaj
+    ctx.fillStyle="rgba(44,44,64,.4)";ctx.fillRect(0,cv.height-20,cv.width,20);
+    // kard (ha active)
+    var swingP=clamp(replayT*3,0,1);
+    if(replayT<0.5){
+      ctx.strokeStyle="#e3e3ec";ctx.lineWidth=4;
+      var sx=player.x+Math.cos(facing)*10, sy=player.y+Math.sin(facing)*10;
+      var ex=player.x+Math.cos(facing)*(20+swingP*60), ey=player.y+Math.sin(facing)*(20+swingP*60);
+      ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(ex,ey);ctx.stroke();
+    }
+    // particles
+    for(var p of parts){ ctx.globalAlpha=clamp(p.life/p.tot,0,1);ctx.fillStyle=p.c;ctx.fillRect(p.x-2,p.y-2,4,4); }
+    ctx.globalAlpha=1;
+    // enemy
+    ctx.beginPath();ctx.arc(enemy.x,enemy.y,enemy.r,0,Math.PI*2);
+    ctx.fillStyle=(active("flash")&&flash>0)?"#ffffff":"#ec6a9c";ctx.fill();
+    ctx.strokeStyle="#ff6b6b";ctx.lineWidth=2;ctx.stroke();
+    // hp pöttyök
+    for(var i=0;i<3;i++){ ctx.fillStyle=i<enemy.hp?"#ff6b6b":"rgba(255,107,107,.2)";ctx.beginPath();ctx.arc(enemy.x-14+i*14,enemy.y+enemy.r+10,4,0,Math.PI*2);ctx.fill(); }
+    // player
+    ctx.fillStyle="#56d4c4";ctx.beginPath();ctx.arc(player.x,player.y,player.r,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
+  function bind(id,key){ var b=document.getElementById(id); b.addEventListener("click",function(){ layers[key]=!layers[key]; if(key!=="all") layers.all=false; b.classList.toggle("on",layers[key]); }); }
+  bind("jStop","stop");bind("jShake","shake");bind("jPart","part");bind("jFlash","flash");
+  document.getElementById("jAll").addEventListener("click",function(){ layers.all=!layers.all; syncAll(); ["jStop","jShake","jPart","jFlash","jAll"].forEach(function(id){ document.getElementById(id).classList.toggle("on",layers.all||id==="jAll"&&layers.all); }); });
+}
+
+function initDemos(){
+  initHero();
+  initPhase();
+  initHit();
+  initAI();
+  initSwarm();
+  initJuice();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Composer — Import/Export workflow · 4. rész (magyar)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#13111d;--bg-deep:#0c0a13;--panel:#1c1828;--panel-2:#17142260;
+  --ink:#e8e3f0;--muted:#9a8fb0;--node:#b07cff;--node-hi:#d4a8ff;
+  --flow:#5ad7ff;--flow-dk:#2a7d99;--ok:#7ed957;--warn:#ffb454;
+  --lava:#ff7a3c;--line:#2a2440;--line-hi:#3d3458;--shadow:rgba(0,0,0,.5);
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.06) 3px 4px)}
+::selection{background:var(--node);color:#fff}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--bg-deep);border-right:3px solid var(--line);overflow-y:auto;z-index:30;padding:22px 0 40px}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px}
+.logo .title{font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;color:var(--node-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15}
+.logo .sub{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em}
+.logo .badge{display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;color:var(--bg-deep);background:var(--node);padding:2px 9px 3px;box-shadow:2px 2px 0 var(--shadow)}
+.logo .badge.alt{background:var(--flow);color:#06181c;margin-left:6px}
+.nav-part{font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--node);padding:16px 20px 6px;text-transform:uppercase}
+.nav a{display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;font-size:14px;position:relative;border-left:4px solid transparent;transition:color .12s,background .12s}
+.nav a::before{content:"▸";position:absolute;left:16px;opacity:0;color:var(--flow);transition:opacity .12s,left .12s}
+.nav a:hover{color:var(--ink);background:rgba(176,124,255,.06)}
+.nav a.active{color:var(--node-hi);background:rgba(176,124,255,.10);border-left-color:var(--node);font-weight:600}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;background:var(--node);color:#10180f;border:none;padding:8px 14px;box-shadow:3px 3px 0 var(--shadow);text-decoration:none;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--warn)}
+.btn.flow{background:var(--flow);color:#06181c}
+.menu-toggle{display:none;position:fixed;top:14px;left:14px;z-index:40;font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;background:var(--panel);color:var(--ink);border:3px solid var(--line);box-shadow:3px 3px 0 var(--shadow)}
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{font-family:"IBM Plex Mono";font-size:13px;color:var(--flow);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-family:"Pixelify Sans";font-weight:700;font-size:clamp(32px,5vw,52px);line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px}
+.hero h1 .n{color:var(--node-hi)}
+.hero h1 .f{color:var(--flow)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{border:3px solid var(--line);background:var(--bg-deep);padding:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow)}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0;border:2px solid var(--line);background:#0c0a13}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6;flex:1;min-width:220px}
+.hero-strip .cap b{color:var(--node-hi)}
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--node);text-transform:uppercase}
+.ch-eyebrow{font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--flow);text-transform:uppercase;margin-bottom:8px}
+h2{font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;color:var(--node-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--warn);margin:34px 0 12px}
+p{margin-bottom:14px}p+p{margin-top:2px}
+strong{color:#fff}em{color:var(--node-hi)}
+a{color:var(--flow)}
+ul,ol{margin:0 0 16px 24px}li{margin-bottom:7px}
+code:not(pre code){font-family:"IBM Plex Mono";font-size:.86em;background:#0c0a13;color:var(--node-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+.ui{font-family:"IBM Plex Mono";font-size:.86em;background:#0d1018;color:var(--flow);padding:2px 7px;border:1px solid #2a4a52;white-space:nowrap;font-weight:500}
+ol.steps{list-style:none;margin:20px 0;counter-reset:st}
+ol.steps>li{counter-increment:st;position:relative;padding:4px 0 14px 52px;margin-bottom:6px;border-left:3px solid var(--line);margin-left:16px}
+ol.steps>li::before{content:counter(st);position:absolute;left:-19px;top:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-family:"Pixelify Sans";font-size:17px;color:#10180f;background:var(--node);box-shadow:2px 2px 0 var(--shadow)}
+ol.steps>li:last-child{border-left-color:transparent}
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{font-family:"Pixelify Sans";font-size:13px;color:var(--flow);letter-spacing:.1em;padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--ok)}.diagram pre .di{color:var(--warn)}.diagram pre .wa{color:var(--flow)}.diagram pre .no{color:var(--node-hi)}.diagram pre .st{color:#9aa0aa}.diagram pre .lv{color:var(--lava)}.diagram pre .mu{color:var(--muted)}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+.info-box{margin:24px 0;border:3px solid #2a4a52;background:#0d1018;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.info-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--flow);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.info-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.info-box p:last-child{margin-bottom:0}
+.info-box code:not(pre code){border-color:#2a4a52;color:var(--flow)}
+.info-box ul{font-size:15px;color:#cfdbd5}
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--node);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--warn)}
+.note.ok{border-left-color:var(--ok)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--node-hi);margin-bottom:4px}
+.note.warn .n-tag{color:var(--warn)}
+.note.ok .n-tag{color:var(--ok)}
+.shot{margin:24px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.shot img{display:block;width:100%;height:auto;image-rendering:auto}
+.shot .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.55;padding:9px 13px;border-top:2px dashed var(--line-hi)}
+.shot .cap b{color:var(--node-hi)}
+.shot.small{max-width:420px}
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--warn);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+.on{color:var(--ok);font-weight:600}
+.off{color:var(--warn)}
+.playground{margin:26px 0;border:3px solid var(--node);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:linear-gradient(90deg,rgba(176,124,255,.14),transparent);border-bottom:3px solid var(--node);padding:10px 14px}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--node-hi);letter-spacing:.08em}
+.playground .pg-tag{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted)}
+.playground .pg-body{padding:16px;display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#0c0a13;touch-action:none;max-width:100%}
+.playground .pg-side{flex:1;min-width:240px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:1.9}
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--warn);letter-spacing:.06em;margin:14px 0 4px;text-transform:uppercase}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0}
+.tbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:5px 12px;transition:all .1s}
+.tbtn:hover{color:var(--ink)}
+.tbtn.active{background:var(--node);color:#10180f;border-color:var(--node);font-weight:600}
+.tbtn.flow.active{background:var(--flow);color:#06181c;border-color:var(--flow)}
+input[type=range]{width:100%;accent-color:var(--node);margin:6px 0 2px;cursor:pointer}
+.rng-val{font-family:"IBM Plex Mono";font-size:13px;color:var(--node-hi)}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+pre.code{margin:18px 0;padding:14px 16px;background:#0c0a13;border:3px solid var(--line);border-left:6px solid var(--flow);box-shadow:4px 4px 0 var(--shadow);font-family:"IBM Plex Mono";font-size:13px;line-height:1.55;color:var(--ink);overflow-x:auto}
+pre.code .kw{color:var(--node-hi)}pre.code .st{color:var(--flow)}pre.code .cm{color:#565066;font-style:italic}pre.code .fn{color:var(--ok)}
+.next-card{margin-top:70px;border:3px solid var(--line);background:var(--panel);box-shadow:5px 5px 0 var(--shadow);padding:20px 22px;display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+.next-card .nx-label{font-family:"IBM Plex Mono";font-size:12px;color:var(--flow);letter-spacing:.14em;text-transform:uppercase}
+.next-card .nx-title{font-family:"Pixelify Sans";font-size:22px;color:var(--node-hi);margin-top:4px}
+.next-card .nx-desc{font-size:14.5px;color:var(--muted);margin-top:8px;flex:1;min-width:240px}
+.prev-card{margin-bottom:50px;border:3px solid var(--line);background:var(--panel-2);box-shadow:3px 3px 0 var(--shadow);padding:12px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.prev-card .px-label{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+.prev-card .px-title{font-family:"Pixelify Sans";font-size:15px;color:var(--muted);margin-top:2px}
+.prev-card a{font-family:"Pixelify Sans";font-size:14px;color:var(--node-hi);text-decoration:none}
+footer{margin-top:60px;border-top:3px solid var(--line);padding-top:24px;font-size:13.5px;color:var(--muted)}
+footer .pix{font-family:"Pixelify Sans";color:var(--node);font-size:15px}
+footer a{color:var(--flow)}
+@media (max-width:980px){.sidebar{transform:translateX(-100%);transition:transform .2s}.sidebar.open{transform:translateX(0)}.menu-toggle{display:block}.main{margin-left:0}.wrap{padding:0 20px 100px}.hero{padding-top:84px}}
+</style>
+</head>
+<body>
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;background:linear-gradient(90deg,#b07cff,#d4a8ff);box-shadow:0 0 10px rgba(176,124,255,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">PIXEL COMPOSER<br>EXPORT</div>
+    <div class="sub">spritesheet · engine pipeline · 4. rész · magyarul</div>
+    <span class="badge">Pixel Composer</span><span class="badge alt">4 / N</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I · Import</div>
+    <a href="#ch1">1 · Mit importál a PXC?</a>
+    <a href="#ch2">2 · Aseprite és PNG</a>
+    <div class="nav-part">II · Export</div>
+    <a href="#ch3">3 · Az Export node</a>
+    <a href="#ch4">4 · A ▶ EXPORT gomb (csapda!)</a>
+    <a href="#ch5">5 · Template és %d</a>
+    <div class="nav-part">III · Formátumok</div>
+    <a href="#ch6">6 · PNG vs spritesheet</a>
+    <a href="#ch7">7 · GIF és videó</a>
+    <div class="nav-part">IV · Engine pipeline</div>
+    <a href="#ch8">8 · A teljes pipeline</a>
+    <a href="#ch9">9 · Godot / Bevy / GameMaker</a>
+    <a href="#ch10">10 · Gyakori csapdák</a>
+    <div class="nav-part">V · Lezárás</div>
+    <a href="#ch11">11 · Összefoglaló &amp; tovább</a>
+  </nav>
+  <div class="dl-box">
+    <p>A tutorial a Pixel Composer <strong>ingyenes</strong> verziójával csinálható végig. Ha lemaradtad az előző részeket:</p>
+    <a class="btn flow" href="pixelcomposer-animacio-alapok-tutorial.html">◂ 3. rész: Animáció</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// 4. rész · középhaladó · magyar nyelven · ~35 perc · a hivatalos docs alapján</div>
+  <h1>Import / Export workflow<br>— a <span class="n">spritesheet</span> <span class="f">pipeline</span></h1>
+  <p class="lead">Az 1–3. részben felépítettél egy gráfot, animáltad, és a Preview-ben már lüktetett a glow-ed. Most jön az utolsó lépés: <strong>hogyan juttassuk ki ezt a játékmotorba</strong>. Megtanulod az <strong>Export node</strong> működését (és a #1 kezdő csapdát: a manuális trigger), a spritesheet formátumot, és hogyan tölti be a Godot / Bevy / GameMaker az animációdat.</p>
+  <div class="hero-strip">
+    <canvas id="heroCanvas" width="220" height="140" style="width:220px;height:140px"></canvas>
+    <div class="cap" id="heroCap">↑ Élő minta: egy <b>spritesheet</b> 6 frame-ből. A „motor" lépteti a frame-et balról jobbra — pontosan így fogja betölteni a te játékmotorod. (Hoverrel leállíthatod.)</div>
+  </div>
+</header>
+
+<div class="prev-card">
+  <div>
+    <div class="px-label">előző · 3. rész</div>
+    <div class="px-title">Animáció alapok — keyframe-ek &amp; interpoláció</div>
+  </div>
+  <a href="pixelcomposer-animacio-alapok-tutorial.html">◂ vissza a 3. részhez</a>
+</div>
+
+<!-- ================= I. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Import</span></div>
+
+<!-- ================= 1. FEJEZET ================= -->
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>Mit importál a PXC?</h2>
+
+  <p>A PXC két irányban dolgozik: <strong>be</strong> importál képeket (ezeket alakítja/dúsítja effekt-tel) és <strong>ki</strong> exportál Surface-eket (PNG, spritesheet, GIF). Előbb nézzük a bejövő oldalt, mert az export megértéséhez tudni kell, honnan jön az input.</p>
+
+  <table>
+    <tr><th>Formátum</th><th>Mit csinál vele</th><th>Tipikus forrás</th></tr>
+    <tr><td><code>PNG</code> / <code>JPG</code></td><td>Egyetlen képként tölti be (statikus Surface).</td><td>Bármilyen képszerkesztő, Aseprite export, 3D render.</td></tr>
+    <tr><td><code>.aseprite</code></td><td><strong>Közvetlenül</strong> beolvassa — rétegeket, frame-eket, palettát is.</td><td>Aseprite (nem kell előbb exportálni!).</td></tr>
+    <tr><td><code>GIF</code></td><td>Animált képként — minden frame külön Surface frame.</td><td>Kész animáció, webes forrás.</td></tr>
+    <tr><td>drag &amp; drop</td><td>Bármelyik fenti formátum behúzható a Graph-ra.</td><td>Fájlkezelőből egyenesen a PXC-be.</td></tr>
+  </table>
+
+  <div class="info-box">
+    <div class="tag">▸ Aseprite közvetlen — ez nagy dolog</div>
+    <p>A PXC <strong>közvetlenül olvassa</strong> az Aseprite fájlokat — nem kell előbb PNG-be exportálnod. Az Image node-nak csak a <code>.aseprite</code> fájlt adod meg Path-nak, és a PXC beolvassa a rétegeket, a frame-eket, sőt a palettát is. Így az Aseprite-ban szerkesztett sprite-ot módosítva a PXC gráf automatikusan frissül.</p>
+  </div>
+</section>
+
+<!-- ================= 2. FEJEZET ================= -->
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>Aseprite és PNG — melyiket mikor?</h2>
+
+  <p>A gyakori kérdés: „Aseprite fájlt adjak meg, vagy előbb PNG-be exportáljak?" A válasz a munkafolyamattól függ:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Import döntésfa</div>
+<pre>
+  <span class="wa">A sprite-om még változik (Aseprite-ban szerkesztem)?</span>
+    ├─ IGEN  → add meg a <span class="no">.aseprite</span> fájlt közvetlenül
+    │           ▸ előny: automatikus frissítés, rétegek beolvasása
+    │           ▸ hátrány: a PXC projekt az Aseprite fájltól függ
+    │
+    └─ NEM (kész, „fagyasztott" sprite)
+                → exportálj <span class="no">PNG</span>-be, azt add meg
+                  ▸ előny: önálló, hordozható projekt
+                  ▸ hátrány: ha módosul a sprite, újra export kell
+</pre>
+    <div class="d-cap">Tanulság: <strong>fejlesztés közben</strong> Aseprite-ot használj (gyors iteráció), <strong>archiváláskor/megosztáskor</strong> PNG-t. A PXC projekt (<code>.pxc</code>) csak a <em>Path</em>-ot tárolja — magát a képet nem, így mindig kell a forrásfájl a projekt mellé.</div>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">▲ „Nem találom a képet" — projekt áthelyezése</div>
+    Ha áthelyezed vagy megosztod a <code>.pxc</code> projektet, a képeket <strong>veled kell vinned</strong>. A PXC csak a <em>fájlútvonalat</em> tárolja, nem ágyazza be a képet. Ha az útvonal megszakad (pl. másik gépen más a mappa), az Image node „pirosra" vált — újra ki kell választani a Path-ot. Pro tipp: a projekt mellé tegyél egy <code>assets/</code> mappát, és onnan hivatkozz.
+  </div>
+</section>
+
+<!-- ================= II. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ II. rész — Export</span></div>
+
+<!-- ================= 3. FEJEZET ================= -->
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>Az Export node</h2>
+
+  <p>Az <strong>Export</strong> node (zöld fejléc, Render/Export kategória) a gráf végére kerül — az utolsó Surface-t kiírja fájlba. Ez az a pont, ahol a gráfod „kikerül" a fájlrendszerbe.</p>
+
+  <div class="shot">
+    <img src="assets/pixelcomposer/export-node.svg" alt="Export node a gráf végén, ▶ EXPORT gombbal, PNG kimenettel">
+    <div class="cap">Az <b>Export node</b> egy bemenettel rendelkezik (Surface) — erre az utolsó Preview/effekt kimenete csatlakozik. Az <code>Inspector ▸ Path</code> adja meg a kimeneti fájlt, a <code>Template</code> a névsablont. A <b>▶ EXPORT</b> gomb (zöld kiemelés) a tényleges kiírást indítja.</div>
+  </div>
+
+  <ol class="steps">
+    <li>Jobb-klikk → <span class="ui">Add Node ▸ Export ▸ Export</span>.</li>
+    <li>Húzd az utolsó node (általában Preview, vagy a Blend/Transform kimenete) kimenetét az Export bemenetére.</li>
+    <li>Jelöld ki az Export node-ot. Az Inspector-ban állítsd be a <code>Path</code>-ot (hova kerüljön a fájl).</li>
+    <li>Állítsd a <code>Template</code>-et (a fájlnév sablon, lásd 5. fejezet).</li>
+    <li>Nyomd meg a <strong>▶ EXPORT</strong> gombot az Inspector tetején (a zöld kiemelés).</li>
+  </ol>
+
+  <div class="note">
+    <div class="n-tag">▸ „A gráf végén" — mit jelent?</div>
+    Az Export node-nak azt a Surface-t adjad, amit ki akarsz menteni — vagyis a gráfod <strong>végleges kimenetét</strong>. Ha van egy Preview-öd, az is jó (a Preview csak megjelenít, de kimenete ugyanaz a Surface, mint a bemenete). Ha több ágon több dolgot akarsz menteni, tegyél <strong>több Export node-ot</strong> — minden ágra egyet.
+  </div>
+</section>
+
+<!-- ================= 4. FEJEZET ================= -->
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>A ▶ EXPORT gomb — a #1 kezdő csapda</h2>
+
+  <p>Itt van a Pixel Composer leggyakoribb kezdő problémája — a fórumokon, itch.io community-n többször visszatérő kérdés:</p>
+
+  <div class="note warn">
+    <div class="n-tag">▲ A leggyakoribb kezdő csapda</div>
+    Az Export node <strong>nem automatikus</strong>. Hiába csinálod meg a gráfot, hiába módosítod utána — a fájl <strong>csak akkor íródik ki</strong>, ha az Inspector-ban az <strong>▶ EXPORT gombot manuálisan megnyomod</strong>. Sokan várnak, hogy „mentésre" írja ki (mint egy normál program Save-je), de a <span class="ui">File ▸ Save</span> csak a <code>.pxc</code> projektet menti — a kimeneti PNG-t nem.
+  </div>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Mentés vs. export — a két külön dolog</div>
+<pre>
+  <span class="wa">File ▸ Save</span>  (Ctrl+S)   →  a <span class="no">.pxc</span> projekt-fájl
+                                   (gráf, node-ok, paraméterek, animáció)
+                                   <span class="mu">— a munkádat menti, nem a kimenetet</span>
+
+  <span class="wa">Inspector ▸ ▶ EXPORT</span>     →  a kimeneti fájl (PNG / spritesheet / GIF)
+                                   <span class="mu">— ezt minden módosítás után újra kell nyomni!</span>
+</pre>
+    <div class="d-cap">Ez a két dolog <strong>teljesen független</strong>. Menthetsz projektet anélkül, hogy exportálnál; exportálhatsz anélkül, hogy mentenél. A jó szokás: módosítasz a gráfon → <span class="kbd">Ctrl</span>+<span class="kbd">S</span> (projekt mentés) → <span class="ui">▶ EXPORT</span> (kimenet frissítése).</div>
+  </div>
+
+  <div class="info-box">
+    <div class="tag">▸ „De legalább látszik a változás?"</div>
+    <p>Igen — a <strong>Preview node él</strong>, az automatikusan frissül, ahogy módosítod a gráfot. Tehát látod, mit csinálsz. De a fájlrendszerbe (a lemezre) csak a ▶ EXPORT gomb ír. Tehát: fejlesztés közben a Preview-t nézed, és csak akkor exportálsz, ha az eredmény már kész — vagy ha új frame kell a spritesheet-be.</p>
+  </div>
+
+  <div class="note ok">
+    <div class="n-tag">✓ Batch export — animációnál</div>
+    Animációnál nem kell 24-szer megnyomni a gombot. Az Export node-nak van <strong>„Export all frames"</strong> opciója (vagy a Template <code>%d</code> jelölője automatikusan generálja az összes frame-et). Esetleg a külön <strong>Sprite Sheet node</strong> (lásd 6. fejezet) egyetlen PNG-t csinál az összes frame-ből — azt elég egyszer exportálni.
+  </div>
+</section>
+
+<!-- ================= 5. FEJEZET ================= -->
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Template és %d — fájlnév-sablon</h2>
+
+  <p>A <code>Template</code> mező egy fájlnév-sablont tartalmaz. Statikus képnél egyszerű (<code>sprite.png</code>), de <strong>animációnál</strong> vagy több kimenetnél speciális jelölőket használhatsz:</p>
+
+  <table>
+    <tr><th>Jelölő</th><th>Mit helyettesít</th><th>Példa</th></tr>
+    <tr><td><code>%d</code></td><td>A frame sorszáma (0-tól vagy 1-től).</td><td><code>spr_%d.png</code> → <code>spr_0.png</code>, <code>spr_1.png</code>…</td></tr>
+    <tr><td><code>%04d</code></td><td>Frame sorszáma, <strong>nulla-padded</strong> 4 jegyre.</td><td><code>spr_%04d.png</code> → <code>spr_0000.png</code>, <code>spr_0001.png</code>…</td></tr>
+    <tr><td><code>{name}</code></td><td>A node vagy kép neve.</td><td><code>out_{name}.png</code></td></tr>
+  </table>
+
+  <div class="note">
+    <div class="n-tag">▸ Miért fontos a nulla-padding?</div>
+    A <code>%04d</code> formátum (4 jegy, elé nullák) nem „kellék" — a legtöbb játékmotor és atlas-packelő <strong>ábécé-sorrendben</strong> tölti be a fájlokat. <code>spr_1.png, spr_10.png, spr_2.png</code> rossz sorrendet ad; <code>spr_0001.png, spr_0002.png, …, spr_0010.png</code> helyeset. Szokj rá a <code>%04d</code>-re.
+  </div>
+</section>
+
+<!-- ================= III. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Formátumok</span></div>
+
+<!-- ================= 6. FEJEZET ================= -->
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>PNG vs spritesheet</h2>
+
+  <p>Animáció exportjánál két fő formátum közül választasz: <strong>egyedi PNG-k</strong> (frame-enként egy fájlt) vagy <strong>spritesheet</strong> (az összes frame egy PNG-ben). A különbség hatalmas — a játékmotorok nagy része a spritesheet-et preferálja.</p>
+
+  <div class="shot">
+    <img src="assets/pixelcomposer/spritesheet-formats.svg" alt="Két export-formátum: egyedi PNG-k frame-enként vs egybefüggő spritesheet">
+    <div class="cap"><b>① Egyedi PNG-k</b>: frame-enként külön fájl (<code>spr_000.png</code>…). Könnyen szerkeszthető, cserélhető, de sok kis fájl. <b>② Spritesheet</b>: egyetlen PNG, a frame-ek vízszintesen (vagy rácsban) elrendezve. Egy fájl, motor-barát — <strong>ez az ajánlott</strong>.</div>
+  </div>
+
+  <table>
+    <tr><th></th><th>Egyedi PNG-k</th><th>Spritesheet</th></tr>
+    <tr><td><strong>fájlok</strong></td><td>Sok (24 frame = 24 fájl)</td><td>Egyetlen PNG</td></tr>
+    <tr><td><strong>betöltés</strong></td><td>Manuális, egyesével</td><td>Egyszer, atlas-ként</td></tr>
+    <tr><td><strong>memória</strong></td><td>Több foglalás, fragmentált</td><td>Egybefüggő, kompakt</td></tr>
+    <tr><td><strong>atlas-pack</strong></td><td>Külön lépés kell</td><td>Beépítve</td></tr>
+    <tr><td><strong>frame-csere</strong></td><td>Egy fájlt cserélsz</td><td>Újra export kell</td></tr>
+    <tr><td><strong>ajánlott</strong></td><td>Prototípus, egyedi frame</td><td><strong>Game-dev pipeline</strong></td></tr>
+  </table>
+
+  <h3>Sprite Sheet node</h3>
+  <p>A spritesheet-hez nem (csak) az Export node kell — van egy külön <strong>Sprite Sheet</strong> node (Generate vagy Render kategória). Ez a node veszi az animált Surface-t, és <strong>elrendezi a frame-eket egyetlen képre</strong> (vízszintesen vagy rácsban). Ennek a kimenetét azután egy Export node kiírja.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Spritesheet-pipeline gráfja</div>
+<pre>
+  <span class="wa">Image</span> ─▸ <span class="di">Blend</span> (animált Opacity) ─▸ <span class="di">Sprite Sheet</span> ─▸ <span class="gr">Export</span>
+                                              ▲
+                                    <span class="no">az animáció minden frame-jét</span>
+                                    <span class="no">vízszintesen egymás mellé rakja</span>
+                                    <span class="no">→ egyetlen PNG, pl. 256×64 px</span>
+                                    <span class="no">   (4 frame × 64 px széles)</span>
+</pre>
+    <div class="d-cap">A Sprite Sheet node paraméterei: <strong>frame-ek száma</strong>, <strong>elrendezés</strong> (horizontal/vertical/grid), <strong>padding</strong> (keret a frame-ek közt, hogy elkerüld a „vérzés” — bleeding — jelenséget). A kimenetet egy Export node-tal írod ki — egyszeri ▶ EXPORT.</div>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">▲ Padding — a „vérzés" (bleeding) ellen</div>
+    Spritesheet-nél előfordulhat, hogy egy frame széle „átfolyik" a szomszéd frame-be (a motor lineáris mintavételezése miatt). Ezt úgy kerülöd el, hogy a Sprite Sheet node-on beállítod a <strong>padding</strong>-et (1–2 pixel keret minden frame körül). A modern motorok „nearest" mintavételezéssel ezt nem igénylik, de ha  forgatást is használsz, a padding menthet.
+  </div>
+</section>
+
+<!-- ================= 7. FEJEZET ================= -->
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>GIF és videó — egyéb formátumok</h2>
+
+  <p>A PNG és spritesheet mellett a PXC más formátumokat is tud:</p>
+
+  <table>
+    <tr><th>Formátum</th><th>Mire jó</th><th>Mikor használd</th></tr>
+    <tr><td><strong>GIF</strong> (animált)</td><td>Egyetlen fájl, beágyazott animáció.</td><td>Demó/megmutató megosztása, social media, README-ben.</td></tr>
+    <tr><td><strong>MP4 / WebM</strong></td><td>Videó, tömörített.</td><td>Hosszabb animáció, videós demó.</td></tr>
+    <tr><td><strong>JSON (atlas metaadat)</strong></td><td>A spritesheet elrendezésének leírása (frame méretek, pozíciók).</td><td>Motortól függ — Godot/Spine/Bevy atlas-packelés.</td></tr>
+  </table>
+
+  <div class="note">
+    <div class="n-tag">▸ GIF a gyors megmutatáshoz</div>
+    Ha valakinek meg akarod mutatni az effektedet (Discordon, fórumon), a GIF a leggyorsabb. De <strong>game-dev-be ne GIF-et használj</strong> — a GIF csak 256 színt támogat (indexed palette), ami rontja a minőséget. A játékhoz spritesheet PNG + külön metaadat a helyes út.
+  </div>
+</section>
+
+<!-- ================= IV. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ IV. rész — Engine pipeline</span></div>
+
+<!-- ================= 8. FEJEZET ================= -->
+<section id="ch8">
+  <div class="ch-eyebrow">8. fejezet</div>
+  <h2>A teljes pipeline — PXC-től motorig</h2>
+
+  <p>Tegyük össze az egészet. A teljes munkafolyamat egy ábrán:</p>
+
+  <div class="shot">
+    <img src="assets/pixelcomposer/engine-pipeline.svg" alt="Teljes pipeline: PXC gráf → spritesheet.png → játékmotor (Godot/Bevy/GameMaker)">
+    <div class="cap">A teljes pipeline: <b>PXC gráf</b> (az 1–3. részből) → <b>export</b> → <b>spritesheet.png</b> (egy PNG, frame-ek vízszintesen) → <b>load</b> → <b>játékmotor</b> (Godot / Bevy / GameMaker), ami atlas-ként tölti be és lépteti a frame-et.</div>
+  </div>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A metaadat — mit kell tudnia a motornak</div>
+<pre>
+  spritesheet.png  ──▸  <span class="wa">szélesség: 256 px</span>   (4 frame × 64 px)
+                       <span class="wa">magasság: 64 px</span>
+                       <span class="wa">frame-db: 4</span>
+                       <span class="wa">frame-méret: 64 × 64 px</span>
+                       <span class="wa">fps: 24</span>  (vagy amennyit állítottál)
+                       <span class="wa">loop: igen</span>
+
+  <span class="mu">A motor ezeket a metaadatokat külön beállítja (nem a PNG-ből olvassa ki).</span>
+  <span class="mu">Ezért fontos, hogy jól jegyezd fel — vagy JSON metaadatot exportálj.</span>
+</pre>
+    <div class="d-cap">A PXC-ben a Canvas mérete határozza meg a frame méretét. Ha 4 frame-t tettél vízszintesen a Sprite Sheet node-ban, és a Canvas 64×64 px, akkor a kimeneti PNG <code>256 × 64 px</code> lesz — ezt a 4 számot (szélesség, magasság, frame-db, fps) jegyezd fel a motorhoz.</div>
+  </div>
+</section>
+
+<!-- ================= 9. FEJEZET ================= -->
+<section id="ch9">
+  <div class="ch-eyebrow">9. fejezet</div>
+  <h2>Godot / Bevy / GameMaker</h2>
+
+  <p>Három gyakori motorral mutatjuk be a betöltést. A PXC-ből a <strong>spritesheet.png + metaadat</strong> jön ki; a motorban ezeket állítod be.</p>
+
+  <h3>① Godot (4.x)</h3>
+  <ol class="steps">
+    <li>Húzd be a <code>spritesheet.png</code>-t a <code>res://</code> mappába.</li>
+    <li>Kattints rá az FileSystem-ben → az Inspector-ban a <strong>Import</strong> fülön válaszd <code>2D Pixel</code> presetet (a „nearest" filter miatt) és nyomd meg a <strong>Reimport</strong> gombot.</li>
+    <li>A Scene-ben hozz létre egy <strong>Sprite2D</strong> node-ot, és állítsd be a <code>Texture</code>-t a spritesheet-re.</li>
+    <li>A Sprite2D Inspector-ban nyisd le a <code>Animation</code> szekciót: <code>Hframes = 4</code> (vízszintes frame-ek száma), <code>Vframes = 1</code>.</li>
+    <li>Adj hozzá egy <strong>AnimationPlayer</strong> vagy szkriptet a frame léptetéséhez.</li>
+  </ol>
+
+  <h3>② Bevy (Rust)</h3>
+  <p>A Bevy-ben a <strong>TextureAtlas</strong> a megfelelő eszköz. A spritesheet PNG-t betöltöd, és egy <code>TextureAtlasLayout</code>-tal megadod a frame-ek rácsát:</p>
+
+  <pre class="code"><span class="kw">use</span> bevy::sprite::{TextureAtlasLayout, Sprite};
+
+<span class="kw">fn</span> <span class="fn">setup</span>(
+    <span class="kw">mut</span> commands: Commands,
+    asset_server: Res&lt;AssetServer&gt;,
+    <span class="kw">mut</span> layouts: ResMut&lt;Assets&lt;TextureAtlasLayout&gt;&gt;,
+) {
+    <span class="cm">// a PXC-ből exportált spritesheet.png</span>
+    <span class="kw">let</span> texture = asset_server.load(<span class="st">"spritesheet.png"</span>);
+    <span class="kw">let</span> layout = layouts.add(TextureAtlasLayout::from_grid(
+        UVec2::new(<span class="st">64</span>, <span class="st">64</span>),  <span class="cm">// frame mérete</span>
+        <span class="st">4</span>,                <span class="cm">// vízszintes frame-ek</span>
+        <span class="st">1</span>,                <span class="cm">// függőleges</span>
+        None, None,
+    ));
+    commands.spawn((
+        Sprite {
+            texture: Some(texture.clone()),
+            texture_atlas: Some(layout.into()),
+            ..default()
+        },
+        <span class="cm">// Animation léptető komponens</span>
+        AnimationTimer::default(),
+    ));
+}</pre>
+
+  <p class="mono" style="font-size:13px;color:var(--muted)">Az <code>AnimationTimer</code> egy egyedi komponens, ami <code>Timer::from_seconds(1.0/24.0, TimerMode::Repeating)</code>-ként lépteti a frame indexet.</p>
+
+  <div class="info-box">
+    <div class="tag">▸ Bevy + pixel art — fontos beállítás</div>
+    <p>A Bevy alapból <strong>lineáris</strong> mintavételezést használ, ami elmosja a pixel art-ot. Állítsd a <code>ImagePlugin::default_nearest()</code>-re a <code>default_plugins</code>-ben — ez a teljes app-ra érvényesíti a „nearest" filtert. Ezzel a sprite-ok élesen, pixesen maradnak, ahogy a PXC-ben is láttad.</p>
+  </div>
+
+  <h3>③ GameMaker</h3>
+  <ol class="steps">
+    <li><strong>Sprites ▸ New Sprite</strong> → nevezd el, importáld be a <code>spritesheet.png</code>-t.</li>
+    <li>A Sprite Editor-ban: <strong>Modify Mask ▸ Manual</strong>, állítsd a <code>Width</code>-re a frame szélességére (<code>64</code>), a <code>Height</code>-ra a magasságra.</li>
+    <li>A Sprite Editor-ban <strong>Frame ▸ Strip Frame</strong> → szélesség <code>64</code> → a GameMaker automatikusan vágja a frame-eket.</li>
+    <li>Állítsd be az <code>image_speed</code>-et (a léptetés sebessége; <code>1.0</code> = a game-maker alap fps).</li>
+  </ol>
+</section>
+
+<!-- ================= 10. FEJEZET ================= -->
+<section id="ch10">
+  <div class="ch-eyebrow">10. fejezet</div>
+  <h2>Gyakori csapdák — összefoglaló</h2>
+
+  <p>A 4. rész tapasztalataiból és a fórumokon visszatérő kérdésekből gyűjtöttük össze a leggyakoribb problémákat:</p>
+
+  <table>
+    <tr><th>Probléma</th><th>Mi okozza</th><th>Megoldás</th></tr>
+    <tr><td>„Nem íródik ki a fájl"</td><td>Az Export node nem automatikus.</td><td>Nyomd meg az <span class="ui">Inspector ▸ ▶ EXPORT</span> gombot minden módosítás után.</td></tr>
+    <tr><td>„A kép elmosódott a motorban"</td><td>Lineáris filter (nem nearest).</td><td>Godot: <code>2D Pixel</code> preset. Bevy: <code>ImagePlugin::default_nearest()</code>.</td></tr>
+    <tr><td>„A frame-ek össze-vissza jönnek"</td><td>Hibás frame-sorrend vagy sprite-sheet packing.</td><td>Használj <code>%04d</code> formátumot; ellenőrizd a Sprite Sheet node <code>horizontal</code> beállítását.</td></tr>
+    <tr><td>„A frame széle átfolyik"</td><td>Padding hiánya a spritesheet-ben.</td><td>Állíts be 1–2 px padding-et a Sprite Sheet node-on.</td></tr>
+    <tr><td>„Nem találom a képet más gépen"</td><td>Relatív útvonal megszakadt.</td><td>Vidd az <code>assets/</code> mappát is; vagy <code>Project ▸ Bundle</code>.</td></tr>
+    <tr><td>„Csak az első frame jelenik meg"</td><td>A motor frame-élező nincs beállítva (Hframes/Vframes).</td><td>Godot: <code>Hframes = 4</code>. GameMaker: Strip Frame.</td></tr>
+    <tr><td>„A GIF gyenge minőségű"</td><td>A GIF csak 256 színt támogat.</td><td>Használj spritesheet PNG-t a játékba; a GIF csak megosztáshoz.</td></tr>
+  </table>
+
+  <div class="note warn">
+    <div class="n-tag">▲ A legfontosabb: ne felejtsd el a Save-t sem!</div>
+    Két mentés van: a <strong>projekt</strong> (<span class="kbd">Ctrl</span>+<span class="kbd">S</span>, <code>.pxc</code>) és a <strong>kimenet</strong> (<span class="ui">▶ EXPORT</span>). Ha csak exportálsz, de nem mented a projektet, és bezárod a PXC-t, elveszik a gráfod — hiába van meg a PNG. <strong>Mindig mindkettőt csináld meg</strong>, mielőtt bezárod.
+  </div>
+</section>
+
+<!-- ================= V. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ V. rész — Lezárás</span></div>
+
+<!-- ================= 11. FEJEZET ================= -->
+<section id="ch11">
+  <div class="ch-eyebrow">11. fejezet</div>
+  <h2>Összefoglaló &amp; merre tovább?</h2>
+
+  <table>
+    <tr><th>Fogalom</th><th>Tanultad</th></tr>
+    <tr><td><strong>import</strong></td><td>PNG / JPG / <code>.aseprite</code> / GIF — az Aseprite közvetlen beolvasás nagy dolog.</td></tr>
+    <tr><td><strong>Export node</strong></td><td>A gráf végére kerül, az utolsó Surface-t kiírja fájlba.</td></tr>
+    <tr><td><strong>▶ EXPORT gomb</strong></td><td>Manuális trigger — nem automatikus, ezt a #1 kezdő csapdát jegyezd meg.</td></tr>
+    <tr><td><strong>Template %d</strong></td><td>Fájlnév-sablon frame-ekhez; <code>%04d</code> a nulla-padded sorrendért.</td></tr>
+    <tr><td><strong>spritesheet</strong></td><td>Egy PNG, frame-ek vízszintesen — a motor-barát, ajánlott formátum.</td></tr>
+    <tr><td><strong>Sprite Sheet node</strong></td><td>Elrendezi a frame-eket egy PNG-re; padding a vérzés ellen.</td></tr>
+    <tr><td><strong>engine pipeline</strong></td><td>PXC → spritesheet.png → Godot / Bevy / GameMaker, frame léptetés.</td></tr>
+    <tr><td><strong>nearest filter</strong></td><td>A pixel art élességéhez kötelező — ne lineáris.</td></tr>
+  </table>
+
+  <div class="info-box">
+    <div class="tag">▸ A „kötelező házi"</div>
+    <p>Vedd elő a 3. részes pulzáló glow projektedet. Rakj rá egy <strong>Sprite Sheet node</strong>-ot, kösd rá az Export-ot, és ments ki egy <code>glow_sheet.png</code>-t (4 vagy 6 frame). Aztán töltsd be a választott motorodba (Godot/Bevy/GameMaker) és léptesd — látnod kell a lüktető glow-t a játékodban is. Ez az első <strong>tényleges game-dev pipeline</strong> végigviteled.</p>
+  </div>
+
+  <!-- INTERAKTÍV DEMÓ -->
+  <div class="playground" id="pgSheet">
+    <div class="pg-head">
+      <div class="pg-title">▸ Élő demó: spritesheet frame-léptetés</div>
+      <div class="pg-tag">interaktív · ahogy a motorod teszi</div>
+    </div>
+    <div class="pg-body">
+      <canvas id="sheetCanvas" width="320" height="180" style="width:320px;height:180px"></canvas>
+      <div class="pg-side">
+        <div class="legend">
+          Fent: a teljes <b>spritesheet.png</b> (6 frame vízszintesen). A zöld téglalap mutatja, melyik frame van „kiválasztva".<br><br>
+          Lent: ahogy a <b>játékmotor</b> megjeleníti — csak egyetlen frame, léptetve. Próbáld ki a Play/Pause-t és az FPS csúszkát!
+        </div>
+        <div class="btn-row" style="margin-top:8px">
+          <button class="tbtn flow active" id="sheetPlay">▶ play</button>
+        </div>
+        <div class="ctl-label">FPS (frame / sec)</div>
+        <input type="range" id="sheetFps" min="4" max="24" value="12">
+        <div class="rng-val" id="sheetFpsVal">12 fps</div>
+        <div class="ctl-label">Frame (kézi)</div>
+        <input type="range" id="sheetFrame" min="0" max="5" value="0">
+        <div class="rng-val" id="sheetFrameVal">frame 0 / 5</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>A sorozat következő részei</h3>
+  <ul>
+    <li><strong>5. rész — A Clone node</strong>: a második leggyakoribb kezdő csapda — a VFX adat statikus volta, és hogyan orvosolja a Clone.</li>
+    <li><strong>Középhaladó szint (6–11. rész)</strong>: MK Blast tűz/robbanás, részecskék, effectors, feedback loop, texture mapping.</li>
+    <li><strong>Haladó szint</strong>: rigid body, fluid, 3D, procedural tileset, batch processing, és egy Bevy-integrációs lecke is.</li>
+  </ul>
+
+  <div class="next-card">
+    <div>
+      <div class="nx-label">következik · 5. rész</div>
+      <div class="nx-title">A Clone node — a legnagyobb kezdő csapda</div>
+      <div class="nx-desc">Miért módosít egy branch módosítása mindent, és miért „statikus" a VFX adat? A Clone node megértése és használata — a kezdő szint utolsó, legfontosabb leckéje, ami sok fejfájástól ment meg.</div>
+    </div>
+    <a class="btn" href="#">Hamarosan ▸</a>
+  </div>
+</section>
+
+<footer>
+  <p class="pix">Pixel Composer · 4. rész — Import/Export workflow</p>
+  <p style="margin-top:6px">Készült a hivatalos <a href="https://docs.pixel-composer.com/nodes/" target="_blank" rel="noopener">Pixel Composer dokumentáció</a> alapján, magyar nyelven, interaktív demókkal. A Pixel Composer ingyenes, nyílt forrású szoftver — <a href="https://github.com/Ttanasart-pt/Pixel-Composer" target="_blank" rel="noopener">GitHub</a> · <a href="https://makham.itch.io/pixel-composer" target="_blank" rel="noopener">itch.io</a> · <a href="https://store.steampowered.com/app/2299510/Pixel_Composer/" target="_blank" rel="noopener">Steam</a>.</p>
+  <p style="margin-top:6px;font-size:12px;color:#565066">MakhamDev munkájának köszönjük. Ez a tutorial független, nem hivatalos. A Bevy kódpélda a Bevy 0.13+ API-ját követi.</p>
+</footer>
+
+</div><!-- /wrap -->
+</div><!-- /main -->
+
+<script>
+/* ========== MENÜ + scroll-spy ========== */
+(function(){
+  var t=document.getElementById('menuToggle'),s=document.getElementById('sidebar');
+  t.addEventListener('click',function(){s.classList.toggle('open')});
+  var links=document.querySelectorAll('.nav a');
+  var map={};links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a});
+  var secs=Object.keys(map).map(function(id){return document.getElementById(id)}).filter(Boolean);
+  function onScroll(){var y=window.scrollY+120;var cur=null;secs.forEach(function(x){if(x.offsetTop<=y)cur=x.id});links.forEach(function(a){a.classList.toggle('active',a.getAttribute('href').slice(1)===cur)})}
+  window.addEventListener('scroll',onScroll,{passive:true});onScroll();
+})();
+
+/* ========== HERO CANVAS — spritesheet léptetés ========== */
+(function(){
+  var cv=document.getElementById('heroCanvas'),ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  // 6 frame sprite (egyszerű karakter, különböző pozíciók)
+  var frames=[
+    // 0
+    ["01110","10101","11111","01010","10001"],
+    // 1
+    ["01110","11011","11111","01010","10001"],
+    // 2
+    ["01110","11101","11111","01010","10001"],
+    // 3
+    ["01110","10111","11111","01010","10001"],
+    // 4
+    ["01110","11011","11111","00100","00100"],
+    // 5
+    ["01110","10101","11111","01010","10001"]
+  ];
+  var pal={0:null,1:'#7ed957'};
+  var frame=0,running=true,lastTime=0,interval=1000/12;
+  function drawSprite(data,x,y,scale,highlight){
+    for(var r=0;r<data.length;r++)for(var c=0;c<data[r].length;c++){
+      var ch=data[r][c];if(ch==='0')continue;
+      ctx.fillStyle=pal[ch];
+      ctx.fillRect(x+c*scale,y+r*scale,scale,scale);
+    }
+    if(highlight){
+      ctx.strokeStyle='#7ed957';ctx.lineWidth=1.5;ctx.strokeRect(x-1,y-1,data[0].length*scale+2,data.length*scale+2);
+    }
+  }
+  function frame(t){
+    if(!lastTime)lastTime=t;
+    var dt=t-lastTime;lastTime=t;
+    if(running&&dt>0){
+      interval=1000/12;
+      if(t%interval<dt)frame=(frame+1)%6;
+    }
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#0c0a13';ctx.fillRect(0,0,W,H);
+    // rács
+    ctx.strokeStyle='#1a1626';ctx.lineWidth=1;
+    for(var x=0;x<=W;x+=20){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+    for(var y=0;y<=H;y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+    // spritesheet (fent, vízszintesen 6 frame)
+    var sheetX=10,sheetY=16,frameW=5*5;
+    ctx.fillStyle='#0c0a13';ctx.fillRect(sheetX,sheetY,frameW*6+2,32);
+    ctx.strokeStyle='#7ed957';ctx.lineWidth=1.5;ctx.strokeRect(sheetX,sheetY,frameW*6+2,32);
+    for(var i=0;i<6;i++){
+      drawSprite(frames[i],sheetX+1+i*frameW,sheetY+3,5,i===frame);
+      // frame elválasztó
+      if(i>0){ctx.strokeStyle='#2a2440';ctx.lineWidth=1;ctx.setLineDash([2,2]);
+        ctx.beginPath();ctx.moveTo(sheetX+1+i*frameW,sheetY);ctx.lineTo(sheetX+1+i*frameW,sheetY+32);ctx.stroke();ctx.setLineDash([])}
+    }
+    // nyíl lefelé
+    ctx.strokeStyle='#ffb454';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(sheetX+frame*frameW+frameW/2,sheetY+34);ctx.lineTo(sheetX+frame*frameW+frameW/2,90);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(sheetX+frame*frameW+frameW/2-3,86);ctx.lineTo(sheetX+frame*frameW+frameW/2,92);ctx.lineTo(sheetX+frame*frameW+frameW/2+3,86);ctx.stroke();
+    // „motor" preview (lent, egy frame)
+    var mvX=W/2-15,mvY=100;
+    ctx.fillStyle='#0c0a13';ctx.fillRect(mvX-2,mvY-2,34,34);
+    ctx.strokeStyle='#5ad7ff';ctx.lineWidth=2;ctx.strokeRect(mvX-2,mvY-2,34,34);
+    drawSprite(frames[frame],mvX,mvY,5,false);
+    ctx.font="9px 'IBM Plex Mono',monospace";ctx.fillStyle='#9a8fb0';
+    ctx.fillText('motor preview',mvX-12,H-6);
+    ctx.fillStyle='#ffb454';ctx.font="9px 'IBM Plex Mono',monospace";
+    ctx.fillText('frame: '+frame+'/5',sheetX,sheetY-3);
+    requestAnimationFrame(frame);
+  }
+  var last=0;
+  function tick(t){
+    if(running&&t-last>=interval){last=t;frame=(frame+1)%6}
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(frame);requestAnimationFrame(tick);
+  cv.addEventListener('mouseenter',function(){running=false});
+  cv.addEventListener('mouseleave',function(){running=true});
+})();
+
+/* ========== PLAYGROUND — spritesheet frame léptetés ========== */
+(function(){
+  var cv=document.getElementById('sheetCanvas'),ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  var fpsEl=document.getElementById('sheetFps'),fpsVal=document.getElementById('sheetFpsVal');
+  var frameEl=document.getElementById('sheetFrame'),frameVal=document.getElementById('sheetFrameVal');
+  var playBtn=document.getElementById('sheetPlay');
+  var frames=[
+    ["01110","10101","11111","01010","10001"],
+    ["01110","11011","11111","01010","10001"],
+    ["01110","11101","11111","01010","10001"],
+    ["01110","10111","11111","01010","10001"],
+    ["01110","11011","11111","00100","00100"],
+    ["01110","10101","11111","01010","10001"]
+  ];
+  var pal={0:null,1:'#7ed957'};
+  var current=0,playing=true,last=0,fps=12;
+  function drawSprite(data,x,y,scale,highlight){
+    for(var r=0;r<data.length;r++)for(var c=0;c<data[r].length;c++){
+      var ch=data[r][c];if(ch==='0')continue;
+      ctx.fillStyle=pal[ch];
+      ctx.fillRect(x+c*scale,y+r*scale,scale,scale);
+    }
+    if(highlight){
+      ctx.strokeStyle='#7ed957';ctx.lineWidth=2;ctx.strokeRect(x-1.5,y-1.5,data[0].length*scale+3,data.length*scale+3);
+    }
+  }
+  function redraw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#0c0a13';ctx.fillRect(0,0,W,H);
+    // rács
+    ctx.strokeStyle='#1a1626';ctx.lineWidth=1;
+    for(var x=0;x<=W;x+=20){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+    for(var y=0;y<=H;y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+    // spritesheet fent (6 frame vízszintesen)
+    var frameW=24,sheetX=8,sheetY=10,sheetH=40;
+    ctx.fillStyle='#0c0a13';ctx.fillRect(sheetX,sheetY,frameW*6,sheetH);
+    ctx.strokeStyle='#7ed957';ctx.lineWidth=2;ctx.strokeRect(sheetX,sheetY,frameW*6,sheetH);
+    for(var i=0;i<6;i++){
+      drawSprite(frames[i],sheetX+i*frameW+8,sheetY+8,4,i===current);
+      // elválasztó
+      if(i>0){ctx.strokeStyle='#2a2440';ctx.lineWidth=1;ctx.setLineDash([2,2]);
+        ctx.beginPath();ctx.moveTo(sheetX+i*frameW,sheetY);ctx.lineTo(sheetX+i*frameW,sheetY+sheetH);ctx.stroke();ctx.setLineDash([])}
+    }
+    // frame indexek
+    ctx.font="9px 'IBM Plex Mono',monospace";ctx.fillStyle='#565066';
+    for(var i=0;i<6;i++)ctx.fillText(i,sheetX+i*frameW+10,sheetY+sheetH+10);
+    // nyíl lefelé
+    ctx.strokeStyle='#ffb454';ctx.lineWidth=1.5;
+    var arrowX=sheetX+current*frameW+frameW/2;
+    ctx.beginPath();ctx.moveTo(arrowX,sheetY+sheetH+14);ctx.lineTo(arrowX,90);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(arrowX-4,86);ctx.lineTo(arrowX,92);ctx.lineTo(arrowX+4,86);ctx.stroke();
+    // motor preview (lent)
+    var mvX=W/2-20,mvY=100,mvSize=32;
+    ctx.fillStyle='#0c0a13';ctx.fillRect(mvX,mvY,mvSize+8,mvSize+8);
+    ctx.strokeStyle='#5ad7ff';ctx.lineWidth=2;ctx.strokeRect(mvX,mvY,mvSize+8,mvSize+8);
+    drawSprite(frames[current],mvX+4,mvY+4,5,false);
+    ctx.font="9px 'IBM Plex Mono',monospace";ctx.fillStyle='#9a8fb0';
+    ctx.fillText('játékmotor — frame '+current+'/5',mvX-20,mvY+mvSize+22);
+    ctx.fillStyle='#565066';ctx.font="8.5px 'IBM Plex Mono',monospace";
+    ctx.fillText('spritesheet.png (6 frame, vízszintesen)',sheetX,sheetY-2);
+  }
+  function tick(t){
+    if(playing&&t-last>=1000/fps){last=t;current=(current+1)%6;frameEl.value=current;frameVal.textContent='frame '+current+' / 5';redraw()}
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);redraw();
+  fpsEl.addEventListener('input',function(){fps=+this.value;fpsVal.textContent=fps+' fps'});
+  frameEl.addEventListener('input',function(){current=+this.value;frameVal.textContent='frame '+current+' / 5';redraw()});
+  playBtn.addEventListener('click',function(){
+    playing=!playing;playBtn.textContent=playing?'⏸ pause':'▶ play';playBtn.classList.toggle('active',playing);
+  });
+})();
+</script>
+</body>
+</html>

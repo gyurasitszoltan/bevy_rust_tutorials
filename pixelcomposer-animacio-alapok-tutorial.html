@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Composer — Animáció alapok · 3. rész (magyar)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#13111d;--bg-deep:#0c0a13;--panel:#1c1828;--panel-2:#17142260;
+  --ink:#e8e3f0;--muted:#9a8fb0;--node:#b07cff;--node-hi:#d4a8ff;
+  --flow:#5ad7ff;--flow-dk:#2a7d99;--ok:#7ed957;--warn:#ffb454;
+  --lava:#ff7a3c;--line:#2a2440;--line-hi:#3d3458;--shadow:rgba(0,0,0,.5);
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.06) 3px 4px)}
+::selection{background:var(--node);color:#fff}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--bg-deep);border-right:3px solid var(--line);overflow-y:auto;z-index:30;padding:22px 0 40px}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px}
+.logo .title{font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;color:var(--node-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15}
+.logo .sub{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em}
+.logo .badge{display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;color:var(--bg-deep);background:var(--node);padding:2px 9px 3px;box-shadow:2px 2px 0 var(--shadow)}
+.logo .badge.alt{background:var(--flow);color:#06181c;margin-left:6px}
+.nav-part{font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--node);padding:16px 20px 6px;text-transform:uppercase}
+.nav a{display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;font-size:14px;position:relative;border-left:4px solid transparent;transition:color .12s,background .12s}
+.nav a::before{content:"▸";position:absolute;left:16px;opacity:0;color:var(--flow);transition:opacity .12s,left .12s}
+.nav a:hover{color:var(--ink);background:rgba(176,124,255,.06)}
+.nav a.active{color:var(--node-hi);background:rgba(176,124,255,.10);border-left-color:var(--node);font-weight:600}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;background:var(--node);color:#10180f;border:none;padding:8px 14px;box-shadow:3px 3px 0 var(--shadow);text-decoration:none;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--warn)}
+.btn.flow{background:var(--flow);color:#06181c}
+.menu-toggle{display:none;position:fixed;top:14px;left:14px;z-index:40;font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;background:var(--panel);color:var(--ink);border:3px solid var(--line);box-shadow:3px 3px 0 var(--shadow)}
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{font-family:"IBM Plex Mono";font-size:13px;color:var(--flow);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-family:"Pixelify Sans";font-weight:700;font-size:clamp(32px,5vw,52px);line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px}
+.hero h1 .n{color:var(--node-hi)}
+.hero h1 .f{color:var(--flow)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{border:3px solid var(--line);background:var(--bg-deep);padding:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow)}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0;border:2px solid var(--line);background:#0c0a13}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6;flex:1;min-width:220px}
+.hero-strip .cap b{color:var(--node-hi)}
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--node);text-transform:uppercase}
+.ch-eyebrow{font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--flow);text-transform:uppercase;margin-bottom:8px}
+h2{font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;color:var(--node-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--warn);margin:34px 0 12px}
+p{margin-bottom:14px}p+p{margin-top:2px}
+strong{color:#fff}em{color:var(--node-hi)}
+a{color:var(--flow)}
+ul,ol{margin:0 0 16px 24px}li{margin-bottom:7px}
+code:not(pre code){font-family:"IBM Plex Mono";font-size:.86em;background:#0c0a13;color:var(--node-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+.ui{font-family:"IBM Plex Mono";font-size:.86em;background:#0d1018;color:var(--flow);padding:2px 7px;border:1px solid #2a4a52;white-space:nowrap;font-weight:500}
+ol.steps{list-style:none;margin:20px 0;counter-reset:st}
+ol.steps>li{counter-increment:st;position:relative;padding:4px 0 14px 52px;margin-bottom:6px;border-left:3px solid var(--line);margin-left:16px}
+ol.steps>li::before{content:counter(st);position:absolute;left:-19px;top:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-family:"Pixelify Sans";font-size:17px;color:#10180f;background:var(--node);box-shadow:2px 2px 0 var(--shadow)}
+ol.steps>li:last-child{border-left-color:transparent}
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{font-family:"Pixelify Sans";font-size:13px;color:var(--flow);letter-spacing:.1em;padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--ok)}.diagram pre .di{color:var(--warn)}.diagram pre .wa{color:var(--flow)}.diagram pre .no{color:var(--node-hi)}.diagram pre .st{color:#9aa0aa}.diagram pre .lv{color:var(--lava)}.diagram pre .mu{color:var(--muted)}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+.info-box{margin:24px 0;border:3px solid #2a4a52;background:#0d1018;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.info-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--flow);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.info-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.info-box p:last-child{margin-bottom:0}
+.info-box code:not(pre code){border-color:#2a4a52;color:var(--flow)}
+.info-box ul{font-size:15px;color:#cfdbd5}
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--node);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--warn)}
+.note.ok{border-left-color:var(--ok)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--node-hi);margin-bottom:4px}
+.note.warn .n-tag{color:var(--warn)}
+.note.ok .n-tag{color:var(--ok)}
+.shot{margin:24px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.shot img{display:block;width:100%;height:auto;image-rendering:auto}
+.shot .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.55;padding:9px 13px;border-top:2px dashed var(--line-hi)}
+.shot .cap b{color:var(--node-hi)}
+.shot.small{max-width:420px}
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--warn);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+.on{color:var(--ok);font-weight:600}
+.off{color:var(--warn)}
+.playground{margin:26px 0;border:3px solid var(--node);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:linear-gradient(90deg,rgba(176,124,255,.14),transparent);border-bottom:3px solid var(--node);padding:10px 14px}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--node-hi);letter-spacing:.08em}
+.playground .pg-tag{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted)}
+.playground .pg-body{padding:16px;display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#0c0a13;touch-action:none;max-width:100%}
+.playground .pg-side{flex:1;min-width:240px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:1.9}
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--warn);letter-spacing:.06em;margin:14px 0 4px;text-transform:uppercase}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0}
+.tbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:5px 12px;transition:all .1s}
+.tbtn:hover{color:var(--ink)}
+.tbtn.active{background:var(--node);color:#10180f;border-color:var(--node);font-weight:600}
+.tbtn.flow.active{background:var(--flow);color:#06181c;border-color:var(--flow)}
+input[type=range]{width:100%;accent-color:var(--node);margin:6px 0 2px;cursor:pointer}
+.rng-val{font-family:"IBM Plex Mono";font-size:13px;color:var(--node-hi)}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+.next-card{margin-top:70px;border:3px solid var(--line);background:var(--panel);box-shadow:5px 5px 0 var(--shadow);padding:20px 22px;display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+.next-card .nx-label{font-family:"IBM Plex Mono";font-size:12px;color:var(--flow);letter-spacing:.14em;text-transform:uppercase}
+.next-card .nx-title{font-family:"Pixelify Sans";font-size:22px;color:var(--node-hi);margin-top:4px}
+.next-card .nx-desc{font-size:14.5px;color:var(--muted);margin-top:8px;flex:1;min-width:240px}
+.prev-card{margin-bottom:50px;border:3px solid var(--line);background:var(--panel-2);box-shadow:3px 3px 0 var(--shadow);padding:12px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.prev-card .px-label{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+.prev-card .px-title{font-family:"Pixelify Sans";font-size:15px;color:var(--muted);margin-top:2px}
+.prev-card a{font-family:"Pixelify Sans";font-size:14px;color:var(--node-hi);text-decoration:none}
+footer{margin-top:60px;border-top:3px solid var(--line);padding-top:24px;font-size:13.5px;color:var(--muted)}
+footer .pix{font-family:"Pixelify Sans";color:var(--node);font-size:15px}
+footer a{color:var(--flow)}
+@media (max-width:980px){.sidebar{transform:translateX(-100%);transition:transform .2s}.sidebar.open{transform:translateX(0)}.menu-toggle{display:block}.main{margin-left:0}.wrap{padding:0 20px 100px}.hero{padding-top:84px}}
+</style>
+</head>
+<body>
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;background:linear-gradient(90deg,#b07cff,#d4a8ff);box-shadow:0 0 10px rgba(176,124,255,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">PIXEL COMPOSER<br>ANIMÁCIÓ</div>
+    <div class="sub">keyframe-ek · interpoláció · loop · 3. rész · magyarul</div>
+    <span class="badge">Pixel Composer</span><span class="badge alt">3 / N</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I · Bevezető</div>
+    <a href="#ch1">1 · Mi az animáció PXC-ben?</a>
+    <a href="#ch2">2 · Az Animation panel</a>
+    <div class="nav-part">II · Keyframe-ek</div>
+    <a href="#ch3">3 · A ◷ gomb — paraméter felvétele</a>
+    <a href="#ch4">4 · Keyframe hozzáadása</a>
+    <a href="#ch5">5 · Az első animált paraméter</a>
+    <div class="nav-part">III · Interpoláció</div>
+    <a href="#ch6">6 · Linear / Smooth / Hold</a>
+    <a href="#ch7">7 · Melyiket mikor?</a>
+    <div class="nav-part">IV · Lejátszás</div>
+    <a href="#ch8">8 · Loop módok</a>
+    <a href="#ch9">9 · Playhead és scrubbing</a>
+    <a href="#ch10">10 · Első mozgó effekt</a>
+    <div class="nav-part">V · Lezárás</div>
+    <a href="#ch11">11 · Összefoglaló &amp; tovább</a>
+  </nav>
+  <div class="dl-box">
+    <p>A tutorial a Pixel Composer <strong>ingyenes</strong> verziójával csinálható végig. Ha lemaradtad az előző részeket:</p>
+    <a class="btn flow" href="pixelcomposer-alapok-tutorial.html">◂ 1. rész: Alapok</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// 3. rész · középhaladó · magyar nyelven · ~40 perc · a hivatalos docs alapján</div>
+  <h1>Animáció alapok<br>— <span class="n">keyframe-ek</span> &amp; <span class="f">interpoláció</span></h1>
+  <p class="lead">Az 1–2. részben a gráfod <em>statikus</em> volt: a Preview mindig ugyanazt a képet mutatta. Most <strong>mozgást</strong> viszünk bele. Megtanulod, hogyan animálj egy paramétert (pl. a Blend <code>Opacity</code>-ját) <strong>keyframe-ekkel</strong>, hogyan választod ki az <strong>interpolációt</strong> (linear/smooth/hold) a keyframe-ek között, és hogyan állítod be a <strong>loop</strong>-ot. A végén lesz egy kész, pulzáló glow-effekted.</p>
+  <div class="hero-strip">
+    <canvas id="heroCanvas" width="220" height="140" style="width:220px;height:140px"></canvas>
+    <div class="cap" id="heroCap">↑ Élő minta: egy <b>Opacity animáció</b> 3 keyframe-dzsel (0.0 → 1.0 → 0.0), Smooth interpolációval, Loop módban. Pontosan ezt fogjuk felépíteni a 10. fejezetben. (Hoverrel leállíthatod.)</div>
+  </div>
+</header>
+
+<div class="prev-card">
+  <div>
+    <div class="px-label">előző · 2. rész</div>
+    <div class="px-title">Node-ok és kapcsolatok — Transform &amp; Blend</div>
+  </div>
+  <a href="pixelcomposer-nodeok-kapcsolatok-tutorial.html">◂ vissza a 2. részhez</a>
+</div>
+
+<!-- ================= I. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Bevezető</span></div>
+
+<!-- ================= 1. FEJEZET ================= -->
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>Mi az animáció PXC-ben?</h2>
+
+  <p>A PXC-ben az <strong>animáció</strong> nem önálló dolog — hanem <strong>egy paraméter időbeli változása</strong>. Bármelyik paramétert, amit eddig az Inspector-ban láttál (Transform <code>Rotation</code>, Blend <code>Opacity</code>, Particle <code>Spawn rate</code> stb.), <strong>animálhatod</strong>: megadod, hogy a 0. frame-nél mennyi legyen, a 12. frame-nél mennyi, és a program a kettő között <em>interpolál</em>.</p>
+
+  <div class="info-box">
+    <div class="tag">▸ A kulcsfogalom: keyframe + interpoláció</div>
+    <p>Egy <strong>keyframe</strong> egy (frame, érték) páros — „a 12. frame-nél az Opacity legyen 1.0". Két keyframe között a program <strong>interpolál</strong>: kiszámolja a köztes értékeket. Az interpoláció <em>módja</em> (linear, smooth, hold) dönti el, hogyan történik az átmenet.</p>
+    <p>Tehát animációt <em>építesz</em>, nem rajzolsz: megadod a kulcsértékeket, és a PXC kiszámolja a köztes frame-eket. Non-destructive, mint minden más — bármikor szerkesztheted a keyframe-eket.</p>
+  </div>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Animáció = keyframe-ek + interpoláció</div>
+<pre>
+  frame:    <span class="mu">0</span> ──────────── <span class="wa">12</span> ──────────── <span class="mu">24</span>
+            │                │                │
+  Opacity:  <span class="no">0.0</span>   ~~~~~ ▲   <span class="no">1.0</span>   ~~~~~ ▼   <span class="no">0.0</span>
+            │      (interpoláció: smooth)    │
+            └─ keyframe 1 ──── keyframe 2 ──── keyframe 3
+            <span class="mu">A ▲ és ▼ a köztes frame-eket a PXC számolja — te csak a 3 értéket adod meg.</span>
+</pre>
+    <div class="d-cap">Három keyframe: 0.0 → 1.0 → 0.0. Ez egy „be- és kikapcsoló" pulzáló effekt. A 24 frame = 1 másodperc 24 fps-nél (a PXC alapértelmezett frame-rate-je).</div>
+  </div>
+</section>
+
+<!-- ================= 2. FEJEZET ================= -->
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>Az Animation panel</h2>
+
+  <p>A PXC-ben az animáció egy külön panelen, az <strong>Animation</strong>-panelen történik. Ha nem látod: <span class="ui">View ▸ Animation</span>, vagy a panel nevére kattintva előhozza a dock-ból. Ez a panel mutatja az összes animált paramétert és azok keyframe-jeit egy <strong>timeline</strong>-on.</p>
+
+  <div class="shot">
+    <img src="assets/pixelcomposer/animation-panel.svg" alt="Animation panel timeline keyframe-ekkel, Inspector ◷ gombbal, playhead-del">
+    <div class="cap">Az <b>Inspector</b>-ben az <code>Opacity</code> paraméter mellett a <b>◷ gomb</b> (kék, óra) hozzáadja a paramétert az animációhoz. Utána az <b>Animation</b> panelen megjelenik egy keyframe-sáv, amin a <span class="on">lila gyémántok</span> a keyframe-ek. A <b>sárga függőleges vonal</b> a playhead (aktuális frame).</div>
+  </div>
+
+  <table>
+    <tr><th>Rész</th><th>Mit jelent</th></tr>
+    <tr><td><strong>Keyframe-sáv</strong></td><td>Egy animált paraméter vízszintes sávja. A gyémántok = keyframe-ek.</td></tr>
+    <tr><td><strong>Frame skála</strong> (fent)</td><td>A timeline vízszintes tengelye, frame-ekben (0, 3, 6, 12, 18, 24...).</td></tr>
+    <tr><td><strong>Playhead</strong> (sárga vonal)</td><td>Az aktuális frame. Ezt húzod (scrubbing) vagy a Play-gombbal mozgatod.</td></tr>
+    <tr><td><strong>Lejátszás-vezérlők</strong></td><td><code>⏮ ▶ ⏭</code> — előző frame / play / következő frame.</td></tr>
+    <tr><td><strong>Loop / Interpolate</strong></td><td>A paraméter loop-módja és az interpoláció típusa.</td></tr>
+  </table>
+
+  <div class="note">
+    <div class="n-tag">▸ Frame vagy másodperc?</div>
+    A PXC <strong>frame-ekben</strong> gondolkodik, másodpercek helyett. Az alapértelmezett frame-rate <code>24 fps</code> (24 frame / másodperc) — ez a klasszikus animációs sebesség. Ha 24 frame-t animálsz, az 1 másodpercnyi animációt jelent. Később a frame-rate állítható, de egyelőre maradjunk 24 fps-nél.
+  </div>
+</section>
+
+<!-- ================= II. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ II. rész — Keyframe-ek</span></div>
+
+<!-- ================= 3. FEJEZET ================= -->
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>A ◷ gomb — paraméter felvétele az animációba</h2>
+
+  <p>Egy paramétert nem lehet csak úgy keyframe-elni — előbb <strong>fel kell venni az animációba</strong>. Ezt a ◷ (óra) ikon kezeli, amit már az 1. részben is említettünk. Minden animálható paraméter mellett ott van egy kis gomb az Inspector-ban.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Két út egy paraméter animálásához</div>
+<pre>
+  <span class="no">A) Inspector ◷ gomb</span>
+    Inspector ▸ válaszd ki a paramétert (pl. Opacity)
+             ▸ kattints a mellette lévő <span class="wa">◷</span> gombra
+             ▸ a paraméter megjelenik az Animation panelen (üres keyframe-sávval)
+
+  <span class="no">B) Jobb-klikk a paraméter nevére</span>
+    Inspector ▸ jobb-klikk a paraméter neve (pl. "Opacity")
+             ▸ <span class="wa">Add animation</span> menüpont
+             ▸ ugyanaz az eredmény
+</pre>
+    <div class="d-cap">Mindkét út ugyanazt csinálja: <strong>regisztrálja</strong> a paramétert az animációban. Utána jöhetnek a keyframe-ek.</div>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">▲ Nem minden paraméter animálható</div>
+    A legtöbb numerikus/legördülő/szín paraméter igen, de például a <code>Path</code> (fájlnév) nem. Ha nem látod a ◷ gombot egy paraméter mellett, az valószínűleg nem animálható. Próbáld meg másikat — a <code>Rotation</code>, <code>Opacity</code>, <code>Scale</code> mindig animálhatók.
+  </div>
+</section>
+
+<!-- ================= 4. FEJEZET ================= -->
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>Keyframe hozzáadása</h2>
+
+  <p>Ha a paraméter már fel van véve az animációba, jöhetnek a keyframe-ek. A folyamat:</p>
+
+  <ol class="steps">
+    <li>Az <strong>Animation panelen</strong> mozgasd a <strong>playhead</strong>-et a kívánt frame-re (klikk a frame-skálán, vagy húzd a sárga vonalat).</li>
+    <li>Az <strong>Inspector</strong>-ban állítsd be a paraméter értékét erre a frame-re (pl. <code>Opacity = 1.0</code>).</li>
+    <li><strong>Jobb-klikk</strong> a paraméter nevére az Inspector-ban → <span class="ui">Add keyframe</span> <em>vagy</em> a ◷ gomb melletti kis „+" gomb (ha van).</li>
+    <li>Megjelenik egy <strong>lila gyémánt</strong> a keyframe-sávon, az adott frame-nél — kész az első keyframe!</li>
+  </ol>
+
+  <p>Ismételd meg: menj a 12. frame-re, állíts más értéket, adj keyframe-et. Aztán 24. frame, újabb keyframe. Így építed fel az animációt — keyframe-ről keyframe-re.</p>
+
+  <div class="note">
+    <div class="n-tag">▸ A playhead a kulcs</div>
+    A keyframe <strong>mindig az aktuális playhead pozícióra</strong> kerül. Ezért előbb állítsd a playhead-et, utána adj keyframe-et — ne fordítva! Ha rossz frame-re tetted, húzd a gyémántot a sávon (vagy törlés + újra).
+  </div>
+
+  <div class="info-box">
+    <div class="tag">▸ Keyframe szerkesztése / törlése</div>
+    <p>Egy keyframe-et többféleképpen módosíthatsz:</p>
+    <ul>
+      <li><strong>Érték</strong>: menj a keyframe frame-jére (playhead), az Inspector-ban változtasd az értéket — automatikusan frissül.</li>
+      <li><strong>Pozíció</strong>: húzd a gyémántot vízszintesen a sávon (frame-et változtat).</li>
+      <li><strong>Törlés</strong>: jobb-klikk a gyémánton → <span class="ui">Delete keyframe</span>, vagy kijelölés után <span class="kbd">Del</span>.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= 5. FEJEZET ================= -->
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Az első animált paraméter — próbáld ki</h2>
+
+  <p>Most csináljuk meg a tutorial házi feladatát az 1. és 2. rész alapján. Ha megvan a 2. részből a Blend-es projekted (Image A → Blend ← Image B → Preview), azt fogjuk animálni. Ha nem, gyorsan csinálj egyet — csak annyi kell, hogy legyen egy Blend node-od.</p>
+
+  <ol class="steps">
+    <li>Nyisd meg a Blend-es projektedet (vagy csinálj egyet: Image ▸ Blend ← Image ▸ Preview).</li>
+    <li>A Graph-on jelöld ki a <strong>Blend</strong> node-ot.</li>
+    <li>Az Inspector-ban találd meg az <code>Opacity</code> paramétert — kattints mellette a <strong>◷ gombra</strong>. Megjelenik az Animation panelen.</li>
+    <li>Playhead a 0. frame-re. Állítsd <code>Opacity = 0.0</code>. Jobb-klikk → <span class="ui">Add keyframe</span>.</li>
+    <li>Playhead a 12. frame-re. <code>Opacity = 1.0</code>. Keyframe.</li>
+    <li>Playhead a 24. frame-re. <code>Opacity = 0.0</code>. Keyframe.</li>
+    <li>Nyomd meg a <strong>▶ Play</strong> gombot az Animation panelen. A Preview-ben a B kép „be- és kikapcsol" — pulzál.</li>
+  </ol>
+
+  <p>Ha eddig eljutottál, van egy működő animációd! Most jön a finomhangolás: milyen az átmenet a keyframe-ek között?</p>
+
+  <div class="note ok">
+    <div class="n-tag">✓ Első sikered?</div>
+    Ha a Preview pulzál — gratulálok! Ez az első animált effekted. A következő fejezetekben megtanuljuk, hogyan finomítsuk: lágyabbá (Smooth), élesebbé (Hold), vagy épp folyamatosabbá (Loop) tesszük.
+  </div>
+</section>
+
+<!-- ================= III. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Interpoláció</span></div>
+
+<!-- ================= 6. FEJEZET ================= -->
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Linear / Smooth / Hold</h2>
+
+  <p>Két keyframe között a program <strong>interpolál</strong> — de <em>hogyan</em>? Erre ad választ az <strong>interpolációs mód</strong>, amit az Animation panelen (vagy a keyframe-en jobb-klikkelve) választhatsz. Három alapmód van:</p>
+
+  <div class="shot">
+    <img src="assets/pixelcomposer/interpolation-modes.svg" alt="Három interpolációs mód: Linear (egyenes), Smooth (ívelt ease), Hold (lépcsős)">
+    <div class="cap">Három interpolációs mód. <b>Linear</b>: egyenes vonal, állandó sebesség. <b>Smooth</b>: ívelt (ease-in-out), lassú kezdet és vég, gyors közép. <b>Hold</b>: lépcsős — az érték „megmarad", majd hirtelen ugrik a következő keyframe-nél.</div>
+  </div>
+
+  <table>
+    <tr><th>Mód</th><th>Viselkedés</th><th>Tipikus használat</th></tr>
+    <tr><td><strong>Linear</strong></td><td>Egyenletes sebesség — az érték egyenletesen változik a két keyframe közt.</td><td>Mechanikus mozgás, forgó fogaskerék, „számláló".</td></tr>
+    <tr><td><strong>Smooth</strong></td><td>Ease-in-out — lassú indulás, gyorsulás a középen, lassulás a végén.</td><td><strong>Szinte minden</strong> — karakterek, glow, természetes mozgás. A jó alapértelmezés.</td></tr>
+    <tr><td><strong>Hold</strong></td><td>Az érték egyenlő az előző keyframe-ével, majd a következő keyframe-nél <em>hirtelen ugrik</em>.</td><td>Klasszikus frame-by-frame pixel art, „stroboszkóp" effekt, állapot-váltások.</td></tr>
+  </table>
+
+  <!-- INTERAKTÍV DEMÓ -->
+  <div class="playground" id="pgInterp">
+    <div class="pg-head">
+      <div class="pg-title">▸ Élő demó: interpolációs módok</div>
+      <div class="pg-tag">interaktív · próbáld ki</div>
+    </div>
+    <div class="pg-body">
+      <canvas id="interpCanvas" width="340" height="200" style="width:340px;height:200px"></canvas>
+      <div class="pg-side">
+        <div class="legend">
+          Egy sprite <b>Y pozícióját</b> animáljuk 3 keyframe-dzsel: fel → le → fel.<br><br>
+          Válaszd ki az interpolációs módot, és nézd meg, hogyan változik a mozgás jellege. A <b>Hold</b>-nál a sprite „kockásan" ugrál — pont mint a klasszikus pixel art animáció.
+        </div>
+        <div class="ctl-label">Interpoláció</div>
+        <div class="btn-row" id="interpBtns">
+          <button class="tbtn active" data-mode="linear">Linear</button>
+          <button class="tbtn" data-mode="smooth">Smooth</button>
+          <button class="tbtn" data-mode="hold">Hold</button>
+        </div>
+        <div class="ctl-label">Sebesség</div>
+        <input type="range" id="interpSpeed" min="20" max="100" value="50">
+        <div class="rng-val" id="interpSpeedVal">50 ms / frame</div>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="tbtn flow" id="interpPause">⏸ szünet</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 7. FEJEZET ================= -->
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>Melyiket mikor?</h2>
+
+  <p>Kezdőként a leggyakoribb kérdés: „melyiket használjam?". A rövid válasz: <strong>kezdd Smooth-tal</strong>, aztán finomíts. A hosszabb válasz:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Választási útmutató</div>
+<pre>
+  <span class="wa">Szerves / természetes mozgás?</span>     → <span class="gr">Smooth</span>  (karakterek, glow, fény)
+  <span class="wa">Mechanikus / állandó sebesség?</span>   → <span class="di">Linear</span> (forgás, sliderek, UI)
+  <span class="wa">Klasszikus frame-by-frame pixel art?</span> → <span class="lv">Hold</span>   (8-bit stílus, „stop-motion")
+  <span class="wa">Bizonytalan?</span>                    → <span class="gr">Smooth</span>  (legtöbbször ez a legjobb)
+</pre>
+    <div class="d-cap">Az interpolációt <strong>keyframe-páronként</strong> is beállíthatod — nem globális. Egy animáción belül lehet egy Smooth átmenet, utána egy Hold ugrás. Kattints a keyframe-re (vagy a mellette lévő szakaszra), és válaszd ki a módot.</div>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">▲ A Linear „gépiesnek" hat</div>
+    Ha egy animáció „túl sima" vagy „túl gépies", az legtöbbször azért van, mert mindenhol Linear-t használunk. A valós mozgások ritkán egyenletesek — valamely mindig gyorsul vagy lassul. Próbáld meg Linear-ről Smooth-ra váltani: azonnal „természetesebb" lesz.
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▸ Hold + pixel art = retro érzés</div>
+    A Hold mód az, ami a PXC-ben a leginkább a klasszikus <strong>frame-by-frame</strong> pixel art animációt utánozza. Ha 4–8 frame-enként ugrasztod az értéket, kifejezetten „8-bit" / „stop-motion" lesz az eredmény. Később, a sprite-animációs tutorialban részletesen megnézzük.
+  </div>
+</section>
+
+<!-- ================= IV. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ IV. rész — Lejátszás</span></div>
+
+<!-- ================= 8. FEJEZET ================= -->
+<section id="ch8">
+  <div class="ch-eyebrow">8. fejezet</div>
+  <h2>Loop módok</h2>
+
+  <p>Miután felépítetted a keyframe-eket, kérdés: mi történjen, ha a playhead eléri az utolsó frame-et? Erre válaszol a <strong>loop mód</strong>, amit az Animation panelen (a paraméter neve mellett) találsz. Négy alapmód van:</p>
+
+  <div class="shot">
+    <img src="assets/pixelcomposer/loop-modes.svg" alt="Négy loop mód: Once, Loop, Ping-Pong, Wrap">
+    <div class="cap">Négy loop mód. <b>Once</b>: lejátssza egyszer, megáll. <b>Loop</b>: végén visszaugrik az elejére. <b>Ping-Pong</b>: oda-vissza (oda cián, vissza narancs). <b>Wrap</b>: folytatódik, „túlcsordul" (ritkán használt).</div>
+  </div>
+
+  <table>
+    <tr><th>Mód</th><th>Viselkedés</th><th>Tipikus használat</th></tr>
+    <tr><td><strong>Once</strong></td><td>Egyszer lejátssza, megáll az utolsó frame-nél.</td><td>Egyszeri triggerek: robbanás, találat-effekt.</td></tr>
+    <tr><td><strong>Loop</strong></td><td>Végén visszaugrik a 0. frame-re és ismétli.</td><td><strong>Legtöbb eset</strong> — tűz, glow, részecskék, idle animációk.</td></tr>
+    <tr><td><strong>Ping-Pong</strong></td><td>Oda-vissza: végén megfordul és visszafelé játssza.</td><td>Lüktető / hintázó mozgás (pl. egy lámpa himbálózása).</td></tr>
+    <tr><td><strong>Wrap</strong></td><td>Az érték túlcsordul — folytatódik, mintha körbe-menne.</td><td>Forgás (Rotation 0→360°), végtelen számlálók.</td></tr>
+  </table>
+
+  <div class="note warn">
+    <div class="n-tag">▲ Loop vagy Ping-Pong?</div>
+    A különbség ott látszik, ahol az <strong>első és utolsó keyframe értéke különbözik</strong>. Ha 0.0 → 1.0 → 0.0 (mint a mi Opacity-nk), a Loop és a Ping-Pong <em>gyakran ugyanúgy néz ki</em>, mert az érték amúgy is visszatér. Ha viszont 0.0 → 1.0 (csak fel), akkor a Loop „visszadob" (hirtelen ugrás 1.0-ról 0.0-ra), a Ping-Pong meg „visszafelé" jön (folyamatos 1.0 → 0.0). Próbáld ki!
+  </div>
+</section>
+
+<!-- ================= 9. FEJEZET ================= -->
+<section id="ch9">
+  <div class="ch-eyebrow">9. fejezet</div>
+  <h2>Playhead és scrubbing</h2>
+
+  <p>A <strong>playhead</strong> (sárga függőleges vonal) az aktuális frame-et jelöli. Kétféleképpen mozgathatod:</p>
+
+  <ul>
+    <li><strong>Scrubbing</strong>: fogd meg és húzd a playhead-et a timeline-on. Ez a leggyorsabb módja egy adott frame megkeresésének.</li>
+    <li><strong>Vezérlők</strong>: <code>⏮</code> (előző frame), <code>▶</code> (play/pause), <code>⏭</code> (következő frame). A play a frame-rate-nek megfelelő sebességgel megy.</li>
+  </ul>
+
+  <div class="info-box">
+    <div class="tag">▸ Scrubbing közben is látod az eredményt</div>
+    <p>A PXC egyik nagy erőssége: a Preview <strong>scrubbing közben is él</strong>. Ahogy húzod a playhead-et, a Preview azonnal mutatja az adott frame állapotát. Így gyorsan „végigpörgetheted" az animációt, hogy lásd, jó-e. Nem kell mindig Play-t nyomni.</p>
+  </div>
+
+  <h3>Frame-rate és a projekt hossza</h3>
+  <p>Az animáció <strong>hossza</strong> az utolsó keyframe helyétől függ (vagy a projekt frame-hosszától, ha külön beállítod). A frame-rate (alapból 24 fps) a lejátszás sebességét adja meg. Ha 24 frame-t animálsz 24 fps-nél, az 1 másodperc. A frame-rate-et projekt-szinten a <span class="ui">Settings</span>-ben állíthatod, de a legtöbb munkához 24 fps tökéletes.</p>
+</section>
+
+<!-- ================= 10. FEJEZET ================= -->
+<section id="ch10">
+  <div class="ch-eyebrow">10. fejezet</div>
+  <h2>Első mozgó effekt — pulzáló glow</h2>
+
+  <p>Most összegezzük mindazt, amit tanultunk, egy konkrét, kész effektben. A cél: egy <strong>pulzáló glow</strong> — egy fény-effekt, ami lüktetve jelzi, hogy „itt valami történik". Tipikus game-dev használat: power-up, figyelmeztető jelzés, „ready" állapot.</p>
+
+  <h3>Előkészületek</h3>
+  <p>A 2. részből kell a Blend-es projekted, de most <strong>két Preview-t</strong> fogunk használni — egyet a Blend előtt (hogy lásd az eredetit), egyet utána (hogy lásd az eredményt). Ez a 2. rész „előtte / utána" mintája.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A pulzáló glow gráfja</div>
+<pre>
+  <span class="wa">Image (karakter)</span> ─┐
+                          ├─▸ <span class="di">Blend</span> ─▸ <span class="gr">Preview (eredmény)</span>
+  <span class="wa">Image (glow)</span> ─────┘    ▲
+                              │
+                  <span class="no">animált paraméter:</span> Opacity
+                  <span class="no">keyframe-ek:</span> 0:0.0  12:1.0  24:0.0
+                  <span class="no">interpoláció:</span> Smooth
+                  <span class="no">loop:</span> Loop
+</pre>
+    <div class="d-cap">Az <code>Opacity</code> pulzál (0.0 → 1.0 → 0.0, Smooth, Loop), így a <code>glow</code> kép „be- és kikapcsol" a karakter fölött. A Preview a végeredményt mutatja — egy lüktető glow-t.</div>
+  </div>
+
+  <h3>Lépésről lépésre</h3>
+  <ol class="steps">
+    <li>Nyisd meg a 2. részes Blend projektedet (két Image → Blend → Preview).</li>
+    <li>Tegyél egy <strong>második Preview-t</strong> az Image (karakter) után — hogy lásd az eredetit is mellette.</li>
+    <li>Jelöld ki a <strong>Blend</strong> node-ot. Inspector ▸ <code>Opacity</code> ▸ <strong>◷ gomb</strong> (felvétel az animációba).</li>
+    <li>Playhead a 0. frame-re. <code>Opacity = 0.0</code>. Jobb-klikk → <span class="ui">Add keyframe</span>.</li>
+    <li>Playhead a 12. frame-re. <code>Opacity = 1.0</code>. Keyframe.</li>
+    <li>Playhead a 24. frame-re. <code>Opacity = 0.0</code>. Keyframe.</li>
+    <li>Jobb-klikk a keyframe-sávon (vagy a szakaszon) → <strong>Interpolate: Smooth</strong>.</li>
+    <li>A paraméter neve melletti <strong>Loop</strong> módot állítsd <code>Loop</code>-ra (ha nem az alapértelmezett).</li>
+    <li>Nyomd meg a <strong>▶ Play</strong>-t. A Preview-ben a glow lüktet.</li>
+    <li>Mentsd el: <span class="ui">File ▸ Save</span> (vagy <span class="kbd">Ctrl</span>+<span class="kbd">S</span>).</li>
+  </ol>
+
+  <div class="note ok">
+    <div class="n-tag">✓ Készen vagy!</div>
+    Ez az első <strong>mozgó</strong> effekted — egy pulzáló glow. Ha leállítod a Play-t és scrubbing-olsz, látod, hogy a Preview a frame-nek megfelelő Opacity-t mutatja. Az animáció a <code>.pxc</code> projekt-fájlba mentődik — újra megnyitva is működik.
+  </div>
+
+  <div class="info-box">
+    <div class="tag">▸ Exportálás animációval</div>
+    <p>Az animáció <strong>exportálása</strong> külön téma (a 4. részben részletesen), de a lényeg: a PXC az animációt <strong>spritesheet-ként</strong> (vagy GIF/MP4-ként) tudja kimenteni. Egyetlen PNG, amin az összes frame vízszintesen sorakozik — ezt tölti be a játékmotor, és lépteti frame-ről frame-re. Most még ne foglalkozz vele — előbb a következő fejezeteket csináld végig.</p>
+  </div>
+
+  <h3>Variációk — kísérletezz!</h3>
+  <p>Ha megvan az alap-effekt, próbáld meg ezeket a variációkat — mindegyik egyetlen változtatás:</p>
+  <ul>
+    <li><strong>Gyorsabb pulzus</strong>: a 3 keyframe-et 0, 6, 12 frame-re tedd (24 helyett). Kétszer olyan gyors.</li>
+    <li><strong>Egyenletes pulzus</strong>: állítsd az interpolációt <code>Linear</code>-re. „Gépiesebb" lesz.</li>
+    <li><strong>Ping-Pong</strong>: a Loop mód helyett <code>Ping-Pong</code>. Ha 0:0.0, 12:1.0 (csak két keyframe!), akkor a Ping-Pong simán vissza-jön — nincs hirtelen ugrás.</li>
+    <li><strong>Forgó glow</strong>: tegyél egy <strong>Transform</strong> node-ot a glow Image és a Blend közé, és animáld a <code>Rotation</code>-t 0→360°-ra, Wrap loop-pal. A glow forog és lüktet egyszerre.</li>
+  </ul>
+</section>
+
+<!-- ================= V. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ V. rész — Lezárás</span></div>
+
+<!-- ================= 11. FEJEZET ================= -->
+<section id="ch11">
+  <div class="ch-eyebrow">11. fejezet</div>
+  <h2>Összefoglaló &amp; merre tovább?</h2>
+
+  <p>Végigtekintve a 3. részen:</p>
+
+  <table>
+    <tr><th>Fogalom</th><th>Tanultad</th></tr>
+    <tr><td><strong>animáció</strong></td><td>Egy paraméter időbeli változása — keyframe-ek + interpoláció.</td></tr>
+    <tr><td><strong>Animation panel</strong></td><td>A timeline, ahol a keyframe-eket és a playhead-et látod.</td></tr>
+    <tr><td><strong>◷ gomb</strong></td><td>Felvesz egy paramétert az animációba (Inspector-ban).</td></tr>
+    <tr><td><strong>keyframe</strong></td><td>(frame, érték) páros — jobb-klikk ▸ Add keyframe a playhead-nél.</td></tr>
+    <tr><td><strong>interpoláció</strong></td><td>Linear (egyenes) / Smooth (ease, ívelt) / Hold (lépcsős).</td></tr>
+    <tr><td><strong>loop mód</strong></td><td>Once / Loop / Ping-Pong / Wrap — mi történjen az utolsó frame után.</td></tr>
+    <tr><td><strong>playhead</strong></td><td>Aktuális frame; húzod (scrubbing) vagy Play-gombbal mozgatod.</td></tr>
+  </table>
+
+  <div class="info-box">
+    <div class="tag">▸ A „kötelező házi"</div>
+    <p>Csináld végig a 10. fejezet pulzáló glow-ját. Aztán próbáld meg <strong>animálni egy Transform Rotation-t</strong> is (0 → 360°, Wrap loop) — egy forgó sprite. Ez a két animáció (Opacity + Rotation) a 90%-a annak, amit game-fejlesztés közben használsz. Mentsd el mindkettőt — a 4. részben kimentjük spritesheet-ként.</p>
+  </div>
+
+  <h3>A sorozat következő részei</h3>
+  <ul>
+    <li><strong>4. rész — Import/Export workflow</strong>: hogyan mentsd ki az animációt spritesheet-ként (vagy GIF/MP4), és hogyan importáld egy játékmotorba.</li>
+    <li><strong>5. rész</strong> — A Clone node: a legnagyobb kezdő csapda (VFX adat statikus volta).</li>
+    <li><strong>Később</strong> — MK Blast tűz/robbanás, részecskék, effectors, feedback loop, texture mapping, Bevy-integráció.</li>
+  </ul>
+
+  <div class="next-card">
+    <div>
+      <div class="nx-label">következik · 4. rész</div>
+      <div class="nx-title">Import/Export workflow — spritesheet pipeline</div>
+      <div class="nx-desc">Hogyan mentsd ki a gráfod kimenetét PNG spritesheet-ként (vízszintes frame-sor), hogyan exportálj GIF-et/MP4-et, és hogyan töltse be a játékmotorod (Godot / GameMaker / Bevy) az animációt. Az Export node sajátosságai és a gyakori csapdák.</div>
+    </div>
+    <a class="btn" href="#">Hamarosan ▸</a>
+  </div>
+</section>
+
+<footer>
+  <p class="pix">Pixel Composer · 3. rész — Animáció alapok</p>
+  <p style="margin-top:6px">Készült a hivatalos <a href="https://docs.pixel-composer.com/animations/" target="_blank" rel="noopener">Pixel Composer dokumentáció</a> alapján, magyar nyelven, interaktív demókkal. A Pixel Composer ingyenes, nyílt forrású szoftver — <a href="https://github.com/Ttanasart-pt/Pixel-Composer" target="_blank" rel="noopener">GitHub</a> · <a href="https://makham.itch.io/pixel-composer" target="_blank" rel="noopener">itch.io</a> · <a href="https://store.steampowered.com/app/2299510/Pixel_Composer/" target="_blank" rel="noopener">Steam</a>.</p>
+  <p style="margin-top:6px;font-size:12px;color:#565066">MakhamDev munkájának köszönjük. Ez a tutorial független, nem hivatalos.</p>
+</footer>
+
+</div><!-- /wrap -->
+</div><!-- /main -->
+
+<script>
+/* ========== MENÜ + scroll-spy ========== */
+(function(){
+  var t=document.getElementById('menuToggle'),s=document.getElementById('sidebar');
+  t.addEventListener('click',function(){s.classList.toggle('open')});
+  var links=document.querySelectorAll('.nav a');
+  var map={};links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a});
+  var secs=Object.keys(map).map(function(id){return document.getElementById(id)}).filter(Boolean);
+  function onScroll(){var y=window.scrollY+120;var cur=null;secs.forEach(function(x){if(x.offsetTop<=y)cur=x.id});links.forEach(function(a){a.classList.toggle('active',a.getAttribute('href').slice(1)===cur)})}
+  window.addEventListener('scroll',onScroll,{passive:true});onScroll();
+})();
+
+/* ========== HERO CANVAS — pulzáló glow ========== */
+(function(){
+  var cv=document.getElementById('heroCanvas'),ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  var hero=[
+    "0011100","0122210","0113110","1222221","0122210","0011100","0100010","1000001"
+  ];
+  var glow=[
+    "0000000","0011100","0122210","0113110","1222221","0122210","0011100","0000000"
+  ];
+  var pal={0:null,1:'#7ed957',2:'#ffb454',3:'#5ad7ff'};
+  var glowPal={0:null,1:'#ffb454',2:'#ff7a3c',3:'#ffe05e'};
+  var phase=0,running=true;
+  function drawSprite(data,x,y,scale,alpha,palette){
+    for(var r=0;r<data.length;r++)for(var c=0;c<data[r].length;c++){
+      var ch=data[r][c];var col=palette[ch];if(!col)continue;
+      ctx.globalAlpha=alpha;ctx.fillStyle=col;
+      ctx.fillRect(x+c*scale,y+r*scale,scale,scale);
+    }
+    ctx.globalAlpha=1;
+  }
+  function frame(){
+    if(!running){requestAnimationFrame(frame);return}
+    phase+=0.045;if(phase>1)phase=0;
+    // smooth interpoláció: 0->1->0 (három keyframe minta, 0..0.5..1)
+    var opacity;
+    if(phase<0.5){
+      var t=phase/0.5;
+      // smooth ease-in-out
+      opacity=t*t*(3-2*t);
+    }else{
+      var t=(phase-0.5)/0.5;
+      opacity=1-(t*t*(3-2*t));
+    }
+    ctx.clearRect(0,0,W,H);
+    ctx.strokeStyle='#1a1626';ctx.lineWidth=1;
+    for(var x=0;x<=W;x+=20){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+    for(var y=0;y<=H;y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+    // Blend node-bal
+    function drawNode(x,y,w,h,color,name){
+      ctx.fillStyle='#1c1828';ctx.fillRect(x,y,w,h);
+      ctx.strokeStyle=color;ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);
+      ctx.fillStyle=color;ctx.fillRect(x,y,w,14);
+      ctx.font="9px 'IBM Plex Mono',monospace";ctx.fillStyle='#0c0a13';
+      ctx.fillText(name,x+5,y+10);
+    }
+    // Image A
+    drawNode(16,50,60,42,'#b07cff','Image A');
+    ctx.fillStyle='#5ad7ff';ctx.beginPath();ctx.arc(76,71,3,0,7);ctx.fill();
+    // Image B (glow)
+    drawNode(16,98,60,42,'#b07cff','Image B');
+    ctx.fillStyle='#5ad7ff';ctx.beginPath();ctx.arc(76,119,3,0,7);ctx.fill();
+    // Blend node
+    drawNode(98,70,68,50,'#ffb454','Blend');
+    ctx.fillStyle='#5ad7ff';ctx.beginPath();ctx.arc(98,85,3,0,7);ctx.fill();
+    ctx.fillStyle='#5ad7ff';ctx.beginPath();ctx.arc(98,103,3,0,7);ctx.fill();
+    ctx.fillStyle='#5ad7ff';ctx.beginPath();ctx.arc(166,95,3,0,7);ctx.fill();
+    // links
+    ctx.strokeStyle='#5ad7ff';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(76,71);ctx.bezierCurveTo(86,71,88,85,98,85);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(76,119);ctx.bezierCurveTo(86,119,88,103,98,103);ctx.stroke();
+    // Preview node
+    drawNode(178,70,68,50,'#7ed957','Preview');
+    ctx.fillStyle='#5ad7ff';ctx.beginPath();ctx.arc(178,95,3,0,7);ctx.fill();
+    ctx.beginPath();ctx.moveTo(166,95);ctx.bezierCurveTo(172,95,172,95,178,95);ctx.stroke();
+    // preview tartalom: hero + glow (opacity-vel)
+    var px=192,py=82;
+    // először hero (back)
+    drawSprite(hero,px,py,3,0.95,pal);
+    // aztán glow (front) opacity-vel
+    drawSprite(glow,px,py,3,opacity*0.85,glowPal);
+    // opacity érték kijelzése
+    ctx.font="8.5px 'IBM Plex Mono',monospace";ctx.fillStyle='#ffb454';
+    ctx.fillText('Opacity: '+opacity.toFixed(2),178,H-6);
+    requestAnimationFrame(frame);
+  }
+  frame();
+  cv.addEventListener('mouseenter',function(){running=false});
+  cv.addEventListener('mouseleave',function(){running=true});
+})();
+
+/* ========== PLAYGROUND — interpolációs módok ========== */
+(function(){
+  var cv=document.getElementById('interpCanvas'),ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  var speedEl=document.getElementById('interpSpeed'),speedVal=document.getElementById('interpSpeedVal');
+  var pauseBtn=document.getElementById('interpPause');
+  var btns=document.getElementById('interpBtns');
+  var mode='linear',speedMs=50,playing=true;
+  // három keyframe: frame 0 (y=fent), 12 (y=lent), 24 (y=fent)
+  // normalizáljuk: t 0..1 (24 frame-re)
+  var keys=[
+    {t:0,y:0},     // fent
+    {t:0.5,y:1},   // lent
+    {t:1,y:0}      // fent
+  ];
+  var sprite=[
+    "0110","1221","1221","0110"
+  ];
+  var pal={0:null,1:'#7ed957',2:'#ffb454'};
+  function interp(t){
+    // t 0..1, visszaad y-t (0=fent, 1=lent)
+    // két keyframe közt interpolál
+    var i=0;while(i<keys.length-1&&keys[i+1].t<t)i++;
+    var k0=keys[i],k1=keys[Math.min(i+1,keys.length-1)];
+    var span=k1.t-k0.t;if(span<=0)return k0.y;
+    var lt=(t-k0.t)/span; // 0..1 a két keyframe közt
+    if(mode==='linear')return k0.y+(k1.y-k0.y)*lt;
+    if(mode==='smooth')return k0.y+(k1.y-k0.y)*(lt*lt*(3-2*lt));
+    if(mode==='hold')return k0.y; // az aktuális szakasz kezdő értéke
+  }
+  var phase=0,lastTime=0;
+  function drawSpriteAt(x,y,scale,alpha){
+    for(var r=0;r<sprite.length;r++)for(var c=0;c<sprite[r].length;c++){
+      var ch=sprite[r][c];var col=pal[ch];if(!col)continue;
+      ctx.globalAlpha=alpha;ctx.fillStyle=col;
+      ctx.fillRect(x+c*scale,y+r*scale,scale,scale);
+    }
+    ctx.globalAlpha=1;
+  }
+  function frame(time){
+    if(!lastTime)lastTime=time;
+    var dt=time-lastTime;lastTime=time;
+    if(playing){
+      phase+=dt/speedMs/24; // 24 frame egy cycle
+      if(phase>1)phase=0;
+    }
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#0c0a13';ctx.fillRect(0,0,W,H);
+    // rács
+    ctx.strokeStyle='#1a1626';ctx.lineWidth=1;
+    for(var x=0;x<=W;x+=20){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+    for(var y=0;y<=H;y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+    // timeline a canvas alján
+    var tlY=H-30,tlH=20;
+    ctx.fillStyle='#14121c';ctx.fillRect(10,tlY,W-20,tlH);
+    ctx.strokeStyle='#2a2440';ctx.lineWidth=1;ctx.strokeRect(10,tlY,W-20,tlH);
+    // keyframe-ek (gyémántok) — skálázva a timeline-ra
+    keys.forEach(function(k){
+      var kx=10+k.t*(W-20);
+      ctx.fillStyle='#b07cff';
+      ctx.beginPath();
+      ctx.moveTo(kx,tlY+4);ctx.lineTo(kx+5,tlY+10);ctx.lineTo(kx,tlY+16);ctx.lineTo(kx-5,tlY+10);
+      ctx.closePath();ctx.fill();
+    });
+    // görbe a keyframe-ek közt
+    ctx.strokeStyle='#5ad7ff';ctx.lineWidth=2;
+    ctx.beginPath();
+    for(var i=0;i<=60;i++){
+      var t=i/60;var y=interp(t);
+      var px=10+t*(W-20);
+      var py=tlY+tlH-(y*(tlH-4)+2);
+      if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+    }
+    ctx.stroke();
+    // playhead
+    var phX=10+phase*(W-20);
+    ctx.strokeStyle='#ffb454';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(phX,tlY-4);ctx.lineTo(phX,tlY+tlH+4);ctx.stroke();
+    // sprite a canvas tetején, y az interpolációtól függ
+    var y=interp(phase);
+    var topAreaY=20,topAreaH=tlY-30;
+    var spriteY=topAreaY+(1-y)*topAreaH; // y=1 -> lent, y=0 -> fent (fordítva!)
+    var spriteX=W/2-12;
+    drawSpriteAt(spriteX,spriteY,6,0.95);
+    // label
+    ctx.font="10px 'IBM Plex Mono',monospace";ctx.fillStyle='#9a8fb0';
+    ctx.fillText('frame: '+Math.round(phase*24)+' / 24   mode: '+mode,12,16);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  btns.addEventListener('click',function(e){
+    var b=e.target.closest('button[data-mode]');if(!b)return;
+    mode=b.dataset.mode;
+    btns.querySelectorAll('button').forEach(function(x){x.classList.toggle('active',x===b)});
+  });
+  speedEl.addEventListener('input',function(){speedMs=+this.value;speedVal.textContent=speedMs+' ms / frame'});
+  pauseBtn.addEventListener('click',function(){
+    playing=!playing;pauseBtn.textContent=playing?'⏸ szünet':'▶ play';
+  });
+})();
+</script>
+</body>
+</html>

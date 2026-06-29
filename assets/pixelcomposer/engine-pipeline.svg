@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 280" font-family="'IBM Plex Mono', monospace">
+  <rect width="820" height="280" fill="#0c0a13"/>
+
+  <!-- három szakasz: PXC → spritesheet → engine -->
+  <!-- 1. PXC -->
+  <g>
+    <rect x="20" y="40" width="180" height="170" rx="6" fill="#14121c" stroke="#b07cff" stroke-width="2"/>
+    <rect x="20" y="40" width="180" height="24" rx="6" fill="#b07cff"/>
+    <rect x="20" y="58" width="180" height="6" fill="#b07cff"/>
+    <text x="32" y="58" font-size="13" fill="#0c0a13" font-weight="700">Pixel Composer</text>
+    <!-- mini gráf -->
+    <rect x="40" y="86" width="60" height="34" rx="3" fill="#1c1828" stroke="#b07cff"/>
+    <text x="48" y="103" font-size="10" fill="#d4a8ff">Image</text>
+    <rect x="118" y="86" width="62" height="34" rx="3" fill="#1c1828" stroke="#ffb454"/>
+    <text x="126" y="103" font-size="10" fill="#ffb454">Blend</text>
+    <line x1="100" y1="103" x2="118" y2="103" stroke="#5ad7ff" stroke-width="2"/>
+    <rect x="40" y="140" width="140" height="34" rx="3" fill="#1c1828" stroke="#7ed957"/>
+    <text x="48" y="157" font-size="10" fill="#7ed957">Export</text>
+    <line x1="149" y1="120" x2="110" y2="140" stroke="#5ad7ff" stroke-width="2"/>
+    <text x="34" y="196" font-size="11" fill="#9a8fb0">.pxc projekt + animáció</text>
+  </g>
+
+  <!-- nyíl 1 -->
+  <path d="M200 125 L250 125" fill="none" stroke="#ffb454" stroke-width="2.5" stroke-dasharray="6 4"/>
+  <polygon points="246,120 254,125 246,130" fill="#ffb454"/>
+  <text x="225" y="118" font-size="10" fill="#ffb454" text-anchor="middle">export</text>
+
+  <!-- 2. spritesheet PNG -->
+  <g>
+    <rect x="250" y="40" width="200" height="170" rx="6" fill="#14121c" stroke="#7ed957" stroke-width="2"/>
+    <rect x="250" y="40" width="200" height="24" rx="6" fill="#7ed957"/>
+    <rect x="250" y="58" width="200" height="6" fill="#7ed957"/>
+    <text x="262" y="58" font-size="13" fill="#0c0a13" font-weight="700">spritesheet.png</text>
+    <!-- sheet tartalom -->
+    <rect x="270" y="84" width="160" height="40" fill="#0c0a13" stroke="#7ed957" stroke-width="1.5"/>
+    <g stroke="#2a2440" stroke-width="1" stroke-dasharray="2 2">
+      <line x1="306" y1="84" x2="306" y2="124"/>
+      <line x1="342" y1="84" x2="342" y2="124"/>
+      <line x1="378" y1="84" x2="378" y2="124"/>
+    </g>
+    <g fill="#7ed957">
+      <rect x="282" y="92" width="5" height="5"/><rect x="287" y="98" width="5" height="5"/>
+      <rect x="318" y="94" width="5" height="5"/><rect x="323" y="100" width="5" height="5"/>
+      <rect x="354" y="92" width="5" height="5"/><rect x="359" y="98" width="5" height="5"/>
+      <rect x="390" y="94" width="5" height="5"/>
+    </g>
+    <g fill="#ffb454">
+      <rect x="390" y="100" width="5" height="5"/>
+    </g>
+    <!-- meta -->
+    <text x="270" y="146" font-size="10.5" fill="#9a8fb0">160×40 px</text>
+    <text x="270" y="162" font-size="10.5" fill="#9a8fb0">4 frame × 40 px</text>
+    <text x="270" y="178" font-size="10.5" fill="#9a8fb0">frame: 40×40</text>
+    <text x="270" y="196" font-size="10.5" fill="#565066">egy PNG fájl</text>
+  </g>
+
+  <!-- nyíl 2 -->
+  <path d="M450 125 L500 125" fill="none" stroke="#ffb454" stroke-width="2.5" stroke-dasharray="6 4"/>
+  <polygon points="496,120 504,125 496,130" fill="#ffb454"/>
+  <text x="475" y="118" font-size="10" fill="#ffb454" text-anchor="middle">load</text>
+
+  <!-- 3. Engine -->
+  <g>
+    <rect x="500" y="40" width="300" height="170" rx="6" fill="#14121c" stroke="#5ad7ff" stroke-width="2"/>
+    <rect x="500" y="40" width="300" height="24" rx="6" fill="#5ad7ff"/>
+    <rect x="500" y="58" width="300" height="6" fill="#5ad7ff"/>
+    <text x="512" y="58" font-size="13" fill="#06181c" font-weight="700">Játékmotor (Godot / Bevy / GM)</text>
+    <!-- 3 mini ikon -->
+    <g>
+      <rect x="516" y="84" width="86" height="30" rx="3" fill="#1c1828" stroke="#5ad7ff" stroke-width="1"/>
+      <text x="524" y="103" font-size="10.5" fill="#5ad7ff">Godot</text>
+      <text x="584" y="103" font-size="9" fill="#565066" text-anchor="end">AnimatedSprite2D</text>
+    </g>
+    <g>
+      <rect x="610" y="84" width="86" height="30" rx="3" fill="#1c1828" stroke="#5ad7ff" stroke-width="1"/>
+      <text x="618" y="103" font-size="10.5" fill="#5ad7ff">Bevy</text>
+      <text x="680" y="103" font-size="9" fill="#565066" text-anchor="end">TextureAtlas</text>
+    </g>
+    <g>
+      <rect x="704" y="84" width="86" height="30" rx="3" fill="#1c1828" stroke="#5ad7ff" stroke-width="1"/>
+      <text x="712" y="103" font-size="10.5" fill="#5ad7ff">GameMaker</text>
+    </g>
+    <!-- léptetett frame kijelzése -->
+    <text x="516" y="138" font-size="11" fill="#9a8fb0">▸ a motor lépteti a frame-t:</text>
+    <rect x="516" y="146" width="40" height="40" fill="#0c0a13" stroke="#5ad7ff" stroke-width="2"/>
+    <g fill="#7ed957">
+      <rect x="528" y="154" width="5" height="5"/><rect x="533" y="160" width="5" height="5"/>
+      <rect x="523" y="166" width="5" height="5"/><rect x="540" y="158" width="5" height="5"/>
+    </g>
+    <text x="566" y="170" font-size="11" fill="#5ad7ff">frame 2/4</text>
+    <text x="516" y="206" font-size="10.5" fill="#565066">az atlasból „kivág" egy 40×40-es régiót</text>
+  </g>
+
+  <!-- alsó láncfelirat -->
+  <text x="20" y="248" font-size="12" fill="#9a8fb0">Teljes pipeline: <tspan fill="#d4a8ff">PXC gráf</tspan> ▸ <tspan fill="#ffb454">export</tspan> ▸ <tspan fill="#7ed957">spritesheet.png</tspan> ▸ <tspan fill="#ffb454">load</tspan> ▸ <tspan fill="#5ad7ff">játékmotor</tspan> ▸ léptetett animáció</text>
+  <text x="20" y="266" font-size="11" fill="#565066">A metaadat (frame méret, db frame, fps) a PXC-ből jön — a motorban csak betöltöd és beállítod a léptetést.</text>
+</svg>

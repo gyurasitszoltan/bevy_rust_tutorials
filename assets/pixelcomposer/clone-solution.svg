@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 360" font-family="'IBM Plex Mono', monospace">
+  <rect width="840" height="360" fill="#0c0a13"/>
+  <g stroke="#1a1626" stroke-width="1">
+    <line x1="0" y1="72" x2="840" y2="72"/>
+    <line x1="0" y1="144" x2="840" y2="144"/>
+    <line x1="0" y1="216" x2="840" y2="216"/>
+    <line x1="0" y1="288" x2="840" y2="288"/>
+    <line x1="105" y1="0" x2="105" y2="360"/>
+    <line x1="210" y1="0" x2="210" y2="360"/>
+    <line x1="315" y1="0" x2="315" y2="360"/>
+    <line x1="420" y1="0" x2="420" y2="360"/>
+    <line x1="525" y1="0" x2="525" y2="360"/>
+    <line x1="630" y1="0" x2="630" y2="360"/>
+    <line x1="735" y1="0" x2="735" y2="360"/>
+  </g>
+
+  <text x="30" y="34" font-size="13" fill="#7ed957" font-weight="700">✓ MEGOLDÁS — Clone node-kkal független példányok</text>
+
+  <!-- Image node -->
+  <g>
+    <rect x="30" y="150" width="140" height="70" rx="5" fill="#1c1828" stroke="#b07cff" stroke-width="2"/>
+    <rect x="30" y="150" width="140" height="22" rx="5" fill="#b07cff"/>
+    <rect x="30" y="166" width="140" height="6" fill="#b07cff"/>
+    <text x="40" y="166" font-size="12.5" fill="#0c0a13" font-weight="700">Image</text>
+    <rect x="40" y="184" width="40" height="30" fill="#0c0a13"/>
+    <g fill="#7ed957">
+      <rect x="48" y="190" width="5" height="5"/><rect x="54" y="198" width="5" height="5"/>
+      <rect x="42" y="200" width="5" height="5"/>
+    </g>
+    <circle cx="170" cy="185" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+  </g>
+
+  <!-- Clone A -->
+  <path d="M170 185 C 195 185, 200 110, 220 110" fill="none" stroke="#5ad7ff" stroke-width="2.5"/>
+  <g>
+    <rect x="220" y="80" width="120" height="60" rx="5" fill="#1c1828" stroke="#5ad7ff" stroke-width="2.5"/>
+    <rect x="220" y="80" width="120" height="22" rx="5" fill="#5ad7ff"/>
+    <rect x="220" y="96" width="120" height="6" fill="#5ad7ff"/>
+    <text x="230" y="96" font-size="12.5" fill="#0c0a13" font-weight="700">Clone A</text>
+    <text x="230" y="118" font-size="11" fill="#9a8fb0">független</text>
+    <text x="230" y="132" font-size="11" fill="#9a8fb0">másolat</text>
+    <circle cx="220" cy="110" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+    <circle cx="340" cy="110" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+  </g>
+  <!-- Clone B -->
+  <path d="M170 185 C 195 185, 200 250, 220 250" fill="none" stroke="#5ad7ff" stroke-width="2.5"/>
+  <g>
+    <rect x="220" y="220" width="120" height="60" rx="5" fill="#1c1828" stroke="#5ad7ff" stroke-width="2.5"/>
+    <rect x="220" y="220" width="120" height="22" rx="5" fill="#5ad7ff"/>
+    <rect x="220" y="236" width="120" height="6" fill="#5ad7ff"/>
+    <text x="230" y="236" font-size="12.5" fill="#0c0a13" font-weight="700">Clone B</text>
+    <text x="230" y="258" font-size="11" fill="#9a8fb0">független</text>
+    <text x="230" y="272" font-size="11" fill="#9a8fb0">másolat</text>
+    <circle cx="220" cy="250" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+    <circle cx="340" cy="250" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+  </g>
+
+  <!-- Transform A (csak forgatás) -->
+  <path d="M340 110 C 370 110, 380 110, 400 110" fill="none" stroke="#5ad7ff" stroke-width="2.5"/>
+  <g>
+    <rect x="400" y="80" width="150" height="60" rx="5" fill="#1c1828" stroke="#ffb454" stroke-width="2"/>
+    <rect x="400" y="80" width="150" height="20" rx="5" fill="#ffb454"/>
+    <text x="410" y="94" font-size="11.5" fill="#0c0a13" font-weight="700">Transform A</text>
+    <text x="410" y="118" font-size="11" fill="#9a8fb0">Rotation: 45°</text>
+    <text x="410" y="132" font-size="11" fill="#9a8fb0">Scale: 1.0</text>
+    <circle cx="400" cy="110" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+    <circle cx="550" cy="110" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+  </g>
+  <!-- Transform B (csak nagyítás) -->
+  <path d="M340 250 C 370 250, 380 250, 400 250" fill="none" stroke="#5ad7ff" stroke-width="2.5"/>
+  <g>
+    <rect x="400" y="220" width="150" height="60" rx="5" fill="#1c1828" stroke="#ffb454" stroke-width="2"/>
+    <rect x="400" y="220" width="150" height="20" rx="5" fill="#ffb454"/>
+    <text x="410" y="234" font-size="11.5" fill="#0c0a13" font-weight="700">Transform B</text>
+    <text x="410" y="258" font-size="11" fill="#9a8fb0">Rotation: 0°</text>
+    <text x="410" y="272" font-size="11" fill="#9a8fb0">Scale: 2.0</text>
+    <circle cx="400" cy="250" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+    <circle cx="550" cy="250" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+  </g>
+
+  <!-- Preview A: CSAK forgatva -->
+  <path d="M550 110 C 580 110, 590 110, 620 110" fill="none" stroke="#5ad7ff" stroke-width="2.5"/>
+  <g>
+    <rect x="620" y="80" width="120" height="60" rx="5" fill="#1c1828" stroke="#7ed957" stroke-width="2"/>
+    <rect x="620" y="80" width="120" height="20" rx="5" fill="#7ed957"/>
+    <text x="630" y="94" font-size="11.5" fill="#0c0a13" font-weight="700">Preview A</text>
+    <circle cx="620" cy="110" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+    <rect x="640" y="104" width="32" height="28" fill="#0c0a13"/>
+    <g transform="translate(656 118) rotate(45)" fill="#7ed957">
+      <rect x="-10" y="-10" width="8" height="8"/><rect x="0" y="-2" width="8" height="8"/>
+    </g>
+    <text x="640" y="138" font-size="9" fill="#7ed957">csak forgatva ✓</text>
+  </g>
+  <!-- Preview B: CSAK nagyítva -->
+  <path d="M550 250 C 580 250, 590 250, 620 250" fill="none" stroke="#5ad7ff" stroke-width="2.5"/>
+  <g>
+    <rect x="620" y="220" width="120" height="60" rx="5" fill="#1c1828" stroke="#7ed957" stroke-width="2"/>
+    <rect x="620" y="220" width="120" height="20" rx="5" fill="#7ed957"/>
+    <text x="630" y="234" font-size="11.5" fill="#0c0a13" font-weight="700">Preview B</text>
+    <circle cx="620" cy="250" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+    <rect x="640" y="234" width="48" height="36" fill="#0c0a13"/>
+    <g fill="#7ed957">
+      <rect x="648" y="242" width="8" height="8"/><rect x="658" y="254" width="8" height="8"/>
+      <rect x="642" y="256" width="8" height="8"/>
+    </g>
+    <text x="640" y="278" font-size="9" fill="#7ed957">csak nagyítva ✓</text>
+  </g>
+
+  <!-- magyarázat -->
+  <text x="30" y="318" font-size="12.5" fill="#7ed957">A Clone node <tspan fill="#5ad7ff" font-weight="600">független példányt</tspan> készít — minden ágnak saját másolata van,</text>
+  <text x="30" y="336" font-size="12.5" fill="#7ed957">az A ág módosítása <tspan fill="#9a8fb0">nem szivárog át</tspan> a B ágra. Mindkét Preview a saját transzformációját mutatja.</text>
+</svg>

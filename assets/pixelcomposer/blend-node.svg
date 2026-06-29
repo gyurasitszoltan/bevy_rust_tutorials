@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 420" font-family="'IBM Plex Mono', monospace">
+  <rect width="860" height="420" fill="#0c0a13"/>
+  <g stroke="#1a1626" stroke-width="1">
+    <line x1="0" y1="60" x2="860" y2="60"/>
+    <line x1="0" y1="120" x2="860" y2="120"/>
+    <line x1="0" y1="180" x2="860" y2="180"/>
+    <line x1="0" y1="240" x2="860" y2="240"/>
+    <line x1="0" y1="300" x2="860" y2="300"/>
+    <line x1="0" y1="360" x2="860" y2="360"/>
+    <line x1="120" y1="0" x2="120" y2="420"/>
+    <line x1="240" y1="0" x2="240" y2="420"/>
+    <line x1="360" y1="0" x2="360" y2="420"/>
+    <line x1="480" y1="0" x2="480" y2="420"/>
+    <line x1="600" y1="0" x2="600" y2="420"/>
+    <line x1="720" y1="0" x2="720" y2="420"/>
+  </g>
+
+  <!-- Image A (fent) -->
+  <g>
+    <rect x="30" y="40" width="130" height="60" rx="5" fill="#1c1828" stroke="#b07cff" stroke-width="2"/>
+    <rect x="30" y="40" width="130" height="22" rx="5" fill="#b07cff"/>
+    <rect x="30" y="56" width="130" height="6" fill="#b07cff"/>
+    <text x="40" y="56" font-size="12.5" fill="#0c0a13" font-weight="700">Image A</text>
+    <rect x="40" y="74" width="32" height="20" fill="#0c0a13"/>
+    <g fill="#7ed957"><rect x="46" y="80" width="4" height="4"/><rect x="50" y="84" width="4" height="4"/><rect x="42" y="88" width="4" height="4"/><rect x="58" y="84" width="4" height="4"/></g>
+    <circle cx="160" cy="84" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+  </g>
+
+  <!-- Image B (lent) -->
+  <g>
+    <rect x="30" y="200" width="130" height="60" rx="5" fill="#1c1828" stroke="#b07cff" stroke-width="2"/>
+    <rect x="30" y="200" width="130" height="22" rx="5" fill="#b07cff"/>
+    <rect x="30" y="216" width="130" height="6" fill="#b07cff"/>
+    <text x="40" y="216" font-size="12.5" fill="#0c0a13" font-weight="700">Image B</text>
+    <rect x="40" y="234" width="32" height="20" fill="#0c0a13"/>
+    <g fill="#ff7a3c"><rect x="46" y="240" width="4" height="4"/><rect x="54" y="244" width="4" height="4"/><rect x="42" y="246" width="4" height="4"/><rect x="62" y="238" width="4" height="4"/></g>
+    <circle cx="160" cy="234" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+  </g>
+
+  <path d="M160 84 C 220 84, 230 150, 290 150" fill="none" stroke="#5ad7ff" stroke-width="2.5"/>
+  <path d="M160 234 C 220 234, 230 168, 290 168" fill="none" stroke="#5ad7ff" stroke-width="2.5"/>
+
+  <!-- Blend node -->
+  <g>
+    <rect x="290" y="120" width="170" height="120" rx="5" fill="#1c1828" stroke="#ffb454" stroke-width="2"/>
+    <rect x="290" y="120" width="170" height="22" rx="5" fill="#ffb454"/>
+    <rect x="290" y="136" width="170" height="6" fill="#ffb454"/>
+    <text x="300" y="136" font-size="12.5" fill="#0c0a13" font-weight="700">Blend</text>
+    <circle cx="290" cy="150" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+    <circle cx="290" cy="168" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+    <text x="304" y="154" font-size="10.5" fill="#9a8fb0">back (A)</text>
+    <text x="304" y="172" font-size="10.5" fill="#9a8fb0">front (B)</text>
+    <text x="300" y="196" font-size="11.5" fill="#9a8fb0">Type</text>
+    <rect x="346" y="186" width="104" height="16" fill="#0c0a13" stroke="#2a2440"/>
+    <text x="352" y="198" font-size="11" fill="#ffb454" font-weight="600">Add</text>
+    <text x="300" y="220" font-size="11.5" fill="#9a8fb0">Opacity</text>
+    <rect x="346" y="210" width="104" height="16" fill="#0c0a13" stroke="#2a2440"/>
+    <text x="352" y="222" font-size="11" fill="#cfcae0">1.00</text>
+    <circle cx="460" cy="180" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+  </g>
+  <path d="M460 180 C 520 180, 530 180, 560 180" fill="none" stroke="#5ad7ff" stroke-width="2.5"/>
+
+  <!-- Preview -->
+  <g>
+    <rect x="560" y="140" width="150" height="90" rx="5" fill="#1c1828" stroke="#7ed957" stroke-width="2"/>
+    <rect x="560" y="140" width="150" height="22" rx="5" fill="#7ed957"/>
+    <rect x="560" y="156" width="150" height="6" fill="#7ed957"/>
+    <text x="570" y="156" font-size="12.5" fill="#0c0a13" font-weight="700">Preview</text>
+    <circle cx="560" cy="180" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+    <rect x="588" y="174" width="44" height="34" fill="#0c0a13"/>
+    <g>
+      <rect x="594" y="180" width="6" height="6" fill="#cfe05e"/>
+      <rect x="602" y="188" width="6" height="6" fill="#cfe05e"/>
+      <rect x="588" y="196" width="6" height="6" fill="#cfe05e"/>
+      <rect x="612" y="184" width="6" height="6" fill="#cfe05e"/>
+      <rect x="608" y="196" width="6" height="6" fill="#cfe05e"/>
+    </g>
+  </g>
+
+  <!-- jobb: négy blend-mód eredmény (kis kártyák) -->
+  <g font-size="11.5" fill="#9a8fb0">
+    <text x="740" y="44" letter-spacing="1">TÍPUSOK</text>
+  </g>
+  <g>
+    <rect x="740" y="56" width="92" height="50" rx="3" fill="#1c1828" stroke="#2a2440"/>
+    <rect x="740" y="56" width="92" height="14" fill="#ffb454"/>
+    <text x="746" y="66" font-size="10.5" fill="#0c0a13" font-weight="700">Normal</text>
+    <rect x="756" y="76" width="16" height="14" fill="#0c0a13"/>
+    <rect x="760" y="80" width="4" height="4" fill="#7ed957"/><rect x="768" y="84" width="4" height="4" fill="#7ed957"/>
+    <text x="838" y="100" font-size="9" fill="#565066" text-anchor="end">B fedi A-t</text>
+
+    <rect x="740" y="112" width="92" height="50" rx="3" fill="#1c1828" stroke="#2a2440"/>
+    <rect x="740" y="112" width="92" height="14" fill="#ffb454"/>
+    <text x="746" y="122" font-size="10.5" fill="#0c0a13" font-weight="700">Add</text>
+    <rect x="756" y="132" width="16" height="14" fill="#0c0a13"/>
+    <rect x="760" y="136" width="4" height="4" fill="#cfe05e"/><rect x="768" y="140" width="4" height="4" fill="#cfe05e"/>
+    <text x="838" y="156" font-size="9" fill="#565066" text-anchor="end">összead → világosabb</text>
+
+    <rect x="740" y="168" width="92" height="50" rx="3" fill="#1c1828" stroke="#2a2440"/>
+    <rect x="740" y="168" width="92" height="14" fill="#ffb454"/>
+    <text x="746" y="178" font-size="10.5" fill="#0c0a13" font-weight="700">Multiply</text>
+    <rect x="756" y="188" width="16" height="14" fill="#0c0a13"/>
+    <rect x="760" y="192" width="4" height="4" fill="#4a6b2f"/><rect x="768" y="196" width="4" height="4" fill="#4a6b2f"/>
+    <text x="838" y="212" font-size="9" fill="#565066" text-anchor="end">szorzat → sötétebb</text>
+
+    <rect x="740" y="224" width="92" height="50" rx="3" fill="#1c1828" stroke="#2a2440"/>
+    <rect x="740" y="224" width="92" height="14" fill="#ffb454"/>
+    <text x="746" y="234" font-size="10.5" fill="#0c0a13" font-weight="700">Mask</text>
+    <rect x="756" y="244" width="16" height="14" fill="#0c0a13"/>
+    <rect x="760" y="248" width="4" height="4" fill="#7ed957"/>
+    <text x="838" y="268" font-size="9" fill="#565066" text-anchor="end">B maszkolja A-t</text>
+  </g>
+
+  <text x="30" y="290" font-size="12.5" fill="#ffb454">A Blend node-nak <tspan fill="#5ad7ff">két bemenete</tspan> van: back (A) és front (B). A Type paraméter dönti el, hogyan keverednek.</text>
+  <text x="30" y="310" font-size="12" fill="#9a8fb0">A kimenet egyetlen Surface — ezt továbbküldheted Transform-nak, Preview-nek, vagy egy másik Blend-nek.</text>
+</svg>

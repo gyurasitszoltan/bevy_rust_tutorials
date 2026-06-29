@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Composer — A Clone node · 5. rész (magyar)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#13111d;--bg-deep:#0c0a13;--panel:#1c1828;--panel-2:#17142260;
+  --ink:#e8e3f0;--muted:#9a8fb0;--node:#b07cff;--node-hi:#d4a8ff;
+  --flow:#5ad7ff;--flow-dk:#2a7d99;--ok:#7ed957;--warn:#ffb454;
+  --lava:#ff7a3c;--line:#2a2440;--line-hi:#3d3458;--shadow:rgba(0,0,0,.5);
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:16.5px;line-height:1.7}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.06) 3px 4px)}
+::selection{background:var(--node);color:#fff}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:var(--bg-deep);border-right:3px solid var(--line);overflow-y:auto;z-index:30;padding:22px 0 40px}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px}
+.logo .title{font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;color:var(--node-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15}
+.logo .sub{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em}
+.logo .badge{display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;color:var(--bg-deep);background:var(--node);padding:2px 9px 3px;box-shadow:2px 2px 0 var(--shadow)}
+.logo .badge.alt{background:var(--flow);color:#06181c;margin-left:6px}
+.nav-part{font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--node);padding:16px 20px 6px;text-transform:uppercase}
+.nav a{display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;font-size:14px;position:relative;border-left:4px solid transparent;transition:color .12s,background .12s}
+.nav a::before{content:"▸";position:absolute;left:16px;opacity:0;color:var(--flow);transition:opacity .12s,left .12s}
+.nav a:hover{color:var(--ink);background:rgba(176,124,255,.06)}
+.nav a.active{color:var(--node-hi);background:rgba(176,124,255,.10);border-left-color:var(--node);font-weight:600}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;background:var(--node);color:#10180f;border:none;padding:8px 14px;box-shadow:3px 3px 0 var(--shadow);text-decoration:none;transition:transform .08s,box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--warn)}
+.btn.flow{background:var(--flow);color:#06181c}
+.menu-toggle{display:none;position:fixed;top:14px;left:14px;z-index:40;font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;background:var(--panel);color:var(--ink);border:3px solid var(--line);box-shadow:3px 3px 0 var(--shadow)}
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+.hero{padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{font-family:"IBM Plex Mono";font-size:13px;color:var(--flow);letter-spacing:.14em;text-transform:uppercase;margin-bottom:14px}
+.hero h1{font-family:"Pixelify Sans";font-weight:700;font-size:clamp(32px,5vw,52px);line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);margin-bottom:18px}
+.hero h1 .n{color:var(--node-hi)}
+.hero h1 .f{color:var(--flow)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{border:3px solid var(--line);background:var(--bg-deep);padding:14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;box-shadow:4px 4px 0 var(--shadow)}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0;border:2px solid var(--line);background:#0c0a13}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6;flex:1;min-width:220px}
+.hero-strip .cap b{color:var(--node-hi)}
+section{padding-top:56px}
+.part-divider{margin-top:72px;padding:14px 0 0;border-top:3px dashed var(--line-hi)}
+.part-divider .pd-label{font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--node);text-transform:uppercase}
+.ch-eyebrow{font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--flow);text-transform:uppercase;margin-bottom:8px}
+h2{font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;color:var(--node-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px}
+h3{font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--warn);margin:34px 0 12px}
+p{margin-bottom:14px}p+p{margin-top:2px}
+strong{color:#fff}em{color:var(--node-hi)}
+a{color:var(--flow)}
+ul,ol{margin:0 0 16px 24px}li{margin-bottom:7px}
+code:not(pre code){font-family:"IBM Plex Mono";font-size:.86em;background:#0c0a13;color:var(--node-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+.ui{font-family:"IBM Plex Mono";font-size:.86em;background:#0d1018;color:var(--flow);padding:2px 7px;border:1px solid #2a4a52;white-space:nowrap;font-weight:500}
+ol.steps{list-style:none;margin:20px 0;counter-reset:st}
+ol.steps>li{counter-increment:st;position:relative;padding:4px 0 14px 52px;margin-bottom:6px;border-left:3px solid var(--line);margin-left:16px}
+ol.steps>li::before{content:counter(st);position:absolute;left:-19px;top:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-family:"Pixelify Sans";font-size:17px;color:#10180f;background:var(--node);box-shadow:2px 2px 0 var(--shadow)}
+ol.steps>li:last-child{border-left-color:transparent}
+.diagram{margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.diagram .d-head{font-family:"Pixelify Sans";font-size:13px;color:var(--flow);letter-spacing:.1em;padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase}
+.diagram pre{overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";font-size:13px;line-height:1.5;color:var(--ink)}
+.diagram pre .gr{color:var(--ok)}.diagram pre .di{color:var(--warn)}.diagram pre .wa{color:var(--flow)}.diagram pre .no{color:var(--node-hi)}.diagram pre .st{color:#9aa0aa}.diagram pre .lv{color:var(--lava)}.diagram pre .mu{color:var(--muted)}
+.diagram .d-cap{font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55}
+.info-box{margin:24px 0;border:3px solid #2a4a52;background:#0d1018;box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px}
+.info-box .tag{font-family:"Pixelify Sans";font-size:13.5px;color:var(--flow);letter-spacing:.12em;margin-bottom:8px;text-transform:uppercase}
+.info-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.info-box p:last-child{margin-bottom:0}
+.info-box code:not(pre code){border-color:#2a4a52;color:var(--flow)}
+.info-box ul{font-size:15px;color:#cfdbd5}
+.note{margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--node);background:var(--panel);padding:12px 16px;font-size:15px}
+.note.warn{border-left-color:var(--warn)}
+.note.ok{border-left-color:var(--ok)}
+.note .n-tag{font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--node-hi);margin-bottom:4px}
+.note.warn .n-tag{color:var(--warn)}
+.note.ok .n-tag{color:var(--ok)}
+.shot{margin:24px 0;border:3px solid var(--line);background:var(--bg-deep);box-shadow:4px 4px 0 var(--shadow)}
+.shot img{display:block;width:100%;height:auto;image-rendering:auto}
+.shot .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.55;padding:9px 13px;border-top:2px dashed var(--line-hi)}
+.shot .cap b{color:var(--node-hi)}
+.shot.small{max-width:420px}
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow)}
+th{background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;color:var(--warn);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);letter-spacing:.04em}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+.on{color:var(--ok);font-weight:600}
+.off{color:var(--warn)}
+.playground{margin:26px 0;border:3px solid var(--node);background:var(--bg-deep);box-shadow:5px 5px 0 var(--shadow)}
+.playground .pg-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:linear-gradient(90deg,rgba(176,124,255,.14),transparent);border-bottom:3px solid var(--node);padding:10px 14px}
+.playground .pg-title{font-family:"Pixelify Sans";font-size:16px;color:var(--node-hi);letter-spacing:.08em}
+.playground .pg-tag{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted)}
+.playground .pg-body{padding:16px;display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{image-rendering:pixelated;border:3px solid var(--line);background:#0c0a13;touch-action:none;max-width:100%}
+.playground .pg-side{flex:1;min-width:240px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:1.9}
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--warn);letter-spacing:.06em;margin:14px 0 4px;text-transform:uppercase}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0}
+.tbtn{font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);color:var(--muted);border:2px solid var(--line-hi);padding:5px 12px;transition:all .1s}
+.tbtn:hover{color:var(--ink)}
+.tbtn.active{background:var(--node);color:#10180f;border-color:var(--node);font-weight:600}
+.tbtn.flow.active{background:var(--flow);color:#06181c;border-color:var(--flow)}
+input[type=range]{width:100%;accent-color:var(--node);margin:6px 0 2px;cursor:pointer}
+.rng-val{font-family:"IBM Plex Mono";font-size:13px;color:var(--node-hi)}
+.kbd{font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink)}
+.next-card{margin-top:70px;border:3px solid var(--line);background:var(--panel);box-shadow:5px 5px 0 var(--shadow);padding:20px 22px;display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+.next-card .nx-label{font-family:"IBM Plex Mono";font-size:12px;color:var(--flow);letter-spacing:.14em;text-transform:uppercase}
+.next-card .nx-title{font-family:"Pixelify Sans";font-size:22px;color:var(--node-hi);margin-top:4px}
+.next-card .nx-desc{font-size:14.5px;color:var(--muted);margin-top:8px;flex:1;min-width:240px}
+.prev-card{margin-bottom:50px;border:3px solid var(--line);background:var(--panel-2);box-shadow:3px 3px 0 var(--shadow);padding:12px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.prev-card .px-label{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+.prev-card .px-title{font-family:"Pixelify Sans";font-size:15px;color:var(--muted);margin-top:2px}
+.prev-card a{font-family:"Pixelify Sans";font-size:14px;color:var(--node-hi);text-decoration:none}
+footer{margin-top:60px;border-top:3px solid var(--line);padding-top:24px;font-size:13.5px;color:var(--muted)}
+footer .pix{font-family:"Pixelify Sans";color:var(--node);font-size:15px}
+footer a{color:var(--flow)}
+@media (max-width:980px){.sidebar{transform:translateX(-100%);transition:transform .2s}.sidebar.open{transform:translateX(0)}.menu-toggle{display:block}.main{margin-left:0}.wrap{padding:0 20px 100px}.hero{padding-top:84px}}
+</style>
+</head>
+<body>
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;background:linear-gradient(90deg,#b07cff,#d4a8ff);box-shadow:0 0 10px rgba(176,124,255,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">PIXEL COMPOSER<br>CLONE NODE</div>
+    <div class="sub">a #2 kezdő csapda · 5. rész · magyarul</div>
+    <span class="badge">Pixel Composer</span><span class="badge alt">5 / N</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I · A probléma</div>
+    <a href="#ch1">1 · Ismétlés: több ág</a>
+    <a href="#ch2">2 · A statikus adat csapda</a>
+    <a href="#ch3">3 · Hogyan szivárog át?</a>
+    <div class="nav-part">II · A megoldás</div>
+    <a href="#ch4">4 · A Clone node</a>
+    <a href="#ch5">5 · Mikor kell Clone?</a>
+    <a href="#ch6">6 · Clone vs. új Image</a>
+    <div class="nav-part">III · Gyakorlat</div>
+    <a href="#ch7">7 · Clone használata lépésről</a>
+    <a href="#ch8">8 · Tipikus minták</a>
+    <a href="#ch9">9 · Hibakeresés</a>
+    <div class="nav-part">IV · Lezárás</div>
+    <a href="#ch10">10 · Kezdő szint vége</a>
+    <a href="#ch11">11 · Összefoglaló &amp; tovább</a>
+  </nav>
+  <div class="dl-box">
+    <p>A tutorial a Pixel Composer <strong>ingyenes</strong> verziójával csinálható végig. Ha lemaradtad az előző részeket:</p>
+    <a class="btn flow" href="pixelcomposer-import-export-tutorial.html">◂ 4. rész: Import/Export</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// 5. rész · kezdő zárás · magyar nyelven · ~30 perc · a fórumok alapján</div>
+  <h1>A <span class="n">Clone</span> node<br>— a <span class="f">#2</span> kezdő csapda</h1>
+  <p class="lead">Az 1–4. részben megtanultad az alapokat: gráf, Transform, Blend, animáció, export. Most jön az a probléma, amivel <strong>minden</strong> kezdő találkozik, és ami a legtöbb fejfájást okozza: <strong>„miért módosítja az egyik ág a másikat?"</strong> A válasz a <em>statikus VFX-adat</em>, a megoldás a <strong>Clone node</strong>. Ez a kezdő szint utolsó, legfontosabb leckéje.</p>
+  <div class="hero-strip">
+    <canvas id="heroCanvas" width="220" height="140" style="width:220px;height:140px"></canvas>
+    <div class="cap" id="heroCap">↑ Élő minta: <b>bal</b> — egy Image-re két ág (forgatás + nagyítás), a módosítás „átszivárog". <b>Jobb</b> — Clone node-dal szétválasztva, minden ág független. Pontosan ezt vizsgáljuk meg a 7. fejezetben. (Hoverrel leállíthatod.)</div>
+  </div>
+</header>
+
+<div class="prev-card">
+  <div>
+    <div class="px-label">előző · 4. rész</div>
+    <div class="px-title">Import/Export workflow — spritesheet pipeline</div>
+  </div>
+  <a href="pixelcomposer-import-export-tutorial.html">◂ vissza a 4. részhez</a>
+</div>
+
+<!-- ================= I. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ I. rész — A probléma</span></div>
+
+<!-- ================= 1. FEJEZET ================= -->
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>Ismétlés: egy forrás, több ág</h2>
+
+  <p>A 2. részben említettünk egy mintát: <strong>egy Image, több ágon, különböző átalakításokkal</strong>. Ott azt mondtuk, ez a PXC egyik legerősebb fegyvere — mert non-destructive, az eredeti Image érintetlen marad. Ez igaz. De van egy csapda, amit ott nem részleteztünk:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A 2. részes emlékeztető — „egy forrás, két ág"</div>
+<pre>
+                          ┌─▸ <span class="di">Transform</span> (Rotation 45°)  ─▸ <span class="gr">Preview A</span>
+  <span class="wa">Image</span> ───┤
+                          └─▸ <span class="di">Transform</span> (Scale 2.0)      ─▸ <span class="gr">Preview B</span>
+
+  <span class="mu">Ez a terv: A ág forgat, B ág nagyít. Két különböző eredményt várunk.</span>
+</pre>
+    <div class="d-cap">Ez a minta <strong>elméletileg</strong> helyes — és egyszerű esetekben (tiszta Surface-ek) működik is. De ha az Image <strong>VFX-adatot</strong> tartalmaz (részecskék, physics state, feedback), vagy ha bizonyos node-ok „megjegyzik" az állapotot, <em>átszivárog</em> a módosítás.</div>
+  </div>
+
+  <p>Ez a fejezet a csapda felismeréséről szól — mielőtt megnéznénk a megoldást, értsük meg, mi történik.</p>
+</section>
+
+<!-- ================= 2. FEJEZET ================= -->
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>A statikus adat csapda</h2>
+
+  <p>A probléma gyökere: a PXC-ben a Surface-adat bizonyos esetekben <strong>statikus</strong> — azaz <em>nem másolódik</em>, hanem <strong>megosztott referencia</strong>. Ha két node ugyanarra a Surface-re hivatkozik, és az egyik módosítja, a másik <strong>ugyanazt a módosított változatot</strong> látja.</p>
+
+  <div class="shot">
+    <img src="assets/pixelcomposer/static-data-problem.svg" alt="Egy Image két ágon, a módosítás átszivárog — mindkét Preview ugyanazt mutatja">
+    <div class="cap">A <b>hiba</b>: egyetlen Image-re két Transform hivatkozik. A ág <code>Rotation 45°</code>, B ág <code>Scale 2.0</code> — de mivel megosztott a Surface, a <strong>B ág módosítása (Scale 2.0) is megjelenik az A ágon</strong>, és fordítva. Mindkét Preview <strong>ugyanazt</strong> mutatja: forgatva ÉS nagyítva.</div>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">▲ A tünet: „mindkét Preview ugyanaz"</div>
+    A leglátványosabb tünet: két ágon <strong>különböző</strong> átalakítást csinálsz, de a két Preview <strong>ugyanazt</strong> mutatja. Vagy: módosítod az egyik ágat, és a <em>másik</em> ág Preview-je is megváltozik. Ha ezt tapasztalod, szinte biztosan statikus-adat problémád van.
+  </div>
+
+  <div class="info-box">
+    <div class="tag">▸ Mikor fordul elő?</div>
+    <p>A statikus-adat probléma <strong>nem minden</strong> node-nál jelentkezik. A tiszta Surface-műveletek (Transform, Blend, színmódosítás) általában jól viselik. A problémásabb esetek:</p>
+    <ul>
+      <li><strong>VFX / Particle</strong> node-ok — részecskék állapota „megmarad", megosztott.</li>
+      <li><strong>Feedback loop</strong> — előző frame-eket használ, állapot-függő.</li>
+      <li><strong>Rigid body / Fluid</strong> szimulációk — physics state.</li>
+      <li>Bizonyos <strong>cache-elő</strong> node-ok, amelyek memóriában tartják az eredményt.</li>
+    </ul>
+    <p>Az egyszerű Transform + Blend gráfoknál ritkán, de az 5. rész utáni (középhaladó) tutorialoknál — részecskéknél, feedback-nél — szinte biztosan találkozol vele.</p>
+  </div>
+</section>
+
+<!-- ================= 3. FEJEZET ================= -->
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>Hogyan szivárog át? — mechanizmus</h2>
+
+  <p>Hogy miért történik ez, érdemes megérteni — így nem csak „varázslat"-ként kezeled a Clone-t. A mechanizmus:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A megosztott referencia mechanizmusa</div>
+<pre>
+  <span class="wa">Image</span> ─▸ Surface (A memóriában: <span class="no">#1</span>)
+                │
+                ├─▸ <span class="di">Transform A</span>    ▸ olvassa <span class="no">#1</span>, módosítja (Rotation)
+                │                   ▸ DE: a kimenet mutathat vissza <span class="no">#1</span>-re
+                │                     (ha nem készül önálló másolat)
+                │
+                └─▸ <span class="di">Transform B</span>    ▸ szintén <span class="no">#1</span>-et látja
+                                    ▸ az A módosítása már „rajta" van a Surface-en
+                                    ▸ ezért B is forgatva látja
+
+  <span class="mu">A PXC optimalizálási okokból nem másol feleslegesen — ez általában jó,</span>
+  <span class="mu">de „egy forrás, több módosító ág" esetén a módosítások „összegyűlnek".</span>
+</pre>
+    <div class="d-cap">A PXC <strong>teljesítmény</strong>okból nem másolja a Surface-t, ha nem kell — ez egyébként helyes döntés. A probléma csak akkor jelentkezik, ha <em>több ág</em> módosítja ugyanazt. Ilyenkor kell egy <strong>explicit másolat</strong> — és ezt adja a Clone node.</div>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▸ Nem „bug" — feature</div>
+    Fontos: ez <strong>nem hiba</strong> a PXC-ben. Ez a node-gráf optimalizálásának természetes következménye. A hivatalos dokumentáció és a fórumok is ekként kezelik — a Clone node pont <strong>ezért létezik</strong>, hogy ezeket az eseteket kézben tartsd. Nem „workaround", hanem a helyes eszköz.
+  </div>
+</section>
+
+<!-- ================= II. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ II. rész — A megoldás</span></div>
+
+<!-- ================= 4. FEJEZET ================= -->
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>A Clone node — független példány</h2>
+
+  <p>A <strong>Clone</strong> node (cián fejléc, általában a Transform/VFX kategória közelében) egy <strong>független másolatot</strong> készít a bemeneti Surface-ről. A kimenet <strong>ténylegesen külön</strong> példány a memóriában — az ágad módosításai <strong>nem hatnak</strong> vissza az eredetire, és nem szivárognak át a másik ágra.</p>
+
+  <div class="shot">
+    <img src="assets/pixelcomposer/clone-solution.svg" alt="Image → Clone A és Clone B → külön Transform ágak — mindkét Preview független">
+    <div class="cap">A <b>megoldás</b>: az Image után <strong>Clone node</strong>-ok vannak — minden ágnak saját másolata. A ág (Clone A → Transform A: Rotation 45°) és B ág (Clone B → Transform B: Scale 2.0) <strong>teljesen független</strong>. A Preview A csak forgatva, a Preview B csak nagyítva — ahogy tervezted.</div>
+  </div>
+
+  <table>
+    <tr><th></th><th>Clone nélkül (rossz)</th><th>Clone-nal (jó)</th></tr>
+    <tr><td><strong>memóriapéldány</strong></td><td>1 (megosztott)</td><td>2+ (független)</td></tr>
+    <tr><td><strong>át-szivárgás</strong></td><td>van</td><td>nincs</td></tr>
+    <tr><td><strong>eredmény</strong></td><td>Mindkét Preview ugyanaz</td><td>Minden ág a saját módosítását mutatja</td></tr>
+    <tr><td><strong>memória</strong></td><td>kevesebb</td><td>több (de cserébe helyes)</td></tr>
+  </table>
+
+  <div class="info-box">
+    <div class="tag">▸ A Clone mindig „közvetlenül a forrás után"</div>
+    <p>A Clone node-ot <strong>az Image (vagy VFX forrás) után, az ágak elágazása előtt</strong> tedd. Tehát nem „az ág végén", hanem „az ág elején". Így minden ág a saját klónjából indul ki — függetlenül. A helyes minta:</p>
+    <p class="mono" style="font-size:13px;color:var(--flow)">Image → Clone A → (ág A módosításai) → Preview A<br>Image → Clone B → (ág B módosításai) → Preview B</p>
+  </div>
+</section>
+
+<!-- ================= 5. FEJEZET ================= -->
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Mikor kell Clone? — döntés</h2>
+
+  <p>Nem kell mindig Clone-t tenni — az egyszerű, <em>olvasó</em> ágaknál (ahol csak megnézed az eredményt, nem módosítod) felesleges. A Clone akkor kell, ha <strong>több ág módosít</strong>.</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ Clone-döntésfa</div>
+<pre>
+  <span class="wa">Több ágon használom ugyanazt a Surface-t?</span>
+    │
+    ├─ NEM (egy ág)            → <span class="gr">nincs szükség Clone-ra</span>
+    │                            (a statikus-adat probléma nem áll fenn)
+    │
+    └─ IGEN
+        │
+        ├─ Csak olvasom (Preview)?  → <span class="gr">nincs szükség Clone-ra</span>
+        │   (Preview nem módosít, csak megjelenít)
+        │
+        └─ Több ág módosít is?     → <span class="di">▸ KELL Clone</span>
+            (Transform, Blend, VFX,
+             Particle, Feedback …)   minden módosító ágra
+</pre>
+    <div class="d-cap">A szitu: ha <strong>csak nézed</strong> az eredményt egy másik ágon (Preview), az nem okoz problémát. De ha <strong>két vagy több ág módosít</strong> — Transform, Blend, vagy bármilyen VFX —, akkor <strong>minden módosító ágra</strong> tegyél Clone-t.</div>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">▲ A Preview nem okoz gondot</div>
+    Fontos tisztázni: a <strong>Preview node nem módosít</strong>. Csak megjeleníti a beérkező Surface-t. Tehát egy Image → Transform → Preview, <em>és</em> Image → Preview (hogy lásd az eredetit) <strong>rendben van</strong> — nem kell Clone. Csak a <em>módosító</em> ágak (Transform, Blend, VFX) között kell szétválasztani.
+  </div>
+</section>
+
+<!-- ================= 6. FEJEZET ================= -->
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Clone vs. új Image — melyik?</h2>
+
+  <p>Egy gyakori kérdés: „Ha két példány kell, miért nem teszek <strong>két Image node-ot</strong>?" A válasz: <strong>az is működik</strong>, de vannak hátrányai.</p>
+
+  <table>
+    <tr><th></th><th>Clone node</th><th>Két Image node</th></tr>
+    <tr><td><strong>memória</strong></td><td>1 másolat</td><td>2 teljes kép-betöltés</td></tr>
+    <tr><td><strong>fájl-függőség</strong></td><td>nincs (a Clone az Image-re épül)</td><td>2 Path, 2 hely, ahol módosulhat</td></tr>
+    <tr><td><strong>frissítés</strong></td><td>Image cseréje → Clone-ok is frissülnek</td><td>Két helyen kell cserélni</td></tr>
+    <tr><td><strong>gráf átláthatóság</strong></td><td>Egy forrás, világos</td><td>Két node, könnyebb elveszteni</td></tr>
+    <tr><td><strong>ajánlott</strong></td><td><strong>Igen — ez a helyes eszköz</strong></td><td>Csak ha tényleg két különböző képed van</td></tr>
+  </table>
+
+  <div class="note">
+    <div class="n-tag">▸ A szabály</div>
+    <strong>Egy forrás → Clone</strong>. <strong>Több különböző forrás → több Image</strong>. Ha ugyanazt a képet használod több ágon, Clone; ha tényleg két különböző képed van (pl. karakter + glow külön fájl), akkor két Image node.
+  </div>
+</section>
+
+<!-- ================= III. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Gyakorlat</span></div>
+
+<!-- ================= 7. FEJEZET ================= -->
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>Clone használata — lépésről lépésre</h2>
+
+  <p>Most csináljuk végig a saját projekteden. Ha megvan a 2. részes projekted (Image → Transform → Preview), azt fogjuk kibővíteni <strong>két ágra</strong>, és megnézzük, hogyan orvosolja a Clone a problémát.</p>
+
+  <h3>A) Reprodukáld a hibát először</h3>
+  <ol class="steps">
+    <li>Nyisd meg a projektedet: egy Image → Transform → Preview gráf.</li>
+    <li>Tegyél egy <strong>második Transform</strong> node-ot, és kösd az Image kimenetét rá is (két ág).</li>
+    <li>A második Transform-on állíts <code>Scale = 2.0</code>-t (vagy más módosítást).</li>
+    <li>Tegyél egy <strong>második Preview</strong>-t a második Transform után.</li>
+    <li>Nézd meg: a két Preview valószínűleg <strong>hasonló</strong> (az átszivárgás miatt). Ez a hiba.</li>
+  </ol>
+
+  <h3>B) Tegyél Clone-t — a javítás</h3>
+  <ol class="steps">
+    <li>Jobb-klikk → <span class="ui">Add Node ▸ (VFX/Transform kategória) ▸ Clone</span>.</li>
+    <li>Kötöld az Image kimenetét a <strong>Clone bemenetére</strong>.</li>
+    <li>A Clone kimenetét kösd az <strong>első Transform bemenetére</strong> (az eredeti Image linket leválasztva).</li>
+    <li>Csinálj egy <strong>második Clone</strong>-t, kösd szintén az Image-re, a kimenetét a második Transform-ra.</li>
+    <li>Nézd meg a két Preview-t — most már <strong>különbözőek</strong>: az egyik csak forgatva, a másik csak nagyítva.</li>
+  </ol>
+
+  <div class="shot small">
+    <img src="assets/pixelcomposer/clone-solution.svg" alt="Clone node-okkal szétválasztott két ág">
+    <div class="cap">A javított gráf: Image → <strong>Clone A</strong> → Transform A (Rotation) → Preview A, és Image → <strong>Clone B</strong> → Transform B (Scale) → Preview B. Mindkét Clone önálló másolat — nincs átszivárgás.</div>
+  </div>
+
+  <!-- INTERAKTÍV DEMÓ -->
+  <div class="playground" id="pgClone">
+    <div class="pg-head">
+      <div class="pg-title">▸ Élő demó: statikus vs. Clone</div>
+      <div class="pg-tag">interaktív · próbáld ki</div>
+    </div>
+    <div class="pg-body">
+      <canvas id="cloneCanvas" width="340" height="200" style="width:340px;height:200px"></canvas>
+      <div class="pg-side">
+        <div class="legend">
+          Egy Image, két ágon: <b style="color:var(--flow)">A ág</b> forgat 45°-ot, <b style="color:var(--lava)">B ág</b> nagyít 1.8×.<br><br>
+          Kapcsold ki/be a Clone-t — lásd, hogyan „szivárog" át a módosítás nélküle, és hogyan lesznek függetlenek vele.
+        </div>
+        <div class="ctl-label">Mód</div>
+        <div class="btn-row" id="cloneBtns">
+          <button class="tbtn active" data-mode="no-clone">✗ Clone nélkül</button>
+          <button class="tbtn" data-mode="clone">✓ Clone-nal</button>
+        </div>
+        <div class="ctl-label">A ág (forgatás)</div>
+        <input type="range" id="rotA" min="0" max="90" value="45">
+        <div class="rng-val" id="rotAVal">45°</div>
+        <div class="ctl-label">B ág (nagyítás)</div>
+        <input type="range" id="scaleB" min="100" max="250" value="180">
+        <div class="rng-val" id="scaleBVal">1.80×</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note ok">
+    <div class="n-tag">✓ Sikeresen javítottad!</div>
+    Ha a két Preview most már különbözik — megértetted és alkalmaztad a Clone node-ot. Ez volt a kezdő szint utolsó nagy problémája. A középhaladó szintű tutorialokban (részecskék, feedback) ez a tudás <strong>rendszeresen</strong> kelleni fog.
+  </div>
+</section>
+
+<!-- ================= 8. FEJEZET ================= -->
+<section id="ch8">
+  <div class="ch-eyebrow">8. fejezet</div>
+  <h2>Tipikus Clone-minták</h2>
+
+  <p>A Clone nem csak „hibajavító" — tervezési mintákban is használjuk. Néhány gyakori:</p>
+
+  <table>
+    <tr><th>Minta</th><th>Struktúra</th><th>Mire jó</th></tr>
+    <tr><td><strong>előtte / utána</strong></td><td>Image → Clone A → effekt → Preview<br>Image → Clone B → Preview (eredeti)</td><td>Összehasonlítás; Clone B nem módosít, de biztonságos.</td></tr>
+    <tr><td><strong>több variáció</strong></td><td>Image → Clone 1 → Transform A<br>Image → Clone 2 → Transform B<br>Image → Clone 3 → Transform C</td><td>Ugyanaz a sprite több variánsban (pl. 3 szín).</td></tr>
+    <tr><td><strong>VFX + render</strong></td><td>Particle → Clone A → VFX effekt → Preview<br>Particle → Clone B → Blend → Preview</td><td>Részecskék ágonként más módosítása — ez a leginkább állapot-függő.</td></tr>
+    <tr><td><strong>feedback + output</strong></td><td>Feedback node → Clone A → Preview<br>Feedback node → Clone B → Export</td><td>Feedback loop eredménye több célra, függetlenül.</td></tr>
+  </table>
+
+  <div class="info-box">
+    <div class="tag">▸ Pro tipp: „minden ágra Clone" szokás</div>
+    <p>Ha bizonytalan vagy, <strong>tegyél Clone-t minden ágra</strong> — ez sosem ront el semmit, csak memóriát fogyaszt. A felesleges Clone-okat később eltávolíthatod. Ez különösen a részecskés/feedback-es projekteknél jó gyakorlat, ahol nehéz előre tudni, melyik ág módosít állapotot.</p>
+  </div>
+</section>
+
+<!-- ================= 9. FEJEZET ================= -->
+<section id="ch9">
+  <div class="ch-eyebrow">9. fejezet</div>
+  <h2>Hibakeresés — ha még mindig „átszivárog"</h2>
+
+  <p>Ha Clone-t tettél, de még mindig szivárog a módosítás, ellenőrizd ezt a három dolgot:</p>
+
+  <ol class="steps">
+    <li><strong>A Clone az Image után van-e?</strong> Ha a Clone <em>az ág végén</em> van (Transform után), nem segít — már „rajta" van a módosítás. A Clone az <em>ág elején</em> kell legyen, közvetlenül a forrás után.</li>
+    <li><strong>Minden módosító ágnak van Clone-ja?</strong> Ha az A ágnak van, de a B ágnak nincs, a B ág még mindig megosztott. <strong>Minden módosító ágra</strong> kell.</li>
+    <li><strong>Nem VFX/Particle node-forrás?</strong> Ha a forrás maga egy Particle vagy Feedback node (nem Image), a Clone <strong>még fontosabb</strong> — ezek erősen állapot-függők. Esetleg a VFX node saját „Output"-ját is klónozni kell.</li>
+  </ol>
+
+  <div class="note warn">
+    <div class="n-tag">▲ A Clone nem „reset"</div>
+    A Clone node <strong>nem „reseteli"</strong> az animációt vagy a VFX állapotot — csak másolatot készít. Ha a probléma az, hogy „a VFX nem indul újra", az nem Clone kérdés, hanem a VFX node saját beállítása (loop, spawn rate). A Clone csak az <em>át-szivárgást</em> szünteti meg.
+  </div>
+</section>
+
+<!-- ================= IV. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ IV. rész — Lezárás</span></div>
+
+<!-- ================= 10. FEJEZET ================= -->
+<section id="ch10">
+  <div class="ch-eyebrow">10. fejezet</div>
+  <h2>A kezdő szint vége — gratulálok!</h2>
+
+  <p>Ezzel a résszel befejezted a Pixel Composer kezdő szintet. Nézzük végig, mindazt, amit az 1–5. részben megtanultál:</p>
+
+  <table>
+    <tr><th>Rész</th><th>Téma</th><th>Fő tanulság</th></tr>
+    <tr><td><strong>1. Alapok</strong></td><td>UI, első node, első link</td><td>Node-gráf, négy panel, Image → Preview</td></tr>
+    <tr><td><strong>2. Node-ok &amp; kapcsolatok</strong></td><td>Transform, Blend, Frame/Comment</td><td>Egy bemenet módosítása vs. több bemenet egyesítése</td></tr>
+    <tr><td><strong>3. Animáció</strong></td><td>Keyframe, interpoláció, loop</td><td>Animáció = keyframe + interpoláció; Smooth a jó alapértelmezés</td></tr>
+    <tr><td><strong>4. Import/Export</strong></td><td>Spritesheet, engine pipeline</td><td>Export node nem automatikus (▶ gomb); spritesheet a motor-barát</td></tr>
+    <tr><td><strong>5. Clone node</strong></td><td>Statikus adat, független példány</td><td>Több módosító ág → Clone; a #2 kezdő csapda</td></tr>
+  </table>
+
+  <div class="info-box">
+    <div class="tag">▸ Hol tartasz most?</div>
+    <p>Ezen a ponton <strong>önállóan képes vagy</strong>:</p>
+    <ul>
+      <li>Felépíteni egy node-gráfot (Image → effekt → Preview).</li>
+      <li>Transformálni és Blend-elni (több bemenet).</li>
+      <li>Animálni keyframe-ekkel, interpolációkkal, loop-pal.</li>
+      <li>Exportálni spritesheet-ként és betölteni egy játékmotorba.</li>
+      <li>Megoldani a statikus-adat problémát Clone node-dal.</li>
+    </ul>
+    <p>Ez a Pixel Composer <strong>munkafolyamatának 80%-a</strong>. A következő (középhaladó) szint már specifikus effektekre fókuszál — tűz, füst, részecskék —, de az alapok megvannak.</p>
+  </div>
+
+  <div class="note ok">
+    <div class="n-tag">✓ A „kötelező házi” — záróprojekt</div>
+    <p>Csinálj egy <strong>teljes, kis projektedet</strong> az 1–5. rész alapján:</p>
+    <ul style="margin-top:6px">
+      <li>Egy karakter sprite (Image, akár Aseprite-ból).</li>
+      <li>Rá téve egy pulzáló glow (3. részes Opacity animáció, Blend).</li>
+      <li>Két ágon — egyik az eredeti, másik a glow-s (Clone-nal szétválasztva!).</li>
+      <li>Exportálva spritesheet-ként (4. rész).</li>
+      <li>Beletöltve a választott motorodba.</li>
+    </ul>
+    <p>Ha ez kész, készen állsz a középhaladó szintre.</p>
+  </div>
+</section>
+
+<!-- ================= 11. FEJEZET ================= -->
+<section id="ch11">
+  <div class="ch-eyebrow">11. fejezet</div>
+  <h2>Összefoglaló &amp; merre tovább?</h2>
+
+  <table>
+    <tr><th>Fogalom</th><th>Tanultad</th></tr>
+    <tr><td><strong>statikus VFX-adat</strong></td><td>A Surface bizonyos esetekben megosztott — módosítás átszivárog.</td></tr>
+    <tr><td><strong>tünet</strong></td><td>„Mindkét Preview ugyanaz" — az átszivárgás jele.</td></tr>
+    <tr><td><strong>Clone node</strong></td><td>Független másolatot készít — elválasztja az ágakat.</td></tr>
+    <tr><td><strong>Clone helye</strong></td><td>A forrás után, az ágak elágazása előtt (nem az ág végén!).</td></tr>
+    <tr><td><strong>mikor kell</strong></td><td>Több módosító ág → Clone; csak olvasó (Preview) ág → nem kell.</td></tr>
+    <tr><td><strong>Clone vs. új Image</strong></td><td>Egy forrás → Clone; több különböző forrás → több Image.</td></tr>
+  </table>
+
+  <h3>A sorozat következő szintjei</h3>
+  <p>A kezdő szint kész. A tervezett folytatás:</p>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A sorozat felépítése — hol tartunk</div>
+<pre>
+  <span class="gr">█ Kezdő szint — KÉSZ ✓</span>
+    1. Alapok                    <span class="gr">✓</span>
+    2. Node-ok &amp; kapcsolatok    <span class="gr">✓</span>
+    3. Animáció                  <span class="gr">✓</span>
+    4. Import/Export             <span class="gr">✓</span>
+    5. Clone node                <span class="gr">✓</span>  ← itt vagyunk
+
+  <span class="di">█ Középhaladó szint — tervezett</span>
+    6. MK Blast — tűz &amp; robbanás
+    7. Részecskék — Particle &amp; VFX
+    8. Effectors — turbulence, vortex, wind
+    9. Feedback loop — trail &amp; glow felhalmozás
+   10. Texture mapping
+   11. Procedurális tileset
+
+  <span class="lv">█ Haladó szint — tervezett</span>
+   12. Rigid body szimuláció
+   13. Fluid szimuláció
+   14. 3D objektum renderelés
+   15. Batch processing / array processor
+   16. Bevy-integrációs lecke
+</pre>
+    <div class="d-cap">A kezdő szint az 5 résszel lezárult. A középhaladó szint konkrét <strong>effektek</strong> építésével folytatódik — ott jönnek a látványos dolgok (tűz, robbanás, részecskék).</div>
+  </div>
+
+  <div class="next-card">
+    <div>
+      <div class="nx-label">következik · 6. rész (középhaladó)</div>
+      <div class="nx-title">MK Blast — tűz &amp; robbanás</div>
+      <div class="nx-desc">Az első „igazi" VFX-effekt: a MK Blast node beépített flame és smoke element-ekkel. Tűz, robbanás és füst készítése — mindazt felhasználva, amit a kezdő szinten megtanultál (animáció, Blend, Clone).</div>
+    </div>
+    <a class="btn" href="#">Hamarosan ▸</a>
+  </div>
+</section>
+
+<footer>
+  <p class="pix">Pixel Composer · 5. rész — A Clone node · Kezdő szint vége</p>
+  <p style="margin-top:6px">Készült a hivatalos <a href="https://docs.pixel-composer.com/" target="_blank" rel="noopener">Pixel Composer dokumentáció</a> és a <a href="https://itch.io/t/5603942/internal-data-doesnt-update-on-the-vfx-render-node" target="_blank" rel="noopener">itch.io community</a> problémái alapján, magyar nyelven, interaktív demókkal. A Pixel Composer ingyenes, nyílt forrású szoftver — <a href="https://github.com/Ttanasart-pt/Pixel-Composer" target="_blank" rel="noopener">GitHub</a> · <a href="https://makham.itch.io/pixel-composer" target="_blank" rel="noopener">itch.io</a> · <a href="https://store.steampowered.com/app/2299510/Pixel_Composer/" target="_blank" rel="noopener">Steam</a>.</p>
+  <p style="margin-top:6px;font-size:12px;color:#565066">MakhamDev munkájának köszönjük. Ez a tutorial független, nem hivatalos.</p>
+</footer>
+
+</div><!-- /wrap -->
+</div><!-- /main -->
+
+<script>
+/* ========== MENÜ + scroll-spy ========== */
+(function(){
+  var t=document.getElementById('menuToggle'),s=document.getElementById('sidebar');
+  t.addEventListener('click',function(){s.classList.toggle('open')});
+  var links=document.querySelectorAll('.nav a');
+  var map={};links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a});
+  var secs=Object.keys(map).map(function(id){return document.getElementById(id)}).filter(Boolean);
+  function onScroll(){var y=window.scrollY+120;var cur=null;secs.forEach(function(x){if(x.offsetTop<=y)cur=x.id});links.forEach(function(a){a.classList.toggle('active',a.getAttribute('href').slice(1)===cur)})}
+  window.addEventListener('scroll',onScroll,{passive:true});onScroll();
+})();
+
+/* ========== HERO CANVAS — Clone vs. no-Clone ========== */
+(function(){
+  var cv=document.getElementById('heroCanvas'),ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  var hero=[
+    "0011100","0122210","0113110","1222221","0122210","0011100","0100010","1000001"
+  ];
+  var pal={0:null,1:'#7ed957',2:'#ffb454',3:'#5ad7ff'};
+  var phase=0,running=true;
+  function drawSprite(data,x,y,scale,alpha,rot,scaleY){
+    ctx.save();ctx.translate(x,y);if(rot)ctx.rotate(rot);
+    if(scaleY)ctx.scale(scaleY,scaleY);
+    for(var r=0;r<data.length;r++)for(var c=0;c<data[r].length;c++){
+      var ch=data[r][c];var col=pal[ch];if(!col)continue;
+      ctx.globalAlpha=alpha;ctx.fillStyle=col;
+      var sx=c*scale-data.length*scale/2, sy=r*scale-data.length*scale/2;
+      ctx.fillRect(sx,sy,scale,scale);
+    }
+    ctx.restore();ctx.globalAlpha=1;
+  }
+  function drawNode(x,y,w,h,color,name){
+    ctx.fillStyle='#1c1828';ctx.fillRect(x,y,w,h);
+    ctx.strokeStyle=color;ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle=color;ctx.fillRect(x,y,w,13);
+    ctx.font="8.5px 'IBM Plex Mono',monospace";ctx.fillStyle='#0c0a13';
+    ctx.fillText(name,x+4,y+9);
+  }
+  function frame(){
+    if(!running){requestAnimationFrame(frame);return}
+    phase+=0.02;
+    var useClone=phase%2<1; // váltakozik
+    ctx.clearRect(0,0,W,H);
+    ctx.strokeStyle='#1a1626';ctx.lineWidth=1;
+    for(var x=0;x<=W;x+=20){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+    for(var y=0;y<=H;y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+    // Image node (közép-fent)
+    drawNode(80,20,60,40,'#b07cff','Image');
+    ctx.fillStyle='#5ad7ff';ctx.beginPath();ctx.arc(140,40,3,0,7);ctx.fill();
+    // A ág (forgatás) — bal
+    drawNode(20,80,60,40,'#ffb454','Rot 45°');
+    ctx.fillStyle='#5ad7ff';ctx.beginPath();ctx.arc(20,100,3,0,7);ctx.fill();
+    // B ág (nagyítás) — jobb
+    drawNode(140,80,60,40,'#ffb454','Scale 1.8×');
+    ctx.fillStyle='#5ad7ff';ctx.beginPath();ctx.arc(140,100,3,0,7);ctx.fill();
+    // linkek
+    ctx.strokeStyle='#5ad7ff';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(140,40);ctx.bezierCurveTo(120,40,60,80,80,100);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(140,40);ctx.bezierCurveTo(160,40,160,80,140,100);ctx.stroke();
+    // ha Clone: Clone node-ok
+    if(useClone){
+      drawNode(50,80,30,22,'#5ad7ff','Cl');
+      drawNode(110,80,30,22,'#5ad7ff','Cl');
+      ctx.strokeStyle='#5ad7ff';ctx.setLineDash([2,2]);
+      ctx.beginPath();ctx.moveTo(140,40);ctx.bezierCurveTo(110,40,80,80,80,90);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(140,40);ctx.bezierCurveTo(150,40,140,80,140,90);ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    // Preview A (bal-lent)
+    drawNode(20,140,60,40,'#7ed957','Prv A');
+    ctx.fillStyle='#5ad7ff';ctx.beginPath();ctx.arc(20,160,3,0,7);ctx.fill();
+    ctx.beginPath();ctx.moveTo(80,100);ctx.bezierCurveTo(60,100,40,140,50,160);ctx.stroke();
+    // Preview B (jobb-lent)
+    drawNode(140,140,60,40,'#7ed957','Prv B');
+    ctx.fillStyle='#5ad7ff';ctx.beginPath();ctx.arc(140,160,3,0,7);ctx.fill();
+    ctx.beginPath();ctx.moveTo(140,100);ctx.bezierCurveTo(140,120,140,140,140,160);ctx.stroke();
+    // sprite a Preview-ökben
+    var cx=50,cy=175;
+    if(useClone){
+      // A: csak forgatva
+      drawSprite(hero,cx,cy,1.6,0.9,Math.PI/4,1);
+      // B: csak nagyítva
+      drawSprite(hero,cx+90,cy,1.6,0.9,0,1.8);
+    }else{
+      // mindkettő: forgatva ÉS nagyítva (átszivárgás)
+      drawSprite(hero,cx,cy,1.6,0.9,Math.PI/4,1.8);
+      drawSprite(hero,cx+90,cy,1.6,0.9,Math.PI/4,1.8);
+    }
+    // label
+    ctx.font="9px 'IBM Plex Mono',monospace";
+    ctx.fillStyle=useClone?'#7ed957':'#ff7a3c';
+    ctx.fillText(useClone?'✓ Clone — független':'✗ Clone nélkül — átszivárog',20,H-4);
+    requestAnimationFrame(frame);
+  }
+  frame();
+  cv.addEventListener('mouseenter',function(){running=false});
+  cv.addEventListener('mouseleave',function(){running=true});
+})();
+
+/* ========== PLAYGROUND — Clone vs. no-Clone ========== */
+(function(){
+  var cv=document.getElementById('cloneCanvas'),ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  var btns=document.getElementById('cloneBtns');
+  var rotEl=document.getElementById('rotA'),rotVal=document.getElementById('rotAVal');
+  var scaleEl=document.getElementById('scaleB'),scaleVal=document.getElementById('scaleBVal');
+  var mode='no-clone',rotA=45,scaleB=1.8;
+  var hero=[
+    "0011100","0122210","0113110","1222221","0122210","0011100","0100010","1000001"
+  ];
+  var pal={0:null,1:'#7ed957',2:'#ffb454',3:'#5ad7ff'};
+  function drawSprite(data,x,y,scale,alpha,rot,scl){
+    ctx.save();ctx.translate(x,y);if(rot)ctx.rotate(rot);
+    if(scl)ctx.scale(scl,scl);
+    for(var r=0;r<data.length;r++)for(var c=0;c<data[r].length;c++){
+      var ch=data[r][c];var col=pal[ch];if(!col)continue;
+      ctx.globalAlpha=alpha;ctx.fillStyle=col;
+      var sx=c*scale-data[0].length*scale/2, sy=r*scale-data.length*scale/2;
+      ctx.fillRect(sx,sy,scale,scale);
+    }
+    ctx.restore();ctx.globalAlpha=1;
+  }
+  function drawNode(x,y,w,h,color,name){
+    ctx.fillStyle='#1c1828';ctx.fillRect(x,y,w,h);
+    ctx.strokeStyle=color;ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle=color;ctx.fillRect(x,y,w,14);
+    ctx.font="9px 'IBM Plex Mono',monospace";ctx.fillStyle='#0c0a13';
+    ctx.fillText(name,x+5,y+10);
+  }
+  function redraw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#0c0a13';ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='#1a1626';ctx.lineWidth=1;
+    for(var x=0;x<=W;x+=20){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+    for(var y=0;y<=H;y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+    // Image (fent, közép)
+    drawNode(140,14,80,36,'#b07cff','Image');
+    ctx.fillStyle='#5ad7ff';ctx.beginPath();ctx.arc(220,32,4,0,7);ctx.fill();
+    // A ág (bal)
+    drawNode(20,64,80,36,'#ffb454','Transform A');
+    ctx.fillStyle='#9a8fb0';ctx.font="9px 'IBM Plex Mono',monospace";
+    ctx.fillText('Rot '+rotA+'°',26,96);
+    // B ág (jobb)
+    drawNode(240,64,80,36,'#ffb454','Transform B');
+    ctx.fillText('Scale '+scaleB.toFixed(2)+'×',246,96);
+    // linkek Image-ből
+    ctx.strokeStyle='#5ad7ff';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(220,32);ctx.bezierCurveTo(180,32,80,50,100,72);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(220,32);ctx.bezierCurveTo(250,32,300,50,240,72);ctx.stroke();
+    // Clone node-ok, ha clone mód
+    if(mode==='clone'){
+      drawNode(60,64,30,22,'#5ad7ff','Cl');
+      drawNode(280,64,30,22,'#5ad7ff','Cl');
+    }
+    // Preview A (bal-lent)
+    drawNode(20,130,120,60,'#7ed957','Preview A');
+    ctx.fillStyle='#5ad7ff';ctx.beginPath();ctx.arc(20,160,4,0,7);ctx.fill();
+    ctx.strokeStyle='#5ad7ff';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(100,82);ctx.bezierCurveTo(80,100,40,120,30,160);ctx.stroke();
+    // Preview B (jobb-lent)
+    drawNode(200,130,120,60,'#7ed957','Preview B');
+    ctx.fillStyle='#5ad7ff';ctx.beginPath();ctx.arc(200,160,4,0,7);ctx.fill();
+    ctx.beginPath();ctx.moveTo(280,82);ctx.bezierCurveTo(280,100,220,120,210,160);ctx.stroke();
+    // sprite a Preview-ökben
+    var rotRad=rotA*Math.PI/180;
+    if(mode==='clone'){
+      // A: CSAK forgatva
+      drawSprite(hero,80,162,3,0.95,rotRad,1);
+      // B: CSAK nagyítva
+      drawSprite(hero,260,162,3,0.95,0,scaleB);
+    }else{
+      // mindkettő: forgatva ÉS nagyítva (átszivárgás)
+      drawSprite(hero,80,162,3,0.95,rotRad,scaleB);
+      drawSprite(hero,260,162,3,0.95,rotRad,scaleB);
+    }
+    // állapot-címke
+    ctx.font="10px 'IBM Plex Mono',monospace";
+    if(mode==='clone'){
+      ctx.fillStyle='#7ed957';ctx.fillText('✓ független — A forgat, B nagyít',60,H-6);
+    }else{
+      ctx.fillStyle='#ff7a3c';ctx.fillText('✗ átszivárog — mindkettő forgat+nagyít',40,H-6);
+    }
+  }
+  btns.addEventListener('click',function(e){
+    var b=e.target.closest('button[data-mode]');if(!b)return;
+    mode=b.dataset.mode;
+    btns.querySelectorAll('button').forEach(function(x){x.classList.toggle('active',x===b)});
+    redraw();
+  });
+  rotEl.addEventListener('input',function(){rotA=+this.value;rotVal.textContent=rotA+'°';redraw()});
+  scaleEl.addEventListener('input',function(){scaleB=this.value/100;scaleVal.textContent=scaleB.toFixed(2)+'×';redraw()});
+  redraw();
+})();
+</script>
+</body>
+</html>

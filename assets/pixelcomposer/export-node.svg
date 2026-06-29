@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 360" font-family="'IBM Plex Mono', monospace">
+  <rect width="820" height="360" fill="#0c0a13"/>
+  <g stroke="#1a1626" stroke-width="1">
+    <line x1="0" y1="72" x2="820" y2="72"/>
+    <line x1="0" y1="144" x2="820" y2="144"/>
+    <line x1="0" y1="216" x2="820" y2="216"/>
+    <line x1="0" y1="288" x2="820" y2="288"/>
+    <line x1="102" y1="0" x2="102" y2="360"/>
+    <line x1="204" y1="0" x2="204" y2="360"/>
+    <line x1="306" y1="0" x2="306" y2="360"/>
+    <line x1="408" y1="0" x2="408" y2="360"/>
+    <line x1="510" y1="0" x2="510" y2="360"/>
+    <line x1="612" y1="0" x2="612" y2="360"/>
+    <line x1="714" y1="0" x2="714" y2="360"/>
+  </g>
+
+  <!-- Image node -->
+  <g>
+    <rect x="30" y="120" width="120" height="60" rx="5" fill="#1c1828" stroke="#b07cff" stroke-width="2"/>
+    <rect x="30" y="120" width="120" height="22" rx="5" fill="#b07cff"/>
+    <rect x="30" y="136" width="120" height="6" fill="#b07cff"/>
+    <text x="40" y="136" font-size="12.5" fill="#0c0a13" font-weight="700">Image</text>
+    <rect x="42" y="152" width="36" height="22" fill="#0c0a13"/>
+    <g fill="#7ed957"><rect x="48" y="158" width="4" height="4"/><rect x="52" y="164" width="4" height="4"/><rect x="44" y="166" width="4" height="4"/><rect x="60" y="160" width="4" height="4"/></g>
+    <circle cx="150" cy="150" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+  </g>
+  <path d="M150 150 C 180 150, 200 150, 230 150" fill="none" stroke="#5ad7ff" stroke-width="2.5"/>
+
+  <!-- Transform node (választható) -->
+  <g opacity="0.5">
+    <rect x="230" y="110" width="140" height="80" rx="5" fill="#1c1828" stroke="#ffb454" stroke-width="2" stroke-dasharray="3 3"/>
+    <rect x="230" y="110" width="140" height="22" rx="5" fill="#ffb454"/>
+    <text x="240" y="126" font-size="12.5" fill="#0c0a13" font-weight="700">(effekt lánc)</text>
+    <text x="240" y="158" font-size="11" fill="#9a8fb0">Transform / Blend /</text>
+    <text x="240" y="174" font-size="11" fill="#9a8fb0">Particle …</text>
+    <circle cx="230" cy="150" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+    <circle cx="370" cy="150" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+  </g>
+  <path d="M370 150 C 400 150, 420 150, 440 150" fill="none" stroke="#5ad7ff" stroke-width="2.5" opacity="0.6"/>
+
+  <!-- Export node (kiemelt) -->
+  <g>
+    <rect x="440" y="100" width="180" height="100" rx="5" fill="#1c1828" stroke="#7ed957" stroke-width="2.5"/>
+    <rect x="440" y="100" width="180" height="22" rx="5" fill="#7ed957"/>
+    <rect x="440" y="116" width="180" height="6" fill="#7ed957"/>
+    <text x="450" y="116" font-size="12.5" fill="#0c0a13" font-weight="700">Export</text>
+    <!-- bemeneti junction -->
+    <circle cx="440" cy="150" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+    <text x="454" y="154" font-size="11" fill="#9a8fb0">surface (in)</text>
+    <!-- paraméterek -->
+    <text x="454" y="174" font-size="11.5" fill="#9a8fb0">Path</text>
+    <rect x="500" y="164" width="110" height="14" fill="#0c0a13" stroke="#2a2440"/>
+    <text x="506" y="174" font-size="10.5" fill="#ffb454">out/sprite.png</text>
+    <text x="454" y="192" font-size="11.5" fill="#9a8fb0">Template</text>
+    <rect x="528" y="182" width="82" height="14" fill="#0c0a13" stroke="#2a2440"/>
+    <text x="534" y="192" font-size="10.5" fill="#cfcae0">%d/n</text>
+    <!-- „▶ execute" gomb kiemelve -->
+    <rect x="556" y="100" width="60" height="22" rx="3" fill="#ffb454"/>
+    <text x="566" y="115" font-size="11" fill="#0c0a13" font-weight="700">▶ EXPORT</text>
+  </g>
+
+  <!-- kis ▸ „fájl keletkezik" nyíl jobbra -->
+  <path d="M620 150 C 660 150, 670 150, 700 150" fill="none" stroke="#ffb454" stroke-width="2.5" stroke-dasharray="5 4"/>
+  <polygon points="696,145 704,150 696,155" fill="#ffb454"/>
+
+  <!-- kimentett fájl ikon -->
+  <g>
+    <rect x="700" y="120" width="100" height="80" rx="4" fill="#1c1828" stroke="#ffb454" stroke-width="1.5"/>
+    <text x="710" y="138" font-size="11" fill="#ffb454" font-weight="700">📂 sprite.png</text>
+    <rect x="710" y="146" width="80" height="44" fill="#0c0a13" stroke="#2a2440"/>
+    <g fill="#7ed957">
+      <rect x="724" y="152" width="5" height="5"/><rect x="730" y="158" width="5" height="5"/>
+      <rect x="720" y="164" width="5" height="5"/><rect x="740" y="160" width="5" height="5"/>
+      <rect x="736" y="170" width="5" height="5"/><rect x="750" y="166" width="5" height="5"/>
+    </g>
+    <text x="710" y="200" font-size="9.5" fill="#565066">128×32 · 4 frame</text>
+  </g>
+
+  <!-- alsó magyarázat -->
+  <text x="30" y="250" font-size="12.5" fill="#7ed957">Az Export node a gráf végére kerül — az utolsó Surface-t kiírja fájlba.</text>
+  <text x="30" y="270" font-size="12" fill="#9a8fb0">Fontos: az export <tspan fill="#ffb454" font-weight="600">nem automatikus</tspan> — az Inspector ▸ EXPORT gombot (vagy az <tspan fill="#ffb454">▶</tspan> jel) manuálisan kell nyomni.</text>
+  <text x="30" y="290" font-size="12" fill="#9a8fb0">A Template mezőben <tspan fill="#ffb454">%d</tspan> = frameszám, így animációnál minden frame külön fájlként is kiírható (pl. <tspan fill="#cfcae0">spr_000.png</tspan>, <tspan fill="#cfcae0">spr_001.png</tspan>…).</text>
+  <text x="30" y="312" font-size="11.5" fill="#565066">▸ az Export node mindig a kimeneti felbontásban ír — a Canvas mérete határozza meg a PNG méretét</text>
+  <text x="30" y="330" font-size="11.5" fill="#565066">▸ a kimeneti formátum állítható: PNG, JPG, GIF (animált), vagy spritesheet csomagolt</text>
+</svg>

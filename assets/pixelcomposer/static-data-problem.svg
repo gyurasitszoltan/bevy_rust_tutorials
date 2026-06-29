@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 360" font-family="'IBM Plex Mono', monospace">
+  <rect width="840" height="360" fill="#0c0a13"/>
+  <g stroke="#1a1626" stroke-width="1">
+    <line x1="0" y1="72" x2="840" y2="72"/>
+    <line x1="0" y1="144" x2="840" y2="144"/>
+    <line x1="0" y1="216" x2="840" y2="216"/>
+    <line x1="0" y1="288" x2="840" y2="288"/>
+    <line x1="105" y1="0" x2="105" y2="360"/>
+    <line x1="210" y1="0" x2="210" y2="360"/>
+    <line x1="315" y1="0" x2="315" y2="360"/>
+    <line x1="420" y1="0" x2="420" y2="360"/>
+    <line x1="525" y1="0" x2="525" y2="360"/>
+    <line x1="630" y1="0" x2="630" y2="360"/>
+    <line x1="735" y1="0" x2="735" y2="360"/>
+  </g>
+
+  <!-- ============ BAL: ROSSZ (megosztott referencia) ============ -->
+  <text x="30" y="34" font-size="13" fill="#ff7a3c" font-weight="700">✗ HIBA — egy Image, két ágon módosítva</text>
+
+  <!-- egyetlen Image node -->
+  <g>
+    <rect x="50" y="130" width="150" height="70" rx="5" fill="#1c1828" stroke="#b07cff" stroke-width="2"/>
+    <rect x="50" y="130" width="150" height="22" rx="5" fill="#b07cff"/>
+    <rect x="50" y="146" width="150" height="6" fill="#b07cff"/>
+    <text x="60" y="146" font-size="12.5" fill="#0c0a13" font-weight="700">Image (EGYETLEN)</text>
+    <rect x="60" y="164" width="40" height="30" fill="#0c0a13"/>
+    <g fill="#7ed957">
+      <rect x="68" y="170" width="5" height="5"/><rect x="74" y="178" width="5" height="5"/>
+      <rect x="62" y="180" width="5" height="5"/>
+    </g>
+    <circle cx="200" cy="165" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+  </g>
+  <!-- a kimenetből „megosztott" jelzés -->
+  <text x="206" y="160" font-size="9.5" fill="#ff7a3c">ref</text>
+
+  <!-- két ág, mindkettő az EGY Image-re hivatkozik -->
+  <!-- ág A: Transform (rotate) -->
+  <path d="M200 165 C 240 165, 260 100, 290 100" fill="none" stroke="#5ad7ff" stroke-width="2.5"/>
+  <g>
+    <rect x="290" y="70" width="160" height="60" rx="5" fill="#1c1828" stroke="#ffb454" stroke-width="2"/>
+    <rect x="290" y="70" width="160" height="20" rx="5" fill="#ffb454"/>
+    <rect x="290" y="84" width="160" height="6" fill="#ffb454"/>
+    <text x="300" y="84" font-size="11.5" fill="#0c0a13" font-weight="700">Transform A</text>
+    <text x="300" y="108" font-size="11" fill="#9a8fb0">Rotation: 45°</text>
+    <text x="300" y="122" font-size="11" fill="#9a8fb0">Scale: 1.0</text>
+    <circle cx="290" cy="100" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+    <circle cx="450" cy="100" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+  </g>
+  <!-- ág B: Transform (scale) -->
+  <path d="M200 165 C 240 165, 260 230, 290 230" fill="none" stroke="#5ad7ff" stroke-width="2.5"/>
+  <g>
+    <rect x="290" y="200" width="160" height="60" rx="5" fill="#1c1828" stroke="#ffb454" stroke-width="2"/>
+    <rect x="290" y="200" width="160" height="20" rx="5" fill="#ffb454"/>
+    <rect x="290" y="214" width="160" height="6" fill="#ffb454"/>
+    <text x="300" y="214" font-size="11.5" fill="#0c0a13" font-weight="700">Transform B</text>
+    <text x="300" y="238" font-size="11" fill="#9a8fb0">Rotation: 0°</text>
+    <text x="300" y="252" font-size="11" fill="#9a8fb0">Scale: 2.0</text>
+    <circle cx="290" cy="230" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+    <circle cx="450" cy="230" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+  </g>
+
+  <!-- két Preview -->
+  <path d="M450 100 C 490 100, 510 100, 540 100" fill="none" stroke="#5ad7ff" stroke-width="2.5"/>
+  <g>
+    <rect x="540" y="70" width="120" height="60" rx="5" fill="#1c1828" stroke="#7ed957" stroke-width="2"/>
+    <rect x="540" y="70" width="120" height="20" rx="5" fill="#7ed957"/>
+    <text x="550" y="84" font-size="11.5" fill="#0c0a13" font-weight="700">Preview A</text>
+    <circle cx="540" cy="100" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+    <!-- „rossz" eredmény: B ág módosítása is megjelent -->
+    <rect x="560" y="94" width="32" height="28" fill="#0c0a13"/>
+    <g transform="translate(576 108) rotate(45)" fill="#7ed957">
+      <rect x="-12" y="-12" width="10" height="10"/><rect x="0" y="-2" width="10" height="10"/>
+    </g>
+    <text x="560" y="134" font-size="9" fill="#ff7a3c">forgatva ÉS nagyítva!</text>
+  </g>
+  <path d="M450 230 C 490 230, 510 230, 540 230" fill="none" stroke="#5ad7ff" stroke-width="2.5"/>
+  <g>
+    <rect x="540" y="200" width="120" height="60" rx="5" fill="#1c1828" stroke="#7ed957" stroke-width="2"/>
+    <rect x="540" y="200" width="120" height="20" rx="5" fill="#7ed957"/>
+    <text x="550" y="214" font-size="11.5" fill="#0c0a13" font-weight="700">Preview B</text>
+    <circle cx="540" cy="230" r="6" fill="#5ad7ff" stroke="#0c0a13" stroke-width="2"/>
+    <rect x="560" y="224" width="32" height="28" fill="#0c0a13"/>
+    <g transform="translate(576 238) rotate(45)" fill="#7ed957">
+      <rect x="-12" y="-12" width="10" height="10"/><rect x="0" y="-2" width="10" height="10"/>
+    </g>
+    <text x="560" y="264" font-size="9" fill="#ff7a3c">ugyanaz, mint A!</text>
+  </g>
+
+  <!-- jobb alsó magyarázat -->
+  <text x="30" y="318" font-size="12.5" fill="#ff7a3c">Mindkét Transform ugyanarra az Image-re hivatkozik — az utolsó módosítás „győz",</text>
+  <text x="30" y="336" font-size="12.5" fill="#ff7a3c">és az <tspan fill="#9a8fb0">A ág is B módosítását mutatja</tspan>. A VFX-adat statikus, megosztott.</text>
+</svg>

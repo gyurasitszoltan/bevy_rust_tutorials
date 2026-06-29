@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Composer — Első percek · alapozó tutorial (magyar)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#13111d;
+  --bg-deep:#0c0a13;
+  --panel:#1c1828;
+  --panel-2:#17142260;
+  --ink:#e8e3f0;
+  --muted:#9a8fb0;
+  --node:#b07cff;
+  --node-hi:#d4a8ff;
+  --flow:#5ad7ff;
+  --flow-dk:#2a7d99;
+  --ok:#7ed957;
+  --warn:#ffb454;
+  --lava:#ff7a3c;
+  --line:#2a2440;
+  --line-hi:#3d3458;
+  --shadow:rgba(0,0,0,.5);
+  --sidebar-w:300px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  font-size:16.5px;
+  line-height:1.7;
+}
+/* finom scanline-textúra a háttérben */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.06) 3px 4px);
+}
+::selection{background:var(--node);color:#fff}
+
+/* ---------- SIDEBAR ---------- */
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);
+  background:var(--bg-deep);
+  border-right:3px solid var(--line);
+  overflow-y:auto;z-index:30;
+  padding:22px 0 40px;
+}
+.sidebar::-webkit-scrollbar{width:8px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--line-hi)}
+.logo{
+  padding:0 20px 18px;border-bottom:3px solid var(--line);margin-bottom:14px;
+}
+.logo .title{
+  font-family:"Pixelify Sans";font-size:23px;font-weight:700;letter-spacing:.5px;
+  color:var(--node-hi);text-shadow:3px 3px 0 var(--shadow);line-height:1.15;
+}
+.logo .sub{
+  font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:6px;letter-spacing:.06em;
+}
+.logo .badge{
+  display:inline-block;margin-top:10px;font-family:"Pixelify Sans";font-size:13px;
+  color:var(--bg-deep);background:var(--node);padding:2px 9px 3px;
+  box-shadow:2px 2px 0 var(--shadow);
+}
+.logo .badge.alt{background:var(--flow);color:#06181c;margin-left:6px}
+.nav-part{
+  font-family:"Pixelify Sans";font-size:13.5px;letter-spacing:.12em;color:var(--node);
+  padding:16px 20px 6px;text-transform:uppercase;
+}
+.nav a{
+  display:block;padding:6px 20px 6px 34px;color:var(--muted);text-decoration:none;
+  font-size:14px;position:relative;border-left:4px solid transparent;
+  transition:color .12s,background .12s;
+}
+.nav a::before{
+  content:"▸";position:absolute;left:16px;opacity:0;color:var(--flow);
+  transition:opacity .12s,left .12s;
+}
+.nav a:hover{color:var(--ink);background:rgba(176,124,255,.06)}
+.nav a.active{
+  color:var(--node-hi);background:rgba(176,124,255,.10);
+  border-left-color:var(--node);font-weight:600;
+}
+.nav a.active::before{opacity:1;left:20px}
+.dl-box{margin:26px 16px 0;padding:14px;border:3px solid var(--line);background:var(--panel)}
+.dl-box p{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+.btn{
+  display:inline-block;font-family:"Pixelify Sans";font-size:15px;cursor:pointer;
+  background:var(--node);color:#10180f;border:none;padding:8px 14px;
+  box-shadow:3px 3px 0 var(--shadow);text-decoration:none;
+  transition:transform .08s,box-shadow .08s;
+}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--shadow)}
+.btn.secondary{background:var(--warn)}
+.btn.flow{background:var(--flow);color:#06181c}
+
+.menu-toggle{
+  display:none;position:fixed;top:14px;left:14px;z-index:40;
+  font-family:"Pixelify Sans";font-size:15px;padding:8px 12px;cursor:pointer;
+  background:var(--panel);color:var(--ink);border:3px solid var(--line);
+  box-shadow:3px 3px 0 var(--shadow);
+}
+
+/* ---------- FŐ TARTALOM ---------- */
+.main{margin-left:var(--sidebar-w);position:relative;z-index:1}
+.wrap{max-width:880px;margin:0 auto;padding:0 36px 120px}
+
+/* HERO */
+.hero{
+  padding:64px 0 40px;border-bottom:3px solid var(--line);margin-bottom:8px;
+}
+.hero .eyebrow{
+  font-family:"IBM Plex Mono";font-size:13px;color:var(--flow);letter-spacing:.14em;
+  text-transform:uppercase;margin-bottom:14px;
+}
+.hero h1{
+  font-family:"Pixelify Sans";font-weight:700;font-size:clamp(32px,5vw,52px);
+  line-height:1.06;color:var(--ink);text-shadow:4px 4px 0 var(--shadow);
+  margin-bottom:18px;
+}
+.hero h1 .n{color:var(--node-hi)}
+.hero h1 .f{color:var(--flow)}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:640px;margin-bottom:26px}
+.hero-strip{
+  border:3px solid var(--line);background:var(--bg-deep);padding:14px;
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  box-shadow:4px 4px 0 var(--shadow);
+}
+.hero-strip canvas{image-rendering:pixelated;flex-shrink:0;border:2px solid var(--line);background:#0c0a13}
+.hero-strip .cap{font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.6;flex:1;min-width:220px}
+.hero-strip .cap b{color:var(--node-hi)}
+
+/* SZEKCIÓK */
+section{padding-top:56px}
+.part-divider{
+  margin-top:72px;padding:14px 0 0;
+  border-top:3px dashed var(--line-hi);
+}
+.part-divider .pd-label{
+  font-family:"Pixelify Sans";font-size:15px;letter-spacing:.18em;color:var(--node);
+  text-transform:uppercase;
+}
+.ch-eyebrow{
+  font-family:"IBM Plex Mono";font-size:12.5px;letter-spacing:.16em;color:var(--flow);
+  text-transform:uppercase;margin-bottom:8px;
+}
+h2{
+  font-family:"Pixelify Sans";font-weight:700;font-size:32px;line-height:1.15;
+  color:var(--node-hi);text-shadow:3px 3px 0 var(--shadow);margin-bottom:20px;
+}
+h3{
+  font-family:"Pixelify Sans";font-weight:600;font-size:21px;color:var(--warn);
+  margin:34px 0 12px;
+}
+p{margin-bottom:14px}
+p+p{margin-top:2px}
+strong{color:#fff}
+em{color:var(--node-hi)}
+a{color:var(--flow)}
+ul,ol{margin:0 0 16px 24px}
+li{margin-bottom:7px}
+code:not(pre code){
+  font-family:"IBM Plex Mono";font-size:.86em;background:#0c0a13;
+  color:var(--node-hi);padding:2px 6px;border:1px solid var(--line);white-space:nowrap;
+}
+.ui{
+  font-family:"IBM Plex Mono";font-size:.86em;background:#0d1018;
+  color:var(--flow);padding:2px 7px;border:1px solid #2a4a52;white-space:nowrap;
+  font-weight:500;
+}
+
+/* SZÁMOZOTT LÉPÉSEK */
+ol.steps{list-style:none;margin:20px 0;counter-reset:st}
+ol.steps>li{
+  counter-increment:st;position:relative;padding:4px 0 14px 52px;margin-bottom:6px;
+  border-left:3px solid var(--line);margin-left:16px;
+}
+ol.steps>li::before{
+  content:counter(st);position:absolute;left:-19px;top:0;
+  width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+  font-family:"Pixelify Sans";font-size:17px;color:#10180f;background:var(--node);
+  box-shadow:2px 2px 0 var(--shadow);
+}
+ol.steps>li:last-child{border-left-color:transparent}
+
+/* ASCII / BEÁLLÍTÁS ÁBRA */
+.diagram{
+  margin:22px 0;border:3px solid var(--line);background:var(--bg-deep);
+  box-shadow:4px 4px 0 var(--shadow);
+}
+.diagram .d-head{
+  font-family:"Pixelify Sans";font-size:13px;color:var(--flow);letter-spacing:.1em;
+  padding:7px 12px;border-bottom:2px dashed var(--line-hi);text-transform:uppercase;
+}
+.diagram pre{
+  overflow-x:auto;padding:16px 18px;font-family:"IBM Plex Mono";
+  font-size:13px;line-height:1.5;color:var(--ink);
+}
+.diagram pre .gr{color:var(--ok)}
+.diagram pre .di{color:var(--warn)}
+.diagram pre .wa{color:var(--flow)}
+.diagram pre .no{color:var(--node-hi)}
+.diagram pre .st{color:#9aa0aa}
+.diagram pre .lv{color:var(--lava)}
+.diagram pre .mu{color:var(--muted)}
+.diagram .d-cap{
+  font-size:13px;color:var(--muted);padding:0 14px 12px;line-height:1.55;
+}
+
+/* INFÓ doboz (cián) */
+.info-box{
+  margin:24px 0;border:3px solid #2a4a52;background:#0d1018;
+  box-shadow:4px 4px 0 var(--shadow);padding:14px 18px 12px;
+}
+.info-box .tag{
+  font-family:"Pixelify Sans";font-size:13.5px;color:var(--flow);letter-spacing:.12em;
+  margin-bottom:8px;text-transform:uppercase;
+}
+.info-box p{font-size:15px;color:#cfdbd5;margin-bottom:10px}
+.info-box p:last-child{margin-bottom:0}
+.info-box code:not(pre code){border-color:#2a4a52;color:var(--flow)}
+.info-box ul{font-size:15px;color:#cfdbd5}
+
+/* TIPP / FIGYELEM doboz */
+.note{
+  margin:22px 0;border:3px solid var(--line);border-left:8px solid var(--node);
+  background:var(--panel);padding:12px 16px;font-size:15px;
+}
+.note.warn{border-left-color:var(--warn)}
+.note.ok{border-left-color:var(--ok)}
+.note .n-tag{
+  font-family:"Pixelify Sans";font-size:13px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--node-hi);margin-bottom:4px;
+}
+.note.warn .n-tag{color:var(--warn)}
+.note.ok .n-tag{color:var(--ok)}
+
+/* SVG / SCREENSHOT (figure) */
+.shot{
+  margin:24px 0;border:3px solid var(--line);background:var(--bg-deep);
+  box-shadow:4px 4px 0 var(--shadow);
+}
+.shot img{display:block;width:100%;height:auto;image-rendering:auto}
+.shot .cap{
+  font-family:"IBM Plex Mono";font-size:12.5px;color:var(--muted);line-height:1.55;
+  padding:9px 13px;border-top:2px dashed var(--line-hi);
+}
+.shot .cap b{color:var(--node-hi)}
+.shot.small{max-width:420px}
+
+/* TÁBLÁZAT */
+table{
+  width:100%;border-collapse:collapse;margin:20px 0;font-size:14.5px;
+  border:3px solid var(--line);box-shadow:4px 4px 0 var(--shadow);
+}
+th{
+  background:var(--panel);font-family:"Pixelify Sans";font-weight:600;font-size:14px;
+  color:var(--warn);text-align:left;padding:9px 12px;border-bottom:3px solid var(--line);
+  letter-spacing:.04em;
+}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td code,th code{white-space:nowrap}
+.mono{font-family:"IBM Plex Mono";font-size:13px}
+.on{color:var(--ok);font-weight:600}
+.off{color:var(--warn)}
+
+/* JÁTSZÓTÉR / DEMÓK */
+.playground{
+  margin:26px 0;border:3px solid var(--node);background:var(--bg-deep);
+  box-shadow:5px 5px 0 var(--shadow);
+}
+.playground .pg-head{
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
+  background:linear-gradient(90deg,rgba(176,124,255,.14),transparent);
+  border-bottom:3px solid var(--node);padding:10px 14px;
+}
+.playground .pg-title{
+  font-family:"Pixelify Sans";font-size:16px;color:var(--node-hi);letter-spacing:.08em;
+}
+.playground .pg-tag{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted)}
+.playground .pg-body{padding:16px;display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.playground canvas{
+  image-rendering:pixelated;border:3px solid var(--line);background:#0c0a13;
+  touch-action:none;max-width:100%;
+}
+.playground .pg-side{flex:1;min-width:240px;font-size:14px;color:var(--muted)}
+.playground .pg-side .legend{margin:10px 0;line-height:1.9}
+
+.ctl-label{font-family:"Pixelify Sans";font-size:12.5px;color:var(--warn);letter-spacing:.06em;margin:14px 0 4px;text-transform:uppercase}
+.btn-row{display:flex;gap:7px;flex-wrap:wrap;margin:4px 0}
+.tbtn{
+  font-family:"Pixelify Sans";font-size:13px;cursor:pointer;background:var(--panel);
+  color:var(--muted);border:2px solid var(--line-hi);padding:5px 12px;transition:all .1s;
+}
+.tbtn:hover{color:var(--ink)}
+.tbtn.active{background:var(--node);color:#10180f;border-color:var(--node);font-weight:600}
+.tbtn.flow.active{background:var(--flow);color:#06181c;border-color:var(--flow)}
+input[type=range]{width:100%;accent-color:var(--node);margin:6px 0 2px;cursor:pointer}
+.rng-val{font-family:"IBM Plex Mono";font-size:13px;color:var(--node-hi)}
+.kbd{
+  font-family:"IBM Plex Mono";font-size:12px;background:var(--panel);
+  border:2px solid var(--line-hi);border-bottom-width:4px;padding:1px 7px;color:var(--ink);
+}
+
+/* sablon kód blokk */
+pre.code{
+  margin:18px 0;padding:14px 16px;background:#0c0a13;border:3px solid var(--line);
+  border-left:6px solid var(--flow);box-shadow:4px 4px 0 var(--shadow);
+  font-family:"IBM Plex Mono";font-size:13px;line-height:1.55;color:var(--ink);
+  overflow-x:auto;
+}
+
+/* következõ tutorial előzetes */
+.next-card{
+  margin-top:70px;border:3px solid var(--line);background:var(--panel);
+  box-shadow:5px 5px 0 var(--shadow);padding:20px 22px;display:flex;gap:18px;flex-wrap:wrap;align-items:center;
+}
+.next-card .nx-label{font-family:"IBM Plex Mono";font-size:12px;color:var(--flow);letter-spacing:.14em;text-transform:uppercase}
+.next-card .nx-title{font-family:"Pixelify Sans";font-size:22px;color:var(--node-hi);margin-top:4px}
+.next-card .nx-desc{font-size:14.5px;color:var(--muted);margin-top:8px;flex:1;min-width:240px}
+.next-card a.btn{margin-top:0}
+
+footer{
+  margin-top:60px;border-top:3px solid var(--line);padding-top:24px;
+  font-size:13.5px;color:var(--muted);
+}
+footer .pix{font-family:"Pixelify Sans";color:var(--node);font-size:15px}
+footer a{color:var(--flow)}
+
+@media (max-width:980px){
+  .sidebar{transform:translateX(-100%);transition:transform .2s}
+  .sidebar.open{transform:translateX(0)}
+  .menu-toggle{display:block}
+  .main{margin-left:0}
+  .wrap{padding:0 20px 100px}
+  .hero{padding-top:84px}
+}
+</style>
+</head>
+<body>
+<style>
+#xp{position:fixed;top:0;left:0;height:4px;width:0;z-index:9999;
+  background:linear-gradient(90deg,#b07cff,#d4a8ff);
+  box-shadow:0 0 10px rgba(176,124,255,.6);transition:width .1s linear;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#xp{transition:none}}
+</style>
+<div id="xp"></div>
+<script>
+(function(){var xp=document.getElementById('xp');function onScroll(){var h=document.documentElement;var max=h.scrollHeight-h.clientHeight;xp.style.width=(max>0?(h.scrollTop/max*100):0)+'%';}window.addEventListener('scroll',onScroll,{passive:true});window.addEventListener('resize',onScroll,{passive:true});onScroll();})();
+</script>
+
+<button class="menu-toggle" id="menuToggle">☰ MENÜ</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="title">PIXEL COMPOSER<br>ALAPOK</div>
+    <div class="sub">node-alapú VFX pixel arthoz · 1. rész · magyarul</div>
+    <span class="badge">Pixel Composer</span><span class="badge alt">KEZDŐ</span>
+  </div>
+  <nav class="nav">
+    <div class="nav-part">I · Bevezető</div>
+    <a href="#ch1">1 · Mi az a Pixel Composer?</a>
+    <a href="#ch2">2 · Telepítés és elindítás</a>
+    <div class="nav-part">II · A kezelőfelület</div>
+    <a href="#ch3">3 · A munkakörnyezet</a>
+    <a href="#ch4">4 · A Graph panel</a>
+    <a href="#ch5">5 · Az Inspector</a>
+    <div class="nav-part">III · Az első node</div>
+    <a href="#ch6">6 · Node létrehozása</a>
+    <a href="#ch7">7 · Kép betöltése: Image</a>
+    <a href="#ch8">8 · Preview node</a>
+    <a href="#ch9">9 · Összekötés: első link</a>
+    <div class="nav-part">IV · Lezárás</div>
+    <a href="#ch10">10 · Összefoglaló &amp; tovább</a>
+  </nav>
+  <div class="dl-box">
+    <p>Ez a tutorial a Pixel Composer <strong>ingyenes</strong> verziójával végigcsinálható. Töltsd le, és csináld végig lépésről lépésre te is:</p>
+    <a class="btn flow" href="https://makham.itch.io/pixel-composer" target="_blank" rel="noopener">⬇ itch.io — Pixel Composer</a>
+  </div>
+</aside>
+
+<div class="main">
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">// 1. rész · kezdő tutorial · magyar nyelven · ~30 perc · a hivatalos docs alapján</div>
+  <h1>Ismerd meg a <span class="n">Pixel Composer</span>-t<br>— <span class="f">node-alapú</span> VFX pixel arthoz</h1>
+  <p class="lead">A Pixel Composer nem rajzolóprogram: egy <strong>node-gráf</strong>, ahol vizuális effektek (tűz, füst, részecskék, glow) <strong>procedurálisan</strong>, roncsolásmentesen épülnek fel. Ebben a tutorialban megismered a kezelőfelületet, létrehozod az <strong>első node-odat</strong>, betöltesz egy képet, és össze is kötöd egy Preview node-dal — vagyis megérted az alapokat, amire minden későbbi lecke épül.</p>
+  <div class="hero-strip">
+    <canvas id="heroCanvas" width="220" height="140" style="width:220px;height:140px"></canvas>
+    <div class="cap" id="heroCap">↑ Élő minta: egy <b>node-gráf</b>, ahogy az Image → Preview között áramlik az adat. Pontosan ezt a kapcsolatot fogjuk felépíteni a 9. fejezetben. (Csúszkával leállíthatod.)</div>
+  </div>
+</header>
+
+<!-- ================= I. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ I. rész — Bevezető</span></div>
+
+<!-- ================= 1. FEJEZET ================= -->
+<section id="ch1">
+  <div class="ch-eyebrow">1. fejezet</div>
+  <h2>Mi az a Pixel Composer?</h2>
+
+  <p>A <strong>Pixel Composer</strong> (röviden <strong>PXC</strong>) egy asztali alkalmazás (Windows / macOS / Linux), amivel <strong>pixel art vizuális effekteket</strong> lehet készíteni — de nem úgy, hogy pixelt kézzel rajzolsz. A lényege: <strong>node-okat</strong> kötsz össze egy gráfban, és a program a node-gráf alapján <em>procedurálisan</em> generálja a végeredményt.</p>
+
+  <div class="info-box">
+    <div class="tag">▸ A kulcsfogalom: node-gráf, non-destructive</div>
+    <p>Minden node egy <strong>művelet</strong> (képet betölt, színt módosít, részecskéket spawnol, blendel). A node-ok <strong>kimenete bemenete más node-oknak</strong> — az adat végigfolyik a gráfon. Mivel minden külön node, <strong>bármikor megváltoztathatsz egy beállítást</strong>, és az egész lánc automatikusan újraszámolódik. Az eredeti képed soha nem íródik felül.</p>
+    <p>Ezért a PXC workflow nem „rajzolj”, hanem „<strong>építs gráfot → állíts paramétert → exportálj</strong>”.</p>
+  </div>
+
+  <h3>PXC vs. Aseprite — nem konkurensek</h3>
+  <p>A legtöbb kezdő úgy találkozik a PXC-vel, hogy „pixel art programot” keres. Fontos tisztázni a szerepköröket:</p>
+
+  <table>
+    <tr><th></th><th>Aseprite</th><th>Pixel Composer</th></tr>
+    <tr><td><strong>mit csinál</strong></td><td>Sprite-okat rajzol, frame-by-frame animál</td><td>Procedurális VFX-et generál meglévő képre</td></tr>
+    <tr><td><strong>hogyan</strong></td><td>Kézi ecset, timeline, onion skin</td><td>Node-gráf, paraméter-automatizáció</td></tr>
+    <tr><td><strong>tipikus feladat</strong></td><td>Karakter, tile-set, ikon</td><td>Tűz, robbanás, füst, glow, részecskék</td></tr>
+    <tr><td><strong>fájl</strong></td><td><code>.aseprite</code></td><td><code>.aseprite</code>-ot <em>beolvas</em>, PNG/spritesheet-et ír ki</td></tr>
+  </table>
+
+  <p>Egy valós pipeline így néz ki: <strong>Aseprite-ben</strong> megrajzolod a karaktert → <strong>PXC-ben</strong> ráteszed a tüzet/glow-t/reszecske-effekteket → kimentesz spritesheet-et → betöltöd a játékmotorba.</p>
+
+  <div class="note warn">
+    <div class="n-tag">▲ Ingyenes, nyílt forrású</div>
+    A Pixel Composer <strong>teljesen ingyenes és nyílt forrású</strong> (GitHub: <code>Ttanasart-pt/Pixel-Composer</code>). Steam-en és itch.io-n is telepítheted. Nincsenek fizetős funkciók — minden export (PNG, spritesheet, gif) nyitva van. Ezt a tutorialt a stabil 1.21-es ágon teszteltük.
+  </div>
+
+  <p>Ez a tutorial a hivatalos <a href="https://docs.pixel-composer.com/getting_started.html" target="_blank" rel="noopener">„Getting Started”</a> leckét követi, magyarul, kibővítve interaktív demókkal és a leggyakoribb kezdő csapdákkal.</p>
+</section>
+
+<!-- ================= 2. FEJEZET ================= -->
+<section id="ch2">
+  <div class="ch-eyebrow">2. fejezet</div>
+  <h2>Telepítés és elindítás</h2>
+
+  <p>Három forrásból telepítheted — mindegyik ugyanazt a szoftvert adja:</p>
+
+  <ol class="steps">
+    <li><strong>Steam</strong>: <a href="https://store.steampowered.com/app/2299510/Pixel_Composer/" target="_blank" rel="noopener">store.steampowered.com</a> — automatikus frissítések, ajánlott ha amúgy is használod a Steam-et.</li>
+    <li><strong>itch.io</strong>: <a href="https://makham.itch.io/pixel-composer" target="_blank" rel="noopener">makham.itch.io/pixel-composer</a> — a bal oldali sávból is letöltheted. Az itch.io app szintén frissít.</li>
+    <li><strong>GitHub</strong>: <a href="https://github.com/Ttanasart-pt/Pixel-Composer" target="_blank" rel="noopener">github.com/Ttanasart-pt/Pixel-Composer</a> — release-ek, forráskód, hibabejelentés.</li>
+  </ol>
+
+  <p>Telepítés után indítsd el. Egy üres ablak fogad, benne egy <strong>üres Graph panellel</strong> — ez a vászon, amin a node-okat fogjuk elrendezni. Mielőtt bármit csinálunk, értsük meg, mit látunk.</p>
+
+  <div class="note">
+    <div class="n-tag">▸ Első indítás: ha üres a Graph</div>
+    Ne lepődj meg, hogy „semmi sincs”. A PXC induláskor <strong>üres projektet</strong> nyit. Nincsenek varázslók vagy sablonok — te építed fel a gráfot nulláról. Pontosan ezt tanuljuk meg a 3. fejezettől.
+  </div>
+</section>
+
+<!-- ================= II. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ II. rész — A kezelőfelület</span></div>
+
+<!-- ================= 3. FEJEZET ================= -->
+<section id="ch3">
+  <div class="ch-eyebrow">3. fejezet</div>
+  <h2>A munkakörnyezet — panelkörkép</h2>
+
+  <p>A PXC ablak négy fő zónára oszlik. Mielőtt bármihez nyúlnál, ismerd fel, hogy melyik panel mit csinál — az egész tutorial során ezeket fogjuk használni:</p>
+
+  <div class="shot">
+    <img src="assets/pixelcomposer/workspace.svg" alt="Pixel Composer munkakörnyezet: Node List, Graph, Preview, Inspector panelek">
+    <div class="cap">A PXC projektoldal. Bal: <b>Node List</b> (kategóriák). Közép: a <b>Graph</b> (a fő vászon, ide kerülnek a node-ok). Jobb-fent: <b>Preview</b> (élő eredmény). Jobb-lent: <b>Inspector</b> (a kijelölt node paraméterei).</div>
+  </div>
+
+  <div class="diagram">
+    <div class="d-head">⊞ A négy fő panel</div>
+<pre>
+  <span class="mu">┌──────────┬───────────────────────────────────┬───────────────────┐</span>
+  <span class="mu">│</span> <span class="no">NODE LIST</span> <span class="mu">│</span>      <span class="wa">GRAPH</span> (fő vászon)            <span class="mu">│</span> <span class="di">PREVIEW</span>          <span class="mu">│</span>
+  <span class="mu">│</span> Input     <span class="mu">│</span>  ┌──────┐   ┌────────┐         <span class="mu">│</span>  ┌─────────────┐ <span class="mu">│</span>
+  <span class="mu">│</span> Transform <span class="mu">│</span>  │<span class="no">Image</span>│──▸│<span class="gr">Preview</span>│         <span class="mu">│</span>  │  pixel art  │ <span class="mu">│</span>
+  <span class="mu">│</span> Generate   <span class="mu">│</span>  └──────┘   └────────┘         <span class="mu">│</span>  │   eredmény   │ <span class="mu">│</span>
+  <span class="mu">│</span> VFX        <span class="mu">│</span>  ide húzod, kötöd a node-okat    <span class="mu">│</span>  └─────────────┘ <span class="mu">│</span>
+  <span class="mu">│</span> Render     <span class="mu">├───────────────────────────────────┼───────────────────┤</span>
+  <span class="mu">│</span> Export     <span class="mu">│</span>                                   <span class="mu">│</span> <span class="di">INSPECTOR</span>        <span class="mu">│</span>
+  <span class="mu">│</span>            <span class="mu">│</span>                                   <span class="mu">│</span> a kijelölt node  <span class="mu">│</span>
+  <span class="mu">│</span>  (kategóriák<span class="mu">│</span>                                   <span class="mu">│</span> paraméterei:    <span class="mu">│</span>
+  <span class="mu">│</span>   szerint)  <span class="mu">│</span>                                   <span class="mu">│</span>  Path, Color,    <span class="mu">│</span>
+  <span class="mu">│</span>            <span class="mu">│</span>                                   <span class="mu">│</span>  Scale, ... + ◷   <span class="mu">│</span>
+  <span class="mu">└──────────┴───────────────────────────────────┴───────────────────┘</span>
+</pre>
+    <div class="d-cap">A <b>Node List</b> csak egy „katalógus” — drag&drop-bal vagy jobb-klikkel dobsz belőle node-ot a Graph-ra. Az <b>Inspector</b> jobb alsó sarkában lévő ◷ (óra) ikon: <em>animáció hozzáadása</em> a paraméterhez — későbbi tutorial témája.</div>
+  </div>
+
+  <ul>
+    <li><strong>Node List</strong> (bal): a node-ok katalógusa, kategóriákra bontva. Itt keresed meg, mit szeretnél behúzni.</li>
+    <li><strong>Graph</strong> (közép): a fő vászon. <strong>Ez a szíve a PXC-nek</strong> — ide kerülnek a node-ok, ide húzod a kapcsolatokat.</li>
+    <li><strong>Preview</strong> (jobb-fent): a gráf <em>kimenetének</em> élő előnézete. Ahogy módosítasz valamit, ez frissül.</li>
+    <li><strong>Inspector</strong> (jobb-lent): a kijelölt node <em>paraméterei</em>. Itt állítod be a részleteket (fájlnév, szín, méret stb.).</li>
+  </ul>
+
+  <div class="note">
+    <div class="n-tag">▸ Gyors iránytű</div>
+    Ha elakadsz, gondolj így: <strong>„balról választok → középre teszem → jobban állítom → jobban-fent látom”</strong>. Ez a négy mozdulat a PXC teljes munkaciclikusa.
+  </div>
+</section>
+
+<!-- ================= 4. FEJEZET ================= -->
+<section id="ch4">
+  <div class="ch-eyebrow">4. fejezet</div>
+  <h2>A Graph panel — ahol a varázslat történik</h2>
+
+  <p>A Graph a középső, legnagyobb panel. Ez egy <strong>végtelen vászon</strong>: zoomolhatsz (egérgörgő), pan-elheted (térköz lenyomva + húzás, vagy középső gomb). Ide kerülnek a node-ok, és ide rajzolod a kapcsolatokat köztük.</p>
+
+  <h3>Egy node felépítése</h3>
+  <p>Mielőtt létrehoznánk egyet, nézzük meg, mit fogunk látni. Minden node azonos szerkezetű:</p>
+
+  <div class="shot">
+    <img src="assets/pixelcomposer/node-anatomy.svg" alt="Egy node anatómiája: fejléc, paraméterek, bemeneti és kimeneti junction-ok, kapcsolat (link)">
+    <div class="cap">Egy node felépítése. <b>Fejléc</b> (kategória-szín + név), <b>paraméterek</b>, <b>junction-ok</b> (a kis körök) — a <span class="on">kék</span> a Surface-adatot jelöli. A kapcsolat <strong>balról jobbra</strong> folyik: kimenet → bemenet.</div>
+  </div>
+
+  <table>
+    <tr><th>Rész</th><th>Mit jelent</th></tr>
+    <tr><td><strong>Fejléc</strong> (színes sáv)</td><td>A node neve + kategória-szín. A szín segít tájékozódni: <span style="color:var(--node-hi)">lila = Input</span>, <span style="color:var(--warn)">narancs = Transform/Generate</span>, <span style="color:var(--ok)">zöld = Render/Preview</span>, <span style="color:var(--flow)">cián = VFX</span>.</td></tr>
+    <tr><td><strong>Paraméterek</strong> (törzs)</td><td>A node beállításai (pl. <code>path</code>, <code>color</code>, <code>scale</code>). Részletesebben az Inspector-ban.</td></tr>
+    <tr><td><strong>Junction</strong> (kör)</td><td>Csatlakozóaljzat. <strong>Jobboldali</strong> (kitöltött) = kimenet. <strong>Baloldali</strong> (üreges) = bemenet. A szín a <em>adattípust</em> jelöli.</td></tr>
+    <tr><td><strong>Link</strong> (Bézier-görbe)</td><td>A kapcsolat két junction között. Drag-elve húzod egyikről a másikra.</td></tr>
+  </table>
+
+  <div class="info-box">
+    <div class="tag">▸ Adattípusok — a junction színek</div>
+    <p>A PXC-ben a junction-ok színe nem dekoráció, hanem <strong>adattípust</strong> jelöl:</p>
+    <ul>
+      <li><span style="color:var(--flow)">Cián</span> — <strong>Surface</strong> (kép/πixel-tömb): a leggyakoribb, ez az „áramló kép”.</li>
+      <li><span style="color:var(--node-hi)">Lila</span> — <strong>Struct / adat</strong> (pl. részecskék adata).</li>
+      <li><span style="color:var(--ok)">Zöld</span> — <strong>Buffer / numerikus</strong>.</li>
+      <li><span style="color:var(--warn)">Narancs</span> — <strong>Path / szöveg</strong>.</li>
+    </ul>
+    <p>Egy link csak <strong>azonos típusú</strong> junction-ok közt húzható. Ha nem enged csatlakozni, azért van — a típusok nem matchelnek.</p>
+  </div>
+</section>
+
+<!-- ================= 5. FEJEZET ================= -->
+<section id="ch5">
+  <div class="ch-eyebrow">5. fejezet</div>
+  <h2>Az Inspector — paraméterek beállítása</h2>
+
+  <p>Az Inspector a jobb alsó panel. <strong>A Graph-ban kijelölt node</strong> paramétereit mutatja. Ha kijelölsz egy node-ot (klikk a fejlécére), az Inspector azonnal azzal töltődik ki.</p>
+
+  <p>A legtöbb paraméter típusa egyértelmű:</p>
+  <ul>
+    <li><strong>Szám</strong> — beírod vagy a csúszkával húzod (pl. <code>Scale: 1.00</code>).</li>
+    <li><strong>Legördülő</strong> — választasz egy opciót (pl. <code>Interpolate: Bicubic</code>).</li>
+    <li><strong>Fájlútvonal</strong> — kattintva fájlválasztót nyit (pl. <code>Path: hero.png</code>).</li>
+    <li><strong>Szín</strong> — kattintva színválasztót nyit.</li>
+  </ul>
+
+  <div class="note warn">
+    <div class="n-tag">▲ A leggyakoribb kezdő hiba</div>
+    Sokan a <strong>Graph-ban lévő node-on</strong> próbálják módosítani a paramétereket, és nem találják. A node törzsében csak <em>összegzés</em> van; a <strong>tényleges szerkesztés az Inspector-ban</strong> történik. Előbb jelöld ki a node-ot (klikk), aztán nézz a jobb alsó sarokba.
+  </div>
+
+  <div class="info-box">
+    <div class="tag">▸ A kis ◷ (óra) ikon</div>
+    <p>Az Inspector minden paramétere mellett látható egy apró óra-ikont jelentő gomb (<code>◷</code>). Erre kattintva <strong>animációt adhatsz a paraméterhez</strong> — keyframe-eket, görbéket. Ez a PXC egyik legerősebb funkciója, a 3. tutorialban részletesen megnézzük. Egyelőre csak jegyezd meg, hogy ott van.</p>
+  </div>
+</section>
+
+<!-- ================= III. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ III. rész — Az első node</span></div>
+
+<!-- ================= 6. FEJEZET ================= -->
+<section id="ch6">
+  <div class="ch-eyebrow">6. fejezet</div>
+  <h2>Node létrehozása — a jobb-klikk</h2>
+
+  <p>Eljött a pillanat: hozzunk létre az első node-ot! Két mód van rá — tanuld meg mindkettőt, mert mindennap használni fogod:</p>
+
+  <ol class="steps">
+    <li><strong>Jobb-klikk</strong> a Graph panel egy üres területén → felugrik az <em>Add Node</em> menü.</li>
+    <li>A menüben tallózol a kategóriák közt (vagy gépelsz a keresőmezőbe), és kiválasztod a node-ot.</li>
+  </ol>
+
+  <p>A másik módszer: a <strong>Node List</strong>-ből (bal panel) <strong>drag &amp; drop</strong>-pal a Graph-ra húzod a node-ot. Gyorsabb, ha már tudod, mit akarsz.</p>
+
+  <div class="shot">
+    <img src="assets/pixelcomposer/graph-first-node.svg" alt="Jobb-klikk a Graph-on: Add Node menü, Image kiválasztása">
+    <div class="cap">Jobb-klikk a Graph-on → <b>Add Node</b> menü. A kurzor az <b>Image</b> node-on van — kattintva létrejön. Drag&drop-bal ugyanez elérhető a bal oldali Node List-ből.</div>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▸ Kereső — a barátod</div>
+    Az Add Node menü tetején egy <strong>keresőmező</strong> van. Gépelj (pl. <code>image</code>, <code>blast</code>, <code>particle</code>), és azonnal szűri a listát. Sokkal gyorsabb, mint a kategóriákban bújni — érdemes rászokni.
+  </div>
+</section>
+
+<!-- ================= 7. FEJEZET ================= -->
+<section id="ch7">
+  <div class="ch-eyebrow">7. fejezet</div>
+  <h2>Kép betöltése: az Image node</h2>
+
+  <p>A leggyakoribb kezdő node az <strong>Image</strong> — ez <strong>betölt egy képet</strong> (PNG, JPG, akár <code>.aseprite</code>) a gráfba, és Surface-ként (képként) kiadja a kimenetén. Minden más node erre épül.</p>
+
+  <ol class="steps">
+    <li>Jobb-klikk a Graph-on → <span class="ui">Add Node ▸ Input ▸ Image</span>.</li>
+    <li>Létrejön egy <code>Image</code> node, lila fejléccel. Jelöld ki (klikk a fejlécre).</li>
+    <li>Nézz az <strong>Inspector</strong>-ba (jobb alsó). Keresd meg a <code>Path</code> mezőt.</li>
+    <li>Kattints a <code>Path</code> melletti gombra → fájlválasztó nyílik → válassz egy PNG-t (bármilyen, akár egy Aseprite export).</li>
+  </ol>
+
+  <p>Miután kiválasztottad a fájlt, a node azonnal megmutatja a kép adatait (<code>color</code>, <code>size</code>), és a kimeneti junction-on (<span style="color:var(--flow)">cián</span>) megjelenik a Surface-adat.</p>
+
+  <div class="note warn">
+    <div class="n-tag">▲ „Nem látom a képet!”</div>
+    Ha a node-on nincs kép: vagy <strong>nincs kijelölve a Path</strong>, vagy <strong>nincs Preview node</strong> csatlakoztatva. Az Image node önmagában nem jelenít meg semmit a vásznon — csak „adatot” termel. A megjelenítéshez kell a következő fejezet Preview node-ja.
+  </div>
+
+  <h3>Tipp: mit importálj most?</h3>
+  <p>Ehhez a tutorialhoz elég bármilyen egyszerű PNG — egy 32×32 vagy 64×64 pixel art sprite a legjobb. Ha nincs kéznél, az <a href="https://opengameart.org" target="_blank" rel="noopener">OpenGameArt</a>-on rengeteg ingyenes, CC-licencű pixel art van. A későbbi tutorialokban konkrét effekteket fogunk rátenni.</p>
+</section>
+
+<!-- ================= 8. FEJEZET ================= -->
+<section id="ch8">
+  <div class="ch-eyebrow">8. fejezet</div>
+  <h2>A Preview node — megjelenítés</h2>
+
+  <p>Az Image node csak adatot termel — hogy <strong>lássuk</strong> is, kell egy <strong>Preview</strong> node (zöld fejléc, a Render kategóriában). Ez a node befogadja a Surface-t és megmutatja.</p>
+
+  <ol class="steps">
+    <li>Jobb-klikk a Graph-on → <span class="ui">Add Node ▸ Render ▸ Preview</span>.</li>
+    <li>Létrejön a <code>Preview</code> node (zöld fejléc), egy <strong>baloldali üreges</strong> bemeneti junction-nel.</li>
+    <li>Ezen a ponton még üres — nincs mit mutatnia, mert nincs bekötve semmi.</li>
+  </ol>
+
+  <div class="info-box">
+    <div class="tag">▸ Több Preview = több „ablak”</div>
+    <p>A PXC-ben tetszőleges számú Preview node-od lehet — mindegyik egy-egy „ablak” a gráf egy pontjára. Gyakori minta: egy Preview közvetlenül az Image után (hogy lásd az eredetit), egy másik az effekt-lánc végén (hogy lásd az eredményt). Így egyszerre hasonlíthatod össze a „előtte / utána” állapotot.</p>
+  </div>
+
+  <div class="note">
+    <div class="n-tag">▸ Dupla-klikk gyornpít</div>
+    Bármelyik node-on <strong>dupla-klikk</strong> → annak a node-nak a kimenete megjelenik a nagy <strong>Preview panelben</strong> (jobb-fent). Így nem kell mindig Preview node-ot tenni — a dupla-klikk egy gyors „ideiglenes Preview”. De a végleges gráfba érdemes Preview node-okat tenni, hogy mentés után is megmaradjanak.
+  </div>
+</section>
+
+<!-- ================= 9. FEJEZET ================= -->
+<section id="ch9">
+  <div class="ch-eyebrow">9. fejezet</div>
+  <h2>Összekötés: az első link</h2>
+
+  <p>Most jön a lényeg: <strong>összekötjük</strong> az Image kimenetét a Preview bemenetével. Ez a mozdulat — a <em>link húzása</em> — a PXC legalapvetőbb interakciója.</p>
+
+  <ol class="steps">
+    <li>Vidd az egeret az <strong>Image node jobb oldalán</strong> lévő <span style="color:var(--flow)">cián kimeneti junction</span>-ra (a kis kitöltött körre).</li>
+    <li><strong>Nyomd le a bal egérgombot, és húzd</strong> a Preview node baloldali <span style="color:var(--flow)">bemeneti junction</span>-ára (üreges kör).</li>
+    <li>Engedd el — a két junction között megjelenik egy <strong>Bézier-görbe</strong> (a kapcsolat).</li>
+  </ol>
+
+  <p>Ha minden jól ment, a Preview node azonnal <strong>megmutatja a képet</strong> — az adat „átfolyt” az Image-ből a Preview-be. Gratulálok! Ez az első node-gráfod. 🎉</p>
+
+  <!-- INTERAKTÍV DEMÓ -->
+  <div class="playground" id="pg1">
+    <div class="pg-head">
+      <div class="pg-title">▸ Élő demó: húzd a kapcsolatot</div>
+      <div class="pg-tag">interaktív · próbáld ki</div>
+    </div>
+    <div class="pg-body">
+      <canvas id="pgCanvas" width="420" height="200" style="width:420px;height:200px"></canvas>
+      <div class="pg-side">
+        <div class="legend">
+          Itt egy minimális gráf látható. <b style="color:var(--flow)">Kattints a kék kimeneti junction-ra</b>, tartsd lenyomva, és <b>húzd a baloldali (bemeneti) junction-ra</b>.<br><br>
+          Ha sikerül, a kép „átfolyik” a Preview-be — pont mint az igazi PXC-ben. Ha megszakítod (gomb felengedése máshol), a link eltűnik.
+        </div>
+        <div class="ctl-label">Állapot</div>
+        <div class="rng-val" id="pgState">▸ nincs kapcsolat — a Preview üres</div>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="tbtn flow" id="pgReset">↺ újrakezdés</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note warn">
+    <div class="n-tag">▲ Ha nem engdi csatlakozni</div>
+    Két oka lehet: (1) <strong>rossz irány</strong> — a linket a <em>kimenetről</em> kell a <em>bemenetre</em> húzni, nem fordítva; (2) <strong>típuseltérés</strong> — a junction-ok színe nem egyezik. A Surface (cián) csak Surface-be megy. Ellenőrizd a színeket!
+  </div>
+
+  <div class="note ok">
+    <div class="n-tag">✓ Link törlése</div>
+    Egy meglévő kapcsolatot úgy törölsz, hogy <strong>klikkelsz a link vonalára</strong> (kijelöli), majd <span class="kbd">Del</span>. Vagy egyszerűen húzol egy új linket ugyanarra a bemenetre — a régit felülírja.
+  </div>
+
+  <h3>Mentsd el a projektedet!</h3>
+  <p>Mielőtt továbbmész: <span class="ui">File ▸ Save</span> (vagy <span class="kbd">Ctrl</span>+<span class="kbd">S</span>). A PXC projektformátuma a <code>.pxc</code> — ez magát a <strong>gráfot</strong> tárolja (a node-okat, kapcsolatokat, paramétereket), nem pedig a képeket. A képek külső hivatkozásként maradnak, mint a játékmotorban egy asset. Ha áthelyezed a projektet, a képeket is vidd magaddal.</p>
+</section>
+
+<!-- ================= IV. RÉSZ ================= -->
+<div class="part-divider"><span class="pd-label">█ IV. rész — Lezárás</span></div>
+
+<!-- ================= 10. FEJEZET ================= -->
+<section id="ch10">
+  <div class="ch-eyebrow">10. fejezet</div>
+  <h2>Összefoglaló &amp; merre tovább?</h2>
+
+  <p>Ezzel megismerkedtél a Pixel Composer alapjaival. Nézzük végig, mit tanultál:</p>
+
+  <table>
+    <tr><th>Fogalom</th><th>Tanultad</th></tr>
+    <tr><td><strong>node-gráf</strong></td><td>Non-destructive, procedurális VFX-építés node-ok összekötésével.</td></tr>
+    <tr><td><strong>négy panel</strong></td><td>Node List (katalógus) · Graph (vászon) · Preview (eredmény) · Inspector (paraméterek).</td></tr>
+    <tr><td><strong>node felépítése</strong></td><td>Fejléc (kategória-szín) + paraméterek + junction-ok (kimenet/bemenet, típus-szín).</td></tr>
+    <tr><td><strong>node létrehozása</strong></td><td>Jobb-klikk a Graph-on → Add Node (vagy drag a Node List-ből).</td></tr>
+    <tr><td><strong>Image node</strong></td><td>Betölt egy képet, Surface-ként adja ki.</td></tr>
+    <tr><td><strong>Preview node</strong></td><td>Megjeleníti a beérkező Surface-t (vagy dupla-klikk bármelyik node-on).</td></tr>
+    <tr><td><strong>link</strong></td><td>Junction-ról junction-ra húzva; balról jobbra folyik az adat; csak azonos típus köthető.</td></tr>
+  </table>
+
+  <div class="info-box">
+    <div class="tag">▸ A „kötelező házi”</div>
+    <p>Mielőtt a 2. részbe kezdenél, csináld végig ezt: tölts be <strong>egy saját képet</strong> az Image node-dal, kösd össze egy Preview-rel, és <strong>mentsd el</strong> <code>.pxc</code>-ként. Ez a projekt lesz a kiindulópontja a következő tutorialnak — ott ugyanezen a képren fogunk <em>transformációt és animációt</em> beállítani.</p>
+  </div>
+
+  <h3>A sorozat következő részei</h3>
+  <p>Ez a 1. része egy háromszintű (kezdő / közép / haladó) sorozatnak. A tervezett tematika:</p>
+  <ul>
+    <li><strong>2. rész</strong> — Node-ok és kapcsolatok mélyebben: transformáció, blend módok, több bemenet.</li>
+    <li><strong>3. rész</strong> — Animáció alapok: keyframe-ek, interpoláció (linear/smooth/hold), loop.</li>
+    <li><strong>4. rész</strong> — Import/Export workflow + spritesheet packelés (engine-integráció).</li>
+    <li><strong>5. rész</strong> — A Clone node: a legnagyobb kezdő csapda.</li>
+    <li><strong>Később</strong> — MK Blast tűz/robbanás, részecskék, effectors, feedback loop, texture mapping, és egy Bevy-integrációs lecke is.</li>
+  </ul>
+
+  <!-- NEXT CARD -->
+  <div class="next-card">
+    <div>
+      <div class="nx-label">következik · 2. rész</div>
+      <div class="nx-title">Node-ok és kapcsolatok — mélyebben</div>
+      <div class="nx-desc">Transform node-ok (skálázás, forgatás, tükrözés), blend módok, több bemenet kezelése, és a node-gráf szervezése commentekkel. A 3. fejezet animációs alapjainak előkészítése.</div>
+    </div>
+    <a class="btn" href="#">Hamarosan ▸</a>
+  </div>
+</section>
+
+<footer>
+  <p class="pix">Pixel Composer alapok · 1. rész</p>
+  <p style="margin-top:6px">Készült a hivatalos <a href="https://docs.pixel-composer.com/" target="_blank" rel="noopener">Pixel Composer dokumentáció</a> alapján, magyar nyelven, interaktív demókkal kibővítve. A Pixel Composer ingyenes, nyílt forrású szoftver — <a href="https://github.com/Ttanasart-pt/Pixel-Composer" target="_blank" rel="noopener">GitHub</a> · <a href="https://makham.itch.io/pixel-composer" target="_blank" rel="noopener">itch.io</a> · <a href="https://store.steampowered.com/app/2299510/Pixel_Composer/" target="_blank" rel="noopener">Steam</a>.</p>
+  <p style="margin-top:6px;font-size:12px;color:#565066">MakhamDev munkájának köszönjük. Ez a tutorial független, nem hivatalos.</p>
+</footer>
+
+</div><!-- /wrap -->
+</div><!-- /main -->
+
+<script>
+/* ========== MENÜ (mobil) ========== */
+(function(){
+  var t=document.getElementById('menuToggle'),s=document.getElementById('sidebar');
+  t.addEventListener('click',function(){s.classList.toggle('open')});
+})();
+
+/* ========== AKTÍV NAV ELEM (scroll-spy) ========== */
+(function(){
+  var links=document.querySelectorAll('.nav a');
+  var map={};links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a});
+  var secs=Object.keys(map).map(function(id){return document.getElementById(id)}).filter(Boolean);
+  function onScroll(){
+    var y=window.scrollY+120;var cur=null;
+    secs.forEach(function(s){if(s.offsetTop<=y)cur=s.id});
+    links.forEach(function(a){a.classList.toggle('active',a.getAttribute('href').slice(1)===cur)});
+  }
+  window.addEventListener('scroll',onScroll,{passive:true});onScroll();
+})();
+
+/* ========== HERO CANVAS — animált node-gráf ========== */
+(function(){
+  var cv=document.getElementById('heroCanvas'),ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  // egyszerű pixel sprite (zöld hős)
+  var hero=[
+    "0011100",
+    "0122210",
+    "0113110",
+    "1222221",
+    "0122210",
+    "0011100",
+    "0100010",
+    "1000001"
+  ];
+  var pal={0:null,1:'#7ed957',2:'#ffb454',3:'#5ad7ff'};
+  var phase=0,running=true;
+  function drawSprite(x,y,scale,alpha){
+    for(var r=0;r<hero.length;r++)for(var c=0;c<hero[r].length;c++){
+      var ch=hero[r][c];var col=pal[ch];if(!col)continue;
+      ctx.globalAlpha=alpha;ctx.fillStyle=col;
+      ctx.fillRect(x+c*scale,y+r*scale,scale,scale);
+    }
+    ctx.globalAlpha=1;
+  }
+  function frame(){
+    if(!running){requestAnimationFrame(frame);return}
+    phase+=0.018;
+    ctx.clearRect(0,0,W,H);
+    // háttér rács
+    ctx.strokeStyle='#1a1626';ctx.lineWidth=1;
+    for(var x=0;x<=W;x+=20){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+    for(var y=0;y<=H;y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+    // Image node
+    var ix=24,iy=48;
+    drawNode(ctx,ix,iy,80,46,'#b07cff','Image','#5ad7ff','out',ix+80,iy+34);
+    // Preview node
+    var px=132,py=70;
+    drawNode(ctx,px,py,84,52,'#7ed957','Preview','#5ad7ff','in',px,py+30);
+    // kapcsolat (Bézier) — animált
+    var t=(Math.sin(phase)+1)/2; // 0..1
+    var sx=ix+80,sy=iy+34,ex=px,ey=py+30;
+    var cx1=sx+30,cy1=sy,cx2=ex-30,cy2=ey;
+    ctx.strokeStyle='#5ad7ff';ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.moveTo(sx,sy);
+    ctx.bezierCurveTo(cx1,cy1,cx2,cy2,ex,ey);ctx.stroke();
+    // mozgó adatpont a görbén
+    function bez(t){var u=1-t;
+      var x=u*u*u*sx+3*u*u*t*cx1+3*u*t*t*cx2+t*t*t*ex;
+      var y=u*u*u*sy+3*u*u*t*cy1+3*u*t*t*cy2+t*t*t*ey;
+      return[x,y]}
+    var p=bez(t);
+    ctx.fillStyle='#d4a8ff';ctx.beginPath();ctx.arc(p[0],p[1],3.5,0,7);ctx.fill();
+    // sprite a preview-ban (ha kapcsolat él)
+    drawSprite(px+10,py+12,3,0.5+0.5*Math.sin(phase*1.5));
+    // state label
+    ctx.font="10px 'IBM Plex Mono',monospace";ctx.fillStyle='#9a8fb0';
+    ctx.fillText('Image → Preview',14,H-8);
+    requestAnimationFrame(frame);
+  }
+  function drawNode(ctx,x,y,w,h,headerColor,name,jcColor,jcLabel,jx,jy){
+    ctx.fillStyle='#1c1828';ctx.fillRect(x,y,w,h);
+    ctx.strokeStyle=headerColor;ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle=headerColor;ctx.fillRect(x,y,w,16);
+    ctx.font="10px 'IBM Plex Mono',monospace";ctx.fillStyle='#0c0a13';
+    ctx.fillText(name,x+6,y+11);
+    // junction
+    ctx.fillStyle=jcColor;ctx.beginPath();ctx.arc(jx,jy,4,0,7);ctx.fill();
+    ctx.strokeStyle='#0c0a13';ctx.lineWidth=1.5;ctx.stroke();
+  }
+  frame();
+  // pause on hover
+  cv.addEventListener('mouseenter',function(){running=false});
+  cv.addEventListener('mouseleave',function(){running=true});
+})();
+
+/* ========== PLAYGROUND 1 — drag-to-connect ========== */
+(function(){
+  var cv=document.getElementById('pgCanvas'),ctx=cv.getContext('2d');
+  var W=cv.width,H=cv.height;
+  var state=document.getElementById('pgState');
+  var resetBtn=document.getElementById('pgReset');
+  var hero=[
+    "0011100",
+    "0122210",
+    "0113110",
+    "1222221",
+    "0122210",
+    "0011100",
+    "0100010",
+    "1000001"
+  ];
+  var pal={0:null,1:'#7ed957',2:'#ffb454',3:'#5ad7ff'};
+  function drawSprite(x,y,scale){
+    for(var r=0;r<hero.length;r++)for(var c=0;c<hero[r].length;c++){
+      var ch=hero[r][c];var col=pal[ch];if(!col)continue;
+      ctx.fillStyle=col;ctx.fillRect(x+c*scale,y+r*scale,scale,scale);
+    }
+  }
+  // node-ok geometriája
+  var img={x:30,y:60,w:90,h:60,hdr:16};          // Image
+  var prev={x:280,y:70,w:100,h:70,hdr:16};        // Preview
+  // junction-ok
+  var outJ={x:img.x+img.w,y:img.y+34,r:7};        // Image kimenet
+  var inJ={x:prev.x,y:prev.y+34,r:7};             // Preview bemenet
+  var dragging=false,connected=false;
+  var mouse={x:0,y:0};
+  function hit(jx,jy,mx,my){var dx=mx-jx,dy=my-jy;return dx*dx+dy*dy<=(jy?jy*jy:0)+outJ.r*outJ.r+9}
+  function getPos(e){
+    var r=cv.getBoundingClientRect();
+    return{x:(e.clientX-r.left)*(cv.width/r.width),y:(e.clientY-r.top)*(cv.height/r.height)};
+  }
+  function redraw(){
+    ctx.clearRect(0,0,W,H);
+    // rács
+    ctx.strokeStyle='#1a1626';ctx.lineWidth=1;
+    for(var x=0;x<=W;x+=20){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+    for(var y=0;y<=H;y+=20){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+    // Image node
+    drawNode(img,'#b07cff','Image');
+    // Preview node
+    drawNode(prev,'#7ed957','Preview');
+    if(connected){
+      // sprite a preview-ban
+      drawSprite(prev.x+18,prev.y+22,4);
+      // kapcsolat
+      ctx.strokeStyle='#5ad7ff';ctx.lineWidth=3;
+      var sx=outJ.x,sy=outJ.y,ex=inJ.x,ey=inJ.y;
+      ctx.beginPath();ctx.moveTo(sx,sy);
+      ctx.bezierCurveTo(sx+30,sy,ex-30,ey,ex,ey);ctx.stroke();
+      // junction-ok kitöltve
+      ctx.fillStyle='#5ad7ff';
+      ctx.beginPath();ctx.arc(outJ.x,outJ.y,outJ.r,0,7);ctx.fill();
+      ctx.beginPath();ctx.arc(inJ.x,inJ.y,inJ.r,0,7);ctx.fill();
+    }else{
+      // üres bemenet (üreges)
+      ctx.strokeStyle='#5ad7ff';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(inJ.x,inJ.y,inJ.r,0,7);ctx.stroke();
+      // kimenet kitöltve
+      ctx.fillStyle='#5ad7ff';ctx.beginPath();ctx.arc(outJ.x,outJ.y,outJ.r,0,7);ctx.fill();
+      // ha dragging, húzott vonal
+      if(dragging){
+        ctx.strokeStyle='#5ad7ff';ctx.lineWidth=2.5;ctx.setLineDash([5,4]);
+        ctx.beginPath();ctx.moveTo(outJ.x,outJ.y);
+        ctx.bezierCurveTo(outJ.x+30,outJ.y,mouse.x-30,mouse.y,mouse.x,mouse.y);ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle='#d4a8ff';ctx.beginPath();ctx.arc(mouse.x,mouse.y,4,0,7);ctx.fill();
+      }
+    }
+  }
+  function drawNode(n,color,name){
+    ctx.fillStyle='#1c1828';ctx.fillRect(n.x,n.y,n.w,n.h);
+    ctx.strokeStyle=color;ctx.lineWidth=2;ctx.strokeRect(n.x,n.y,n.w,n.h);
+    ctx.fillStyle=color;ctx.fillRect(n.x,n.y,n.w,n.hdr);
+    ctx.font="11px 'IBM Plex Mono',monospace";ctx.fillStyle='#0c0a13';
+    ctx.fillText(name,n.x+6,n.y+11);
+  }
+  cv.addEventListener('mousedown',function(e){
+    if(connected)return;
+    var p=getPos(e);
+    var dx=p.x-outJ.x,dy=p.y-outJ.y;
+    if(dx*dx+dy*dy<=outJ.r*outJ.r+16){
+      dragging=true;mouse=p;redraw();
+      state.textContent='▸ húzd a zöld node baloldali junction-ára…';
+      state.style.color='#5ad7ff';
+    }
+  });
+  cv.addEventListener('mousemove',function(e){
+    if(!dragging)return;
+    mouse=getPos(e);redraw();
+  });
+  cv.addEventListener('mouseup',function(e){
+    if(!dragging)return;
+    var p=getPos(e);
+    var dx=p.x-inJ.x,dy=p.y-inJ.y;
+    if(dx*dx+dy*dy<=inJ.r*inJ.r+24){
+      connected=true;dragging=false;
+      state.textContent='✓ kapcsolat létrejött — a kép átfolyt a Preview-be!';
+      state.style.color='#7ed957';
+    }else{
+      dragging=false;
+      state.textContent='▸ nem talált cél — próbáld újra a kék junction-ról a zöldre';
+      state.style.color='#ffb454';
+    }
+    redraw();
+  });
+  cv.addEventListener('mouseleave',function(){if(dragging){dragging=false;redraw()}});
+  resetBtn.addEventListener('click',function(){
+    connected=false;dragging=false;
+    state.textContent='▸ nincs kapcsolat — a Preview üres';
+    state.style.color='#9a8fb0';
+    redraw();
+  });
+  // touch support
+  function touchToMouse(type){return function(e){e.preventDefault();
+    var t=e.touches[0]||e.changedTouches[0];
+    var r=cv.getBoundingClientRect();
+    var ev={clientX:t.clientX*(cv.width/r.width)+r.left,clientY:t.clientY*(cv.height/r.height)+r.top};
+    // sima koordináták a canvasra
+    var p={x:(t.clientX-r.left)*(cv.width/r.width),y:(t.clientY-r.top)*(cv.height/r.height)};
+    if(type==='down'){cv.dispatchEvent(new MouseEvent('mousedown',{clientX:t.clientX,clientY:t.clientY}))}
+    if(type==='move'){if(dragging){mouse=p;redraw()}}
+    if(type==='up'){var dx=p.x-inJ.x,dy=p.y-inJ.y;
+      if(dragging){
+        if(dx*dx+dy*dy<=inJ.r*inJ.r+24){connected=true;state.textContent='✓ kapcsolat létrejött!';state.style.color='#7ed957'}
+        dragging=false;redraw();
+      }
+    }
+  }}
+  cv.addEventListener('touchstart',function(e){e.preventDefault();
+    var t=e.touches[0];var r=cv.getBoundingClientRect();
+    var p={x:(t.clientX-r.left)*(cv.width/r.width),y:(t.clientY-r.top)*(cv.height/r.height)};
+    if(connected)return;
+    var dx=p.x-outJ.x,dy=p.y-outJ.y;
+    if(dx*dx+dy*dy<=outJ.r*outJ.r+30){dragging=true;mouse=p;redraw();state.textContent='▸ húzd a zöld node baloldali junction-ára…';state.style.color='#5ad7ff'}
+  },{passive:false});
+  cv.addEventListener('touchmove',function(e){e.preventDefault();
+    if(!dragging)return;var t=e.touches[0];var r=cv.getBoundingClientRect();
+    mouse={x:(t.clientX-r.left)*(cv.width/r.width),y:(t.clientY-r.top)*(cv.height/r.height)};redraw();
+  },{passive:false});
+  cv.addEventListener('touchend',function(e){e.preventDefault();
+    if(!dragging)return;var t=e.changedTouches[0];var r=cv.getBoundingClientRect();
+    var p={x:(t.clientX-r.left)*(cv.width/r.width),y:(t.clientY-r.top)*(cv.height/r.height)};
+    var dx=p.x-inJ.x,dy=p.y-inJ.y;
+    if(dx*dx+dy*dy<=inJ.r*inJ.r+30){connected=true;state.textContent='✓ kapcsolat létrejött!';state.style.color='#7ed957'}
+    else{state.textContent='▸ nem talált cél — próbáld újra';state.style.color='#ffb454'}
+    dragging=false;redraw();
+  },{passive:false});
+  redraw();
+})();
+</script>
+</body>
+</html>
